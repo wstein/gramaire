@@ -80,8 +80,8 @@ The narrow waist and its first consumers are built and gated on
   loop. A grammar written with `NUM+` desugars end to end (`Test.Desugar`,
   CLI-verified). `X*` / `X?` (use-site enumeration) and macros `Comma<X>` /
   `Sep<X,S>` (separated lists) and named child fields `left:X` (IR `rhs[].field`,
-  the visitor substrate) are shipped too (D27, D28); bindings and `#[inline]`
-  follow (D28).
+  the visitor substrate) and named action bindings (a bare-body action binds
+  the field names) are shipped too (D27, D28); `#[inline]` follows (D28).
 
 Phase A's remaining gate is the **CST golden + `cst-schema.json`**; Phase B's is
 the **TypeScript backend** (then the out-of-process protocol, now decoder-ready).
@@ -212,7 +212,7 @@ the IR, or the conformance bar moving. Rated additions, value 1–10:
 | 2 | parameterized macros `Comma<X>`, `Sep<X,S>` | Menhir, LALRPOP | 8 | **shipped** |
 | 3 | named child fields `left:Expr` → CST accessors / visitors | tree-sitter `field()` | 8 | **shipped** (IR `rhs[].field`; the [D24] visitor substrate) |
 | 4 | alternative labels `# Name` | ANTLR4 | 7 | **shipped (D26)** |
-| 5 | named action bindings (vs positional-only) | Menhir, LALRPOP | 6 | planned |
+| 5 | named action bindings (vs positional-only) | Menhir, LALRPOP | 6 | **shipped** (bare-body action binds field names) |
 | 6 | `#[inline]` to fold a nonterminal | LALRPOP, Menhir | 6 | planned (and a fix [D8] can name) |
 
 **The `X?` / `X*` correction (refines D27).** I had deferred optional/star as

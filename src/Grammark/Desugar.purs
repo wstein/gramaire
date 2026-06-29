@@ -29,7 +29,8 @@ import Data.Foldable (foldl)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
-import Data.String (joinWith)
+import Data.String (Pattern(..), joinWith)
+import Data.String as String
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
@@ -72,16 +73,30 @@ desugar (Grammar rules) = do
   lowerRule (Rule lhs alts) = Rule lhs <<< Array.concat <$> traverse enumerateAlt alts
 
   enumerateAlt :: Alt -> Either String (Array Alt)
-  enumerateAlt (Alt syms label action)
-    | not (Array.any optStar syms) = Right [ Alt (map lowerOne syms) label action ]
-    | otherwise = traverse build (map (assign syms) (bools (Array.length (Array.filter optStar syms))))
-        where
-        build presences =
-          let
-            rhs = Array.concatMap rhsOf presences
-          in
-            if Array.null rhs then Left allOptional
-            else Right (Alt rhs label (map (wrap presences) action))
+  enumerateAlt (Alt syms label action0) =
+    if not (Array.any optStar syms) then Right [ Alt (map lowerOne syms) label action ]
+    else traverse build (map (assign syms) (bools (Array.length (Array.filter optStar syms))))
+    where
+    -- a bare-body action (no leading lambda) binds the field names (#5/D28)
+    action = map (normalizeAction syms) action0
+    build presences =
+      let
+        rhs = Array.concatMap rhsOf presences
+      in
+        if Array.null rhs then Left allOptional
+        else Right (Alt rhs label (map (wrap presences) action))
+
+  -- Normalize an action: a `\…->` lambda is left as is; a bare body becomes a
+  -- lambda whose parameter per right-hand symbol is its `name:` field (D28) or
+  -- `_`, so actions can reference field names instead of positions (#5).
+  normalizeAction :: Array Sym -> String -> String
+  normalizeAction syms body = case String.stripPrefix (Pattern "\\") (String.trim body) of
+    Just _ -> body
+    Nothing -> "\\" <> joinWith " " (map paramOf syms) <> " -> " <> body
+    where
+    paramOf = case _ of
+      Field f _ -> f
+      _ -> "_"
 
   assign :: Array Sym -> Array Boolean -> Array (Tuple Sym Boolean)
   assign syms flags = (foldl step { out: [], fs: flags } syms).out
