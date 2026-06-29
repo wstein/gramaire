@@ -30,6 +30,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, join, basename } from "node:path";
 import { main as markdownlint } from "markdownlint-cli2";
+import { parseProduction, renderSvg } from "./railroad.ts";
 
 // The fixed tail of every grammar file, after the per-nonterminal sections.
 // `Precedence` is optional and slots in before this tail when present (a
@@ -288,16 +289,19 @@ export function writeLock(file: string, doc: Doc): void {
   const dir = join(dirname(file), "diagrams");
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
+  // A word is a nonterminal exactly when it names a rule.
+  const nonterminals = new Set<string>(Object.keys(ruleHashes));
+  const contentByRule = new Map<string, string>();
+  for (const b of doc.blocks) {
+    if (b.info === "lr" && b.nonterminal)
+      contentByRule.set(b.nonterminal, b.content);
+  }
+
   const artifacts: Artifact[] = [];
   for (const nt of Object.keys(ruleHashes)) {
     const path = `diagrams/${nt.toLowerCase()}.svg`;
-    // Placeholder SVG; the real `grammark fmt` emits a railroad diagram here.
-    writeFileSync(
-      join(dirname(file), path),
-      `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="24">` +
-        `<rect width="120" height="24" fill="none"/>` +
-        `<text x="4" y="16">${nt}</text></svg>\n`,
-    );
+    const prod = parseProduction(contentByRule.get(nt) ?? "", nonterminals);
+    writeFileSync(join(dirname(file), path), renderSvg(prod));
     artifacts.push({
       kind: "railroad",
       nonterminal: nt,
