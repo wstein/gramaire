@@ -149,11 +149,15 @@ data IROn
   = OnTerm Int
   | OnEof
 
+derive instance eqIROn :: Eq IROn
+
 -- | A parse action.
 data IRAct
   = ActShift Int
   | ActReduce Int
   | ActAccept
+
+derive instance eqIRAct :: Eq IRAct
 
 type IRGotoRow = { state :: Int, entries :: Array IRGotoEntry }
 type IRGotoEntry = { nonterminal :: Int, to :: Int }
