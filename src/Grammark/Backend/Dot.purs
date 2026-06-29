@@ -95,7 +95,9 @@ emit ir =
       where
       gotoEdge e =
         "  s" <> show row.state <> " -> s" <> show e.to
-          <> " [label=" <> quote (ntName e.nonterminal) <> ", style=dashed];"
+          <> " [label="
+          <> quote (ntName e.nonterminal)
+          <> ", style=dashed];"
 
 -- A quoted DOT label from one string (escaping `"` and `\`).
 quote :: String -> String

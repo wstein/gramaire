@@ -30,17 +30,29 @@ renderConflict :: Array Prod -> Conflict -> String
 renderConflict prods = case _ of
   ShiftReduce r ->
     "shift/reduce conflict in state " <> show r.state
-      <> " on " <> sym r.onSymbol <> ":\n"
-      <> "  shift " <> sym r.onSymbol
-      <> "  vs  reduce " <> prodName prods r.reduceProd <> "\n"
-      <> "  fix: give " <> sym r.onSymbol
+      <> " on "
+      <> sym r.onSymbol
+      <> ":\n"
+      <> "  shift "
+      <> sym r.onSymbol
+      <> "  vs  reduce "
+      <> prodName prods r.reduceProd
+      <> "\n"
+      <> "  fix: give "
+      <> sym r.onSymbol
       <> " a precedence in `lr precedence`, inline a rule, or enable GLR."
   ReduceReduce r ->
     "reduce/reduce conflict in state " <> show r.state
-      <> " on " <> sym r.onSymbol <> ":\n"
-      <> "  reduce " <> prodName prods r.prodA
-      <> "  vs  reduce " <> prodName prods r.prodB <> "\n"
-      <> "  fix: the rules are ambiguous on " <> sym r.onSymbol
+      <> " on "
+      <> sym r.onSymbol
+      <> ":\n"
+      <> "  reduce "
+      <> prodName prods r.prodA
+      <> "  vs  reduce "
+      <> prodName prods r.prodB
+      <> "\n"
+      <> "  fix: the rules are ambiguous on "
+      <> sym r.onSymbol
       <> "; merge them into one rule, left-factor, or enable GLR."
 
 -- | Name a production by its real index: `LHS -> a b c`, or `ε` for an empty
