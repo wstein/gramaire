@@ -44,7 +44,8 @@ documentedTable :: String -> Map String Sets
 documentedTable md = foldl step Map.empty (split (Pattern "\n") md)
   where
   step m line =
-    let parts = split (Pattern "|") line
+    let
+      parts = split (Pattern "|") line
     in
       if Array.length parts < 5 then m
       else case map trim (Array.slice 1 (Array.length parts - 1) parts) of
