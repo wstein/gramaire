@@ -48,9 +48,12 @@ npm run format                                      # prettier --write
 Remove this directory once **both** hold:
 
 1. `Grammark.Check` (PureScript) reproduces all three gates, and
-2. the generated `lr` parser reads `grammar/lr.gram.md` back to a value equal
-   to `Grammark.Bootstrap.bootstrapGrammar` (the self-host test in `test/`).
+2. ✅ _met_ — the generated `lr` parser reads `grammar/lr.gram.md` back to a
+   value equal to `Grammark.Bootstrap.bootstrapGrammar` (the self-host test in
+   `test/`, `Test.SelfHost`).
 
-At that point `grammark check` is the bundled PureScript binary, the
+Condition 2 now holds, so this bridge is kept as a differential oracle for the
+PureScript pipeline rather than as the only thing that can read a grammar. Once
+condition 1 is also met, `grammark check` is the bundled PureScript binary, the
 FIRST/FOLLOW validation lives in `test/`, and nothing here is on the critical
 path. Deleting `bootstrap/` should not change any user-facing behaviour.
