@@ -29,7 +29,7 @@ import Prelude
 
 import Data.Array as Array
 import Data.Either (Either(..))
-import Data.Foldable (foldl)
+import Data.Foldable (any, foldl)
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Map (Map)
 import Data.Map as Map
@@ -391,16 +391,121 @@ mergeLALR st =
   remap :: Map (Tuple Int GSym) Int -> Tuple (Tuple Int GSym) Int -> Map (Tuple Int GSym) Int
   remap acc (Tuple (Tuple i x) j) = Map.insert (Tuple (newId i) x) (newId j) acc
 
+-- IELR(1): inadequacy-driven state splitting -------------------------------
+
+-- | A state is *inadequate* when its own items already conflict: two complete
+-- | items reduce on one lookahead (reduce/reduce), or a complete item's
+-- | lookahead is also a shift symbol (shift/reduce). Computed from the merged
+-- | item set alone, matching exactly what `fillTables` would flag.
+inadequate :: Ctx -> ItemSet -> Boolean
+inadequate ctx items = reduceReduce || shiftReduce
+  where
+  itemArr = Set.toUnfoldable items :: Array Item
+  complete = Array.filter (\it -> it.dot >= Array.length (rhsOf ctx it.prod)) itemArr
+  shiftLooks = Set.fromFoldable (Array.mapMaybe shiftSym itemArr)
+  shiftSym it = case Array.index (rhsOf ctx it.prod) it.dot of
+    Just (Term t) -> Just (Term t)
+    _ -> Nothing
+  reduceByLook = foldl (\m it -> Map.insertWith Set.union it.look (Set.singleton it.prod) m) Map.empty complete
+  reduceReduce = any (\s -> Set.size s > 1) (Map.values reduceByLook)
+  shiftReduce = any (\it -> Set.member it.look shiftLooks) complete
+
+-- | A partition of canonical state ids into IELR state ids.
+type Partition = Map Int Int
+
+-- The coarsest partition: by LR(0) core (this is the LALR partition).
+initialPartition :: States -> Partition
+initialPartition canonical =
+  (foldlWithIndex assign { coreToId: Map.empty, part: Map.empty } canonical.states).part
+  where
+  assign i acc items = case Map.lookup core acc.coreToId of
+    Just b -> acc { part = Map.insert i b acc.part }
+    Nothing -> acc { coreToId = Map.insert core nextId acc.coreToId, part = Map.insert i nextId acc.part }
+    where
+    core = coreOf items
+    nextId = Map.size acc.coreToId
+
+-- Every symbol that labels a transition (terminals and nonterminals), so the
+-- refinement keeps both shift and goto behaviour consistent within a block.
+transSymbols :: States -> Array GSym
+transSymbols canonical =
+  Set.toUnfoldable (Set.fromFoldable (map keySym entries))
+  where
+  entries = Map.toUnfoldable canonical.trans :: Array (Tuple (Tuple Int GSym) Int)
+  keySym (Tuple (Tuple _ x) _) = x
+
+-- One refinement pass: split a block if it is inadequate (forcing its members
+-- to singletons) or if its members transition on some symbol to different
+-- blocks (restoring determinism). States are regrouped by signature.
+refineOnce :: Ctx -> States -> Array GSym -> Partition -> Partition
+refineOnce ctx canonical symbols part = renumber (map sigOf ids)
+  where
+  ids = Array.range 0 (Array.length canonical.states - 1)
+  blk c = fromMaybe (-1) (Map.lookup c part)
+  itemsOf c = fromMaybe Set.empty (Array.index canonical.states c)
+  blockMembers = foldl (\m c -> Map.insertWith (<>) (blk c) [ c ] m) Map.empty ids
+  inadeqOf = map (\members -> inadequate ctx (foldl (\acc c -> Set.union acc (itemsOf c)) Set.empty members)) blockMembers
+  succBlk c x = case Map.lookup (Tuple c x) canonical.trans of
+    Just j -> blk j
+    Nothing -> -1
+  sigOf c =
+    let
+      b = blk c
+      marker = if fromMaybe false (Map.lookup b inadeqOf) then c else b
+    in
+      Tuple marker (map (succBlk c) symbols)
+
+  renumber :: Array (Tuple Int (Array Int)) -> Partition
+  renumber sigs = (foldlWithIndex step { ids: Map.empty, part: Map.empty } sigs).part
+    where
+    step c acc sig = case Map.lookup sig acc.ids of
+      Just b -> acc { part = Map.insert c b acc.part }
+      Nothing -> acc { ids = Map.insert sig nextId acc.ids, part = Map.insert c nextId acc.part }
+      where
+      nextId = Map.size acc.ids
+
+refineToFix :: Ctx -> States -> Array GSym -> Partition -> Partition
+refineToFix ctx canonical symbols part =
+  let part' = refineOnce ctx canonical symbols part
+  in if part' == part then part else refineToFix ctx canonical symbols part'
+
+-- Quotient the canonical automaton by the refined partition.
+fromPartition :: States -> Partition -> States
+fromPartition canonical part =
+  { states: map blockItems (Array.range 0 (numBlocks - 1))
+  , index: foldlWithIndex (\i m s -> Map.insert s i m) Map.empty (map blockItems (Array.range 0 (numBlocks - 1)))
+  , trans: foldl remap Map.empty (Map.toUnfoldable canonical.trans :: Array (Tuple (Tuple Int GSym) Int))
+  }
+  where
+  blk c = fromMaybe (-1) (Map.lookup c part)
+  numBlocks = 1 + foldl max (-1) (Map.values part)
+  ids = Array.range 0 (Array.length canonical.states - 1)
+  itemsOf c = fromMaybe Set.empty (Array.index canonical.states c)
+  blockItems b =
+    foldl (\acc c -> if blk c == b then Set.union acc (itemsOf c) else acc) Set.empty ids
+  remap acc (Tuple (Tuple i x) j) = Map.insert (Tuple (blk i) x) (blk j) acc
+
+-- | Refine the LALR partition until every block is adequate and
+-- | transition-consistent, then quotient. Adequate states stay merged;
+-- | inadequate ones split (and the split propagates to predecessors), so the
+-- | result has full canonical LR(1) power with no more states than canonical.
+buildIELR :: Ctx -> States -> States
+buildIELR ctx canonical =
+  fromPartition canonical (refineToFix ctx canonical (transSymbols canonical) (initialPartition canonical))
+
 -- public entry points ------------------------------------------------------
 
--- | Which table-construction method to use.
-data Method = Canonical | LALR
+-- | Which table-construction method to use. Canonical is the most powerful
+-- | and the oracle; LALR is smallest but can introduce mysterious conflicts;
+-- | IELR recovers canonical's power at LALR-like size.
+data Method = Canonical | LALR | IELR
 
 derive instance eqMethod :: Eq Method
 
 instance showMethod :: Show Method where
   show Canonical = "Canonical"
   show LALR = "LALR"
+  show IELR = "IELR"
 
 -- | Build parse tables by the chosen method, returning `Left` with every
 -- | conflict if the grammar is not parseable by that method.
@@ -413,6 +518,7 @@ buildTablesFor method g = fillTables ctx states a.prods
   states = case method of
     Canonical -> canonical
     LALR -> mergeLALR canonical
+    IELR -> buildIELR ctx canonical
 
 -- | The default entry point: canonical LR(1). `bootstrapGrammar` flows in
 -- | here. Canonical is the most powerful method and serves as the oracle the

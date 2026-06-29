@@ -27,3 +27,6 @@ tests = do
 
   log "  self-host: LALR parse agrees with canonical (same reconstructed grammar)"
   assertEqual { actual: parseWith LALR md, expected: Right bootstrapGrammar }
+
+  log "  self-host: IELR parse agrees with canonical (same reconstructed grammar)"
+  assertEqual { actual: parseWith IELR md, expected: Right bootstrapGrammar }
