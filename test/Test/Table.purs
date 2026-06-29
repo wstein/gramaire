@@ -31,8 +31,8 @@ ambiguous :: Grammar
 ambiguous =
   Grammar
     [ Rule "E"
-        [ Alt [ Ref "E", Ref "E" ] Nothing
-        , Alt [ Lit "x" ] Nothing
+        [ Alt [ Ref "E", Ref "E" ] Nothing Nothing
+        , Alt [ Lit "x" ] Nothing Nothing
         ]
     ]
 
@@ -47,13 +47,13 @@ notLalr :: Grammar
 notLalr =
   Grammar
     [ Rule "S"
-        [ Alt [ Lit "a", Ref "A", Lit "d" ] Nothing
-        , Alt [ Lit "b", Ref "B", Lit "d" ] Nothing
-        , Alt [ Lit "a", Ref "B", Lit "e" ] Nothing
-        , Alt [ Lit "b", Ref "A", Lit "e" ] Nothing
+        [ Alt [ Lit "a", Ref "A", Lit "d" ] Nothing Nothing
+        , Alt [ Lit "b", Ref "B", Lit "d" ] Nothing Nothing
+        , Alt [ Lit "a", Ref "B", Lit "e" ] Nothing Nothing
+        , Alt [ Lit "b", Ref "A", Lit "e" ] Nothing Nothing
         ]
-    , Rule "A" [ Alt [ Lit "c" ] Nothing ]
-    , Rule "B" [ Alt [ Lit "c" ] Nothing ]
+    , Rule "A" [ Alt [ Lit "c" ] Nothing Nothing ]
+    , Rule "B" [ Alt [ Lit "c" ] Nothing Nothing ]
     ]
 
 -- A terminal symbol, written by its lexer token class or literal text.
@@ -75,6 +75,7 @@ expectedFirst = Map.fromFoldable
   , Tuple "SymList" (set [ t "IDENT", t "TERM_LIT" ])
   , Tuple "Sym" (set [ t "IDENT", t "TERM_LIT" ])
   , Tuple "Action" (set [ t "ACTION" ])
+  , Tuple "Label" (set [ t "LABEL" ])
   ]
 
 -- | FOLLOW sets documented in `grammar/lr.gram.md` (`$` is `EOF`).
@@ -86,17 +87,18 @@ expectedFollow = Map.fromFoldable
   , Tuple "Body" (set [ t "IDENT", EOF ])
   , Tuple "AltTail" (set [ t "IDENT", EOF ])
   , Tuple "Alt" (set [ t "NL" ])
-  , Tuple "SymList" (set [ t "ACTION", t "NL", t "IDENT", t "TERM_LIT" ])
-  , Tuple "Sym" (set [ t "ACTION", t "NL", t "IDENT", t "TERM_LIT" ])
+  , Tuple "SymList" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT" ])
+  , Tuple "Sym" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT" ])
   , Tuple "Action" (set [ t "NL" ])
+  , Tuple "Label" (set [ t "ACTION", t "NL" ])
   ]
 
 tests :: Effect Unit
 tests = do
   let a = analyze bootstrapGrammar
 
-  log "  table: bootstrapGrammar flattens to 14 productions"
-  assertEqual { actual: length (productions bootstrapGrammar), expected: 14 }
+  log "  table: bootstrapGrammar flattens to 17 productions"
+  assertEqual { actual: length (productions bootstrapGrammar), expected: 17 }
 
   log "  table: start symbol is Grammar"
   assertEqual { actual: a.start, expected: "Grammar" }

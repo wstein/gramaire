@@ -18,9 +18,11 @@ newtype Grammar = Grammar (Array Rule)
 -- | A rule: a left-hand nonterminal name and its alternatives.
 data Rule = Rule String (Array Alt)
 
--- | An alternative: a sequence of right-hand symbols and an optional
--- | semantic action, kept as raw PureScript source text for emission.
-data Alt = Alt (Array Sym) (Maybe String)
+-- | An alternative: a sequence of right-hand symbols, an optional `# Label`
+-- | naming the alternative (for per-alternative visitor methods and CST
+-- | accessors, ADR D26), and an optional semantic action kept as raw PureScript
+-- | source text for emission. The shape is `Alt syms label action`.
+data Alt = Alt (Array Sym) (Maybe String) (Maybe String)
 
 -- | A right-hand-side symbol exactly as written in the grammar.
 data Sym
@@ -41,7 +43,8 @@ instance showSym :: Show Sym where
   show (Lit s) = "Lit " <> show s
 
 instance showAlt :: Show Alt where
-  show (Alt syms act) = "Alt " <> show syms <> " " <> show act
+  show (Alt syms label act) =
+    "Alt " <> show syms <> " " <> show label <> " " <> show act
 
 instance showRule :: Show Rule where
   show (Rule n alts) = "Rule " <> show n <> " " <> show alts

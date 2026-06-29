@@ -81,8 +81,9 @@ decodeRule j = do
   id <- field o "id" >>= int
   lhs <- field o "lhs" >>= int
   rhs <- field o "rhs" >>= arr >>= traverse decodeRef
+  label <- optStr o "label"
   actions <- field o "actions" >>= obj >>= traverse (\(Tuple k v) -> Tuple k <$> str v)
-  pure { id, lhs, rhs, actions }
+  pure { id, lhs, rhs, label, actions }
 
 decodeRef :: Json -> Either String IRRef
 decodeRef j = do
@@ -286,3 +287,9 @@ optObj :: forall a. Array (Tuple String Json) -> String -> (Json -> Either Strin
 optObj kvs k dec = case map snd (find (\(Tuple key _) -> key == k) kvs) of
   Nothing -> Right Nothing
   Just v -> Just <$> dec v
+
+-- An absent string field decodes to `Nothing`.
+optStr :: Array (Tuple String Json) -> String -> Either String (Maybe String)
+optStr kvs k = case map snd (find (\(Tuple key _) -> key == k) kvs) of
+  Nothing -> Right Nothing
+  Just v -> Just <$> str v

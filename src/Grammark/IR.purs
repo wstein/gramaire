@@ -115,6 +115,7 @@ type IRRule =
   { id :: Int
   , lhs :: Int
   , rhs :: Array IRRef
+  , label :: Maybe String
   , actions :: Array (Tuple String String)
   }
 
@@ -244,10 +245,11 @@ buildIR method name g@(Grammar rules) =
   irRules = Array.mapWithIndex toRule flat
     where
     flat = Array.concatMap (\(Rule lhs alts) -> map (\alt -> Tuple lhs alt) alts) rules
-    toRule i (Tuple lhs (Alt syms act)) =
+    toRule i (Tuple lhs (Alt syms label act)) =
       { id: i
       , lhs: ntId lhs
       , rhs: map toRef syms
+      , label
       , actions: case act of
           Just code -> [ Tuple "purescript" code ]
           Nothing -> []
@@ -259,7 +261,7 @@ buildIR method name g@(Grammar rules) =
   allSyms :: Array Sym
   allSyms = Array.concatMap (\(Rule _ alts) -> Array.concatMap altSyms alts) rules
     where
-    altSyms (Alt syms _) = syms
+    altSyms (Alt syms _ _) = syms
 
 algorithmName :: Method -> String
 algorithmName = case _ of
@@ -365,12 +367,15 @@ toJson ir =
   ntJson n = JObject [ Tuple "id" (JInt n.id), Tuple "name" (JString n.name) ]
 
   ruleJson r =
-    JObject
+    JObject $
       [ Tuple "id" (JInt r.id)
       , Tuple "lhs" (JInt r.lhs)
       , Tuple "rhs" (JArray (map refJson r.rhs))
       , Tuple "actions" (JObject (map (\(Tuple k v) -> Tuple k (JString v)) r.actions))
       ]
+        <> (case r.label of
+              Nothing -> []
+              Just l -> [ Tuple "label" (JString l) ])
 
   refJson = case _ of
     IRRefNT i -> JObject [ Tuple "ref" (JString "nt"), Tuple "id" (JInt i) ]

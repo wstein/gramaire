@@ -51,9 +51,11 @@ lrConMap = Map.fromFoldable
   , Tuple "SymList" "VSyms"
   , Tuple "Sym" "VSym"
   , Tuple "Action" "VMaybeStr"
+  , Tuple "Label" "VMaybeStr"
   , Tuple "IDENT" "VStr"
   , Tuple "TERM_LIT" "VStr"
   , Tuple "ACTION" "VStr"
+  , Tuple "LABEL" "VStr"
   ]
 
 -- | Emit the full `Grammark.Generated.LrReduce` module text.
