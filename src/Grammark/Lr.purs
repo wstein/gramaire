@@ -12,6 +12,7 @@ module Grammark.Lr
   , lrBlocks
   , parse
   , parseWith
+  , tokenVal
   ) where
 
 import Prelude
