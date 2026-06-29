@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://grammark.dev/spec/ir-schema.json",
+  "title": "grammark-ir",
+  "description": "The versioned narrow-waist artifact between the Grammark front end and every backend. irVersion 0 is draft/unstable and carries no compatibility promise.",
+  "type": "object",
+  "required": ["irVersion", "grammar", "tables", "conflicts"],
+  "additionalProperties": false,
+  "properties": {
+    "irVersion": { "type": "integer", "minimum": 0 },
+    "grammar": { "$ref": "#/$defs/grammar" },
+    "tables": { "$ref": "#/$defs/tables" },
+    "conflicts": { "type": "array", "items": { "$ref": "#/$defs/conflict" } },
+    "diagnostics": { "$ref": "#/$defs/diagnostics" }
+  },
+  "$defs": {
+    "grammar": {
+      "type": "object",
+      "required": ["name", "start", "terminals", "nonterminals", "rules", "precedence"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "start": { "type": "string" },
+        "terminals": { "type": "array", "items": { "$ref": "#/$defs/terminal" } },
+        "nonterminals": { "type": "array", "items": { "$ref": "#/$defs/nonterminal" } },
+        "rules": { "type": "array", "items": { "$ref": "#/$defs/rule" } },
+        "precedence": { "type": "array", "items": { "$ref": "#/$defs/precedence" } }
+      }
+    },
+    "terminal": {
+      "description": "A literal spelling or an ALL-CAPS token class, with a stable id.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["id", "kind", "spelling"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": "integer", "minimum": 0 },
+            "kind": { "const": "literal" },
+            "spelling": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["id", "kind", "name"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": "integer", "minimum": 0 },
+            "kind": { "const": "class" },
+            "name": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "nonterminal": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "integer", "minimum": 0 },
+        "name": { "type": "string" }
+      }
+    },
+    "rule": {
+      "description": "A flattened production. rules[n] is the target of a table Reduce n. actions maps a profile name to opaque, untrusted host-language text.",
+      "type": "object",
+      "required": ["id", "lhs", "rhs", "actions"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "integer", "minimum": 0 },
+        "lhs": { "type": "integer", "minimum": 0 },
+        "rhs": { "type": "array", "items": { "$ref": "#/$defs/ref" } },
+        "actions": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "ref": {
+      "type": "object",
+      "required": ["ref", "id"],
+      "additionalProperties": false,
+      "properties": {
+        "ref": { "enum": ["nt", "t"] },
+        "id": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "precedence": {
+      "type": "object",
+      "required": ["level", "assoc", "terminals"],
+      "additionalProperties": false,
+      "properties": {
+        "level": { "type": "integer", "minimum": 0 },
+        "assoc": { "enum": ["left", "right", "nonassoc"] },
+        "terminals": { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+      }
+    },
+    "tables": {
+      "type": "object",
+      "required": ["algorithm", "stateCount", "action", "goto"],
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": { "enum": ["canonical-lr1", "lalr1", "ielr1"] },
+        "stateCount": { "type": "integer", "minimum": 0 },
+        "action": { "type": "array", "items": { "$ref": "#/$defs/actionRow" } },
+        "goto": { "type": "array", "items": { "$ref": "#/$defs/gotoRow" } }
+      }
+    },
+    "actionRow": {
+      "type": "object",
+      "required": ["state", "entries"],
+      "additionalProperties": false,
+      "properties": {
+        "state": { "type": "integer", "minimum": 0 },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["on", "action"],
+            "additionalProperties": false,
+            "properties": {
+              "on": { "$ref": "#/$defs/on" },
+              "action": { "$ref": "#/$defs/action" }
+            }
+          }
+        }
+      }
+    },
+    "on": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["ref", "id"],
+          "additionalProperties": false,
+          "properties": {
+            "ref": { "const": "t" },
+            "id": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["ref"],
+          "additionalProperties": false,
+          "properties": { "ref": { "const": "eof" } }
+        }
+      ]
+    },
+    "action": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["shift"],
+          "additionalProperties": false,
+          "properties": { "shift": { "type": "integer", "minimum": 0 } }
+        },
+        {
+          "type": "object",
+          "required": ["reduce"],
+          "additionalProperties": false,
+          "properties": { "reduce": { "type": "integer", "minimum": 0 } }
+        },
+        {
+          "type": "object",
+          "required": ["accept"],
+          "additionalProperties": false,
+          "properties": { "accept": { "const": true } }
+        }
+      ]
+    },
+    "gotoRow": {
+      "type": "object",
+      "required": ["state", "entries"],
+      "additionalProperties": false,
+      "properties": {
+        "state": { "type": "integer", "minimum": 0 },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["nonterminal", "to"],
+            "additionalProperties": false,
+            "properties": {
+              "nonterminal": { "type": "integer", "minimum": 0 },
+              "to": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "required": ["kind", "state", "onSymbol"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["shift-reduce", "reduce-reduce"] },
+        "state": { "type": "integer", "minimum": 0 },
+        "onSymbol": { "type": "string" }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["itemSet", "message"],
+            "additionalProperties": false,
+            "properties": {
+              "itemSet": { "type": "string" },
+              "state": { "type": "integer", "minimum": 0 },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

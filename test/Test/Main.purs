@@ -14,6 +14,7 @@ import Test.FirstFollow as FirstFollow
 import Test.IR as IR
 import Test.Lexer as Lexer
 import Test.Parser as Parser
+import Test.Schema as Schema
 import Test.SelfHost as SelfHost
 import Test.Table as Table
 
@@ -39,4 +40,6 @@ main = do
   Cli.tests
   log "Test.Codegen"
   Codegen.tests
+  log "Test.Schema"
+  Schema.tests
   log "all suites passed"
