@@ -131,7 +131,7 @@ node bin/grammark.mjs conformance
 | --------------- | ------------------------------------------------------------------- |
 | `src/Grammark/` | Core: lexer, tables, parser, `grammark-ir`, codegen, backends, CLI. |
 | `bin/`          | `grammark.mjs` — entry shim for the native PureScript CLI.          |
-| `spec/`         | `ir-schema.json` — the grammark-ir JSON Schema contract.            |
+| `spec/`         | `ir-schema.json` (IR contract) and `incremental-spec.md` (CST/LSP). |
 | `grammar/`      | `lr.gram.md` — the `lr` notation described in itself.               |
 | `examples/`     | Worked grammars: `json`, `calc`, and the `readme` meta demo.        |
 | `bootstrap/`    | Disposable TypeScript `grammark --check` bridge (its README).       |
@@ -180,7 +180,8 @@ the TypeScript bridge keeps `grammark --check`/`fmt` usable from commit one; see
 self-host half of which now holds.
 
 The road from here — the `grammark-ir` narrow waist, source-emitting codegen,
-and multi-language backends — is laid out in the
+multi-language backends, and the incremental CST/LSP runtime
+([`spec/incremental-spec.md`](spec/incremental-spec.md)) — is laid out in the
 [multi-backend implementation plan](docs/multi-backend-implementation-plan.md).
 
 ## License
