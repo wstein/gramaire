@@ -72,15 +72,19 @@ not a grammar. This file is a window onto those grammars, not itself one.
 
 The PureScript generator is still being bootstrapped, so today the runnable
 tool is the small TypeScript bridge in [`bootstrap/`](bootstrap/) — it
-implements `grammark --check` (structure, drift, and lint gates) over any
-`.gram.md` file. Node 22+ runs it directly:
+implements `grammark --check` (structure, drift, and lint gates) and `grammark
+fmt` (railroad diagrams + lock) over any `.gram.md` file. Node 22+ runs it
+directly:
 
 ```sh
 # check a grammar file against the fmt output contract
-node bootstrap/grammark-check.ts examples/calc.gram.md
+node bootstrap/grammark-check.ts examples/json.gram.md
 
-# (re)generate placeholder diagrams and the sidecar *.gram.lock
-node bootstrap/grammark-check.ts --write-lock grammar/lr.gram.md
+# format: emit real railroad diagrams and the sidecar *.gram.lock
+node bootstrap/grammark-check.ts fmt grammar/lr.gram.md
+
+# ...or embed the diagrams as GitHub-native mermaid instead of sidecar SVGs
+node bootstrap/grammark-check.ts fmt --diagrams=mermaid grammar/lr.gram.md
 ```
 
 To work on the bridge itself (typecheck + unit tests):
@@ -125,11 +129,14 @@ the parser generated from the `lr` grammar reads `grammar/lr.gram.md` back to
 methods against each other (an LR(1)-but-not-LALR(1) grammar is accepted by
 canonical, rejected by LALR, and recovered by IELR).
 
-Still ahead: source-emitting codegen and a real `grammark fmt` (railroad
-diagrams, canonical reformatting). Until those land, the TypeScript bridge
-keeps `grammark --check` usable from commit one; see
-[`bootstrap/README.md`](bootstrap/README.md) for its delete-me conditions —
-the self-host half of which now holds.
+The bridge's `grammark fmt` emits real railroad diagrams — sidecar SVGs by
+default, or GitHub-native mermaid fences with `--diagrams=mermaid` — and every
+grammar's FIRST/FOLLOW table is machine-checked against the parser's own
+analysis (`Test.FirstFollow`). Still ahead: source-emitting codegen and the
+rest of `grammark fmt` (canonical reformatting, table regeneration). Until
+those land, the TypeScript bridge keeps `grammark --check`/`fmt` usable from
+commit one; see [`bootstrap/README.md`](bootstrap/README.md) for its delete-me
+conditions — the self-host half of which now holds.
 
 The `lr` grammar's semantic actions are currently mirrored by hand in
 [`Grammark.Lr`](src/Grammark/Lr.purs) (the artifact codegen will emit); the

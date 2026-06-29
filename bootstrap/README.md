@@ -11,17 +11,18 @@ PureScript (Spago) project.
 
 ## Contents
 
-- `grammark-check.ts` — the `grammark --check` implementation: three
-  independent gates over a `.gram.md` file —
-  **structure** (canonical layout, fence widths, single H1, trailing
-  newline), **drift** (derived artifacts match the sidecar `*.gram.lock`,
-  using per-rule hashing for diagrams and whole-grammar hashing for the
-  generated tables), and **lint** (`markdownlint-cli2` under the repo's
-  `.markdownlint-cli2.jsonc`). Also `--write-lock`, a stand-in for the future
-  `grammark fmt` that (re)emits placeholder diagrams and writes the lock
-  deterministically.
-- `grammark-check.test.ts` — `node:test` unit coverage for the structure and
-  drift gates and the hashing model, including a `writeLock` round-trip.
+- `grammark-check.ts` — `grammark check` and `grammark fmt`. **check** runs
+  three independent gates over a `.gram.md` file: **structure** (canonical
+  layout, fence widths, single H1, trailing newline), **drift** (derived
+  artifacts match the sidecar `*.gram.lock`, per-rule hashing for diagrams and
+  whole-grammar hashing for the tables), and **lint** (`markdownlint-cli2`
+  under the repo's `.markdownlint-cli2.jsonc`). **fmt** emits the derived
+  artifacts deterministically — sidecar railroad SVGs by default, or embedded
+  mermaid with `--diagrams=mermaid` — and writes the lock.
+- `railroad.ts` — parses an `lr` block into a Production and renders it as a
+  self-contained SVG or a mermaid `flowchart`.
+- `grammark-check.test.ts` / `railroad.test.ts` — `node:test` unit coverage for
+  the gates, hashing model, diagram-mode round-trip, and the renderer.
 - `validate-firstfollow.mjs` — mirrors `Grammark.Table`'s FIRST/FOLLOW stage
   on `bootstrapGrammar` and diffs the result against the table documented in
   `grammar/lr.gram.md`. A cross-check that the literal, the algorithm, and the
@@ -31,8 +32,9 @@ PureScript (Spago) project.
 
 ```sh
 # from the repo root (Node 22.6+ runs the TypeScript directly)
-node bootstrap/grammark-check.ts examples/calc.gram.md
-node bootstrap/grammark-check.ts --write-lock grammar/lr.gram.md
+node bootstrap/grammark-check.ts examples/json.gram.md
+node bootstrap/grammark-check.ts fmt grammar/lr.gram.md
+node bootstrap/grammark-check.ts fmt --diagrams=mermaid grammar/lr.gram.md
 node bootstrap/validate-firstfollow.mjs            # reads ../grammar/lr.gram.md
 
 # from this directory, after `npm install`
