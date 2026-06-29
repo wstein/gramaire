@@ -1,76 +1,157 @@
--- | EBNF sugar lowered to the epsilon-free Core ([S15], ADR D27).
+-- | EBNF repetition sugar lowered to the epsilon-free Core ([S15], D27/D28).
 -- |
--- | The Core is epsilon-free by construction (FIRST/FOLLOW and the LR(1)
--- | automaton assume no empty right-hand sides), and semantic actions have a
--- | fixed arity. Those two constraints decide which sugar is admissible:
+-- | The Core is epsilon-free (the LR(1) automaton assumes no empty right-hand
+-- | sides), and actions are fixed-arity. The sugar respects both:
 -- |
--- |   * `X+` (one or more), written `Sym.Rep`, lowers to a fresh
--- |     **left-recursive, epsilon-free** nonterminal whose value is an `Array`.
--- |     The containing alternative keeps the same symbol count, so its action's
--- |     arity is unchanged — it simply receives an `Array` in that position.
--- |   * `X?` (optional) and `X*` (zero or more) are **not** lowered: an
--- |     epsilon-free encoding has to enumerate the with/without cases at the use
--- |     site, which changes the action's arity per case, and a nullable
--- |     nonterminal would break the epsilon-free invariant. They are deferred
--- |     pending the action-arity decision (ADR D27).
+-- |   * `X+` (`Rep`) lowers to a fresh left-recursive list nonterminal whose
+-- |     value is an `Array`. The alternative keeps its symbol count.
+-- |   * `X*` (`Star`) and `X?` (`Opt`) lower by **use-site enumeration**: an
+-- |     alternative with k optional/star elements expands to its 2ᵏ
+-- |     present/absent combinations, and the action is wrapped so the original
+-- |     still receives one `Array` (`X*`) or `Maybe` (`X?`) in that position —
+-- |     `Just`/`Nothing`/`[]`/the list value spliced at the sugar slot. Both the
+-- |     epsilon-free invariant and the action's arity are preserved.
 -- |
--- | `desugar` is the chokepoint the front end runs after parsing (`Lr.parse`),
--- | so the table builder, the IR, and every backend only ever see a plain
--- | `Sym` (`Ref` / `Lit`) — never a `Rep`.
+-- | The one limit: an *all-optional* alternative enumerates to an empty
+-- | production, which the epsilon-free automaton cannot take, so that case is a
+-- | `Left`, never a silent epsilon.
+-- |
+-- | `desugar` is the chokepoint `Lr.parse` runs after parsing, so the table
+-- | builder, the IR, and every backend only ever see a plain `Sym`.
 module Grammark.Desugar
   ( desugar
   ) where
 
 import Prelude
 
+import Data.Array as Array
+import Data.Either (Either(..))
 import Data.Foldable (foldl)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
-import Data.Tuple (Tuple, snd)
+import Data.String (joinWith)
+import Data.Traversable (traverse)
+import Data.Tuple (Tuple(..), snd)
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 
--- | Lower every `Rep` symbol to a fresh epsilon-free list nonterminal,
--- | introducing one rule per distinct repeated symbol (deduped by name) and
--- | appending them after the user's rules so the start symbol is unchanged.
-desugar :: Grammar -> Grammar
-desugar (Grammar rules) = Grammar (map lowerRule rules <> freshRules)
+desugar :: Grammar -> Either String Grammar
+desugar (Grammar rules) = do
+  lowered <- traverse lowerRule rules
+  pure (Grammar (lowered <> freshRules))
   where
   freshRules :: Array Rule
   freshRules = map snd (Map.toUnfoldable fresh :: Array (Tuple String Rule))
 
+  -- A fresh left-recursive list nonterminal per distinct repeated symbol (used
+  -- by both `Rep` and the present case of `Star`), deduped by name.
   fresh :: Map String Rule
-  fresh = foldl collectRule Map.empty rules
+  fresh = foldl (\m (Rule _ alts) -> foldl (\m' (Alt syms _ _) -> foldl collectSym m' syms) m alts) Map.empty rules
 
-  collectRule m (Rule _ alts) = foldl collectAlt m alts
-  collectAlt m (Alt syms _ _) = foldl collectSym m syms
+  collectSym :: Map String Rule -> Sym -> Map String Rule
   collectSym m = case _ of
-    Rep s -> Map.insert (plusName s) (plusRule s) (collectSym m s)
+    Rep s -> Map.insert (listName s) (listRule s) (collectSym m s)
+    Star s -> Map.insert (listName s) (listRule s) (collectSym m s)
+    Opt s -> collectSym m s
     _ -> m
 
-  lowerRule (Rule lhs alts) = Rule lhs (map lowerAlt alts)
-  lowerAlt (Alt syms label act) = Alt (map lowerSym syms) label act
+  lowerRule :: Rule -> Either String Rule
+  lowerRule (Rule lhs alts) = Rule lhs <<< Array.concat <$> traverse enumerateAlt alts
 
-  lowerSym = case _ of
-    Rep s -> Ref (plusName s)
+  enumerateAlt :: Alt -> Either String (Array Alt)
+  enumerateAlt (Alt syms label action)
+    | not (Array.any optStar syms) = Right [ Alt (map lowerOne syms) label action ]
+    | otherwise = traverse build (map (assign syms) (bools (Array.length (Array.filter optStar syms))))
+        where
+        build presences =
+          let
+            rhs = Array.concatMap rhsOf presences
+          in
+            if Array.null rhs then Left allOptional
+            else Right (Alt rhs label (map (wrap presences) action))
+
+  -- Pair each symbol with whether it is present under a flag assignment; the
+  -- flags are consumed left to right by the optional/star positions, and
+  -- required symbols are always present.
+  assign :: Array Sym -> Array Boolean -> Array (Tuple Sym Boolean)
+  assign syms flags = (foldl step { out: [], fs: flags } syms).out
+    where
+    step acc sym
+      | optStar sym = case Array.uncons acc.fs of
+          Just { head, tail } -> acc { out = Array.snoc acc.out (Tuple sym head), fs = tail }
+          Nothing -> acc { out = Array.snoc acc.out (Tuple sym false) }
+      | otherwise = acc { out = Array.snoc acc.out (Tuple sym true) }
+
+  rhsOf :: Tuple Sym Boolean -> Array Sym
+  rhsOf (Tuple sym present) = case sym of
+    Opt s -> if present then [ lowerOne s ] else []
+    Star s -> if present then [ Ref (listName s) ] else []
+    other -> [ lowerOne other ]
+
+  -- A non-sugar element with `Rep` lowered to its list nonterminal.
+  lowerOne :: Sym -> Sym
+  lowerOne = case _ of
+    Rep s -> Ref (listName s)
     other -> other
 
-  plusName s = baseName s <> "_plus"
-
-  plusRule s =
+  -- Apply the original action to the present params, splicing the default
+  -- (`Just p` / `Nothing` / `p` / `[]`) at each sugar slot so its arity holds.
+  wrap :: Array (Tuple Sym Boolean) -> String -> String
+  wrap presences orig =
     let
-      inner = lowerSym s
+      r = foldl step { params: [], args: [], k: 0 } presences
     in
-      Rule (plusName s)
+      "\\" <> joinWith " " r.params <> " -> (" <> orig <> ") " <> joinWith " " r.args
+    where
+    consume acc = acc { params = Array.snoc acc.params (param acc.k), args = Array.snoc acc.args (param acc.k), k = acc.k + 1 }
+    step acc (Tuple sym present) = case sym of
+      Opt _ ->
+        if present then acc
+          { params = Array.snoc acc.params (param acc.k)
+          , args = Array.snoc acc.args ("(Just " <> param acc.k <> ")")
+          , k = acc.k + 1
+          }
+        else acc { args = Array.snoc acc.args "Nothing" }
+      Star _ ->
+        if present then consume acc
+        else acc { args = Array.snoc acc.args "[]" }
+      _ -> consume acc
+
+  param :: Int -> String
+  param k = "p" <> show k
+
+  optStar :: Sym -> Boolean
+  optStar = case _ of
+    Opt _ -> true
+    Star _ -> true
+    _ -> false
+
+  listName :: Sym -> String
+  listName s = baseName s <> "_plus"
+
+  listRule :: Sym -> Rule
+  listRule s =
+    let
+      inner = lowerOne s
+    in
+      Rule (listName s)
         [ Alt [ inner ] Nothing (Just "\\x -> [x]")
-        , Alt [ Ref (plusName s), inner ] Nothing (Just "\\xs x -> snoc xs x")
+        , Alt [ Ref (listName s), inner ] Nothing (Just "\\xs x -> snoc xs x")
         ]
 
--- A deterministic nonterminal stem for the fresh rule. Sugar normally wraps a
--- nonterminal or token-class reference; a literal and a nested `Rep` get a
--- stable derived stem.
+  allOptional :: String
+  allOptional = "an all-optional alternative would be empty; keep at least one required symbol or refactor"
+
+-- Every present/absent flag assignment for n sugar positions (2ⁿ of them).
+bools :: Int -> Array (Array Boolean)
+bools n
+  | n <= 0 = [ [] ]
+  | otherwise = Array.concatMap (\b -> [ Array.cons true b, Array.cons false b ]) (bools (n - 1))
+
 baseName :: Sym -> String
 baseName = case _ of
   Ref n -> n
   Lit l -> "Lit_" <> l
   Rep s -> baseName s <> "_plus"
+  Star s -> baseName s <> "_star"
+  Opt s -> baseName s <> "_opt"

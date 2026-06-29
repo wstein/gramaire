@@ -62,6 +62,10 @@ bootstrapGrammar = Grammar
       , Alt [ Ref "TERM_LIT" ] Nothing (Just "\\t -> Lit t")
       , Alt [ Ref "IDENT", Ref "PLUS" ] Nothing (Just "\\i _ -> Rep (Ref i)")
       , Alt [ Ref "TERM_LIT", Ref "PLUS" ] Nothing (Just "\\t _ -> Rep (Lit t)")
+      , Alt [ Ref "IDENT", Ref "STAR" ] Nothing (Just "\\i _ -> Star (Ref i)")
+      , Alt [ Ref "TERM_LIT", Ref "STAR" ] Nothing (Just "\\t _ -> Star (Lit t)")
+      , Alt [ Ref "IDENT", Ref "QUESTION" ] Nothing (Just "\\i _ -> Opt (Ref i)")
+      , Alt [ Ref "TERM_LIT", Ref "QUESTION" ] Nothing (Just "\\t _ -> Opt (Lit t)")
       ]
 
   , Rule "Action"
