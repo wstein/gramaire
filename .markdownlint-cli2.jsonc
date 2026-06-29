@@ -1,0 +1,46 @@
+// Recommended markdownlint configuration for Grammark grammar files.
+//
+// Philosophy: relax line-length where a formal grammar legitimately needs
+// the room, and keep EVERY rule that protects how the file renders on
+// GitHub or that guards against unsafe markup. markdownlint-cli2 discovers
+// this file automatically, so `grammark --check` and CI use it with no
+// extra flags.
+//
+// Trade-off worth knowing: because line-length is relaxed here, a Grammark
+// file dropped into a repo whose own config enforces strict MD013 may warn
+// on long lines there. That is the deliberate, pragmatic choice — long
+// productions and wide FIRST/FOLLOW rows should not be forced to wrap.
+{
+  "config": {
+    "default": true,
+
+    // --- relaxed: formal grammars and generated tables run long ----------
+    "MD013": {
+      "line_length": 120, // generous prose cap (default is 80)
+      "code_blocks": false, // never measure length inside lr / lr precedence
+      // / lr errors payloads — actions and rules are
+      // free to be as wide as they need to be
+      "tables": false, // FIRST / FOLLOW / conflict rows can be wide
+      "headings": false,
+    },
+
+    // --- relaxed: ergonomics --------------------------------------------
+    "MD024": { "siblings_only": true }, // a heading text may repeat under
+    // different parent sections
+
+    // --- KEPT AT DEFAULT (load-bearing — do not disable) ----------------
+    // These stay on via "default": true and must never be turned off:
+    //   MD033 no-inline-html : GitHub sanitizes raw HTML, and this rule is
+    //                          also the injection guard — diagrams are
+    //                          linked images, never embedded <svg>.
+    //   MD040 fenced-language: every fence carries an info string (lr, ...).
+    //   MD022 / MD031 / MD032 / MD058 : blank lines around headings, fences,
+    //                          lists, and tables — required for correct
+    //                          rendering on GitHub.
+    //   MD010 no-hard-tabs   : payload indentation must be spaces.
+    //   MD041 / MD025        : exactly one H1, and it is the first line.
+    //   MD047                : single trailing newline.
+  },
+  "globs": ["**/*.gram.md"],
+  "ignores": ["**/node_modules/**"],
+}

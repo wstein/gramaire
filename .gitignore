@@ -1,0 +1,10 @@
+# Node (bootstrap bridge)
+node_modules/
+
+# PureScript / Spago build output
+/output/
+/.spago/
+/.spago-lock.json
+
+# Editor / OS
+.DS_Store
