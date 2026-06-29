@@ -25,6 +25,20 @@ jobs:
       - name: Build (warnings are errors; deps must be tidy)
         run: spago build --strict --pedantic-packages
 
+      - name: Core stays filesystem-free (ADR D13)
+        # The parser/IR/runtime must import cleanly into a browser/worker, so no
+        # core module may depend on Node's fs. Only the CLI and the codegen
+        # regeneration entry point are allowed to. This guards the boundary the
+        # browser/playground goal relies on before FS coupling can spread.
+        run: |
+          hits=$(grep -rlE 'Node\.(FS|Buffer)' src/Grammark --include='*.purs' \
+            | grep -vE 'Grammark/Cli\.purs|Grammark/Codegen/Main\.purs' || true)
+          if [ -n "$hits" ]; then
+            echo "These core modules import Node.FS/Buffer — keep the core filesystem-free (ADR D13):"
+            echo "$hits"
+            exit 1
+          fi
+
       - name: Test
         run: spago test
 
