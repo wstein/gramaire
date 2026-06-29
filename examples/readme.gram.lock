@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "mode": "sidecar",
   "grammarSha256": "d38146f01f94cbebdb88aec142bce06918d74d741c9f5ddea66d0f9b0d5e40f8",
   "artifacts": [
     {

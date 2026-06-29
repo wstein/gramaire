@@ -2,9 +2,9 @@
  * Unit tests for the `grammark --check` bridge. Run with: `npm test`
  * (i.e. `node --test grammark-check.test.ts`).
  *
- * These exercise the structure and drift gates and the hashing model
- * directly, with small in-memory fixtures, plus one round-trip through
- * `writeLock` on a temp directory. The lint gate shells out to
+ * These exercise the structure and drift gates, the hashing model, and the
+ * diagram-mode conversion directly, with small in-memory fixtures, plus one
+ * `fmt` round-trip on a temp directory. The lint gate shells out to
  * markdownlint-cli2 and is covered end-to-end by `grammar/` in CI rather
  * than here.
  */
@@ -19,10 +19,11 @@ import {
   parse,
   checkStructure,
   checkDrift,
+  convertDiagrams,
+  fmt,
   grammarHashes,
   longestBacktickRun,
   lockPathFor,
-  writeLock,
 } from "./grammark-check.ts";
 
 // A canonical, contract-clean grammar document, built line-by-line so the
@@ -135,14 +136,14 @@ test("grammarHashes is deterministic and keyed by nonterminal", () => {
   assert.notEqual(changed.ruleHashes["A"], a.ruleHashes["A"]);
 });
 
-test("writeLock then checkDrift: clean for the locked grammar, stale after an edit", () => {
+test("fmt then checkDrift: clean for the formatted grammar, stale after an edit", () => {
   const dir = mkdtempSync(join(tmpdir(), "grammark-test-"));
   try {
     const file = join(dir, "mini.gram.md");
     const src = miniDoc();
     writeFileSync(file, src);
 
-    writeLock(file, parse(src));
+    fmt(file, parse(src), "sidecar");
     assert.deepEqual(
       checkDrift(file, parse(src)),
       [],
@@ -158,4 +159,45 @@ test("writeLock then checkDrift: clean for the locked grammar, stale after an ed
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// A one-rule document with a sidecar image-link diagram.
+const sidecarDoc = [
+  "# Mini",
+  "",
+  "## A",
+  "",
+  "```lr",
+  "A",
+  "  : `x` B",
+  "```",
+  "",
+  "![Railroad diagram for the A rule](diagrams/a.svg)",
+  "",
+  "## Error messages",
+  "",
+].join("\n");
+
+const nts = new Set(["A"]);
+const content = new Map([["A", "A\n  : `x` B"]]);
+
+test("convertDiagrams: sidecar -> mermaid embeds a tagged fence, removing the image", () => {
+  const mm = convertDiagrams(sidecarDoc, content, nts, "mermaid");
+  assert.match(
+    mm,
+    /```mermaid\n%% Railroad diagram for the A rule\nflowchart LR/,
+  );
+  assert.doesNotMatch(mm, /\]\(diagrams\/a\.svg\)/);
+});
+
+test("convertDiagrams round-trips and each direction is idempotent", () => {
+  const mm = convertDiagrams(sidecarDoc, content, nts, "mermaid");
+  // mermaid -> sidecar recovers the original document
+  assert.equal(convertDiagrams(mm, content, nts, "sidecar"), sidecarDoc);
+  // each direction is a fixed point
+  assert.equal(
+    convertDiagrams(sidecarDoc, content, nts, "sidecar"),
+    sidecarDoc,
+  );
+  assert.equal(convertDiagrams(mm, content, nts, "mermaid"), mm);
 });
