@@ -1,4 +1,8 @@
-# Minimal Spago config for the Grammark bootstrap modules.
+# Spago config for Grammark: the full core — lexer, three table methods,
+# parser, codegen, grammark-ir + decoder, EBNF backend, diagnostics — plus the
+# native CLI. The core library is filesystem-free; only `Grammark.Cli` and
+# `Grammark.Codegen.Main` import node-fs/node-buffer, so the parser/IR import
+# cleanly into a browser/worker (incremental-spec §9, ADR D13).
 # Build locally with:  npm i -g purescript spago  &&  spago build
 # (The packageSet registry version may need bumping to a current release.)
 package:
