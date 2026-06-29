@@ -120,20 +120,24 @@ node bin/grammark.mjs emit examples/calc.gram.md --backend ebnf
 
 # write the artifact into a directory instead of stdout
 node bin/grammark.mjs emit examples/json.gram.md --backend ebnf --out gen/
+
+# run the differential-oracle conformance suite over the built-in lr corpus
+node bin/grammark.mjs conformance
 ```
 
 ## Repository layout
 
-| Path            | What lives there                                                |
-| --------------- | --------------------------------------------------------------- |
-| `src/Grammark/` | Core: AST, lexer, tables, parser, `grammark-ir`, backends, CLI. |
-| `bin/`          | `grammark.mjs` — entry shim for the native PureScript CLI.      |
-| `grammar/`      | `lr.gram.md` — the `lr` notation described in itself.           |
-| `examples/`     | Worked grammars: `json`, `calc`, and the `readme` meta demo.    |
-| `bootstrap/`    | Disposable TypeScript `grammark --check` bridge (its README).   |
-| `brand/`        | Logo and wordmark SVGs.                                         |
-| `docs/`         | Branding, the `fmt` contract, the multi-backend plan.           |
-| `test/`         | PureScript tests (self-host, tables, IR, backends, CLI).        |
+| Path            | What lives there                                                    |
+| --------------- | ------------------------------------------------------------------- |
+| `src/Grammark/` | Core: lexer, tables, parser, `grammark-ir`, codegen, backends, CLI. |
+| `bin/`          | `grammark.mjs` — entry shim for the native PureScript CLI.          |
+| `spec/`         | `ir-schema.json` — the grammark-ir JSON Schema contract.            |
+| `grammar/`      | `lr.gram.md` — the `lr` notation described in itself.               |
+| `examples/`     | Worked grammars: `json`, `calc`, and the `readme` meta demo.        |
+| `bootstrap/`    | Disposable TypeScript `grammark --check` bridge (its README).       |
+| `brand/`        | Logo and wordmark SVGs.                                             |
+| `docs/`         | Branding, the `fmt` contract, the multi-backend plan.               |
+| `test/`         | PureScript tests (self-host, IR, codegen, backends, conformance).   |
 
 ## Status
 
@@ -152,20 +156,28 @@ serializer in `Grammark.Json`). `Test.IR` locks the emitted JSON against
 checked-in goldens for the `lr` and `json` grammars. A first backend,
 [`Grammark.Backend.Ebnf`](src/Grammark/Backend/Ebnf.purs), consumes that IR —
 and nothing else — to render a grammar as W3C-style EBNF, proving the narrow
-waist end to end.
+waist end to end. The emitted IR is validated against its JSON Schema
+([`spec/ir-schema.json`](spec/ir-schema.json)) by `Test.Schema` for every
+grammar, and a differential-oracle conformance suite (`grammark conformance`,
+`Test.Conformance`) checks that accept/reject vectors agree under all three
+methods.
+
+Source-emitting codegen is now real: the `lr` grammar's `reduce` is
+**generated** from the IR plus a typed-AST profile
+([`Grammark.Codegen`](src/Grammark/Codegen.purs) →
+[`Grammark.Generated.LrReduce`](src/Grammark/Generated/LrReduce.purs)) and
+proven by `Test.Codegen` — self-hosting runs through the generated reduce. The
+hand-written [`Grammark.Lr`](src/Grammark/Lr.purs) reduce stays the reference
+the generator reproduces.
 
 The bridge's `grammark fmt` emits real railroad diagrams — sidecar SVGs by
 default, or GitHub-native mermaid fences with `--diagrams=mermaid` — and every
 grammar's FIRST/FOLLOW table is machine-checked against the parser's own
-analysis (`Test.FirstFollow`). Still ahead: source-emitting codegen and the
-rest of `grammark fmt` (canonical reformatting, table regeneration). Until
-those land, the TypeScript bridge keeps `grammark --check`/`fmt` usable from
-commit one; see [`bootstrap/README.md`](bootstrap/README.md) for its delete-me
-conditions — the self-host half of which now holds.
-
-The `lr` grammar's semantic actions are currently mirrored by hand in
-[`Grammark.Lr`](src/Grammark/Lr.purs) (the artifact codegen will emit); the
-bootstrap bridge is kept as a differential oracle and is not yet deleted.
+analysis (`Test.FirstFollow`). Still ahead: the rest of `grammark fmt`
+(canonical reformatting, table regeneration) in PureScript. Until that lands,
+the TypeScript bridge keeps `grammark --check`/`fmt` usable from commit one; see
+[`bootstrap/README.md`](bootstrap/README.md) for its delete-me conditions — the
+self-host half of which now holds.
 
 The road from here — the `grammark-ir` narrow waist, source-emitting codegen,
 and multi-language backends — is laid out in the
