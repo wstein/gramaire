@@ -62,6 +62,11 @@ The narrow waist and its first consumers are built and gated on
   [`Grammark.IR.Decode`](../src/Grammark/IR/Decode.purs) decodes the IR and
   rebuilds the exact `ParseTable`, so the interpreter runs from *serialized* IR
   (`Test.IRDecode`). This closes Phase A's interpreter-reads-IR gate.
+- **Alternative labels [D26]** — `# Name` alternatives are lexed, parsed through
+  the self-hosted `lr` grammar, and lowered to an optional `rules[].label` in the
+  IR (omitted when absent). The self-host loop and the regenerated reduce stay
+  green; a grammar written with `# Add` labels emits them. The
+  ergonomic-visitor prerequisite is now in place.
 
 Phase A's remaining gate is the **CST golden + `cst-schema.json`**; Phase B's is
 the **TypeScript backend** (then the out-of-process protocol, now decoder-ready).
@@ -94,14 +99,14 @@ The IR's canonical hash **reuses** this mechanism. **[S12]**
 Where the standing algorithm/engine decisions stand in the tree, so the roadmap
 targets the real gaps:
 
-| Decision                           | Status               | Evidence / gap                                                                              |
-| ---------------------------------- | -------------------- | ------------------------------------------------------------------------------------------- |
-| Deterministic LR core              | built                | `Table.purs`: `buildStates` (canonical LR(1)), `mergeLALR`, `buildIELR`                     |
-| LALR-first, IELR-deferred          | built                | `Method = Canonical / LALR / IELR`; LALR the natural default, IELR opt-in                   |
-| GLR opt-in (ambiguity + recovery)  | committed, not built | `fillTables` fails on conflict; no multi-action table, no fork driver — now Phase GLR (D15) |
-| Modern DX / errors                 | partial — next up    | conflicts detected but reported as bare `{state, onSymbol}`; S13 is the lead item (D14)     |
-| Earley as analysis/debug only      | missing              | no recognizer for ambiguity classification                                                  |
-| Incremental + LSP (confirmed goal) | missing              | no `edit()` reparse, no server, no FS-abstracted toolchain                                  |
+| Decision                           | Status               | Evidence / gap                                                                               |
+| ---------------------------------- | -------------------- | -------------------------------------------------------------------------------------------- |
+| Deterministic LR core              | built                | `Table.purs`: `buildStates` (canonical LR(1)), `mergeLALR`, `buildIELR`                      |
+| LALR-first, IELR-deferred          | built                | `Method = Canonical / LALR / IELR`; LALR the natural default, IELR opt-in                    |
+| GLR opt-in (ambiguity + recovery)  | committed, not built | `fillTables` fails on conflict; no multi-action table, no fork driver — now Phase GLR (D15)  |
+| Modern DX / errors                 | built                | grammar-relative conflict messages ([S13], `Grammark.Diagnostics`); EBNF sugar [S15] remains |
+| Earley as analysis/debug only      | missing              | no recognizer for ambiguity classification                                                   |
+| Incremental + LSP (confirmed goal) | missing              | no `edit()` reparse, no server, no FS-abstracted toolchain                                   |
 
 The LR engine, the interpreter, the IR + codegen + schema + conformance + CLI
 are all present. The open frontier is **DX, GLR, Earley-debug, and
@@ -521,7 +526,7 @@ then the committed GLR engine phase, then incremental/LSP.
 | **A. Spec + seam + keystone** | emit IR; [S2] codegen oracle; IR schema                                                                                 | ◐      | interpreter *reads* IR ✅ (decoder D16); CST golden + `cst-schema` remain                                                           |
 | **B. Backend SPI**            | in-process record; `grammark emit`; then TS backend; then out-of-process protocol                                       | ◐      | in-process + CLI done; decoder unblocks out-of-process; TS backend remains                                                          |
 | **C. Conformance**            | corpus + vectors + oracle; `grammark conformance`                                                                       | ◐      | shipped for `lr`; refine to descriptor-driven [S18] + per-language input lexers                                                     |
-| **DX. Errors + sugar**        | grammar-relative diagnostics [S13]; EBNF macros + `#[inline]` desugaring to epsilon-free Core [S15]                     | ◐      | diagnostics ✅ (name competing rules + fix); EBNF sugar + labels remain                                                             |
+| **DX. Errors + sugar**        | grammar-relative diagnostics [S13]; EBNF macros + `#[inline]` desugaring to epsilon-free Core [S15]                     | ◐      | diagnostics ✅ + labels ✅ ([D26], `# Name`); EBNF sugar [S15] remains                                                              |
 | **Decoder. JSON in**          | inverse of `Grammark.Json`; decode IR                                                                                   | ✅     | `decode∘encode == id` ✅; interpreter runs from serialized IR ✅                                                                    |
 | **D. Backends (tiered)**      | the backend set below; each codegen backend emits a typed Visitor (then Listener) over the CST [D24]                    | ◐      | `ir` + `ebnf` done; each new backend passes conformance, incl. the identity-Visitor fold oracle                                     |
 | **GLR. Engine (committed)**   | multi-action table + fork driver; Earley debug recognizer + `grammark explain-conflict`                                 | ○      | GLR parses a deliberately ambiguous grammar; `explain-conflict` separates real ambiguity from an LALR artifact                      |
@@ -610,7 +615,7 @@ everything target-specific is independent.
 | D23 | Recovery default          | **Panic-mode is the deterministic floor and v0 default; single-token repair (R10a) is opt-in with a spec-pinned tie-break, default only after corpus measurement**                                                               | Panic-mode is cheap and every runtime can meet it, so the C3 floor and breadth stay affordable (cf. D22); repair's error trees differ, so recovery mode is a *descriptor* property and repair rides its own goldens rather than forking the floor.                                                                                                                                                                                                                                                                                                                                                  |
 | D24 | Visitor / Listener APIs   | **Generated per backend over the CST as opt-in `visitor` / `listener` capabilities (Phase D); never Core or IR features**                                                                                                        | They are D7's "fold over the CST" made into a typed host interface — pure IR+labels → files, the codegen tier's job; method names derive in the backend so the IR stays a table+rule+label artifact (cf. D22). Tested by a per-backend identity-Visitor fold oracle.                                                                                                                                                                                                                                                                                                                                |
 | D25 | Actions ↔ default Visitor | **Inline `{% lang %}` actions are the default Visitor's per-rule method bodies; one catamorphism, two execution strategies (in-parse reduce or CST walk), two front-ends (declare-in-grammar vs implement-generated-interface)** | Unifies the two "get a result" paths so they are not rivals (cf. incremental-spec §6 run-vs-build); actions stay the concise path, generated visitors the full-control path. Visitors do **not** replace actions.                                                                                                                                                                                                                                                                                                                                                                                   |
-| D26 | Alternative labels        | **Add ANTLR-style `# Label` alternatives to the lr Core + an additive optional `rules[].label` in the IR, on the DX track**                                                                                                      | One bounded Core addition pays three ways — visitor/accessor method names, sharper grammar-relative conflict diagnostics (D8/S13), and a named CST; gated under the ignorability rule (absent label ⇒ rule-id fallback, not advertised), so it is the ergonomic-visitor prerequisite, not a Phase-D blocker.                                                                                                                                                                                                                                                                                        |
+| D26 | Alternative labels        | **Shipped.** ANTLR-style `# Label` alternatives in the lr Core + an optional `rules[].label` in the IR                                                                                                                           | One bounded Core addition pays three ways — visitor/accessor method names, sharper grammar-relative conflict diagnostics (D8/S13), and a named CST; gated under the ignorability rule (absent label ⇒ rule-id fallback, not advertised), so it is the ergonomic-visitor prerequisite, not a Phase-D blocker.                                                                                                                                                                                                                                                                                        |
 
 ## Open decisions
 
