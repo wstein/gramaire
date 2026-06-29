@@ -11,6 +11,12 @@ package:
     - ordered-collections # Data.Map / Data.Set
     - foldable-traversable # Data.Foldable / Data.FoldableWithIndex
     - partial # Partial.Unsafe (automaton stub)
+  test:
+    main: Test.Main
+    dependencies:
+      - effect # Effect
+      - console # Effect.Console
+      - assert # Test.Assert
 workspace:
   packageSet:
     registry: 66.0.0
