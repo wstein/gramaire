@@ -16,6 +16,7 @@ import Effect (Effect)
 import Effect.Console (log)
 import Grammark.Bootstrap (bootstrapGrammar)
 import Grammark.Conformance (parseCst)
+import Grammark.Conformance.Lexers (lrLexer)
 import Grammark.Cst (serialize, validate)
 import Grammark.Table (Method(Canonical), productions)
 import Test.Assert (assert')
@@ -29,7 +30,7 @@ sample = "Sum\n: Sum `+` NUM   {% \\a _ b -> a %}\n| NUM"
 tests :: Effect Unit
 tests = do
   log "  cst: a representative parse builds a tree honoring grammark-cst"
-  case parseCst Canonical bootstrapGrammar sample of
+  case parseCst lrLexer Canonical bootstrapGrammar sample of
     Left e -> assert' ("could not parse the sample input: " <> e) false
     Right cst -> do
       let problems = validate (length (productions bootstrapGrammar)) cst

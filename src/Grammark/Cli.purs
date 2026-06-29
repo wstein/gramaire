@@ -29,11 +29,11 @@ import Effect.Console (error, log)
 import Effect.Exception (message, try)
 import Grammark.Backend (Output)
 import Grammark.Backend.Registry (backends, findBackend)
-import Grammark.Bootstrap (bootstrapGrammar)
-import Grammark.Conformance (lrVectors, runSuite, summarize)
+import Grammark.Conformance (Descriptor, calcDescriptor, lrDescriptor, runSuites, summarize)
 import Grammark.Diagnostics (renderConflicts)
 import Grammark.IR (buildIR)
 import Grammark.Lr (parse)
+import Grammark.Syntax (Grammar)
 import Grammark.Table (Method(Canonical))
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Perms (permsAll)
@@ -134,11 +134,26 @@ deliver out outputs = case out of
 
 runConformance :: Effect Unit
 runConformance = do
-  let summary = summarize (runSuite bootstrapGrammar lrVectors)
+  calc <- loadDescriptor "examples/calc.gram.md" calcDescriptor
+  let
+    descriptors = Array.cons lrDescriptor (Array.fromFoldable calc)
+    summary = summarize (runSuites descriptors)
+    corpus = String.joinWith " + " (map _.language descriptors)
   for_ summary.failures \f ->
-    error ("  FAIL " <> f.name <> " [" <> f.method <> "]: expected " <> show f.expected <> ", got " <> show f.actual)
-  log ("conformance: " <> show summary.passed <> "/" <> show summary.total <> " checks passed (lr corpus)")
+    error ("  FAIL " <> f.language <> "/" <> f.name <> " [" <> f.method <> "]: expected " <> show f.expected <> ", got " <> show f.actual)
+  log ("conformance: " <> show summary.passed <> "/" <> show summary.total <> " checks passed (" <> corpus <> " corpus)")
   when (not (Array.null summary.failures)) (setExitCode 1)
+
+-- Load a corpus descriptor whose grammar lives in a file; absent or unparseable
+-- means the language is skipped, not a failure.
+loadDescriptor :: String -> (Grammar -> Descriptor) -> Effect (Maybe Descriptor)
+loadDescriptor path mk = do
+  attempt <- try (readTextFile UTF8 path)
+  pure case attempt of
+    Left _ -> Nothing
+    Right md -> case parse md of
+      Left _ -> Nothing
+      Right g -> Just (mk g)
 
 die :: String -> Effect Unit
 die msg = do
