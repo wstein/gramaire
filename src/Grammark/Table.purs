@@ -17,6 +17,7 @@ module Grammark.Table
   , ParseTable
   , Analysis
   , Method(..)
+  , nontermSet
   , productions
   , firstSets
   , followSets

@@ -217,6 +217,16 @@ the IR, or the conformance bar moving. Rated additions, value 1–10:
 | 5 | named action bindings (vs positional-only) | Menhir, LALRPOP | 6 | **shipped** (bare-body action binds field names) |
 | 6 | `#[inline]` to fold a nonterminal | LALRPOP, Menhir | 6 | **shipped** (single sugar-free production; action threaded through a wrapper; a fix [D8] can name) |
 
+**Surface hygiene (beyond the sugar table).** Two follow-ons make the `lr`
+surface conventions explicit and forgiving:
+
+- **Terminal/nonterminal rule + "used but undefined" (shipped).** The case
+  convention is now spelled out and *enforced*: an ALL-CAPS reference is a lexer
+  token class, a mixed-case reference is a nonterminal, and a mixed-case name
+  that is referenced but never defined is rejected by name
+  (`Grammark.Diagnostics.checkDefined`, wired into `Lr.parse`) instead of
+  silently resolving to a phantom terminal — turning a typo into a build error.
+
 **The `X?` / `X*` correction (refines D27).** I had deferred optional/star as
 unable to be both epsilon-free *and* arity-preserving. That was wrong: they
 desugar by **use-site enumeration with generated wrapper actions**. For
