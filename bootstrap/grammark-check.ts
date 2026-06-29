@@ -31,6 +31,8 @@ import { createHash } from "node:crypto";
 import { dirname, join, basename } from "node:path";
 import { main as markdownlint } from "markdownlint-cli2";
 import { parseProduction, renderSvg, renderMermaid } from "./railroad.ts";
+import type { Production } from "./railroad.ts";
+import { analyzeGrammar, formatSet } from "./analyze.ts";
 
 // The fixed tail of every grammar file, after the per-nonterminal sections.
 // `Precedence` is optional and slots in before this tail when present (a
@@ -363,6 +365,59 @@ export function convertDiagrams(
   return out.join("\n");
 }
 
+// Regenerate the GFM table inside the `## Generated tables` section from the
+// parsed grammar's computed FIRST/FOLLOW sets, leaving the caption and the
+// conflict-summary line untouched. The conflict line stays author-owned: it
+// needs the full LR automaton, which lives in the PureScript core, not here.
+export function regenerateTables(
+  src: string,
+  prods: readonly Production[],
+): string {
+  if (prods.length === 0) return src;
+  const { first, follow, nonterminals, order } = analyzeGrammar(prods);
+
+  const rows: string[][] = [["Nonterminal", "FIRST", "FOLLOW"]];
+  for (const nt of nonterminals) {
+    rows.push([
+      `\`${nt}\``,
+      formatSet(first.get(nt) ?? new Set(), order),
+      formatSet(follow.get(nt) ?? new Set(), order),
+    ]);
+  }
+  const w = [0, 1, 2].map((c) => Math.max(...rows.map((r) => r[c]!.length)));
+  const row = (r: string[]): string =>
+    `| ${r.map((c, i) => c.padEnd(w[i]!)).join(" | ")} |`;
+  const table = [
+    row(rows[0]!),
+    `| ${w.map((x) => "-".repeat(x)).join(" | ")} |`,
+    ...rows.slice(1).map(row),
+  ];
+
+  const lines = src.split("\n");
+  const out: string[] = [];
+  let inSection = false;
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i]!;
+    if (/^##\s+Generated tables\s*$/.test(line)) {
+      inSection = true;
+      out.push(line);
+      i++;
+      continue;
+    }
+    if (inSection && line.trim().startsWith("|")) {
+      while (i < lines.length && lines[i]!.trim().startsWith("|")) i++;
+      out.push(...table);
+      inSection = false;
+      continue;
+    }
+    if (inSection && line.startsWith("#")) inSection = false;
+    out.push(line);
+    i++;
+  }
+  return out.join("\n");
+}
+
 // `grammark fmt`: (re)emit the derived artifacts for a grammar file. In sidecar
 // mode it writes the railroad SVGs; in mermaid mode it embeds the diagrams in
 // the document. Either way it rewrites the diagram regions to the chosen mode
@@ -400,8 +455,14 @@ export function fmt(file: string, doc: Doc, mode: DiagramMode): void {
     sourceSha256: grammarSha256,
   });
 
-  const rewritten = convertDiagrams(doc.src, contentByRule, nonterminals, mode);
-  if (rewritten !== doc.src) writeFileSync(file, rewritten);
+  // Regenerate the derived document regions: the FIRST/FOLLOW table and the
+  // per-rule diagrams (in the chosen mode).
+  const prods = [...contentByRule.values()].map((c) =>
+    parseProduction(c, nonterminals),
+  );
+  let text = regenerateTables(doc.src, prods);
+  text = convertDiagrams(text, contentByRule, nonterminals, mode);
+  if (text !== doc.src) writeFileSync(file, text);
 
   const lock: Lock = { version: 1, mode, grammarSha256, artifacts };
   writeFileSync(lockPathFor(file), JSON.stringify(lock, null, 2) + "\n");
