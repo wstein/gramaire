@@ -7,6 +7,8 @@ import Prelude
 import Effect (Effect)
 import Effect.Console (log)
 import Test.Lexer as Lexer
+import Test.Parser as Parser
+import Test.SelfHost as SelfHost
 import Test.Table as Table
 
 main :: Effect Unit
@@ -15,4 +17,8 @@ main = do
   Table.tests
   log "Test.Lexer"
   Lexer.tests
+  log "Test.Parser"
+  Parser.tests
+  log "Test.SelfHost"
+  SelfHost.tests
   log "all suites passed"
