@@ -71,3 +71,22 @@ tests = do
   case Lr.parse "```lr\nZ\n  : NUM?   {% \\n -> n %}\n```\n" of
     Left _ -> pure unit
     Right _ -> assert' "an all-optional alternative should be a build error" false
+
+  log "  desugar: Comma<X> lowers to a one-or-more comma-separated list rule"
+  case Lr.parse "```lr\nO\n  : `[` Comma<NUM> `]`\n```\n" of
+    Left e -> assert' ("Comma macro failed: " <> e) false
+    Right g -> do
+      case ruleNamed "NUM_comma" g of
+        Just (Rule _ alts) -> assert' "NUM_comma has two alternatives" (length alts == 2)
+        Nothing -> assert' "a NUM_comma list rule should be introduced" false
+      assert' "the Comma<X> grammar is LR(1)" (isRight (buildTablesFor Canonical g))
+
+  log "  desugar: Sep<X, S> lowers to a list separated by the given symbol"
+  case Lr.parse "```lr\nL\n  : `(` Sep<NUM, `;`> `)`\n```\n" of
+    Left e -> assert' ("Sep macro failed: " <> e) false
+    Right g -> assert' "a NUM_sep_Lit_; rule should be introduced" (isJust (ruleNamed "NUM_sep_Lit_;" g))
+
+  log "  desugar: an unknown macro is rejected"
+  case Lr.parse "```lr\nU\n  : Bogus<NUM>\n```\n" of
+    Left _ -> pure unit
+    Right _ -> assert' "an unknown macro should be a build error" false

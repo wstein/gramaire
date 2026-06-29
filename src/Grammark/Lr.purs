@@ -79,8 +79,11 @@ reduce p kids = case p, kids of
   18, [ VStr t, _ ] -> VSym (Star (Lit t)) -- Sym : TERM_LIT STAR
   19, [ VStr i, _ ] -> VSym (Opt (Ref i)) -- Sym : IDENT QUESTION
   20, [ VStr t, _ ] -> VSym (Opt (Lit t)) -- Sym : TERM_LIT QUESTION
-  21, [ VStr a ] -> VMaybeStr (Just a) -- Action : ACTION
-  22, [ VStr l ] -> VMaybeStr (Just l) -- Label : LABEL
+  21, [ VStr name, _, VSyms args, _ ] -> VSym (Macro name args) -- Sym : IDENT LANGLE Args RANGLE
+  22, [ VSym s ] -> VSyms [ s ] -- Args : Sym
+  23, [ VSyms as, _, VSym s ] -> VSyms (Array.snoc as s) -- Args : Args COMMA Sym
+  24, [ VStr a ] -> VMaybeStr (Just a) -- Action : ACTION
+  25, [ VStr l ] -> VMaybeStr (Just l) -- Label : LABEL
   _, _ -> VErr ("unexpected reduce shape for production " <> show p)
 
 -- | Extract the contents of every ```lr fenced block — the rule blocks, not

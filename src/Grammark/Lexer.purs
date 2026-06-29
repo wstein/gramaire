@@ -9,6 +9,7 @@
 -- |   * `ACTION`   — a semantic action, the text between `{%` and `%}`
 -- |   * `LABEL`    — a `# Name` alternative label (the name is the payload)
 -- |   * `PLUS` / `STAR` / `QUESTION` — bare `+` / `*` / `?` repetition postfixes
+-- |   * `LANGLE` / `RANGLE` / `COMMA` — `<` / `>` / `,` for macro calls
 -- |   * `NL`       — one or more line breaks
 -- |   * `:` / `|`  — the two raw punctuation terminals of the notation
 -- |
@@ -92,6 +93,9 @@ tokenizeSpanned src = go 0 []
       | c == '+' -> go (i + 1) (Array.snoc acc (sp "PLUS" "+" i (i + 1)))
       | c == '*' -> go (i + 1) (Array.snoc acc (sp "STAR" "*" i (i + 1)))
       | c == '?' -> go (i + 1) (Array.snoc acc (sp "QUESTION" "?" i (i + 1)))
+      | c == '<' -> go (i + 1) (Array.snoc acc (sp "LANGLE" "<" i (i + 1)))
+      | c == '>' -> go (i + 1) (Array.snoc acc (sp "RANGLE" ">" i (i + 1)))
+      | c == ',' -> go (i + 1) (Array.snoc acc (sp "COMMA" "," i (i + 1)))
       | c == '#' ->
           let
             s = skipWhile (\ch -> ch == ' ' || ch == '\t') (i + 1)

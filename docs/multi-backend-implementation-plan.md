@@ -78,8 +78,9 @@ The narrow waist and its first consumers are built and gated on
   symbol to a fresh epsilon-free list nonterminal, arity-preserving (D27), and
   the `lr` notation now lexes and parses the `+` postfix through the self-host
   loop. A grammar written with `NUM+` desugars end to end (`Test.Desugar`,
-  CLI-verified). `X*` / `X?` are next via use-site enumeration (D27, D28);
-  macros, fields, bindings, and `#[inline]` follow (D28).
+  CLI-verified). `X*` / `X?` (use-site enumeration) and macros `Comma<X>` /
+  `Sep<X,S>` (separated lists, `Grammark.Desugar`) are shipped too (D27, D28);
+  named fields, bindings, and `#[inline]` follow (D28).
 
 Phase A's remaining gate is the **CST golden + `cst-schema.json`**; Phase B's is
 the **TypeScript backend** (then the out-of-process protocol, now decoder-ready).
@@ -207,7 +208,7 @@ the IR, or the conformance bar moving. Rated additions, value 1–10:
 | # | Sugar | Peer | Value | Status |
 | - | ----- | ---- | :---: | ------ |
 | 1 | repetition `X* X+ X?`, grouping `( … )` | ANTLR, tree-sitter, LALRPOP | 9 | `X+` shipped (D27); `X*` / `X?` next (D27); `( … )` deferred |
-| 2 | parameterized macros `Comma<X>`, `Sep<X,S>` | Menhir, LALRPOP | 8 | planned |
+| 2 | parameterized macros `Comma<X>`, `Sep<X,S>` | Menhir, LALRPOP | 8 | **shipped** |
 | 3 | named child fields `left:Expr` → CST accessors / visitors | tree-sitter `field()` | 8 | planned (prereq for [D24] ergonomics) |
 | 4 | alternative labels `# Name` | ANTLR4 | 7 | **shipped (D26)** |
 | 5 | named action bindings (vs positional-only) | Menhir, LALRPOP | 6 | planned |
