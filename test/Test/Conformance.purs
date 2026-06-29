@@ -1,6 +1,7 @@
--- | The conformance suite passes: every `lr` corpus vector gets the expected
--- | accept/reject under all three methods (a differential oracle), and an
--- | accept vector yields a CST rooted at the start production.
+-- | The descriptor-driven conformance suite ([S18]): every corpus language —
+-- | `lr` and `calc`, each with its own input lexer — gets the expected
+-- | accept/reject on every vector under all three methods (a differential
+-- | oracle), and an `lr` accept yields a CST rooted at the start production.
 module Test.Conformance (tests) where
 
 import Prelude
@@ -11,22 +12,30 @@ import Data.String (joinWith)
 import Effect (Effect)
 import Effect.Console (log)
 import Grammark.Bootstrap (bootstrapGrammar)
-import Grammark.Conformance (lrVectors, parseCst, runSuite, summarize)
+import Grammark.Conformance (calcDescriptor, lrDescriptor, parseCst, runSuites, summarize)
+import Grammark.Conformance.Lexers (lrLexer)
 import Grammark.Cst (Cst(..))
+import Grammark.Lr (parse)
 import Grammark.Table (Method(Canonical))
+import Node.Encoding (Encoding(UTF8))
+import Node.FS.Sync (readTextFile)
 import Test.Assert (assert', assertEqual)
 
 tests :: Effect Unit
 tests = do
-  log "  conformance: lr corpus passes under canonical, LALR, and IELR"
-  let
-    summary = summarize (runSuite bootstrapGrammar lrVectors)
-    failed = joinWith "\n  " (map (\f -> f.name <> " [" <> f.method <> "]") summary.failures)
-  assert' ("conformance failures:\n  " <> failed) (null summary.failures)
-  assertEqual { actual: summary.passed, expected: summary.total }
+  log "  conformance: lr + calc corpora pass under canonical, LALR, and IELR"
+  calcMd <- readTextFile UTF8 "examples/calc.gram.md"
+  case parse calcMd of
+    Left e -> assert' ("could not parse the calc grammar: " <> e) false
+    Right calcG -> do
+      let
+        summary = summarize (runSuites [ lrDescriptor, calcDescriptor calcG ])
+        failed = joinWith "\n  " (map (\f -> f.language <> "/" <> f.name <> " [" <> f.method <> "]") summary.failures)
+      assert' ("conformance failures:\n  " <> failed) (null summary.failures)
+      assertEqual { actual: summary.passed, expected: summary.total }
 
-  log "  conformance: an accept vector yields a CST rooted at the start rule"
-  case parseCst Canonical bootstrapGrammar "Foo\n: `x`" of
+  log "  conformance: an lr accept vector yields a CST rooted at the start rule"
+  case parseCst lrLexer Canonical bootstrapGrammar "Foo\n: `x`" of
     Left e -> assert' ("expected a CST: " <> e) false
     Right cst -> case cst of
       Branch p _ -> assertEqual { actual: p, expected: 0 }
