@@ -226,13 +226,19 @@
       }
     },
     "conflict": {
+      "description": "A construction conflict. onSymbol is the lookahead as a terminal ref (consistent with table action keys); rules names the competing production ids. Empty on a successful build; populated by the GLR/precedence path.",
       "type": "object",
-      "required": ["kind", "state", "onSymbol"],
+      "required": ["kind", "state", "onSymbol", "rules"],
       "additionalProperties": false,
       "properties": {
         "kind": { "enum": ["shift-reduce", "reduce-reduce"] },
         "state": { "type": "integer", "minimum": 0 },
-        "onSymbol": { "type": "string" }
+        "onSymbol": { "$ref": "#/$defs/on" },
+        "rules": {
+          "description": "Competing production ids (the reduce(s) in the clash).",
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 }
+        }
       }
     },
     "diagnostics": {
