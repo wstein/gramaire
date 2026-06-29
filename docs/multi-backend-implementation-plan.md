@@ -212,6 +212,24 @@ unstable)**. A **canonical serialization** (sorted keys, fixed indent) defines
 the hash, reusing the `*.gram.lock` digest. **[S12]** The emitter's output is
 validated against `spec/ir-schema.json` per grammar (`Test.Schema`).
 
+**Incremental/LSP fields (change requests against the schema).** The CST-runtime
+spec ([`spec/incremental-spec.md`](../spec/incremental-spec.md) §10) needs three
+fields `irVersion: 0` does not yet carry:
+
+- `grammar.extras: integer[]` — trivia terminals (whitespace/comments) skipped
+  between any two tokens. REQUIRED for editor use; absent ⇒ no extras.
+- `tables.recovery.syncTokens: integer[]` — panic-mode resync set. SHOULD be
+  present; absent ⇒ FOLLOW-set resync fallback.
+- `tables.glr: { enabled: boolean, conflictStates: integer[] }` — GLR opt-in and
+  the fork states. OPTIONAL; absent ⇒ deterministic only.
+
+All three obey the **ignorability rule [S8]**: a batch / `--fast` consumer that
+ignores them parses identically, so they land as **additive v0 edits**, not a
+major bump. They are the honest exception to D2: *encodings* were frozen up
+front, but per-consumer *fields* grow additively under this rule — and the
+GLR-phase (D15) is what populates `tables.glr`. Stable `rules[].id` and symbol
+ids (already REQUIRED) give reused subtrees their identity (R3, below).
+
 ## The JSON decoder (the near-term unlock) — D16
 
 The IR is **encode-only** today. Two roadmap items both depend on the inverse —
@@ -274,6 +292,63 @@ from zero**, so the wire format generalizes from two working examples.
 
 Policy: **interpreter-first to prove a language, codegen later where speed
 pays.** A small `grammark-runtime-<lang>` library hosts the driver.
+
+## Layer 3 — the CST runtime, incremental reparse, LSP (Phase F)
+
+Governed by [`spec/incremental-spec.md`](../spec/incremental-spec.md) (draft,
+tracks `irVersion: 0`). The CST-first north star (D7) is only *delivered* by a
+runtime that **builds** the tree, **reparses** it after an edit, and **recovers**
+from errors — the recognizer alone is not an editor. This layer is that runtime
+plus a thin Tier-1 language server, and it builds on the **Phase-A CST golden +
+the shipped interpreter**, so it gates on A, **not on the breadth of Phase D**
+(D17). Four contracts, each a conformance bar:
+
+- **CST model + full fidelity (R1–R3).** A lossless `Tree` of Branch / Token /
+  Error / Trivia nodes; concatenating leaves reproduces the input byte-for-byte;
+  every node has a stable identity that survives reuse. The existing
+  [`Grammark.Cst`](../src/Grammark/Cst.purs) is the *value* CST; the runtime
+  `Tree` is its lossless, span-carrying sibling, serialized by `cst-schema.json`.
+- **`edit()` ≡ full reparse (R13) — the central invariant.**
+  `edit(parse(a), e, b)` is structurally identical to `parse(b)`. **Reuse is a
+  pure optimization**; conformance compares against a full reparse, so the
+  reuse algorithm (Wagner–Graham / tree-sitter) stays swappable forever (D18).
+- **Deterministic error recovery (R9–R12).** Malformed input yields `Error`
+  nodes, never an exception; identical input yields an identical error tree, so
+  placement is testable. **Determinism (R12) is tested first** — C3 below gates
+  C1, because incremental-equals-full on error trees follows from the same reuse
+  logic only once recovery is deterministic.
+- **Language-neutral runtime API.** Every `runtime/<lang>` provides
+  `parse / edit / walk / diagnostics`; the PureScript instance mirrors
+  [`Parser.purs`](../src/Grammark/Parser.purs) (which folds the tree into values;
+  the CST runtime builds the `Tree` itself).
+
+**Incremental is a *capability*, not a universal MUST.** Mirroring the Tier-1 /
+Tier-2 split, the SPI gains `incremental` and `lsp` capability flags alongside
+`recognizer` / `cst` / `actions:<lang>` / `format`. A recognizer backend stays a
+complete citizen (D7); only a backend that *claims* `incremental` is held to
+C1/C3/C4. This preserves the breadth economics — porting a recognizer is still a
+small driver; the full incremental runtime is opt-in where it is funded.
+
+**GLR is reserved and opt-in, not built into the v0 runtime (D20).** The
+deterministic driver MUST ignore multi-action data entirely (R17); the
+graph-structured-stack fork driver (R16) is the committed **GLR engine phase
+(D15)** and is reached only when `tables.glr.enabled`. The v0 incremental runtime
+ships deterministic-only.
+
+**Positions:** byte offsets are canonical and internal; LSP `Position`
+(UTF-16 code units, R5) is produced only at the server edge — byte offsets never
+leak into LSP payloads (D19). **Trivia** is attached **leading-only** for v0
+(R7), revisited only if a CST-consuming formatter needs trailing precision.
+
+**Conformance (`conformance/incremental/`, C1–C4).** C2 fidelity (trivial) →
+C3 recovery determinism → **C1 incremental equivalence (depends on C3)** → C4
+LSP goldens (`semanticTokens` / `foldingRange` / `documentSymbol`, the delta
+variant powered by `edit()`). Generated per backend from one descriptor set
+(the `antlr-tgen` pattern [S18]), so every `incremental` runtime is held to the
+identical bar. **FS abstraction (R18–R19, D13)** is the *entry gate*: the runtime
+and server operate over an abstract document store, and the generator runs over a
+virtual FS (memfs) — write the runtime against `fs` and it is rewritten, so this
+is decided before, not during, Phase F.
 
 ## fmt and the SPI (SOLID resolution)
 
@@ -375,17 +450,17 @@ Status: ✅ done · ◐ partial · ○ not started. The remaining work is **orde
 not parallel — DX leads (D14), then the JSON-decoder-gated closes, then breadth,
 then the committed GLR engine phase, then incremental/LSP.
 
-| Phase                         | What                                                                                                              | Status | Done when                                                                                                      |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------- |
-| **A. Spec + seam + keystone** | emit IR; [S2] codegen oracle; IR schema                                                                           | ◐      | interpreter also *reads* IR (needs decoder, D16); CST golden + `cst-schema` checked in                         |
-| **B. Backend SPI**            | in-process record; `grammark emit`; then TS backend; then out-of-process protocol                                 | ◐      | in-process + CLI done; TS backend + out-of-process (decoder-gated) remain                                      |
-| **C. Conformance**            | corpus + vectors + oracle; `grammark conformance`                                                                 | ◐      | shipped for `lr`; refine to descriptor-driven [S18] + per-language input lexers                                |
-| **DX. Errors + sugar (NEXT)** | grammar-relative diagnostics [S13]; EBNF macros + `#[inline]` desugaring to epsilon-free Core [S15]               | ○      | conflicts name competing rules + a fix; sugar desugars and round-trips through the Core                        |
-| **Decoder. JSON in**          | inverse of `Grammark.Json`; decode IR                                                                             | ○      | `decode∘encode == id` over goldens; interpreter runs from serialized IR; unblocks out-of-process               |
-| **D. Backends (tiered)**      | the backend set below                                                                                             | ◐      | `ir` + `ebnf` done; each new backend passes conformance                                                        |
-| **GLR. Engine (committed)**   | multi-action table + fork driver; Earley debug recognizer + `grammark explain-conflict`                           | ○      | GLR parses a deliberately ambiguous grammar; `explain-conflict` separates real ambiguity from an LALR artifact |
-| **E. Open ecosystem**         | publish IR schema + protocol + worked external backend + trust markers; registry threat model [S10]               | ○      | a third-party backend builds against published docs alone                                                      |
-| **F. Incremental + LSP**      | span-aware runtime [S16]; `edit()` reparse + recovery; Tier-1 LSP; FS-abstracted toolchain + web playground [S19] | ○      | incremental reparse ≡ full reparse; live diagnostics in VS Code; playground runs in-browser                    |
+| Phase                         | What                                                                                                                                                                                               | Status | Done when                                                                                                                                                                                       |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A. Spec + seam + keystone** | emit IR; [S2] codegen oracle; IR schema                                                                                                                                                            | ◐      | interpreter also *reads* IR (needs decoder, D16); CST golden + `cst-schema` checked in                                                                                                          |
+| **B. Backend SPI**            | in-process record; `grammark emit`; then TS backend; then out-of-process protocol                                                                                                                  | ◐      | in-process + CLI done; TS backend + out-of-process (decoder-gated) remain                                                                                                                       |
+| **C. Conformance**            | corpus + vectors + oracle; `grammark conformance`                                                                                                                                                  | ◐      | shipped for `lr`; refine to descriptor-driven [S18] + per-language input lexers                                                                                                                 |
+| **DX. Errors + sugar (NEXT)** | grammar-relative diagnostics [S13]; EBNF macros + `#[inline]` desugaring to epsilon-free Core [S15]                                                                                                | ○      | conflicts name competing rules + a fix; sugar desugars and round-trips through the Core                                                                                                         |
+| **Decoder. JSON in**          | inverse of `Grammark.Json`; decode IR                                                                                                                                                              | ○      | `decode∘encode == id` over goldens; interpreter runs from serialized IR; unblocks out-of-process                                                                                                |
+| **D. Backends (tiered)**      | the backend set below                                                                                                                                                                              | ◐      | `ir` + `ebnf` done; each new backend passes conformance                                                                                                                                         |
+| **GLR. Engine (committed)**   | multi-action table + fork driver; Earley debug recognizer + `grammark explain-conflict`                                                                                                            | ○      | GLR parses a deliberately ambiguous grammar; `explain-conflict` separates real ambiguity from an LALR artifact                                                                                  |
+| **E. Open ecosystem**         | publish IR schema + protocol + worked external backend + trust markers; registry threat model [S10]                                                                                                | ○      | a third-party backend builds against published docs alone                                                                                                                                       |
+| **F. Incremental + LSP**      | CST `Tree` runtime + `edit()` (R13); deterministic recovery; `parse/edit/walk/diagnostics` API; Tier-1 LSP; FS-abstracted toolchain + memfs playground [S16/S19]; `conformance/incremental/` C1–C4 | ○      | gates on A (CST golden) not D; **C3 then C1**: `edit(parse(a),e,b) ≡ parse(b)` on the descriptor corpus, recovery deterministic, C4 LSP goldens match; playground generates + parses in-browser |
 
 ## Backends — ordered, with mechanism and acceptance
 
@@ -439,30 +514,25 @@ everything target-specific is independent.
 
 ## Decision record (ADR)
 
-| #   | Decision                | Resolution                                                      | Why                                                                                                                           |
-| --- | ----------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| D1  | Keystone first step     | Build IR + first consumer together                              | The [S2] oracle keeps the schema honest while both are built.                                                                 |
-| D2  | v1 IR scope             | Full spec; rows form normative, mirrors deferred                | The rows form is the contract; CBOR/compact mirrors are additive when a consumer needs them [S7].                             |
-| D3  | Action profiles         | Design now                                                      | The `lr` profile is built and validated by the [S2] oracle.                                                                   |
-| D4  | `fmt` and the SPI       | Split (SOLID)                                                   | DocumentFormatter is front-end; diagram/EBNF/DOT are `format` backends.                                                       |
-| D5  | Default profile         | Bare `{% %}` ≡ purescript                                       | Free back-compat with today's grammars.                                                                                       |
-| D6  | Error-message keys      | Hybrid: item-set signature (key) + state (hint) [S9]            | Signature stable across LALR/IELR splits and IR versions.                                                                     |
-| D7  | Product north star      | CST-first (tree-sitter)                                         | Action-free CST is the universal experience; typed AST is opt-in.                                                             |
-| D8  | Conflict diagnostics    | Grammar-relative messages + fixes [S13]                         | LALRPOP's signature lesson: phrase conflicts in grammar terms, never LR-item jargon.                                          |
-| D9  | Full-LR(1) upgrade path | Keep IELR; lane-table (Pager) as fallback [S14]                 | If IELR splitting proves heavy, Pager is the trodden swap. LALR stays default.                                                |
-| D10 | Grammar ergonomics      | EBNF macros + `#[inline]`, desugared to epsilon-free Core [S15] | DRY grammars without touching the Core; inlining is the standard LR(1)-fitting move.                                          |
-| D11 | Runtime ownership       | Targets/runtimes never vendored in core [S17]                   | ANTLR4's runtime-issue avalanche is the cautionary tale.                                                                      |
-| D12 | Conformance shape       | Descriptor-driven, one source per backend [S18]                 | Every backend tested identically from one descriptor set; seed from grammars-v4.                                              |
-| D13 | Browser story           | FS-abstracted toolchain → playground + in-browser LSP [S19]     | The confirmed IDE goal needs the toolchain to run without Node's real `fs`.                                                   |
-| D14 | Next-track priority     | **DX polish first** (S13 diagnostics, S15 sugar)                | Cheapest/highest-impact; make the LR engine pleasant before scaling breadth or the engine.                                    |
-| D15 | GLR                     | **Committed engine phase** with its own gate/done-when          | GLR is a core change (`fillTables` hard-fails on conflict today), not a DX tweak — it earns its own phase.                    |
-| D16 | JSON decoder            | **Build next** as the unlock                                    | One self-contained, testable piece gates BOTH interpreter-reads-IR (Phase A close) and the out-of-process protocol (Phase B). |
-
-## Open decisions (one remaining)
-
-1. **Error-message localization** — are `lr errors` message *texts* part of Core
-   (one language) or a profile (per-locale / per-target)? The *keys* are settled
-   (D6, Core-owned); only the text is open, and it can be deferred past Phase A.
+| #   | Decision                | Resolution                                                                                                                                    | Why                                                                                                                                                                                                       |
+| --- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Keystone first step     | Build IR + first consumer together                                                                                                            | The [S2] oracle keeps the schema honest while both are built.                                                                                                                                             |
+| D2  | v1 IR scope             | Full spec; rows form normative, mirrors deferred                                                                                              | The rows form is the contract; CBOR/compact mirrors are additive when a consumer needs them [S7].                                                                                                         |
+| D3  | Action profiles         | Design now                                                                                                                                    | The `lr` profile is built and validated by the [S2] oracle.                                                                                                                                               |
+| D4  | `fmt` and the SPI       | Split (SOLID)                                                                                                                                 | DocumentFormatter is front-end; diagram/EBNF/DOT are `format` backends.                                                                                                                                   |
+| D5  | Default profile         | Bare `{% %}` ≡ purescript                                                                                                                     | Free back-compat with today's grammars.                                                                                                                                                                   |
+| D6  | Error-message keys      | Hybrid: item-set signature (key) + state (hint) [S9]                                                                                          | Signature stable across LALR/IELR splits and IR versions.                                                                                                                                                 |
+| D7  | Product north star      | CST-first (tree-sitter)                                                                                                                       | Action-free CST is the universal experience; typed AST is opt-in.                                                                                                                                         |
+| D8  | Conflict diagnostics    | Grammar-relative messages + fixes [S13]                                                                                                       | LALRPOP's signature lesson: phrase conflicts in grammar terms, never LR-item jargon.                                                                                                                      |
+| D9  | Full-LR(1) upgrade path | Keep IELR; lane-table (Pager) as fallback [S14]                                                                                               | If IELR splitting proves heavy, Pager is the trodden swap. LALR stays default.                                                                                                                            |
+| D10 | Grammar ergonomics      | EBNF macros + `#[inline]`, desugared to epsilon-free Core [S15]                                                                               | DRY grammars without touching the Core; inlining is the standard LR(1)-fitting move.                                                                                                                      |
+| D11 | Runtime ownership       | Targets/runtimes never vendored in core [S17]                                                                                                 | ANTLR4's runtime-issue avalanche is the cautionary tale.                                                                                                                                                  |
+| D12 | Conformance shape       | Descriptor-driven, one source per backend [S18]                                                                                               | Every backend tested identically from one descriptor set; seed from grammars-v4.                                                                                                                          |
+| D13 | Browser story           | FS-abstracted toolchain → playground + in-browser LSP [S19]                                                                                   | The confirmed IDE goal needs the toolchain to run without Node's real `fs`.                                                                                                                               |
+| D14 | Next-track priority     | **DX polish first** (S13 diagnostics, S15 sugar)                                                                                              | Cheapest/highest-impact; make the LR engine pleasant before scaling breadth or the engine.                                                                                                                |
+| D15 | GLR                     | **Committed engine phase** with its own gate/done-when                                                                                        | GLR is a core change (`fillTables` hard-fails on conflict today), not a DX tweak — it earns its own phase.                                                                                                |
+| D16 | JSON decoder            | **Build next** as the unlock                                                                                                                  | One self-contained, testable piece gates BOTH interpreter-reads-IR (Phase A close) and the out-of-process protocol (Phase B).                                                                             |
+| D17 | Error-message text      | Core-owned single canonical set in the grammar's base language; not a per-target profile; locale is an additive runtime/LSP concern, deferred | Errors are input-facing prose, not host code, so the action-profile (per-target) analogy fails; locale is orthogonal i18n with no consumer yet and stays additive (irVersion minor), so deferral is free. |
 
 ## What is next (concrete)
 
