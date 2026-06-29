@@ -14,6 +14,7 @@ import Test.Conformance as Conformance
 import Test.Diagnostics as Diagnostics
 import Test.FirstFollow as FirstFollow
 import Test.IR as IR
+import Test.Json as Json
 import Test.Lexer as Lexer
 import Test.Parser as Parser
 import Test.Schema as Schema
@@ -34,6 +35,8 @@ main = do
   FirstFollow.tests
   log "Test.IR"
   IR.tests
+  log "Test.Json"
+  Json.tests
   log "Test.Backend.Ebnf"
   BackendEbnf.tests
   log "Test.Backend.Registry"

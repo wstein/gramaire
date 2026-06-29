@@ -10,19 +10,20 @@ package:
       githubOwner: wstein
       githubRepo: grammark
   dependencies:
-    - prelude
     - arrays
-    - maybe
-    - either # Data.Either
-    - tuples
-    - strings # Data.String / Data.String.CodeUnits (lexer)
-    - ordered-collections # Data.Map / Data.Set
-    - foldable-traversable # Data.Foldable / Data.FoldableWithIndex
-    - effect # Effect (CLI)
     - console # Effect.Console (CLI output)
+    - effect # Effect (CLI)
+    - either # Data.Either
     - exceptions # Effect.Exception (CLI: graceful file-read failure)
-    - node-fs # Node.FS.Sync / Node.FS.Perms (CLI reads/writes files)
+    - foldable-traversable # Data.Foldable / Data.FoldableWithIndex
+    - integers
+    - maybe
     - node-buffer # Node.Encoding (CLI)
+    - node-fs # Node.FS.Sync / Node.FS.Perms (CLI reads/writes files)
+    - ordered-collections # Data.Map / Data.Set
+    - prelude
+    - strings # Data.String / Data.String.CodeUnits (lexer)
+    - tuples
   test:
     main: Test.Main
     dependencies:
