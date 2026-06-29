@@ -13,12 +13,13 @@ import Prelude
 import Data.Array (find)
 import Data.Maybe (Maybe)
 import Grammark.Backend (Backend)
+import Grammark.Backend.Dot as Dot
 import Grammark.Backend.Ebnf as Ebnf
 import Grammark.Backend.Ir as Ir
 
 -- | Every first-party backend, in display order.
 backends :: Array Backend
-backends = [ Ir.backend, Ebnf.backend ]
+backends = [ Ir.backend, Ebnf.backend, Dot.backend ]
 
 -- | Find a backend by its `--backend` name.
 findBackend :: String -> Maybe Backend

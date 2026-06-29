@@ -1,0 +1,13 @@
+digraph "Tiny" {
+  rankdir=LR;
+  node [shape=box, fontname="monospace"];
+  s0 [label="0"];
+  s1 [label="1\naccept on $"];
+  s2 [label="2"];
+  s3 [label="3\nreduce 0 on $"];
+  s4 [label="4\nreduce 1 on $"];
+  s0 -> s2 [label="x"];
+  s2 -> s4 [label="y"];
+  s0 -> s1 [label="S", style=dashed];
+  s2 -> s3 [label="A", style=dashed];
+}

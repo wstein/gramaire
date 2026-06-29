@@ -549,7 +549,7 @@ conformance suite** for its declared capabilities.
 | Python                       | recognizer + CST         | interp               | python           |  B   |   7   |   4    |           ○            |
 | Rust                         | recognizer + CST + AST   | codegen (+ interp)   | rust             |  B   |   8   |   7    |           ○            |
 | C99 (static-array tables)    | recognizer + CST         | codegen + interp     | c                |  B   |   7   |   7    |           ○            |
-| GraphViz DOT (automaton)     | format (tables)          | transform            | n/a              | Fmt  |   5   |   2    |           ○            |
+| GraphViz DOT (automaton)     | format (tables)          | transform            | n/a              | Fmt  |   5   |   2    |        ✅ `dot`        |
 | Haskell                      | recognizer + CST + AST   | codegen              | haskell          |  C   |   6   |   3    |           ○            |
 | Go / Kotlin / Java / C#      | recognizer + CST (+ AST) | interp / codegen     | per-lang         |  C   |  5–6  |   5    |           ○            |
 
