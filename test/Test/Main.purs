@@ -12,6 +12,7 @@ import Test.Backend.Registry as BackendRegistry
 import Test.Cli as Cli
 import Test.Codegen as Codegen
 import Test.Conformance as Conformance
+import Test.Desugar as Desugar
 import Test.Diagnostics as Diagnostics
 import Test.FirstFollow as FirstFollow
 import Test.IR as IR
@@ -57,4 +58,6 @@ main = do
   Conformance.tests
   log "Test.Diagnostics"
   Diagnostics.tests
+  log "Test.Desugar"
+  Desugar.tests
   log "all suites passed"
