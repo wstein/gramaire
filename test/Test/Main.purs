@@ -21,18 +21,18 @@ import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (log)
 import Grammark.Bootstrap (bootstrapGrammar)
-import Grammark.Table (Symbol(..), analyze, productions)
+import Grammark.Table (GSym(..), analyze, productions)
 import Test.Assert (assertEqual)
 
 -- A terminal symbol, written by its lexer token class or literal text.
-t :: String -> Symbol
+t :: String -> GSym
 t = Term
 
-set :: Array Symbol -> Set Symbol
+set :: Array GSym -> Set GSym
 set = Set.fromFoldable
 
 -- | FIRST sets documented in `grammar/lr.gram.md`.
-expectedFirst :: Map String (Set Symbol)
+expectedFirst :: Map String (Set GSym)
 expectedFirst = Map.fromFoldable
   [ Tuple "Grammar" (set [ t "IDENT" ])
   , Tuple "RuleList" (set [ t "IDENT" ])
@@ -46,7 +46,7 @@ expectedFirst = Map.fromFoldable
   ]
 
 -- | FOLLOW sets documented in `grammar/lr.gram.md` (`$` is `EOF`).
-expectedFollow :: Map String (Set Symbol)
+expectedFollow :: Map String (Set GSym)
 expectedFollow = Map.fromFoldable
   [ Tuple "Grammar" (set [ EOF ])
   , Tuple "RuleList" (set [ t "IDENT", EOF ])

@@ -89,5 +89,5 @@ TypeScript bridge keeps the project usable from commit one. See
 
 ## License
 
-No license has been chosen yet; until one is added, all rights are reserved
-by the project authors.
+[Apache License 2.0](LICENSE) © 2026 Werner Stein. See [NOTICE](NOTICE) for
+attribution.

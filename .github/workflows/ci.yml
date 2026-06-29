@@ -9,6 +9,25 @@ permissions:
   contents: read
 
 jobs:
+  purescript:
+    name: PureScript core (Spago)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install the PureScript toolchain
+        run: npm i -g purescript@0.15.16 spago@1.0.4
+
+      - name: Build (warnings are errors; deps must be tidy)
+        run: spago build --strict --pedantic-packages
+
+      - name: Test
+        run: spago test
+
   bootstrap:
     name: Bootstrap bridge + grammar checks
     runs-on: ubuntu-latest
