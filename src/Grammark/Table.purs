@@ -9,7 +9,7 @@
 -- | optionality rather than using an empty alternative), which makes FIRST
 -- | of a production equal to FIRST of its first symbol.
 module Grammark.Table
-  ( Symbol(..)
+  ( GSym(..)
   , Prod
   , Action(..)
   , Conflict(..)
@@ -40,21 +40,21 @@ import Partial.Unsafe (unsafeCrashWith)
 -- | A grammar symbol as the table builder sees it. A name is a `NonTerm`
 -- | exactly when it appears as a rule LHS; every other name and every
 -- | backtick literal is a `Term`. `EOF` is the end-of-input marker ($).
-data Symbol = NonTerm String | Term String | EOF
+data GSym = NonTerm String | Term String | EOF
 
-derive instance eqSymbol :: Eq Symbol
-derive instance ordSymbol :: Ord Symbol
+derive instance eqSymbol :: Eq GSym
+derive instance ordSymbol :: Ord GSym
 
 -- | Render a symbol the way the grammar and the FIRST/FOLLOW tables write
 -- | it: a bare name for terminals and nonterminals, `$` for end-of-input.
-instance showSymbol :: Show Symbol where
+instance showSymbol :: Show GSym where
   show (NonTerm n) = n
   show (Term t) = t
   show EOF = "$"
 
 -- | A flattened production with resolved symbols. Actions are irrelevant to
 -- | table construction and are dropped here.
-type Prod = { lhs :: String, rhs :: Array Symbol }
+type Prod = { lhs :: String, rhs :: Array GSym }
 
 -- | A parse-table action.
 data Action = Shift Int | Reduce Int | Accept
@@ -63,12 +63,12 @@ derive instance eqAction :: Eq Action
 
 -- | A conflict surfaced during construction.
 data Conflict
-  = ShiftReduce { state :: Int, onSymbol :: Symbol }
-  | ReduceReduce { state :: Int, onSymbol :: Symbol }
+  = ShiftReduce { state :: Int, onSymbol :: GSym }
+  | ReduceReduce { state :: Int, onSymbol :: GSym }
 
 -- | The finished tables (filled by the automaton stage).
 type ParseTable =
-  { action :: Map (Tuple Int Symbol) Action
+  { action :: Map (Tuple Int GSym) Action
   , goto :: Map (Tuple Int String) Int
   , prods :: Array Prod
   }
@@ -77,8 +77,8 @@ type ParseTable =
 type Analysis =
   { prods :: Array Prod
   , nonterminals :: Set String
-  , firsts :: Map String (Set Symbol)
-  , follows :: Map String (Set Symbol)
+  , firsts :: Map String (Set GSym)
+  , follows :: Map String (Set GSym)
   , start :: String
   }
 
@@ -88,7 +88,7 @@ nontermSet :: Grammar -> Set String
 nontermSet (Grammar rules) =
   Set.fromFoldable (map (\(Rule n _) -> n) rules)
 
-resolve :: Set String -> Sym -> Symbol
+resolve :: Set String -> Sym -> GSym
 resolve nts (Ref name) =
   if Set.member name nts then NonTerm name else Term name
 resolve _ (Lit s) = Term s
@@ -110,35 +110,35 @@ fixpoint step x =
   let x' = step x
   in if x' == x then x else fixpoint step x'
 
-setOf :: String -> Map String (Set Symbol) -> Set Symbol
+setOf :: String -> Map String (Set GSym) -> Set GSym
 setOf k m = fromMaybe Set.empty (Map.lookup k m)
 
 -- FIRST --------------------------------------------------------------------
 
-firstOfSymbol :: Map String (Set Symbol) -> Symbol -> Set Symbol
+firstOfSymbol :: Map String (Set GSym) -> GSym -> Set GSym
 firstOfSymbol firsts = case _ of
   Term t -> Set.singleton (Term t)
   EOF -> Set.singleton EOF
   NonTerm n -> setOf n firsts
 
-firstStep :: Array Prod -> Map String (Set Symbol) -> Map String (Set Symbol)
+firstStep :: Array Prod -> Map String (Set GSym) -> Map String (Set GSym)
 firstStep prods m0 = foldl addProd m0 prods
   where
   addProd m { lhs, rhs } = case Array.head rhs of
     Nothing -> m
     Just s -> Map.insertWith Set.union lhs (firstOfSymbol m s) m
 
-firstSets :: Array Prod -> Map String (Set Symbol)
+firstSets :: Array Prod -> Map String (Set GSym)
 firstSets prods = fixpoint (firstStep prods) Map.empty
 
 -- FOLLOW -------------------------------------------------------------------
 
 followStep
-  :: Map String (Set Symbol)
+  :: Map String (Set GSym)
   -> String
   -> Array Prod
-  -> Map String (Set Symbol)
-  -> Map String (Set Symbol)
+  -> Map String (Set GSym)
+  -> Map String (Set GSym)
 followStep firsts start prods fl0 = foldl perProd seeded prods
   where
   seeded = Map.insertWith Set.union start (Set.singleton EOF) fl0
@@ -151,10 +151,10 @@ followStep firsts start prods fl0 = foldl perProd seeded prods
     _ -> m
 
 followSets
-  :: Map String (Set Symbol)
+  :: Map String (Set GSym)
   -> String
   -> Array Prod
-  -> Map String (Set Symbol)
+  -> Map String (Set GSym)
 followSets firsts start prods =
   fixpoint (followStep firsts start prods) Map.empty
 

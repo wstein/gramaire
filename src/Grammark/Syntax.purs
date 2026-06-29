@@ -8,6 +8,8 @@ module Grammark.Syntax
   , Sym(..)
   ) where
 
+import Prelude
+
 import Data.Maybe (Maybe)
 
 -- | A grammar is an ordered list of rules.

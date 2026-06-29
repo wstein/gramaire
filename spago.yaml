@@ -3,14 +3,21 @@
 # (The packageSet registry version may need bumping to a current release.)
 package:
   name: grammark
+  publish:
+    version: 0.0.0
+    license: Apache-2.0
+    location:
+      githubOwner: wstein
+      githubRepo: grammark
   dependencies:
     - prelude
     - arrays
     - maybe
+    - either # Data.Either
     - tuples
     - ordered-collections # Data.Map / Data.Set
     - foldable-traversable # Data.Foldable / Data.FoldableWithIndex
-    - partial # Partial.Unsafe (automaton stub)
+    - partial # Partial.Unsafe
   test:
     main: Test.Main
     dependencies:

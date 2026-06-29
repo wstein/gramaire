@@ -46,5 +46,8 @@
     //   MD041 / MD025        : exactly one H1, and it is the first line.
     //   MD047                : single trailing newline.
   },
+  // Honour .gitignore so build output (output/, .spago/) and node_modules —
+  // which contain third-party Markdown — are never linted.
+  "gitignore": true,
   "ignores": ["**/node_modules/**"],
 }
