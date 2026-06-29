@@ -82,8 +82,10 @@ tokenizeSpanned src = go 0 []
     Just c
       | c == ' ' || c == '\t' || c == '\r' -> go (i + 1) acc
       | c == '\n' ->
-          let e = skipWhile isLayout (i + 1)
-          in go e (Array.snoc acc (sp "NL" "\n" i e))
+          let
+            e = skipWhile isLayout (i + 1)
+          in
+            go e (Array.snoc acc (sp "NL" "\n" i e))
       | c == ':' -> go (i + 1) (Array.snoc acc (sp ":" ":" i (i + 1)))
       | c == '|' -> go (i + 1) (Array.snoc acc (sp "|" "|" i (i + 1)))
       | c == '#' ->
@@ -104,8 +106,10 @@ tokenizeSpanned src = go 0 []
           Nothing -> Left (err i "unterminated {% ... %} action")
           Just j -> go (j + 2) (Array.snoc acc (sp "ACTION" (trim (slice (i + 2) j)) i (j + 2)))
       | isIdentStart c ->
-          let j = skipWhile isIdentChar (i + 1)
-          in go j (Array.snoc acc (sp "IDENT" (slice i j) i j))
+          let
+            j = skipWhile isIdentChar (i + 1)
+          in
+            go j (Array.snoc acc (sp "IDENT" (slice i j) i j))
       | otherwise -> Left (err i ("unexpected character " <> show c))
 
   -- Advance while the predicate holds; returns the first index where it fails.

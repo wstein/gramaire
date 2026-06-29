@@ -25,6 +25,13 @@ jobs:
       - name: Build (warnings are errors; deps must be tidy)
         run: spago build --strict --pedantic-packages
 
+      - name: Format check (purs-tidy)
+        # Pinned for determinism; excludes the generated reduce, which is
+        # codegen-shaped (and drift-locked by Test.Codegen), not purs-tidy-shaped.
+        run: |
+          files=$(find src test -name '*.purs' -not -path '*/Generated/*')
+          npx --yes purs-tidy@0.11.0 check $files
+
       - name: Core stays filesystem-free (ADR D13)
         # The parser/IR/runtime must import cleanly into a browser/worker, so no
         # core module may depend on Node's fs. Only the CLI and the codegen
