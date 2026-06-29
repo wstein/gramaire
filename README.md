@@ -160,7 +160,11 @@ waist end to end. The emitted IR is validated against its JSON Schema
 ([`spec/ir-schema.json`](spec/ir-schema.json)) by `Test.Schema` for every
 grammar, and a differential-oracle conformance suite (`grammark conformance`,
 `Test.Conformance`) checks that accept/reject vectors agree under all three
-methods.
+methods. The IR also round-trips: [`Grammark.IR.Decode`](src/Grammark/IR/Decode.purs)
+parses serialized IR back and rebuilds the exact parse table, so the interpreter
+runs from the artifact alone. When a grammar is not LR(1),
+[`Grammark.Diagnostics`](src/Grammark/Diagnostics.purs) reports the conflict in
+the author's own rules with a suggested fix, rather than in raw state numbers.
 
 Source-emitting codegen is now real: the `lr` grammar's `reduce` is
 **generated** from the IR plus a typed-AST profile
