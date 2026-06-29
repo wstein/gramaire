@@ -101,6 +101,7 @@ resolve _ (Lit s) = Term s
 resolve nts (Rep s) = resolve nts s -- unreachable: sugar is desugared before table construction
 resolve nts (Star s) = resolve nts s -- unreachable
 resolve nts (Opt s) = resolve nts s -- unreachable
+resolve nts (Macro name _) = resolve nts (Ref name) -- unreachable
 
 productions :: Grammar -> Array Prod
 productions g@(Grammar rules) = Array.concatMap ruleProds rules

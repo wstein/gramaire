@@ -66,6 +66,13 @@ bootstrapGrammar = Grammar
       , Alt [ Ref "TERM_LIT", Ref "STAR" ] Nothing (Just "\\t _ -> Star (Lit t)")
       , Alt [ Ref "IDENT", Ref "QUESTION" ] Nothing (Just "\\i _ -> Opt (Ref i)")
       , Alt [ Ref "TERM_LIT", Ref "QUESTION" ] Nothing (Just "\\t _ -> Opt (Lit t)")
+      , Alt [ Ref "IDENT", Ref "LANGLE", Ref "Args", Ref "RANGLE" ] Nothing
+          (Just "\\name _ args _ -> Macro name args")
+      ]
+
+  , Rule "Args"
+      [ Alt [ Ref "Sym" ] Nothing (Just "\\s -> [s]")
+      , Alt [ Ref "Args", Ref "COMMA", Ref "Sym" ] Nothing (Just "\\as _ s -> snoc as s")
       ]
 
   , Rule "Action"

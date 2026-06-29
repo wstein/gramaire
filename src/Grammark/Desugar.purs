@@ -1,20 +1,19 @@
--- | EBNF repetition sugar lowered to the epsilon-free Core ([S15], D27/D28).
+-- | EBNF sugar lowered to the epsilon-free Core ([S15], D27/D28).
 -- |
 -- | The Core is epsilon-free (the LR(1) automaton assumes no empty right-hand
--- | sides), and actions are fixed-arity. The sugar respects both:
+-- | sides) and actions are fixed-arity. Every sugar respects both:
 -- |
--- |   * `X+` (`Rep`) lowers to a fresh left-recursive list nonterminal whose
--- |     value is an `Array`. The alternative keeps its symbol count.
+-- |   * `X+` (`Rep`) lowers to a fresh left-recursive list nonterminal (`Array`
+-- |     value); the alternative keeps its symbol count.
 -- |   * `X*` (`Star`) and `X?` (`Opt`) lower by **use-site enumeration**: an
 -- |     alternative with k optional/star elements expands to its 2ᵏ
 -- |     present/absent combinations, and the action is wrapped so the original
--- |     still receives one `Array` (`X*`) or `Maybe` (`X?`) in that position —
--- |     `Just`/`Nothing`/`[]`/the list value spliced at the sugar slot. Both the
--- |     epsilon-free invariant and the action's arity are preserved.
--- |
--- | The one limit: an *all-optional* alternative enumerates to an empty
--- | production, which the epsilon-free automaton cannot take, so that case is a
--- | `Left`, never a silent epsilon.
+-- |     still receives one `Array` (`*`) or `Maybe` (`?`) — `Just`/`Nothing`/`[]`
+-- |     spliced at the sugar slot. An *all-optional* alternative would enumerate
+-- |     to an empty production and is a `Left`, never a silent epsilon.
+-- |   * `Macro name<args>` lowers to a fresh rule: `Comma<X>` and `Sep<X, S>`
+-- |     each become a one-or-more separated list (`Array` value). An unknown
+-- |     macro or wrong arity is a `Left`.
 -- |
 -- | `desugar` is the chokepoint `Lr.parse` runs after parsing, so the table
 -- | builder, the IR, and every backend only ever see a plain `Sym`.
@@ -32,28 +31,41 @@ import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.String (joinWith)
 import Data.Traversable (traverse)
-import Data.Tuple (Tuple(..), snd)
+import Data.Tuple (Tuple(..))
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 
 desugar :: Grammar -> Either String Grammar
 desugar (Grammar rules) = do
+  fresh <- collectFresh
   lowered <- traverse lowerRule rules
-  pure (Grammar (lowered <> freshRules))
+  pure (Grammar (lowered <> Array.fromFoldable (Map.values fresh)))
   where
-  freshRules :: Array Rule
-  freshRules = map snd (Map.toUnfoldable fresh :: Array (Tuple String Rule))
+  -- every symbol in the grammar, including nested sugar and macro arguments
+  everySym :: Array Sym
+  everySym = Array.concatMap subSyms (Array.concatMap altSyms (Array.concatMap ruleAlts rules))
+  ruleAlts (Rule _ alts) = alts
+  altSyms (Alt syms _ _) = syms
+  subSyms s = Array.cons s case s of
+    Rep x -> subSyms x
+    Star x -> subSyms x
+    Opt x -> subSyms x
+    Macro _ args -> Array.concatMap subSyms args
+    _ -> []
 
-  -- A fresh left-recursive list nonterminal per distinct repeated symbol (used
-  -- by both `Rep` and the present case of `Star`), deduped by name.
-  fresh :: Map String Rule
-  fresh = foldl (\m (Rule _ alts) -> foldl (\m' (Alt syms _ _) -> foldl collectSym m' syms) m alts) Map.empty rules
+  -- the fresh nonterminals: list rules for Rep/Star, macro rules for Macro
+  collectFresh :: Either String (Map String Rule)
+  collectFresh = do
+    macroEntries <- traverse macroRule (Array.mapMaybe asMacro everySym)
+    pure (Map.fromFoldable (Array.mapMaybe listEntry everySym <> macroEntries))
 
-  collectSym :: Map String Rule -> Sym -> Map String Rule
-  collectSym m = case _ of
-    Rep s -> Map.insert (listName s) (listRule s) (collectSym m s)
-    Star s -> Map.insert (listName s) (listRule s) (collectSym m s)
-    Opt s -> collectSym m s
-    _ -> m
+  listEntry = case _ of
+    Rep x -> Just (Tuple (listName x) (listRule x))
+    Star x -> Just (Tuple (listName x) (listRule x))
+    _ -> Nothing
+
+  asMacro = case _ of
+    Macro name args -> Just (Tuple name args)
+    _ -> Nothing
 
   lowerRule :: Rule -> Either String Rule
   lowerRule (Rule lhs alts) = Rule lhs <<< Array.concat <$> traverse enumerateAlt alts
@@ -70,9 +82,6 @@ desugar (Grammar rules) = do
             if Array.null rhs then Left allOptional
             else Right (Alt rhs label (map (wrap presences) action))
 
-  -- Pair each symbol with whether it is present under a flag assignment; the
-  -- flags are consumed left to right by the optional/star positions, and
-  -- required symbols are always present.
   assign :: Array Sym -> Array Boolean -> Array (Tuple Sym Boolean)
   assign syms flags = (foldl step { out: [], fs: flags } syms).out
     where
@@ -88,14 +97,13 @@ desugar (Grammar rules) = do
     Star s -> if present then [ Ref (listName s) ] else []
     other -> [ lowerOne other ]
 
-  -- A non-sugar element with `Rep` lowered to its list nonterminal.
+  -- a non-sugar element, lowering Rep/Macro to their fresh nonterminal
   lowerOne :: Sym -> Sym
   lowerOne = case _ of
     Rep s -> Ref (listName s)
+    Macro name args -> Ref (macroNameOf name args)
     other -> other
 
-  -- Apply the original action to the present params, splicing the default
-  -- (`Just p` / `Nothing` / `p` / `[]`) at each sugar slot so its arity holds.
   wrap :: Array (Tuple Sym Boolean) -> String -> String
   wrap presences orig =
     let
@@ -120,16 +128,13 @@ desugar (Grammar rules) = do
   param :: Int -> String
   param k = "p" <> show k
 
-  optStar :: Sym -> Boolean
   optStar = case _ of
     Opt _ -> true
     Star _ -> true
     _ -> false
 
-  listName :: Sym -> String
   listName s = baseName s <> "_plus"
 
-  listRule :: Sym -> Rule
   listRule s =
     let
       inner = lowerOne s
@@ -139,7 +144,27 @@ desugar (Grammar rules) = do
         , Alt [ Ref (listName s), inner ] Nothing (Just "\\xs x -> snoc xs x")
         ]
 
-  allOptional :: String
+  -- macro dispatch: Comma<X> and Sep<X, S> are one-or-more separated lists
+  macroNameOf :: String -> Array Sym -> String
+  macroNameOf name args = case name, args of
+    "Comma", [ x ] -> baseName x <> "_comma"
+    "Sep", [ x, s ] -> baseName x <> "_sep_" <> baseName s
+    _, _ -> name
+
+  macroRule :: Tuple String (Array Sym) -> Either String (Tuple String Rule)
+  macroRule (Tuple name args) = case name, args of
+    "Comma", [ x ] -> Right (Tuple (macroNameOf name args) (sepRule (macroNameOf name args) (lowerOne x) (Lit ",")))
+    "Sep", [ x, s ] -> Right (Tuple (macroNameOf name args) (sepRule (macroNameOf name args) (lowerOne x) (lowerOne s)))
+    "Comma", _ -> Left "macro Comma<X> takes exactly one argument"
+    "Sep", _ -> Left "macro Sep<X, S> takes exactly two arguments"
+    _, _ -> Left ("unknown macro " <> name <> "; known macros are Comma<X> and Sep<X, S>")
+
+  sepRule key x sep =
+    Rule key
+      [ Alt [ x ] Nothing (Just "\\x -> [x]")
+      , Alt [ Ref key, sep, x ] Nothing (Just "\\xs _ x -> snoc xs x")
+      ]
+
   allOptional = "an all-optional alternative would be empty; keep at least one required symbol or refactor"
 
 -- Every present/absent flag assignment for n sugar positions (2ⁿ of them).
@@ -155,3 +180,4 @@ baseName = case _ of
   Rep s -> baseName s <> "_plus"
   Star s -> baseName s <> "_star"
   Opt s -> baseName s <> "_opt"
+  Macro name _ -> name

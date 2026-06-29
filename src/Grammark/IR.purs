@@ -246,6 +246,7 @@ buildIR method name g@(Grammar rules) =
       Rep s -> perSym m s -- unreachable: sugar is desugared before IR construction
       Star s -> perSym m s -- unreachable
       Opt s -> perSym m s -- unreachable
+      Macro _ args -> foldl perSym m args -- unreachable
 
   termEntries :: Array { id :: Int, str :: String, isLiteral :: Boolean }
   termEntries =
@@ -285,6 +286,7 @@ buildIR method name g@(Grammar rules) =
       Rep s -> toRef s -- unreachable: sugar is desugared before IR construction
       Star s -> toRef s -- unreachable
       Opt s -> toRef s -- unreachable
+      Macro nm _ -> toRef (Ref nm) -- unreachable
 
   allSyms :: Array Sym
   allSyms = Array.concatMap (\(Rule _ alts) -> Array.concatMap altSyms alts) rules

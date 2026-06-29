@@ -74,6 +74,7 @@ expectedFirst = Map.fromFoldable
   , Tuple "Alt" (set [ t "IDENT", t "TERM_LIT" ])
   , Tuple "SymList" (set [ t "IDENT", t "TERM_LIT" ])
   , Tuple "Sym" (set [ t "IDENT", t "TERM_LIT" ])
+  , Tuple "Args" (set [ t "IDENT", t "TERM_LIT" ])
   , Tuple "Action" (set [ t "ACTION" ])
   , Tuple "Label" (set [ t "LABEL" ])
   ]
@@ -88,7 +89,8 @@ expectedFollow = Map.fromFoldable
   , Tuple "AltTail" (set [ t "IDENT", EOF ])
   , Tuple "Alt" (set [ t "NL" ])
   , Tuple "SymList" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT" ])
-  , Tuple "Sym" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT" ])
+  , Tuple "Sym" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT", t "RANGLE", t "COMMA" ])
+  , Tuple "Args" (set [ t "RANGLE", t "COMMA" ])
   , Tuple "Action" (set [ t "NL" ])
   , Tuple "Label" (set [ t "ACTION", t "NL" ])
   ]
@@ -97,8 +99,8 @@ tests :: Effect Unit
 tests = do
   let a = analyze bootstrapGrammar
 
-  log "  table: bootstrapGrammar flattens to 23 productions"
-  assertEqual { actual: length (productions bootstrapGrammar), expected: 23 }
+  log "  table: bootstrapGrammar flattens to 26 productions"
+  assertEqual { actual: length (productions bootstrapGrammar), expected: 26 }
 
   log "  table: start symbol is Grammar"
   assertEqual { actual: a.start, expected: "Grammar" }

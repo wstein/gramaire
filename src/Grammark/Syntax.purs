@@ -31,6 +31,7 @@ data Sym
   | Rep Sym -- ^ one-or-more sugar (`X+`); eliminated by `Grammark.Desugar`
   | Star Sym -- ^ zero-or-more sugar (`X*`); eliminated by `Grammark.Desugar`
   | Opt Sym -- ^ zero-or-one sugar (`X?`); eliminated by `Grammark.Desugar`
+  | Macro String (Array Sym) -- ^ a macro call `Name<args>` (e.g. `Comma<X>`)
 
 -- Structural equality lets the self-hosting test assert that the parser,
 -- once generated, reads `lr.gram.md` back to a value equal to the literal.
@@ -47,6 +48,7 @@ instance showSym :: Show Sym where
   show (Rep s) = "Rep (" <> show s <> ")"
   show (Star s) = "Star (" <> show s <> ")"
   show (Opt s) = "Opt (" <> show s <> ")"
+  show (Macro n args) = "Macro " <> show n <> " " <> show args
 
 instance showAlt :: Show Alt where
   show (Alt syms label act) =
