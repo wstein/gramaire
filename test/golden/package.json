@@ -1,0 +1,4 @@
+{
+  "//": "Marks generated TypeScript goldens (e.g. Lr.ts from the `ts` backend) as ES modules, matching what the backend emits and what node/tsc import.",
+  "type": "module"
+}

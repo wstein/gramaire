@@ -604,7 +604,7 @@ then the committed GLR engine phase, then incremental/LSP.
 | Phase                         | What                                                                                                                    | Status | Done when                                                                                                                                                   |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **A. Spec + seam + keystone** | emit IR; [S2] codegen oracle; IR schema                                                                                 | ✅     | interpreter *reads* IR ✅ (decoder D16); CST golden + `cst-schema.json` ✅ — Phase A closed                                                                 |
-| **B. Backend SPI**            | in-process record; `grammark emit`; then TS backend; then out-of-process protocol                                       | ◐      | in-process + CLI done; decoder unblocks out-of-process; TS backend remains                                                                                  |
+| **B. Backend SPI**            | in-process record; `grammark emit`; then TS backend; then out-of-process protocol                                       | ◐      | in-process + CLI done; `ts` backend ✅ (recognizer+CST+Visitor); decoder unblocks out-of-process protocol next                                              |
 | **C. Conformance**            | corpus + vectors + oracle; `grammark conformance`                                                                       | ◐      | shipped for `lr`; refine to descriptor-driven [S18] + per-language input lexers                                                                             |
 | **DX. Errors + sugar**        | grammar-relative diagnostics [S13]; EBNF macros + `#[inline]` desugaring to epsilon-free Core [S15]                     | ✅     | diagnostics ✅ + labels ✅; sugar `X+` / `X*` / `X?` ✅, `Comma<X>` / `Sep<X,S>` ✅, `left:X` fields ✅, `#[inline]` ✅ ([S15] `Grammark.Desugar`, D27/D28) |
 | **Decoder. JSON in**          | inverse of `Grammark.Json`; decode IR                                                                                   | ✅     | `decode∘encode == id` ✅; interpreter runs from serialized IR ✅                                                                                            |
@@ -618,20 +618,20 @@ then the committed GLR engine phase, then incremental/LSP.
 Value/Effort are 1–10. Acceptance for every code backend = **passes the
 conformance suite** for its declared capabilities.
 
-| Backend                      | Capability               | Mechanism            | Profile          | Tier | Value | Effort |         Status         |
-| ---------------------------- | ------------------------ | -------------------- | ---------------- | :--: | :---: | :----: | :--------------------: |
-| PureScript                   | recognizer + CST + AST   | interp + codegen     | purescript (ref) |  A   |  10   |   —    | ✅ interp + lr codegen |
-| Tables-only (IR JSON)        | data                     | serialize IR         | n/a              |  A   |   8   |   2    |    ✅ `ir` backend     |
-| EBNF / W3C-EBNF              | format (grammar)         | transform            | n/a              | Fmt  |   6   |   2    |       ✅ `ebnf`        |
-| TypeScript (`.ts` + `.d.ts`) | recognizer + CST + AST   | codegen              | typescript       |  A   |   9   |   4    |     ○ next breadth     |
-| JavaScript (ESM)             | recognizer + CST         | interp / codegen     | javascript       |  B   |   8   |   2    |           ○            |
-| Generic interpreter runtime  | recognizer + CST         | interp (design once) | none             |  B   |   7   |   5    |           ○            |
-| Python                       | recognizer + CST         | interp               | python           |  B   |   7   |   4    |           ○            |
-| Rust                         | recognizer + CST + AST   | codegen (+ interp)   | rust             |  B   |   8   |   7    |           ○            |
-| C99 (static-array tables)    | recognizer + CST         | codegen + interp     | c                |  B   |   7   |   7    |           ○            |
-| GraphViz DOT (automaton)     | format (tables)          | transform            | n/a              | Fmt  |   5   |   2    |        ✅ `dot`        |
-| Haskell                      | recognizer + CST + AST   | codegen              | haskell          |  C   |   6   |   3    |           ○            |
-| Go / Kotlin / Java / C#      | recognizer + CST (+ AST) | interp / codegen     | per-lang         |  C   |  5–6  |   5    |           ○            |
+| Backend                      | Capability               | Mechanism            | Profile          | Tier | Value | Effort | Status                 |
+| ---------------------------- | ------------------------ | -------------------- | ---------------- | ---- | ----- | ------ | ---------------------- |
+| PureScript                   | recognizer + CST + AST   | interp + codegen     | purescript (ref) | A    | 10    | —      | ✅ interp + lr codegen |
+| Tables-only (IR JSON)        | data                     | serialize IR         | n/a              | A    | 8     | 2      | ✅ `ir` backend        |
+| EBNF / W3C-EBNF              | format (grammar)         | transform            | n/a              | Fmt  | 6     | 2      | ✅ `ebnf`              |
+| TypeScript (`.ts` + `.d.ts`) | recognizer + CST + AST   | codegen              | typescript       | A    | 9     | 4      | ✅ codegen + Visitor   |
+| JavaScript (ESM)             | recognizer + CST         | interp / codegen     | javascript       | B    | 8     | 2      | ○                      |
+| Generic interpreter runtime  | recognizer + CST         | interp (design once) | none             | B    | 7     | 5      | ○                      |
+| Python                       | recognizer + CST         | interp               | python           | B    | 7     | 4      | ○                      |
+| Rust                         | recognizer + CST + AST   | codegen (+ interp)   | rust             | B    | 8     | 7      | ○                      |
+| C99 (static-array tables)    | recognizer + CST         | codegen + interp     | c                | B    | 7     | 7      | ○                      |
+| GraphViz DOT (automaton)     | format (tables)          | transform            | n/a              | Fmt  | 5     | 2      | ✅ `dot`               |
+| Haskell                      | recognizer + CST + AST   | codegen              | haskell          | C    | 6     | 3      | ○                      |
+| Go / Kotlin / Java / C#      | recognizer + CST (+ AST) | interp / codegen     | per-lang         | C    | 5–6   | 5      | ○                      |
 
 Notes: TypeScript ships next as the **second in-process backend** the
 out-of-process protocol is extracted from ([S6]). The generic interpreter
