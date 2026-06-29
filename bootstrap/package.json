@@ -12,6 +12,7 @@
     "validate": "node validate-firstfollow.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test grammark-check.test.ts",
+    "lint:md": "node lint-docs.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

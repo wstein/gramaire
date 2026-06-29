@@ -2,6 +2,8 @@
 
 ![Grammark](brand/grammark-wordmark.svg)
 
+[![CI](https://github.com/wstein/grammark/actions/workflows/ci.yml/badge.svg)](https://github.com/wstein/grammark/actions/workflows/ci.yml)
+
 **Grammars that render themselves.** Grammark is an LR parser generator whose
 source format _is_ Markdown: a `.gram.md` file is a normal document that
 renders on GitHub — prose, railroad diagrams, FIRST/FOLLOW tables — and is at
