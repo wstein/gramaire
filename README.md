@@ -133,7 +133,10 @@ The front end also lowers a grammar and its tables into
 [`grammark-ir`](src/Grammark/IR.purs) — the versioned, canonically serialized
 JSON artifact that every backend will target (`Grammark.IR`, with the canonical
 serializer in `Grammark.Json`). `Test.IR` locks the emitted JSON against
-checked-in goldens for the `lr` and `json` grammars.
+checked-in goldens for the `lr` and `json` grammars. A first backend,
+[`Grammark.Backend.Ebnf`](src/Grammark/Backend/Ebnf.purs), consumes that IR —
+and nothing else — to render a grammar as W3C-style EBNF, proving the narrow
+waist end to end.
 
 The bridge's `grammark fmt` emits real railroad diagrams — sidecar SVGs by
 default, or GitHub-native mermaid fences with `--diagrams=mermaid` — and every
