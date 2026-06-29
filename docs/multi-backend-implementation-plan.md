@@ -79,6 +79,13 @@ backend, which emit "recognizer + CST + you walk it." The CST shape is **not**
 left implicit: it has a normative serialization, `spec/cst-schema.json`, so
 "same tree shape" is a checkable claim and not a vibe. **[S3]**
 
+**North star (resolved): CST-first.** The action-free "recognizer + generic CST
+you walk" is the first-class universal experience every backend delivers
+equally; a typed AST from an action profile is an opt-in *enrichment*, never a
+prerequisite for a backend to be useful. Grammark's positioning is
+tree-sitter's, not ANTLR's — a CST-only backend is a complete citizen, not a
+fallback.
+
 ## Layer 2 — Action profiles (per-target)
 
 Semantic actions move from bare `{% … %}` to **language-tagged** blocks:
@@ -111,7 +118,7 @@ tables) never knows what a backend is; a backend never parses Markdown.
 
 ```jsonc
 {
-  "irVersion": 1,
+  "irVersion": 0,                                   // draft/unstable until Phase A closes  [N5]
   "grammar": {
     "name": "Json",
     "start": "Json",
@@ -140,7 +147,13 @@ tables) never knows what a backend is; a backend never parses Markdown.
     "mirrors": { "actionRle": "…", "gotoDense": "…" }
   },
   "conflicts": [],                 // full provenance; --fast may ignore   [S8]
-  "diagnostics": { "errors": [{ "itemSet": "…", "message": "…" }] }  // [S9]
+  "diagnostics": {
+    "errors": [
+      // Hybrid key [S9]: "itemSet" signature is the stable key; "state" rides
+      // along as a tooling hint only, never relied on across algorithm/version.
+      { "itemSet": "…", "state": 3, "message": "…" }
+    ]
+  }
 }
 ```
 
@@ -156,17 +169,19 @@ Decisions baked in:
 - **Conflicts carry full provenance [S8]** (you already compute inadequacy data
   in IELR). It lives in an `irVersion`-additive object a `--fast` backend can
   ignore — no lean-vs-rich fork.
-- **Error keys are item-set signatures, not raw state integers. [S9]** State
+- **Error keys are a hybrid: item-set signature + state hint. [S9]** State
   numbers are not stable across algorithm (LALR vs IELR splitting) or IR
-  version; keying `lr errors` by the integer silently rots. `diagnostics` keys
-  by an item-set signature. *(Proposed — confirm before freezing; see Open
-  decisions.)*
+  version, so the **stable key is an item-set signature**; the raw `state`
+  integer rides along as a debugging/tooling hint only and is never the key.
+  This keeps `lr errors` robust across rebuilds while staying inspectable.
 
 Stability policy: **semver on `irVersion`**; additive changes within a major,
 breaking changes bump the major and every backend declares the majors it
-supports. A **canonical serialization** (sorted keys, no insignificant
-whitespace) defines the hash used by the drift lock and conformance, reusing the
-existing `*.gram.lock` digest. **[S12]**
+supports. Until Phase A closes, the schema is published as **`irVersion: 0`
+(draft, unstable)** — v0 files carry no compatibility promise and must not be
+treated as a frozen contract. **[N5]** A **canonical serialization** (sorted
+keys, no insignificant whitespace) defines the hash used by the drift lock and
+conformance, reusing the existing `*.gram.lock` digest. **[S12]**
 
 Lean-IR rule (perf veto): the IR carries only what a backend needs to build a
 working parser. Fields that serve only the slow path stay out (or behind the
@@ -251,6 +266,11 @@ This keeps the "diagrams are just another backend" win and satisfies
 SRP/DIP/ISP/OCP without pretending a Markdown formatter is a pure `IR → files`
 function. A one-page `spec/fmt-vs-backend-rfc.md` records the five-way split and
 the two interfaces (`DocumentFormatter`, `Backend`) for the team thread.
+
+The PureScript `DocumentFormatter` is also the component that finally retires
+the TypeScript bridge: when it reaches parity with `bootstrap/grammark-check.ts`,
+condition 1 of the bridge's delete-me holds (the self-host half already does).
+See [`bootstrap/README.md`](../bootstrap/README.md). **[N4]**
 
 ## Conformance suite ("universal" or it is fragments)
 
@@ -365,25 +385,27 @@ conformance/
 examples/                 # calc.gram.md, json.gram.md, … (already present)
 ```
 
-## Open decisions (resolve before freezing Phase A)
+## Decision record (ADR)
 
-Resolved already: default profile = bare `{% %}` ≡ `purescript`; full IR spec
-(JSON + CBOR + compact) up front; profiles designed now; `fmt` split per the
-SOLID resolution above.
+The calls made while shaping this plan, with the *why* so they are not
+re-litigated. **[N2]**
 
-Still open:
+| # | Decision | Resolution | Why |
+| - | -------- | ---------- | --- |
+| D1 | Keystone first step | **Build IR + first consumer together** | Optimize for long-term architecture over near-term cheapness; the [S2] codegen oracle keeps the schema honest while both are built. |
+| D2 | v1 IR scope | **Full spec up front** (JSON + CBOR + compact encodings) | The schema never has to grow a second encoding later; the diffable `rows` form [S7] preserves the golden workflow. |
+| D3 | Action profiles | **Design now** | Freeze the `{% lang … %}` syntax and default-profile rules in Phase A; the [S2] oracle lands a real `purescript` consumer to validate the design. |
+| D4 | `fmt` and the SPI | **Split (SOLID)** | DocumentFormatter is a front-end concern; diagram/tables/EBNF/DOT emitters are `format` backends. Satisfies SRP/DIP/ISP/OCP. |
+| D5 | Default profile | **Bare `{% %}` ≡ `purescript`** | Free back-compat with today's grammars and `lr.gram.md`. |
+| D6 | Error-message keys | **Hybrid: item-set signature (key) + state (hint)** [S9] | Signature is stable across LALR/IELR splits and IR versions; the integer stays for tooling/debug, never as the key. |
+| D7 | Product north star | **CST-first (tree-sitter)** | Action-free recognizer + generic CST is the universal first-class experience; typed AST is opt-in enrichment, not a prerequisite. |
 
-1. **Error-key scheme [S9].** Confirm `lr errors` keyed by **item-set
-   signature** (proposed, stable) rather than raw state integer (fragile across
-   algorithm/version). This is the one open item with a latent-bug flavor.
-2. **CST vs AST as the universal default** — is "action-free → generic CST you
-   walk" an acceptable first-class experience, or is the typed-AST-from-inline-
-   actions flow so central that non-profile backends feel second-class? This is
-   the tree-sitter-vs-ANTLR axis; it sets the north star and is a
-   product-identity call.
-3. **Error-message localization** — are `lr errors` message *texts* part of Core
-   (one language) or a profile (per-locale / per-target)? (Keys are Core per #1;
-   this is only about the text.)
+## Open decisions (one remaining)
+
+1. **Error-message localization** — are `lr errors` message *texts* part of Core
+   (one language) or a profile (per-locale / per-target message sets)? The
+   *keys* are settled (D6, Core-owned); this is only about the text, and it can
+   be deferred past Phase A without blocking the seam.
 
 ## One concrete first step
 
