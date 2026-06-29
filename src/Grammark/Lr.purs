@@ -23,6 +23,7 @@ import Data.Foldable (foldl)
 import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..), joinWith, split, trim)
 import Grammark.Bootstrap (bootstrapGrammar)
+import Grammark.Desugar (desugar)
 import Grammark.Lexer (Token, tokenize)
 import Grammark.Parser (run)
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
@@ -72,8 +73,10 @@ reduce p kids = case p, kids of
   12, [ VSyms ss, VSym s ] -> VSyms (Array.snoc ss s) -- SymList : SymList Sym
   13, [ VStr i ] -> VSym (Ref i) -- Sym : IDENT
   14, [ VStr t ] -> VSym (Lit t) -- Sym : TERM_LIT
-  15, [ VStr a ] -> VMaybeStr (Just a) -- Action : ACTION
-  16, [ VStr l ] -> VMaybeStr (Just l) -- Label : LABEL
+  15, [ VStr i, _ ] -> VSym (Rep (Ref i)) -- Sym : IDENT PLUS
+  16, [ VStr t, _ ] -> VSym (Rep (Lit t)) -- Sym : TERM_LIT PLUS
+  17, [ VStr a ] -> VMaybeStr (Just a) -- Action : ACTION
+  18, [ VStr l ] -> VMaybeStr (Just l) -- Label : LABEL
   _, _ -> VErr ("unexpected reduce shape for production " <> show p)
 
 -- | Extract the contents of every ```lr fenced block — the rule blocks, not
@@ -105,7 +108,7 @@ parseWith method md =
         Left _ -> Left "internal: the lr grammar is not parseable by this method"
         Right table -> case run table tokenVal reduce toks of
           Left e -> Left (show e)
-          Right (VGrammar g) -> Right g
+          Right (VGrammar g) -> Right (desugar g)
           Right _ -> Left "parse did not yield a Grammar"
 
 -- | Parse using canonical LR(1) tables.

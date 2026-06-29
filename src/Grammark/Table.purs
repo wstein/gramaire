@@ -98,6 +98,7 @@ resolve :: Set String -> Sym -> GSym
 resolve nts (Ref name) =
   if Set.member name nts then NonTerm name else Term name
 resolve _ (Lit s) = Term s
+resolve nts (Rep s) = resolve nts s -- unreachable: Rep is desugared before table construction
 
 productions :: Grammar -> Array Prod
 productions g@(Grammar rules) = Array.concatMap ruleProds rules

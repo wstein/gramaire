@@ -60,6 +60,8 @@ bootstrapGrammar = Grammar
   , Rule "Sym"
       [ Alt [ Ref "IDENT" ] Nothing (Just "\\i -> Ref i")
       , Alt [ Ref "TERM_LIT" ] Nothing (Just "\\t -> Lit t")
+      , Alt [ Ref "IDENT", Ref "PLUS" ] Nothing (Just "\\i _ -> Rep (Ref i)")
+      , Alt [ Ref "TERM_LIT", Ref "PLUS" ] Nothing (Just "\\t _ -> Rep (Lit t)")
       ]
 
   , Rule "Action"

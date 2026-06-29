@@ -8,6 +8,7 @@
 -- |   * `TERM_LIT` — a backtick-delimited terminal literal, e.g. `` `+` ``
 -- |   * `ACTION`   — a semantic action, the text between `{%` and `%}`
 -- |   * `LABEL`    — a `# Name` alternative label (the name is the payload)
+-- |   * `PLUS`     — a bare `+`, the one-or-more postfix (`X+`)
 -- |   * `NL`       — one or more line breaks
 -- |   * `:` / `|`  — the two raw punctuation terminals of the notation
 -- |
@@ -88,6 +89,7 @@ tokenizeSpanned src = go 0 []
             go e (Array.snoc acc (sp "NL" "\n" i e))
       | c == ':' -> go (i + 1) (Array.snoc acc (sp ":" ":" i (i + 1)))
       | c == '|' -> go (i + 1) (Array.snoc acc (sp "|" "|" i (i + 1)))
+      | c == '+' -> go (i + 1) (Array.snoc acc (sp "PLUS" "+" i (i + 1)))
       | c == '#' ->
           let
             s = skipWhile (\ch -> ch == ' ' || ch == '\t') (i + 1)

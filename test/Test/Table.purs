@@ -97,8 +97,8 @@ tests :: Effect Unit
 tests = do
   let a = analyze bootstrapGrammar
 
-  log "  table: bootstrapGrammar flattens to 17 productions"
-  assertEqual { actual: length (productions bootstrapGrammar), expected: 17 }
+  log "  table: bootstrapGrammar flattens to 19 productions"
+  assertEqual { actual: length (productions bootstrapGrammar), expected: 19 }
 
   log "  table: start symbol is Grammar"
   assertEqual { actual: a.start, expected: "Grammar" }

@@ -243,6 +243,7 @@ buildIR method name g@(Grammar rules) =
     perSym m = case _ of
       Lit s -> Map.insertWith (||) s true m
       Ref n -> if Set.member n ntSet then m else Map.insertWith (||) n false m
+      Rep s -> perSym m s -- unreachable: Rep is desugared before IR construction
 
   termEntries :: Array { id :: Int, str :: String, isLiteral :: Boolean }
   termEntries =
@@ -279,6 +280,7 @@ buildIR method name g@(Grammar rules) =
     toRef = case _ of
       Ref n -> if Set.member n ntSet then IRRefNT (ntId n) else IRRefT (termId n)
       Lit s -> IRRefT (termId s)
+      Rep s -> toRef s -- unreachable: Rep is desugared before IR construction
 
   allSyms :: Array Sym
   allSyms = Array.concatMap (\(Rule _ alts) -> Array.concatMap altSyms alts) rules
