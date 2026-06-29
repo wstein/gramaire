@@ -28,6 +28,7 @@ data Alt = Alt (Array Sym) (Maybe String) (Maybe String)
 data Sym
   = Ref String -- ^ a name: resolves to a nonterminal or a lexer token class
   | Lit String -- ^ a backtick terminal literal, e.g. ":" or "+"
+  | Rep Sym -- ^ one-or-more sugar (`X+`); eliminated by `Grammark.Desugar`
 
 -- Structural equality lets the self-hosting test assert that the parser,
 -- once generated, reads `lr.gram.md` back to a value equal to the literal.
@@ -41,6 +42,7 @@ derive instance eqGrammar :: Eq Grammar
 instance showSym :: Show Sym where
   show (Ref n) = "Ref " <> show n
   show (Lit s) = "Lit " <> show s
+  show (Rep s) = "Rep (" <> show s <> ")"
 
 instance showAlt :: Show Alt where
   show (Alt syms label act) =

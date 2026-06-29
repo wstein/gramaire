@@ -4,95 +4,73 @@
 -- | automaton assume no empty right-hand sides), and semantic actions have a
 -- | fixed arity. Those two constraints decide which sugar is admissible:
 -- |
--- |   * `X+` (one or more) and `Comma<X>` (one or more, separated) lower to a
--- |     fresh **left-recursive, epsilon-free** nonterminal whose value is an
--- |     `Array`. The containing alternative keeps the same symbol count, so its
--- |     action's arity is unchanged — it simply receives an `Array` in that
--- |     position. These are implemented here.
+-- |   * `X+` (one or more), written `Sym.Rep`, lowers to a fresh
+-- |     **left-recursive, epsilon-free** nonterminal whose value is an `Array`.
+-- |     The containing alternative keeps the same symbol count, so its action's
+-- |     arity is unchanged — it simply receives an `Array` in that position.
 -- |   * `X?` (optional) and `X*` (zero or more) are **not** lowered: an
 -- |     epsilon-free encoding has to enumerate the with/without cases at the use
 -- |     site, which changes the action's arity per case, and a nullable
 -- |     nonterminal would break the epsilon-free invariant. They are deferred
 -- |     pending the action-arity decision (ADR D27).
 -- |
--- | `desugar` is a pure `surface -> Core` transform: the front end will call it
--- | once the `lr` notation grows the surface syntax; the Core, the table
--- | builder, and every backend stay unchanged.
+-- | `desugar` is the chokepoint the front end runs after parsing (`Lr.parse`),
+-- | so the table builder, the IR, and every backend only ever see a plain
+-- | `Sym` (`Ref` / `Lit`) — never a `Rep`.
 module Grammark.Desugar
-  ( Elem(..)
-  , AltS
-  , RuleS
-  , desugar
+  ( desugar
   ) where
 
 import Prelude
 
-import Data.Array as Array
+import Data.Foldable (foldl)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple, snd)
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 
--- | A right-hand element before desugaring: a plain symbol, one-or-more (`X+`),
--- | or one-or-more separated by a symbol (`Comma<X>`, i.e. `X` separated by the
--- | given terminal).
-data Elem
-  = One Sym
-  | Plus Sym
-  | Sep Sym Sym -- element, separator
-
--- | An alternative over surface elements, with its optional label and action.
-type AltS = { elems :: Array Elem, label :: Maybe String, action :: Maybe String }
-
--- | A rule over surface elements.
-type RuleS = { lhs :: String, alts :: Array AltS }
-
--- | Lower surface rules to a plain epsilon-free `Grammar`, introducing one
--- | fresh nonterminal per distinct sugar form (deduped by name) and appending
--- | them after the user's rules so the start symbol is unchanged.
-desugar :: Array RuleS -> Grammar
-desugar rules = Grammar (map lowerRule rules <> freshRules)
+-- | Lower every `Rep` symbol to a fresh epsilon-free list nonterminal,
+-- | introducing one rule per distinct repeated symbol (deduped by name) and
+-- | appending them after the user's rules so the start symbol is unchanged.
+desugar :: Grammar -> Grammar
+desugar (Grammar rules) = Grammar (map lowerRule rules <> freshRules)
   where
   freshRules :: Array Rule
   freshRules = map snd (Map.toUnfoldable fresh :: Array (Tuple String Rule))
 
   fresh :: Map String Rule
-  fresh = Array.foldl collectRule Map.empty rules
+  fresh = foldl collectRule Map.empty rules
 
-  collectRule m r = Array.foldl (\m' a -> Array.foldl collectElem m' a.elems) m r.alts
+  collectRule m (Rule _ alts) = foldl collectAlt m alts
+  collectAlt m (Alt syms _ _) = foldl collectSym m syms
+  collectSym m = case _ of
+    Rep s -> Map.insert (plusName s) (plusRule s) (collectSym m s)
+    _ -> m
 
-  collectElem m = case _ of
-    One _ -> m
-    Plus s -> Map.insert (plusName s) (plusRule s) m
-    Sep s sep -> Map.insert (sepName s) (sepRule s sep) m
+  lowerRule (Rule lhs alts) = Rule lhs (map lowerAlt alts)
+  lowerAlt (Alt syms label act) = Alt (map lowerSym syms) label act
 
-  lowerRule r = Rule r.lhs (map lowerAlt r.alts)
-  lowerAlt a = Alt (map lowerElem a.elems) a.label a.action
-
-  lowerElem = case _ of
-    One s -> s
-    Plus s -> Ref (plusName s)
-    Sep s _ -> Ref (sepName s)
+  lowerSym = case _ of
+    Rep s -> Ref (plusName s)
+    other -> other
 
   plusName s = baseName s <> "_plus"
-  sepName s = baseName s <> "_seplist"
 
   plusRule s =
-    Rule (plusName s)
-      [ Alt [ s ] Nothing (Just "\\x -> [x]")
-      , Alt [ Ref (plusName s), s ] Nothing (Just "\\xs x -> snoc xs x")
-      ]
-
-  sepRule s sep =
-    Rule (sepName s)
-      [ Alt [ s ] Nothing (Just "\\x -> [x]")
-      , Alt [ Ref (sepName s), sep, s ] Nothing (Just "\\xs _ x -> snoc xs x")
-      ]
+    let
+      inner = lowerSym s
+    in
+      Rule (plusName s)
+        [ Alt [ inner ] Nothing (Just "\\x -> [x]")
+        , Alt [ Ref (plusName s), inner ] Nothing (Just "\\xs x -> snoc xs x")
+        ]
 
 -- A deterministic nonterminal stem for the fresh rule. Sugar normally wraps a
--- nonterminal or token-class reference; a literal gets a stable derived stem.
+-- nonterminal or token-class reference; a literal and a nested `Rep` get a
+-- stable derived stem.
 baseName :: Sym -> String
 baseName = case _ of
   Ref n -> n
   Lit l -> "Lit_" <> l
+  Rep s -> baseName s <> "_plus"

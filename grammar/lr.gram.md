@@ -19,12 +19,13 @@ unambiguous with a single token of lookahead:
   every other name is a lexer token class.
 
 The lexer skips spaces and indentation, collapses runs of blank lines to a
-single `NL`, and emits five classes:
+single `NL`, and emits six classes:
 
 - `IDENT` — a name matching `[A-Za-z_][A-Za-z0-9_]*`.
 - `TERM_LIT` — a backtick-delimited terminal, e.g. a quoted plus sign.
 - `ACTION` — a semantic action, from `{%` to the matching `%}`.
 - `LABEL` — a `# Name` alternative label; the name is the payload.
+- `PLUS` — a bare `+`, the one-or-more postfix (`X+`).
 - `NL` — one or more line breaks.
 
 Semantic actions build this AST (the target PureScript shapes):
@@ -36,6 +37,7 @@ data Alt     = Alt (Array Sym)
                    (Maybe String)          -- optional # label
                    (Maybe String)          -- optional action
 data Sym     = Ref String | Lit String     -- nonterminal ref | terminal
+             | Rep Sym                     -- one-or-more sugar (X+)
 ```
 
 The helpers `cons` and `snoc` prepend and append to an `Array`.
@@ -129,12 +131,16 @@ SymList
 
 ## Sym
 
-A symbol is either a reference to another nonterminal or a terminal.
+A symbol is a reference to a nonterminal or a terminal, optionally followed by
+the `+` one-or-more postfix (`Grammark.Desugar` lowers `X+` to a fresh list
+nonterminal before table construction).
 
 ```lr
 Sym
-  : IDENT      {% \i -> Ref i %}
-  | TERM_LIT   {% \t -> Lit t %}
+  : IDENT          {% \i -> Ref i %}
+  | TERM_LIT       {% \t -> Lit t %}
+  | IDENT PLUS     {% \i _ -> Rep (Ref i) %}
+  | TERM_LIT PLUS  {% \t _ -> Rep (Lit t) %}
 ```
 
 ![Railroad diagram for the Sym rule](diagrams/sym.svg)

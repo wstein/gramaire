@@ -156,7 +156,7 @@
             "ref": "t"
           },
           {
-            "id": 6,
+            "id": 7,
             "ref": "t"
           },
           {
@@ -288,6 +288,40 @@
         "lhs": 7,
         "rhs": [
           {
+            "id": 6,
+            "ref": "t"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\i _ -> Rep (Ref i)"
+        },
+        "id": 15,
+        "lhs": 7,
+        "rhs": [
+          {
+            "id": 2,
+            "ref": "t"
+          },
+          {
+            "id": 5,
+            "ref": "t"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\t _ -> Rep (Lit t)"
+        },
+        "id": 16,
+        "lhs": 7,
+        "rhs": [
+          {
+            "id": 6,
+            "ref": "t"
+          },
+          {
             "id": 5,
             "ref": "t"
           }
@@ -297,7 +331,7 @@
         "actions": {
           "purescript": "\\a -> Just a"
         },
-        "id": 15,
+        "id": 17,
         "lhs": 8,
         "rhs": [
           {
@@ -310,7 +344,7 @@
         "actions": {
           "purescript": "\\l -> Just l"
         },
-        "id": 16,
+        "id": 18,
         "lhs": 9,
         "rhs": [
           {
@@ -350,10 +384,15 @@
       {
         "id": 5,
         "kind": "class",
-        "name": "TERM_LIT"
+        "name": "PLUS"
       },
       {
         "id": 6,
+        "kind": "class",
+        "name": "TERM_LIT"
+      },
+      {
+        "id": 7,
         "kind": "literal",
         "spelling": "|"
       }
@@ -521,7 +560,7 @@
               "shift": 13
             },
             "on": {
-              "id": 5,
+              "id": 6,
               "ref": "t"
             }
           }
@@ -585,7 +624,7 @@
               "reduce": 11
             },
             "on": {
-              "id": 5,
+              "id": 6,
               "ref": "t"
             }
           }
@@ -635,7 +674,7 @@
               "shift": 13
             },
             "on": {
-              "id": 5,
+              "id": 6,
               "ref": "t"
             }
           }
@@ -682,10 +721,19 @@
           },
           {
             "action": {
-              "reduce": 13
+              "shift": 21
             },
             "on": {
               "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 13
+            },
+            "on": {
+              "id": 6,
               "ref": "t"
             }
           }
@@ -732,10 +780,19 @@
           },
           {
             "action": {
-              "reduce": 14
+              "shift": 22
             },
             "on": {
               "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 6,
               "ref": "t"
             }
           }
@@ -777,10 +834,10 @@
           },
           {
             "action": {
-              "shift": 21
+              "shift": 23
             },
             "on": {
-              "id": 6,
+              "id": 7,
               "ref": "t"
             }
           },
@@ -875,7 +932,7 @@
               "reduce": 12
             },
             "on": {
-              "id": 5,
+              "id": 6,
               "ref": "t"
             }
           }
@@ -886,7 +943,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 15
+              "reduce": 17
             },
             "on": {
               "id": 4,
@@ -895,6 +952,79 @@
           }
         ],
         "state": 19
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 20
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 21
       },
       {
         "entries": [
@@ -912,12 +1042,39 @@
               "reduce": 16
             },
             "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
               "id": 4,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 6,
               "ref": "t"
             }
           }
         ],
-        "state": 20
+        "state": 22
       },
       {
         "entries": [
@@ -935,12 +1092,12 @@
               "shift": 13
             },
             "on": {
-              "id": 5,
+              "id": 6,
               "ref": "t"
             }
           }
         ],
-        "state": 21
+        "state": 23
       },
       {
         "entries": [
@@ -954,7 +1111,7 @@
             }
           }
         ],
-        "state": 22
+        "state": 24
       },
       {
         "entries": [
@@ -968,7 +1125,7 @@
             }
           }
         ],
-        "state": 23
+        "state": 25
       },
       {
         "entries": [
@@ -990,7 +1147,7 @@
             }
           }
         ],
-        "state": 24
+        "state": 26
       }
     ],
     "algorithm": "canonical-lr1",
@@ -1077,7 +1234,7 @@
         "entries": [
           {
             "nonterminal": 8,
-            "to": 22
+            "to": 24
           }
         ],
         "state": 17
@@ -1086,7 +1243,7 @@
         "entries": [
           {
             "nonterminal": 5,
-            "to": 23
+            "to": 25
           },
           {
             "nonterminal": 7,
@@ -1097,18 +1254,18 @@
             "to": 11
           }
         ],
-        "state": 21
+        "state": 23
       },
       {
         "entries": [
           {
             "nonterminal": 4,
-            "to": 24
+            "to": 26
           }
         ],
-        "state": 23
+        "state": 25
       }
     ],
-    "stateCount": 25
+    "stateCount": 27
   }
 }
