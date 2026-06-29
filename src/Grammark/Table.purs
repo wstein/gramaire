@@ -113,8 +113,10 @@ startSymbol (Grammar rules) = maybe "" (\(Rule n _) -> n) (Array.head rules)
 
 fixpoint :: forall a. Eq a => (a -> a) -> a -> a
 fixpoint step x =
-  let x' = step x
-  in if x' == x then x else fixpoint step x'
+  let
+    x' = step x
+  in
+    if x' == x then x else fixpoint step x'
 
 setOf :: String -> Map String (Set GSym) -> Set GSym
 setOf k m = fromMaybe Set.empty (Map.lookup k m)
@@ -277,19 +279,24 @@ buildStates ctx = process initial 0
 
   stepSym :: ItemSet -> Int -> States -> GSym -> States
   stepSym items i st x =
-    let g = goto ctx items x
+    let
+      g = goto ctx items x
     in
       if Set.isEmpty g then st
       else
-        let Tuple st2 j = addState st g
-        in st2 { trans = Map.insert (Tuple i x) j st2.trans }
+        let
+          Tuple st2 j = addState st g
+        in
+          st2 { trans = Map.insert (Tuple i x) j st2.trans }
 
   addState :: States -> ItemSet -> Tuple States Int
   addState st items = case Map.lookup items st.index of
     Just j -> Tuple st j
     Nothing ->
-      let j = Array.length st.states
-      in Tuple (st { states = Array.snoc st.states items, index = Map.insert items j st.index }) j
+      let
+        j = Array.length st.states
+      in
+        Tuple (st { states = Array.snoc st.states items, index = Map.insert items j st.index }) j
 
 -- table fill ---------------------------------------------------------------
 
@@ -474,8 +481,10 @@ refineOnce ctx canonical symbols part = renumber (map sigOf ids)
 
 refineToFix :: Ctx -> States -> Array GSym -> Partition -> Partition
 refineToFix ctx canonical symbols part =
-  let part' = refineOnce ctx canonical symbols part
-  in if part' == part then part else refineToFix ctx canonical symbols part'
+  let
+    part' = refineOnce ctx canonical symbols part
+  in
+    if part' == part then part else refineToFix ctx canonical symbols part'
 
 -- Quotient the canonical automaton by the refined partition.
 fromPartition :: States -> Partition -> States

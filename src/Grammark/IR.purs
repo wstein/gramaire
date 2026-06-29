@@ -395,9 +395,11 @@ toJson ir =
       , Tuple "rhs" (JArray (map refJson r.rhs))
       , Tuple "actions" (JObject (map (\(Tuple k v) -> Tuple k (JString v)) r.actions))
       ]
-        <> (case r.label of
+        <>
+          ( case r.label of
               Nothing -> []
-              Just l -> [ Tuple "label" (JString l) ])
+              Just l -> [ Tuple "label" (JString l) ]
+          )
 
   refJson = case _ of
     IRRefNT i -> JObject [ Tuple "ref" (JString "nt"), Tuple "id" (JInt i) ]
@@ -417,10 +419,13 @@ toJson ir =
       , Tuple "action" (JArray (map actionRowJson t.action))
       , Tuple "goto" (JArray (map gotoRowJson t.goto))
       ]
-        <> (case t.recovery of
+        <>
+          ( case t.recovery of
               Nothing -> []
-              Just r -> [ Tuple "recovery" (JObject [ Tuple "syncTokens" (JArray (map JInt r.syncTokens)) ]) ])
-        <> (case t.glr of
+              Just r -> [ Tuple "recovery" (JObject [ Tuple "syncTokens" (JArray (map JInt r.syncTokens)) ]) ]
+          )
+        <>
+          ( case t.glr of
               Nothing -> []
               Just gl ->
                 [ Tuple "glr"
@@ -429,7 +434,8 @@ toJson ir =
                         , Tuple "conflictStates" (JArray (map JInt gl.conflictStates))
                         ]
                     )
-                ])
+                ]
+          )
 
   actionRowJson row =
     JObject
