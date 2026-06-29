@@ -72,6 +72,21 @@ tests = do
         ]
     }
 
+  log "  lexer: a trailing backslash continues the line, swallowing the newline"
+  assertEqual
+    { actual: tokenize "A\n  : x \\\n    y"
+    , expected: Right
+        [ tk "IDENT" "A"
+        , tk "NL" "\n"
+        , tk ":" ":"
+        , tk "IDENT" "x"
+        , tk "IDENT" "y"
+        ]
+    }
+
+  log "  lexer: a backslash that is not at the line end is a LexError"
+  assert (isLeft (tokenize "A\n  : x \\ y"))
+
   log "  lexer: an unterminated action is a LexError"
   assert (isLeft (tokenize "X {% oops"))
 
