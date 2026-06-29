@@ -24,6 +24,7 @@ import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..), joinWith, split, trim)
 import Grammark.Bootstrap (bootstrapGrammar)
 import Grammark.Desugar (desugar)
+import Grammark.Diagnostics (checkDefined)
 import Grammark.Lexer (Token, tokenize)
 import Grammark.Parser (run)
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
@@ -118,7 +119,7 @@ parseWith method md =
         Left _ -> Left "internal: the lr grammar is not parseable by this method"
         Right table -> case run table tokenVal reduce toks of
           Left e -> Left (show e)
-          Right (VGrammar g) -> desugar g
+          Right (VGrammar g) -> desugar g >>= checkDefined
           Right _ -> Left "parse did not yield a Grammar"
 
 -- | Parse using canonical LR(1) tables.

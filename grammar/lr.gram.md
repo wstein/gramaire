@@ -14,9 +14,12 @@ unambiguous with a single token of lookahead:
 - **Terminals** are written either as backtick-delimited literals (such as
   `:` and `|`) or as ALL-CAPS lexer token classes (`IDENT`, `TERM_LIT`,
   `ACTION`, `NL`).
-- **Nonterminals** are mixed-case identifiers (`Grammar`, `RuleList`). A
-  name is a nonterminal exactly when it appears as some rule's left side;
-  every other name is a lexer token class.
+- **Nonterminals** are mixed-case identifiers (`Grammar`, `RuleList`) —
+  any name with a lowercase letter. A name is a nonterminal exactly when
+  it appears as some rule's left side; an ALL-CAPS name is a lexer token
+  class. A mixed-case name that is referenced but never defined is
+  therefore a missing rule, and Grammark rejects it by name rather than
+  silently treating it as a phantom terminal.
 
 The lexer skips spaces and indentation, collapses runs of blank lines to a
 single `NL`, and emits these classes:
