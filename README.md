@@ -17,8 +17,12 @@ semantic action between `{%` and `%}` carried verbatim to codegen:
 ```lr
 Expr
   : Expr `+` Term   {% \l _ r -> Add l r %}
+  | Expr `-` Term   {% \l _ r -> Sub l r %}
   | Term            {% \t -> t %}
 ```
+
+![Railroad diagram for the Expr rule](examples/diagrams/expr.svg)
+
 
 On GitHub that fence renders as a code block; to Grammark it is the `Expr`
 rule. The prose around it, the railroad diagram beside it, and the
