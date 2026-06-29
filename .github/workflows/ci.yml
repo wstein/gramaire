@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Bootstrap bridge + grammar checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bootstrap
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 24+ runs the TypeScript bridge directly (native type
+          # stripping) and provides import.meta.main + top-level await.
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: bootstrap/package-lock.json
+
+      - name: Install bridge dependencies
+        run: npm ci
+
+      - name: Check formatting (prettier)
+        run: npm run format:check
+
+      - name: Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Unit tests (node:test)
+        run: npm test
+
+      - name: Lint Markdown (markdownlint-cli2)
+        run: npm run lint:md
+
+      - name: Cross-check FIRST/FOLLOW against the documented table
+        run: npm run validate
+
+      - name: grammark --check grammar and example
+        working-directory: ${{ github.workspace }}
+        run: |
+          node bootstrap/grammark-check.ts grammar/lr.gram.md
+          node bootstrap/grammark-check.ts examples/calc.gram.md
+
+      - name: Derived artifacts are up to date (no drift)
+        working-directory: ${{ github.workspace }}
+        run: |
+          node bootstrap/grammark-check.ts --write-lock grammar/lr.gram.md
+          node bootstrap/grammark-check.ts --write-lock examples/calc.gram.md
+          git diff --exit-code

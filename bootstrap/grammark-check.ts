@@ -28,8 +28,8 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { dirname, join, basename } from "node:path";
+import { main as markdownlint } from "markdownlint-cli2";
 
 // The fixed tail of every grammar file, after the per-nonterminal sections.
 // `Precedence` is optional and slots in before this tail when present (a
@@ -262,14 +262,22 @@ export function checkDrift(file: string, doc: Doc): string[] {
 
 // ---- Gate 3: lint ---------------------------------------------------------
 
-export function checkLint(file: string): string[] {
-  const r = spawnSync("npx", ["--no-install", "markdownlint-cli2", file], {
-    encoding: "utf8",
+// Call markdownlint-cli2 in-process via its programmatic API. This resolves
+// the linter relative to this module (the bootstrap install), so the gate
+// works from any working directory and in CI without a global install. The
+// PureScript port shells out to the `markdownlint-cli2` binary instead
+// (`Effect` + child process); the rule config is discovered the same way,
+// by walking up from the linted file to `.markdownlint-cli2.jsonc`.
+export async function checkLint(file: string): Promise<string[]> {
+  const out: string[] = [];
+  const sink = (msg: string) => out.push(msg);
+  const code = await markdownlint({
+    argv: [file],
+    logMessage: sink,
+    logError: sink,
   });
-  if (r.status === 0) return [];
-  const detail = (r.stdout + r.stderr)
-    .split("\n")
-    .filter((l) => /error MD\d|Summary/.test(l));
+  if (code === 0) return [];
+  const detail = out.filter((l) => /error MD\d|Summary/.test(l));
   return ["markdownlint reported issues:\n      " + detail.join("\n      ")];
 }
 
@@ -313,7 +321,7 @@ export function writeLock(file: string, doc: Doc): void {
 
 // ---- main -----------------------------------------------------------------
 
-export function main(argv: readonly string[]): number {
+export async function main(argv: readonly string[]): Promise<number> {
   const write = argv[0] === "--write-lock";
   const file = write ? argv[1] : argv[0];
   if (!file) {
@@ -330,7 +338,7 @@ export function main(argv: readonly string[]): number {
   const gates: readonly GateResult[] = [
     { name: "structure", failures: checkStructure(doc) },
     { name: "drift", failures: checkDrift(file, doc) },
-    { name: "lint", failures: checkLint(file) },
+    { name: "lint", failures: await checkLint(file) },
   ];
 
   console.log(`grammark --check ${basename(file)}\n`);
@@ -350,5 +358,5 @@ export function main(argv: readonly string[]): number {
 }
 
 if (import.meta.main) {
-  process.exit(main(process.argv.slice(2)));
+  process.exit(await main(process.argv.slice(2)));
 }
