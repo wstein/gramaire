@@ -11,16 +11,30 @@ module Test.Table (tests) where
 import Prelude
 
 import Data.Array (length)
+import Data.Either (isLeft, isRight)
 import Data.Map (Map)
 import Data.Map as Map
+import Data.Maybe (Maybe(..))
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (log)
 import Grammark.Bootstrap (bootstrapGrammar)
-import Grammark.Table (GSym(..), analyze, productions)
-import Test.Assert (assertEqual)
+import Grammark.Syntax (Grammar(..), Rule(..), Alt(..), Sym(..))
+import Grammark.Table (GSym(..), analyze, buildTables, productions)
+import Test.Assert (assert, assertEqual)
+
+-- An ambiguous grammar: E -> E E | x. Canonical LR(1) cannot resolve the
+-- shift-vs-reduce after parsing the first E, so building its tables must fail.
+ambiguous :: Grammar
+ambiguous =
+  Grammar
+    [ Rule "E"
+        [ Alt [ Ref "E", Ref "E" ] Nothing
+        , Alt [ Lit "x" ] Nothing
+        ]
+    ]
 
 -- A terminal symbol, written by its lexer token class or literal text.
 t :: String -> GSym
@@ -72,3 +86,9 @@ tests = do
 
   log "  table: FOLLOW sets match grammar/lr.gram.md"
   assertEqual { actual: a.follows, expected: expectedFollow }
+
+  log "  table: canonical LR(1) tables build with no conflicts (lr is LR(1))"
+  assert (isRight (buildTables bootstrapGrammar))
+
+  log "  table: an ambiguous grammar is rejected with a conflict"
+  assert (isLeft (buildTables ambiguous))

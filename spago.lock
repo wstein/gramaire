@@ -10,7 +10,6 @@
             "foldable-traversable",
             "maybe",
             "ordered-collections",
-            "partial",
             "prelude",
             "strings",
             "tuples"

@@ -18,7 +18,6 @@ package:
     - strings # Data.String / Data.String.CodeUnits (lexer)
     - ordered-collections # Data.Map / Data.Set
     - foldable-traversable # Data.Foldable / Data.FoldableWithIndex
-    - partial # Partial.Unsafe
   test:
     main: Test.Main
     dependencies:
