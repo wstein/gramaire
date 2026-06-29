@@ -40,6 +40,7 @@ data Alt     = Alt (Array Sym)
 data Sym     = Ref String | Lit String     -- nonterminal ref | terminal
              | Rep Sym | Star Sym | Opt Sym -- X+ / X* / X? sugar
              | Macro String (Array Sym)     -- Name<args> macro call
+             | Field String Sym             -- name:X named child position
 ```
 
 The helpers `cons` and `snoc` prepend and append to an `Array`.
@@ -139,7 +140,9 @@ A symbol is a reference to a nonterminal or a terminal, optionally followed by a
 construction (`X+` to a fresh list rule; `X*` / `X?` by use-site enumeration).
 
 A macro call `Name<args>` (e.g. `Comma<X>`, `Sep<X, S>`) lowers to a fresh
-separated-list rule.
+separated-list rule. A `name:X` prefix names that right-hand-side position; the
+name is carried onto the IR (for CST accessors and visitors) and does not affect
+the recognized language.
 
 ```lr
 Sym
@@ -152,6 +155,7 @@ Sym
   | IDENT QUESTION     {% \i _ -> Opt (Ref i) %}
   | TERM_LIT QUESTION  {% \t _ -> Opt (Lit t) %}
   | IDENT LANGLE Args RANGLE  {% \name _ args _ -> Macro name args %}
+  | IDENT `:` Sym             {% \name _ s -> Field name s %}
 ```
 
 ![Railroad diagram for the Sym rule](diagrams/sym.svg)

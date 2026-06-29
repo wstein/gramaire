@@ -87,7 +87,7 @@ header =
     , "import Data.Array (cons, snoc)"
     , "import Data.Maybe (Maybe(Just, Nothing))"
     , "import Grammark.Lr (SemVal(VGrammar, VRules, VRule, VAlts, VAlt, VSyms, VSym, VMaybeStr, VStr, VErr))"
-    , "import Grammark.Syntax (Alt(Alt), Grammar(Grammar), Rule(Rule), Sym(Ref, Lit, Rep, Star, Opt, Macro))"
+    , "import Grammark.Syntax (Alt(Alt), Grammar(Grammar), Rule(Rule), Sym(Ref, Lit, Rep, Star, Opt, Macro, Field))"
     , ""
     , "reduce :: Int -> Array SemVal -> SemVal"
     , "reduce p kids = case p, kids of"
@@ -103,8 +103,8 @@ type Names = { ref :: IRRef -> String, lhs :: Int -> String }
 symbolNames :: IR -> Names
 symbolNames ir =
   { ref: \r -> case r of
-      IRRefNT i -> look ntById i
-      IRRefT i -> look termById i
+      IRRefNT i _ -> look ntById i
+      IRRefT i _ -> look termById i
   , lhs: \i -> look ntById i
   }
   where

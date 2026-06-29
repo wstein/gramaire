@@ -46,8 +46,8 @@ structural = do
       assertEqual { actual: map _.name ir.grammar.nonterminals, expected: [ "S", "A" ] }
       assertEqual { actual: ir.grammar.terminals, expected: [ IRLiteral 0 "+", IRClass 1 "NUM" ] }
       assertEqual { actual: Array.length ir.grammar.rules, expected: 2 }
-      assertRule ir 0 0 [ IRRefNT 1, IRRefT 0, IRRefNT 1 ] [ Tuple "purescript" "\\a _ b -> add a b" ]
-      assertRule ir 1 1 [ IRRefT 1 ] []
+      assertRule ir 0 0 [ IRRefNT 1 Nothing, IRRefT 0 Nothing, IRRefNT 1 Nothing ] [ Tuple "purescript" "\\a _ b -> add a b" ]
+      assertRule ir 1 1 [ IRRefT 1 Nothing ] []
       assertEqual { actual: ir.grammar.precedence, expected: [] }
       -- The editor/runtime opt-ins have no source yet, so they round-trip as
       -- absence: empty extras, no recovery, no GLR (incremental-spec.md §10).
@@ -81,9 +81,21 @@ grammarName path = case path of
   "examples/json.gram.md" -> "Json"
   _ -> "Grammar"
 
+-- A `name:X` field is carried onto the IR's rhs ref (D28), the substrate for
+-- CST accessors and generated visitors.
+fields :: Effect Unit
+fields = do
+  log "  ir: a named field on a rhs symbol reaches the IR ref"
+  case buildIR Canonical "F" (Grammar [ Rule "S" [ Alt [ Field "x" (Ref "NUM") ] Nothing Nothing ] ]) of
+    Left _ -> assert' "the field grammar should build" false
+    Right ir -> case Array.head ir.grammar.rules of
+      Just r -> assertEqual { actual: r.rhs, expected: [ IRRefT 0 (Just "x") ] }
+      Nothing -> assert' "a rule should be present" false
+
 tests :: Effect Unit
 tests = do
   structural
+  fields
   for_
     [ Tuple "grammar/lr.gram.md" "test/golden/lr.ir.json"
     , Tuple "examples/json.gram.md" "test/golden/json.ir.json"

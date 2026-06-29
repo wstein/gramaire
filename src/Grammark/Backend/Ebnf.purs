@@ -68,8 +68,8 @@ emit ir = joinWith "\n" (map production ir.grammar.nonterminals)
 
   symText :: IRRef -> String
   symText = case _ of
-    IRRefNT i -> fromMaybe ("nt?" <> show i) (Map.lookup i ntNameById)
-    IRRefT i -> case Map.lookup i termById of
+    IRRefNT i _ -> fromMaybe ("nt?" <> show i) (Map.lookup i ntNameById)
+    IRRefT i _ -> case Map.lookup i termById of
       Just t -> terminalText t
       _ -> "t?" <> show i
 

@@ -426,9 +426,30 @@
       },
       {
         "actions": {
-          "purescript": "\\s -> [s]"
+          "purescript": "\\name _ s -> Field name s"
         },
         "id": 22,
+        "lhs": 7,
+        "rhs": [
+          {
+            "id": 3,
+            "ref": "t"
+          },
+          {
+            "id": 0,
+            "ref": "t"
+          },
+          {
+            "id": 7,
+            "ref": "nt"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\s -> [s]"
+        },
+        "id": 23,
         "lhs": 8,
         "rhs": [
           {
@@ -441,7 +462,7 @@
         "actions": {
           "purescript": "\\as _ s -> snoc as s"
         },
-        "id": 23,
+        "id": 24,
         "lhs": 8,
         "rhs": [
           {
@@ -462,7 +483,7 @@
         "actions": {
           "purescript": "\\a -> Just a"
         },
-        "id": 24,
+        "id": 25,
         "lhs": 9,
         "rhs": [
           {
@@ -475,7 +496,7 @@
         "actions": {
           "purescript": "\\l -> Just l"
         },
-        "id": 25,
+        "id": 26,
         "lhs": 10,
         "rhs": [
           {
@@ -841,6 +862,15 @@
         "entries": [
           {
             "action": {
+              "shift": 21
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
               "reduce": 13
             },
             "on": {
@@ -868,7 +898,7 @@
           },
           {
             "action": {
-              "shift": 21
+              "shift": 22
             },
             "on": {
               "id": 5,
@@ -886,7 +916,7 @@
           },
           {
             "action": {
-              "shift": 22
+              "shift": 23
             },
             "on": {
               "id": 7,
@@ -895,7 +925,7 @@
           },
           {
             "action": {
-              "shift": 23
+              "shift": 24
             },
             "on": {
               "id": 8,
@@ -904,7 +934,7 @@
           },
           {
             "action": {
-              "shift": 24
+              "shift": 25
             },
             "on": {
               "id": 10,
@@ -963,7 +993,7 @@
           },
           {
             "action": {
-              "shift": 25
+              "shift": 26
             },
             "on": {
               "id": 7,
@@ -972,7 +1002,7 @@
           },
           {
             "action": {
-              "shift": 26
+              "shift": 27
             },
             "on": {
               "id": 8,
@@ -981,7 +1011,7 @@
           },
           {
             "action": {
-              "shift": 27
+              "shift": 28
             },
             "on": {
               "id": 10,
@@ -1035,7 +1065,7 @@
           },
           {
             "action": {
-              "shift": 28
+              "shift": 29
             },
             "on": {
               "id": 12,
@@ -1144,7 +1174,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 24
+              "reduce": 25
             },
             "on": {
               "id": 6,
@@ -1158,7 +1188,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 25
+              "reduce": 26
             },
             "on": {
               "id": 1,
@@ -1167,7 +1197,7 @@
           },
           {
             "action": {
-              "reduce": 25
+              "reduce": 26
             },
             "on": {
               "id": 6,
@@ -1176,329 +1206,6 @@
           }
         ],
         "state": 20
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "shift": 32
-            },
-            "on": {
-              "id": 3,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 33
-            },
-            "on": {
-              "id": 11,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 21
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 15
-            },
-            "on": {
-              "id": 1,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 15
-            },
-            "on": {
-              "id": 3,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 15
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 15
-            },
-            "on": {
-              "id": 6,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 15
-            },
-            "on": {
-              "id": 11,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 22
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 19
-            },
-            "on": {
-              "id": 1,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 19
-            },
-            "on": {
-              "id": 3,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 19
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 19
-            },
-            "on": {
-              "id": 6,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 19
-            },
-            "on": {
-              "id": 11,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 23
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 17
-            },
-            "on": {
-              "id": 1,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 17
-            },
-            "on": {
-              "id": 3,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 17
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 17
-            },
-            "on": {
-              "id": 6,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 17
-            },
-            "on": {
-              "id": 11,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 24
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 16
-            },
-            "on": {
-              "id": 1,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 16
-            },
-            "on": {
-              "id": 3,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 16
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 16
-            },
-            "on": {
-              "id": 6,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 16
-            },
-            "on": {
-              "id": 11,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 25
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 20
-            },
-            "on": {
-              "id": 1,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 20
-            },
-            "on": {
-              "id": 3,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 20
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 20
-            },
-            "on": {
-              "id": 6,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 20
-            },
-            "on": {
-              "id": 11,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 26
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 18
-            },
-            "on": {
-              "id": 1,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 18
-            },
-            "on": {
-              "id": 3,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 18
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 18
-            },
-            "on": {
-              "id": 6,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 18
-            },
-            "on": {
-              "id": 11,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 27
       },
       {
         "entries": [
@@ -1521,7 +1228,353 @@
             }
           }
         ],
+        "state": 21
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 34
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 35
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 22
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 23
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 24
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 25
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 26
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 27
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          }
+        ],
         "state": 28
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 12
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 13
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 29
       },
       {
         "entries": [
@@ -1535,29 +1588,6 @@
             }
           }
         ],
-        "state": 29
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "shift": 35
-            },
-            "on": {
-              "id": 2,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 36
-            },
-            "on": {
-              "id": 9,
-              "ref": "t"
-            }
-          }
-        ],
         "state": 30
       },
       {
@@ -1567,7 +1597,7 @@
               "reduce": 22
             },
             "on": {
-              "id": 2,
+              "id": 1,
               "ref": "t"
             }
           },
@@ -1576,7 +1606,34 @@
               "reduce": 22
             },
             "on": {
-              "id": 9,
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 11,
               "ref": "t"
             }
           }
@@ -1587,7 +1644,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 13
+              "shift": 37
             },
             "on": {
               "id": 2,
@@ -1596,46 +1653,10 @@
           },
           {
             "action": {
-              "shift": 37
-            },
-            "on": {
-              "id": 5,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
               "shift": 38
             },
             "on": {
-              "id": 7,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 39
-            },
-            "on": {
-              "id": 8,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 13
-            },
-            "on": {
               "id": 9,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 40
-            },
-            "on": {
-              "id": 10,
               "ref": "t"
             }
           }
@@ -1646,10 +1667,51 @@
         "entries": [
           {
             "action": {
-              "reduce": 14
+              "reduce": 23
             },
             "on": {
               "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 33
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 39
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 13
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 40
+            },
+            "on": {
+              "id": 5,
               "ref": "t"
             }
           },
@@ -1673,7 +1735,7 @@
           },
           {
             "action": {
-              "reduce": 14
+              "reduce": 13
             },
             "on": {
               "id": 9,
@@ -1690,7 +1752,57 @@
             }
           }
         ],
-        "state": 33
+        "state": 34
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 44
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 45
+            },
+            "on": {
+              "id": 8,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 46
+            },
+            "on": {
+              "id": 10,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 35
       },
       {
         "entries": [
@@ -1704,13 +1816,13 @@
             }
           }
         ],
-        "state": 34
+        "state": 36
       },
       {
         "entries": [
           {
             "action": {
-              "shift": 32
+              "shift": 34
             },
             "on": {
               "id": 3,
@@ -1719,7 +1831,7 @@
           },
           {
             "action": {
-              "shift": 33
+              "shift": 35
             },
             "on": {
               "id": 11,
@@ -1727,7 +1839,7 @@
             }
           }
         ],
-        "state": 35
+        "state": 37
       },
       {
         "entries": [
@@ -1777,13 +1889,13 @@
             }
           }
         ],
-        "state": 36
+        "state": 38
       },
       {
         "entries": [
           {
             "action": {
-              "shift": 32
+              "shift": 34
             },
             "on": {
               "id": 3,
@@ -1792,56 +1904,10 @@
           },
           {
             "action": {
-              "shift": 33
+              "shift": 35
             },
             "on": {
               "id": 11,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 37
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 15
-            },
-            "on": {
-              "id": 2,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 15
-            },
-            "on": {
-              "id": 9,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 38
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 19
-            },
-            "on": {
-              "id": 2,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 19
-            },
-            "on": {
-              "id": 9,
               "ref": "t"
             }
           }
@@ -1852,19 +1918,19 @@
         "entries": [
           {
             "action": {
-              "reduce": 17
+              "shift": 34
             },
             "on": {
-              "id": 2,
+              "id": 3,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 17
+              "shift": 35
             },
             "on": {
-              "id": 9,
+              "id": 11,
               "ref": "t"
             }
           }
@@ -1875,7 +1941,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 16
+              "reduce": 15
             },
             "on": {
               "id": 2,
@@ -1884,7 +1950,7 @@
           },
           {
             "action": {
-              "reduce": 16
+              "reduce": 15
             },
             "on": {
               "id": 9,
@@ -1898,6 +1964,75 @@
         "entries": [
           {
             "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 42
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 43
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 44
+      },
+      {
+        "entries": [
+          {
+            "action": {
               "reduce": 20
             },
             "on": {
@@ -1915,7 +2050,7 @@
             }
           }
         ],
-        "state": 42
+        "state": 45
       },
       {
         "entries": [
@@ -1938,7 +2073,7 @@
             }
           }
         ],
-        "state": 43
+        "state": 46
       },
       {
         "entries": [
@@ -1960,76 +2095,99 @@
             }
           }
         ],
-        "state": 44
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 23
-            },
-            "on": {
-              "id": 2,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 23
-            },
-            "on": {
-              "id": 9,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 45
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "shift": 35
-            },
-            "on": {
-              "id": 2,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 47
-            },
-            "on": {
-              "id": 9,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 46
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 21
-            },
-            "on": {
-              "id": 2,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 21
-            },
-            "on": {
-              "id": 9,
-              "ref": "t"
-            }
-          }
-        ],
         "state": 47
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 24
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 24
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 48
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 49
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 37
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 51
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 50
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 21
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 21
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 51
       }
     ],
     "algorithm": "canonical-lr1",
@@ -2116,17 +2274,13 @@
         "entries": [
           {
             "nonterminal": 9,
-            "to": 29
+            "to": 30
           }
         ],
         "state": 17
       },
       {
         "entries": [
-          {
-            "nonterminal": 8,
-            "to": 30
-          },
           {
             "nonterminal": 7,
             "to": 31
@@ -2137,8 +2291,21 @@
       {
         "entries": [
           {
+            "nonterminal": 8,
+            "to": 32
+          },
+          {
+            "nonterminal": 7,
+            "to": 33
+          }
+        ],
+        "state": 22
+      },
+      {
+        "entries": [
+          {
             "nonterminal": 5,
-            "to": 34
+            "to": 36
           },
           {
             "nonterminal": 7,
@@ -2149,40 +2316,49 @@
             "to": 11
           }
         ],
-        "state": 28
+        "state": 29
       },
       {
         "entries": [
           {
             "nonterminal": 4,
-            "to": 44
+            "to": 47
           }
         ],
-        "state": 34
+        "state": 36
       },
       {
         "entries": [
           {
             "nonterminal": 7,
-            "to": 45
+            "to": 48
           }
         ],
-        "state": 35
+        "state": 37
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 7,
+            "to": 49
+          }
+        ],
+        "state": 39
       },
       {
         "entries": [
           {
             "nonterminal": 8,
-            "to": 46
+            "to": 50
           },
           {
             "nonterminal": 7,
-            "to": 31
+            "to": 33
           }
         ],
-        "state": 37
+        "state": 40
       }
     ],
-    "stateCount": 48
+    "stateCount": 52
   }
 }

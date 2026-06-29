@@ -45,9 +45,9 @@ validate ir =
       <> foldMap (checkActionKey r.id) r.actions
 
   checkRef rid = case _ of
-    IRRefNT i ->
+    IRRefNT i _ ->
       if Set.member i ntSet then [] else [ "rule " <> show rid <> ": rhs nonterminal id " <> show i <> " is unknown" ]
-    IRRefT i ->
+    IRRefT i _ ->
       if Set.member i termSet then [] else [ "rule " <> show rid <> ": rhs terminal id " <> show i <> " is unknown" ]
 
   checkActionKey rid (Tuple k _) =

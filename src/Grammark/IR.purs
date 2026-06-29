@@ -99,16 +99,18 @@ instance showIRTerminal :: Show IRTerminal where
 type IRNonterminal = { id :: Int, name :: String }
 
 -- | A right-hand-side symbol reference: into the nonterminal table or the
--- | terminal table.
+-- | terminal table, with an optional `name:` field naming this position
+-- | (D28) for CST accessors and generated visitors. The field is omitted from
+-- | the JSON when absent.
 data IRRef
-  = IRRefNT Int
-  | IRRefT Int
+  = IRRefNT Int (Maybe String)
+  | IRRefT Int (Maybe String)
 
 derive instance eqIRRef :: Eq IRRef
 
 instance showIRRef :: Show IRRef where
-  show (IRRefNT i) = "IRRefNT " <> show i
-  show (IRRefT i) = "IRRefT " <> show i
+  show (IRRefNT i f) = "IRRefNT " <> show i <> " " <> show f
+  show (IRRefT i f) = "IRRefT " <> show i <> " " <> show f
 
 -- | A single production. `actions` maps a profile name to its opaque,
 -- | untrusted host-language text; empty when the alternative has no action.
@@ -247,6 +249,7 @@ buildIR method name g@(Grammar rules) =
       Star s -> perSym m s -- unreachable
       Opt s -> perSym m s -- unreachable
       Macro _ args -> foldl perSym m args -- unreachable
+      Field _ s -> perSym m s
 
   termEntries :: Array { id :: Int, str :: String, isLiteral :: Boolean }
   termEntries =
@@ -281,12 +284,17 @@ buildIR method name g@(Grammar rules) =
           Nothing -> []
       }
     toRef = case _ of
-      Ref n -> if Set.member n ntSet then IRRefNT (ntId n) else IRRefT (termId n)
-      Lit s -> IRRefT (termId s)
+      Ref n -> if Set.member n ntSet then IRRefNT (ntId n) Nothing else IRRefT (termId n) Nothing
+      Lit s -> IRRefT (termId s) Nothing
+      Field f s -> withField (Just f) (toRef s) -- carry the field name onto the ref
       Rep s -> toRef s -- unreachable: sugar is desugared before IR construction
       Star s -> toRef s -- unreachable
       Opt s -> toRef s -- unreachable
       Macro nm _ -> toRef (Ref nm) -- unreachable
+
+    withField f = case _ of
+      IRRefNT i _ -> IRRefNT i f
+      IRRefT i _ -> IRRefT i f
 
   allSyms :: Array Sym
   allSyms = Array.concatMap (\(Rule _ alts) -> Array.concatMap altSyms alts) rules
@@ -410,8 +418,12 @@ toJson ir =
           )
 
   refJson = case _ of
-    IRRefNT i -> JObject [ Tuple "ref" (JString "nt"), Tuple "id" (JInt i) ]
-    IRRefT i -> JObject [ Tuple "ref" (JString "t"), Tuple "id" (JInt i) ]
+    IRRefNT i f -> JObject ([ Tuple "ref" (JString "nt"), Tuple "id" (JInt i) ] <> fieldEntry f)
+    IRRefT i f -> JObject ([ Tuple "ref" (JString "t"), Tuple "id" (JInt i) ] <> fieldEntry f)
+
+  fieldEntry = case _ of
+    Nothing -> []
+    Just f -> [ Tuple "field" (JString f) ]
 
   precJson p =
     JObject
