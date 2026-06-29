@@ -13,7 +13,7 @@ import Prelude
 import Data.Array as Array
 import Data.Either (Either(..))
 import Data.Foldable (for_)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), isNothing)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (log)
@@ -49,6 +49,11 @@ structural = do
       assertRule ir 0 0 [ IRRefNT 1, IRRefT 0, IRRefNT 1 ] [ Tuple "purescript" "\\a _ b -> add a b" ]
       assertRule ir 1 1 [ IRRefT 1 ] []
       assertEqual { actual: ir.grammar.precedence, expected: [] }
+      -- The editor/runtime opt-ins have no source yet, so they round-trip as
+      -- absence: empty extras, no recovery, no GLR (incremental-spec.md §10).
+      assertEqual { actual: ir.grammar.extras, expected: [] }
+      assert' "tables.recovery is absent until a source exists" (isNothing ir.tables.recovery)
+      assert' "tables.glr is absent until GLR ships" (isNothing ir.tables.glr)
   where
   assertRule ir i lhs rhs actions = case Array.index ir.grammar.rules i of
     Nothing -> assert' ("rule " <> show i <> " is present") false

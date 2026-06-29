@@ -24,7 +24,12 @@
         "terminals": { "type": "array", "items": { "$ref": "#/$defs/terminal" } },
         "nonterminals": { "type": "array", "items": { "$ref": "#/$defs/nonterminal" } },
         "rules": { "type": "array", "items": { "$ref": "#/$defs/rule" } },
-        "precedence": { "type": "array", "items": { "$ref": "#/$defs/precedence" } }
+        "precedence": { "type": "array", "items": { "$ref": "#/$defs/precedence" } },
+        "extras": {
+          "description": "Terminal ids permitted between any two grammar tokens (whitespace, comments). Optional; absence means the grammar has no extras. Required for editor/CST use (incremental-spec.md §3).",
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 }
+        }
       }
     },
     "terminal": {
@@ -103,7 +108,36 @@
         "algorithm": { "enum": ["canonical-lr1", "lalr1", "ielr1"] },
         "stateCount": { "type": "integer", "minimum": 0 },
         "action": { "type": "array", "items": { "$ref": "#/$defs/actionRow" } },
-        "goto": { "type": "array", "items": { "$ref": "#/$defs/gotoRow" } }
+        "goto": { "type": "array", "items": { "$ref": "#/$defs/gotoRow" } },
+        "recovery": { "$ref": "#/$defs/recovery" },
+        "glr": { "$ref": "#/$defs/glr" }
+      }
+    },
+    "recovery": {
+      "description": "Error-recovery metadata. Optional; absence falls back to FOLLOW-set resync (incremental-spec.md §4).",
+      "type": "object",
+      "required": ["syncTokens"],
+      "additionalProperties": false,
+      "properties": {
+        "syncTokens": {
+          "description": "Panic-mode resync terminal ids.",
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "glr": {
+      "description": "GLR opt-in. Optional; absence means deterministic-only (incremental-spec.md §7). The deterministic driver MUST ignore this object.",
+      "type": "object",
+      "required": ["enabled", "conflictStates"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "conflictStates": {
+          "description": "States where multi-action forking may occur.",
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 }
+        }
       }
     },
     "actionRow": {

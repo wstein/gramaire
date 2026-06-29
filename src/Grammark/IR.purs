@@ -31,6 +31,8 @@ module Grammark.IR
   , IRGotoEntry
   , IRConflict
   , IRPrec
+  , IRRecovery
+  , IRGlr
   , irVersion
   , buildIR
   , toJson
@@ -66,6 +68,11 @@ type IR =
   }
 
 -- | The language definition: symbols, rules, and (eventually) precedence.
+-- |
+-- | `extras` lists terminal ids permitted as trivia between any two tokens
+-- | (whitespace, comments); it is empty until the core `Grammar` AST models
+-- | extras, and is omitted from the JSON when empty so "no extras" round-trips
+-- | as absence (incremental-spec.md §3, §10).
 type IRGrammar =
   { name :: String
   , start :: String
@@ -73,6 +80,7 @@ type IRGrammar =
   , nonterminals :: Array IRNonterminal
   , rules :: Array IRRule
   , precedence :: Array IRPrec
+  , extras :: Array Int
   }
 
 -- | A terminal carries a stable id and either a literal spelling (from a
@@ -111,12 +119,27 @@ type IRRule =
   }
 
 -- | The parse tables in normative "rows" form.
+-- |
+-- | `recovery` and `glr` are the editor/runtime opt-ins (incremental-spec.md
+-- | §4, §7): both `Nothing` until the front end has a source for them, and
+-- | omitted from the JSON when absent so the deterministic batch path stays
+-- | byte-identical.
 type IRTables =
   { algorithm :: String
   , stateCount :: Int
   , action :: Array IRActionRow
   , goto :: Array IRGotoRow
+  , recovery :: Maybe IRRecovery
+  , glr :: Maybe IRGlr
   }
+
+-- | Panic-mode resync terminals. Absence (a `Nothing` `IRTables.recovery`)
+-- | means FOLLOW-set resync fallback.
+type IRRecovery = { syncTokens :: Array Int }
+
+-- | GLR opt-in. Absence means deterministic-only; the deterministic driver
+-- | ignores this entirely (R17).
+type IRGlr = { enabled :: Boolean, conflictStates :: Array Int }
 
 type IRActionRow = { state :: Int, entries :: Array IRActionEntry }
 type IRActionEntry = { on :: IROn, action :: IRAct }
@@ -159,6 +182,7 @@ buildIR method name g@(Grammar rules) =
             , nonterminals
             , rules: irRules
             , precedence: []
+            , extras: []
             }
         , tables: assembleTables (algorithmName method) termId ntId table
         , conflicts: []
@@ -253,6 +277,8 @@ assembleTables algorithm termId ntId table =
   , stateCount
   , action: groupRows actionByState
   , goto: groupRows gotoByState
+  , recovery: Nothing
+  , glr: Nothing
   }
   where
   actionList :: Array (Tuple (Tuple Int GSym) Action)
@@ -313,7 +339,7 @@ toJson ir =
     ]
   where
   grammarJson g =
-    JObject
+    JObject $
       [ Tuple "name" (JString g.name)
       , Tuple "start" (JString g.start)
       , Tuple "terminals" (JArray (map terminalJson g.terminals))
@@ -321,6 +347,10 @@ toJson ir =
       , Tuple "rules" (JArray (map ruleJson g.rules))
       , Tuple "precedence" (JArray (map precJson g.precedence))
       ]
+        <>
+          ( if Array.null g.extras then []
+            else [ Tuple "extras" (JArray (map JInt g.extras)) ]
+          )
 
   terminalJson = case _ of
     IRLiteral i spelling ->
@@ -350,12 +380,25 @@ toJson ir =
       ]
 
   tablesJson t =
-    JObject
+    JObject $
       [ Tuple "algorithm" (JString t.algorithm)
       , Tuple "stateCount" (JInt t.stateCount)
       , Tuple "action" (JArray (map actionRowJson t.action))
       , Tuple "goto" (JArray (map gotoRowJson t.goto))
       ]
+        <> (case t.recovery of
+              Nothing -> []
+              Just r -> [ Tuple "recovery" (JObject [ Tuple "syncTokens" (JArray (map JInt r.syncTokens)) ]) ])
+        <> (case t.glr of
+              Nothing -> []
+              Just gl ->
+                [ Tuple "glr"
+                    ( JObject
+                        [ Tuple "enabled" (JBool gl.enabled)
+                        , Tuple "conflictStates" (JArray (map JInt gl.conflictStates))
+                        ]
+                    )
+                ])
 
   actionRowJson row =
     JObject

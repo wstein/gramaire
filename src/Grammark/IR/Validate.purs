@@ -27,6 +27,9 @@ validate ir =
     <> algorithmCheck
     <> foldMap checkActionRow ir.tables.action
     <> foldMap checkGotoRow ir.tables.goto
+    <> foldMap checkExtra ir.grammar.extras
+    <> foldMap (\r -> foldMap checkSync r.syncTokens) ir.tables.recovery
+    <> foldMap (\gl -> foldMap checkConflictState gl.conflictStates) ir.tables.glr
   where
   termIds = map terminalId ir.grammar.terminals
   termSet = Set.fromFoldable termIds
@@ -72,6 +75,15 @@ validate ir =
     checkEntry e =
       (if Set.member e.nonterminal ntSet then [] else [ "goto in state " <> show row.state <> ": unknown nonterminal id " <> show e.nonterminal ])
         <> (if e.to < stateCount then [] else [ "goto in state " <> show row.state <> ": target " <> show e.to <> " >= stateCount" ])
+
+  checkExtra i =
+    if Set.member i termSet then [] else [ "grammar.extras: unknown terminal id " <> show i ]
+
+  checkSync i =
+    if Set.member i termSet then [] else [ "tables.recovery.syncTokens: unknown terminal id " <> show i ]
+
+  checkConflictState s =
+    if s < stateCount then [] else [ "tables.glr.conflictStates: state " <> show s <> " >= stateCount " <> show stateCount ]
 
   stateBound label s =
     if s < stateCount then [] else [ label <> " row state " <> show s <> " >= stateCount " <> show stateCount ]
