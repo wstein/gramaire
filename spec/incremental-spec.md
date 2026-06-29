@@ -93,12 +93,15 @@ keystrokes, so recovery is mandatory, not optional.
   more `Error` nodes; it MUST NOT abort. (`Grammark.Parser.ParseError` is the
   *batch* failure mode; the incremental runtime instead embeds errors in the
   tree.)
-- **R10 (strategy).** On an unexpected token in state `s`, the runtime SHOULD,
-  in order: (a) attempt a bounded local repair (single-token insert/delete) or a
-  GLR branch (Section 7) if `tables.glr.enabled`; otherwise (b) enter
-  panic-mode — pop states until one can shift a member of
-  `tables.recovery.syncTokens`, or a token in the FOLLOW of an open
-  nonterminal, collecting the skipped tokens into an `Error` node — then resume.
+- **R10 (strategy).** On an unexpected token in state `s`: when local repair is
+  enabled (opt-in, ADR D23) or `tables.glr.enabled`, the runtime SHOULD first
+  attempt (a) a bounded local repair (single-token insert/delete) or a GLR
+  branch (Section 7); otherwise — and **by default** — it (b) enters panic-mode:
+  pop states until one can shift a member of `tables.recovery.syncTokens`, or a
+  token in the FOLLOW of an open nonterminal, collecting the skipped tokens into
+  an `Error` node, then resume. A repair MUST apply the fixed tie-break
+  **insertion before deletion, then lowest terminal id** (inserting the
+  lowest-id expected terminal), so R12 holds across runtimes.
 - **R11 (content).** Each `Error` node MUST record the expected-terminal set at
   the point of failure (for diagnostics) and the skipped tokens (for R1).
 - **R12 (determinism).** Recovery MUST be deterministic: identical input MUST
@@ -247,19 +250,36 @@ The incremental runtime is conformant iff, for the descriptors in
   bytes exactly.
 - **C3 — recovery.** For every malformed-input descriptor, the produced error
   tree matches the expected tree (R12 determinism), including `Error` spans and
-  expected-terminal sets.
+  expected-terminal sets. Each descriptor declares its recovery mode (panic or
+  repair, ADR D23); a runtime is held to a descriptor only for the modes it
+  implements, and **panic-mode is mandatory for every runtime**. Goldens that
+  carry message text compare on the message key (the D6 item-set signature),
+  never the rendered string, so localization (ADR D17) stays conformance-safe.
 - **C4 — LSP goldens.** `semanticTokens`, `foldingRange`, and `documentSymbol`
   outputs match the per-descriptor goldens.
 
 These are generated per backend from one descriptor set (the `antlr-tgen`
 pattern, `[S18]`), so every `runtime/<lang>` is held to the identical bar.
 
-## 12. Open questions
+## 12. Resolved decisions
 
-1. **Trivia attachment direction** — leading-only (this spec, R7) vs split
-   leading/trailing (Roslyn). Leading-only is simpler and sufficient for
-   highlighting/folding; revisit if formatters need trailing precision.
-2. **Local repair vs panic-mode default** — whether single-token repair (R10a)
-   is on by default or opt-in, pending quality measurement against the corpus.
-3. **Error-message text localization** — inherited from the plan's one remaining
-   open decision; the *keys* are settled (ADR D6), only the text is open.
+The questions this section once tracked are settled; each is recorded with the
+plan ADR that resolves it, so the spec and plan agree.
+
+1. **Trivia attachment direction — leading-only (ADR D20).** A token owns the
+   trivia immediately preceding it; document-trailing trivia attaches to the end
+   marker (R7). This satisfies R1 fidelity and suffices for highlighting and
+   folding. Split leading/trailing (Roslyn) is deferred until a CST-consuming
+   formatter *or a node-relocating refactor* needs trailing precision — `fmt` is
+   a separate front-end (ADR D4) and is not such a consumer.
+2. **Recovery default — panic-mode floor, repair opt-in (ADR D23).** Panic-mode
+   (R10b) is the deterministic conformance floor every runtime MUST meet and the
+   v0 default. Single-token local repair (R10a) is an opt-in mode with the fixed
+   tie-break of R10, so it stays deterministic (R12); a descriptor declares which
+   mode its expected error tree assumes, so C3 holds per mode. Repair is promoted
+   to a default only after the descriptor corpus measures its quality.
+3. **Error-message text — Core-owned, localization deferred (ADR D17).** Message
+   text lives in the grammar's `lr errors` block as one canonical set, keyed by
+   the D6 hybrid item-set signature. It is not a per-target profile (errors are
+   input-facing prose, not host code) and not per-locale in v0; localization is
+   an additive runtime/LSP catalog keyed by the same ids, with no consumer yet.
