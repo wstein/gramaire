@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "grammarSha256": "d38146f01f94cbebdb88aec142bce06918d74d741c9f5ddea66d0f9b0d5e40f8",
+  "artifacts": [
+    {
+      "kind": "railroad",
+      "nonterminal": "Readme",
+      "path": "diagrams/readme.svg",
+      "sourceSha256": "d60fd6f351355f6e0a7e6bc2229d1fc4cea7d67a89543c2ff77d74196e46ceb4"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SentenceList",
+      "path": "diagrams/sentencelist.svg",
+      "sourceSha256": "c406306efdb41b94c841acdb076910ea9c566b58f549a5e7128f9ca0f0d394f1"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Sentence",
+      "path": "diagrams/sentence.svg",
+      "sourceSha256": "a6c4ac9f5210d36bda16a8fb14288b150550ff5684254bd20d773ed2d63ded1e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Words",
+      "path": "diagrams/words.svg",
+      "sourceSha256": "be5f7eef314e94ab0767ea0bd3f5ce7d8175a0d4a4a12d93635cc368f078fe18"
+    },
+    {
+      "kind": "tables",
+      "section": "Generated tables",
+      "sourceSha256": "d38146f01f94cbebdb88aec142bce06918d74d741c9f5ddea66d0f9b0d5e40f8"
+    }
+  ]
+}
