@@ -23,7 +23,6 @@ Expr
 
 ![Railroad diagram for the Expr rule](examples/diagrams/expr.svg)
 
-
 On GitHub that fence renders as a code block; to Grammark it is the `Expr`
 rule. The prose around it, the railroad diagram beside it, and the
 FIRST/FOLLOW table below it are all the same document.

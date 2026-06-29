@@ -22,15 +22,15 @@
  *   3. LINT      - markdownlint-cli2 reports zero issues.
  *
  * Usage:
- *   node grammark-check.ts <file.gram.md>
- *   node grammark-check.ts --write-lock <file.gram.md>
+ *   node grammark-check.ts <file.gram.md>                          # check
+ *   node grammark-check.ts fmt [--diagrams=sidecar|mermaid] <file>  # format
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, join, basename } from "node:path";
 import { main as markdownlint } from "markdownlint-cli2";
-import { parseProduction, renderSvg } from "./railroad.ts";
+import { parseProduction, renderSvg, renderMermaid } from "./railroad.ts";
 
 // The fixed tail of every grammar file, after the per-nonterminal sections.
 // `Precedence` is optional and slots in before this tail when present (a
@@ -75,8 +75,13 @@ export type Artifact =
       readonly sourceSha256: string;
     };
 
+// Diagrams are emitted either as sidecar SVG files referenced by image links
+// (default) or as GitHub-native mermaid fences embedded in the document.
+export type DiagramMode = "sidecar" | "mermaid";
+
 export interface Lock {
   readonly version: number;
+  readonly mode: DiagramMode;
   readonly grammarSha256: string;
   readonly artifacts: readonly Artifact[];
 }
@@ -282,14 +287,88 @@ export async function checkLint(file: string): Promise<string[]> {
   return ["markdownlint reported issues:\n      " + detail.join("\n      ")];
 }
 
-// ---- write-lock (stand-in for `grammark fmt` emit) ------------------------
+// ---- grammark fmt ---------------------------------------------------------
 
-export function writeLock(file: string, doc: Doc): void {
+// A rule's diagram region is self-identifying in both forms, so conversion is
+// reversible and idempotent: the image alt-text and the mermaid `%%` comment
+// both name the rule.
+const IMAGE_RE = /^!\[Railroad diagram for the (\S+) rule\]\([^)]*\)\s*$/;
+const MERMAID_TAG_RE = /^%% Railroad diagram for the (\S+) rule\s*$/;
+
+function diagramFor(
+  name: string,
+  content: string,
+  nonterminals: ReadonlySet<string>,
+  mode: DiagramMode,
+): string[] {
+  if (mode === "sidecar") {
+    return [
+      `![Railroad diagram for the ${name} rule](diagrams/${name.toLowerCase()}.svg)`,
+    ];
+  }
+  const body = renderMermaid(parseProduction(content, nonterminals))
+    .replace(/\n$/, "")
+    .split("\n");
+  return [
+    "```mermaid",
+    `%% Railroad diagram for the ${name} rule`,
+    ...body,
+    "```",
+  ];
+}
+
+// Rewrite every diagram region (image link or mermaid fence) to the target
+// mode, leaving the rest of the document untouched.
+export function convertDiagrams(
+  src: string,
+  contentByRule: ReadonlyMap<string, string>,
+  nonterminals: ReadonlySet<string>,
+  mode: DiagramMode,
+): string {
+  const lines = src.split("\n");
+  const out: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i]!;
+    const img = IMAGE_RE.exec(line);
+    if (img) {
+      out.push(
+        ...diagramFor(
+          img[1]!,
+          contentByRule.get(img[1]!) ?? "",
+          nonterminals,
+          mode,
+        ),
+      );
+      i++;
+      continue;
+    }
+    const fence = line.match(/^(`{3,})mermaid\s*$/);
+    const tag =
+      fence && lines[i + 1] ? MERMAID_TAG_RE.exec(lines[i + 1]!) : null;
+    if (fence && tag) {
+      const name = tag[1]!;
+      let j = i + 1;
+      const close = new RegExp(`^\`{${fence[1]!.length},}\\s*$`);
+      while (j < lines.length && !close.test(lines[j]!)) j++;
+      out.push(
+        ...diagramFor(name, contentByRule.get(name) ?? "", nonterminals, mode),
+      );
+      i = j + 1;
+      continue;
+    }
+    out.push(line);
+    i++;
+  }
+  return out.join("\n");
+}
+
+// `grammark fmt`: (re)emit the derived artifacts for a grammar file. In sidecar
+// mode it writes the railroad SVGs; in mermaid mode it embeds the diagrams in
+// the document. Either way it rewrites the diagram regions to the chosen mode
+// and writes the sidecar lock. Deterministic, so re-running is a no-op.
+export function fmt(file: string, doc: Doc, mode: DiagramMode): void {
   const { ruleHashes, grammarSha256 } = grammarHashes(doc);
-  const dir = join(dirname(file), "diagrams");
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-
-  // A word is a nonterminal exactly when it names a rule.
   const nonterminals = new Set<string>(Object.keys(ruleHashes));
   const contentByRule = new Map<string, string>();
   for (const b of doc.blocks) {
@@ -298,16 +377,22 @@ export function writeLock(file: string, doc: Doc): void {
   }
 
   const artifacts: Artifact[] = [];
-  for (const nt of Object.keys(ruleHashes)) {
-    const path = `diagrams/${nt.toLowerCase()}.svg`;
-    const prod = parseProduction(contentByRule.get(nt) ?? "", nonterminals);
-    writeFileSync(join(dirname(file), path), renderSvg(prod));
-    artifacts.push({
-      kind: "railroad",
-      nonterminal: nt,
-      path,
-      sourceSha256: ruleHashes[nt]!,
-    });
+  if (mode === "sidecar") {
+    const dir = join(dirname(file), "diagrams");
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    for (const nt of Object.keys(ruleHashes)) {
+      const path = `diagrams/${nt.toLowerCase()}.svg`;
+      writeFileSync(
+        join(dirname(file), path),
+        renderSvg(parseProduction(contentByRule.get(nt) ?? "", nonterminals)),
+      );
+      artifacts.push({
+        kind: "railroad",
+        nonterminal: nt,
+        path,
+        sourceSha256: ruleHashes[nt]!,
+      });
+    }
   }
   artifacts.push({
     kind: "tables",
@@ -315,29 +400,49 @@ export function writeLock(file: string, doc: Doc): void {
     sourceSha256: grammarSha256,
   });
 
-  const lock: Lock = { version: 1, grammarSha256, artifacts };
-  const lockPath = lockPathFor(file);
-  writeFileSync(lockPath, JSON.stringify(lock, null, 2) + "\n");
+  const rewritten = convertDiagrams(doc.src, contentByRule, nonterminals, mode);
+  if (rewritten !== doc.src) writeFileSync(file, rewritten);
+
+  const lock: Lock = { version: 1, mode, grammarSha256, artifacts };
+  writeFileSync(lockPathFor(file), JSON.stringify(lock, null, 2) + "\n");
+
+  const diagrams =
+    mode === "sidecar" ? ` and ${artifacts.length - 1} diagram(s)` : "";
   console.log(
-    `wrote ${basename(lockPath)} and ${artifacts.length - 1} diagram(s)`,
+    `formatted ${basename(file)} (${mode}); wrote ${basename(lockPathFor(file))}${diagrams}`,
   );
 }
 
 // ---- main -----------------------------------------------------------------
 
+const USAGE =
+  "usage: grammark-check.ts <file.gram.md>            # check\n" +
+  "       grammark-check.ts fmt [--diagrams=sidecar|mermaid] <file.gram.md>";
+
 export async function main(argv: readonly string[]): Promise<number> {
-  const write = argv[0] === "--write-lock";
-  const file = write ? argv[1] : argv[0];
+  // `fmt` (or the legacy `--write-lock` alias) formats; otherwise check.
+  const isFmt = argv[0] === "fmt" || argv[0] === "--write-lock";
+  if (isFmt) {
+    const rest = argv.slice(1);
+    const modeArg = rest.find((a) => a.startsWith("--diagrams="));
+    const mode: DiagramMode = modeArg?.endsWith("mermaid")
+      ? "mermaid"
+      : "sidecar";
+    const file = rest.find((a) => !a.startsWith("-"));
+    if (!file) {
+      console.error(USAGE);
+      return 2;
+    }
+    fmt(file, parse(readFileSync(file, "utf8")), mode);
+    return 0;
+  }
+
+  const file = argv[0];
   if (!file) {
-    console.error("usage: grammark-check.ts [--write-lock] <file.gram.md>");
+    console.error(USAGE);
     return 2;
   }
   const doc = parse(readFileSync(file, "utf8"));
-
-  if (write) {
-    writeLock(file, doc);
-    return 0;
-  }
 
   const gates: readonly GateResult[] = [
     { name: "structure", failures: checkStructure(doc) },
