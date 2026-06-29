@@ -142,6 +142,10 @@ The `lr` grammar's semantic actions are currently mirrored by hand in
 [`Grammark.Lr`](src/Grammark/Lr.purs) (the artifact codegen will emit); the
 bootstrap bridge is kept as a differential oracle and is not yet deleted.
 
+The road from here — the `grammark-ir` narrow waist, source-emitting codegen,
+and multi-language backends — is laid out in the
+[multi-backend implementation plan](docs/multi-backend-implementation-plan.md).
+
 ## License
 
 [Apache License 2.0](LICENSE) © 2026 Werner Stein. See [NOTICE](NOTICE) for
