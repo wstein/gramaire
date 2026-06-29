@@ -67,7 +67,7 @@ Left recursion accumulates members in source order.
 
 ```lr
 Members
-  : Member               {% \m -> [m] %}
+  : Member                {% \m -> [m] %}
   | Members `,` Member    {% \ms _ m -> snoc ms m %}
 ```
 
@@ -103,7 +103,7 @@ Left recursion accumulates elements in source order.
 
 ```lr
 Elements
-  : Value                {% \v -> [v] %}
+  : Value                 {% \v -> [v] %}
   | Elements `,` Value    {% \es _ v -> snoc es v %}
 ```
 
