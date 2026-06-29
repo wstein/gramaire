@@ -1,0 +1,62 @@
+-- | Iteration-0 bootstrap.
+-- |
+-- | This is the `lr` grammar of `lr.gram.md`, encoded by hand as a `Grammar`
+-- | value. The table builder is fed THIS directly — no bootstrap parser is
+-- | needed to get the toolchain off the ground. Once `buildTables` +
+-- | codegen produce an `lr` parser, and that generated parser reads
+-- | `lr.gram.md` back to a value equal to `bootstrapGrammar` (the dogfood
+-- | test), this literal is deleted and the `.gram.md` file becomes the
+-- | single source of truth.
+-- |
+-- | Each action string is the exact text between `{%` and `%}` in the
+-- | corresponding rule of `lr.gram.md`, so the equality test is meaningful.
+module Grammark.Bootstrap (bootstrapGrammar) where
+
+import Data.Maybe (Maybe(..))
+import Grammark.Syntax (Grammar(..), Rule(..), Alt(..), Sym(..))
+
+bootstrapGrammar :: Grammar
+bootstrapGrammar = Grammar
+  [ Rule "Grammar"
+      [ Alt [ Ref "RuleList" ] (Just "\\rs -> Grammar rs") ]
+
+  , Rule "RuleList"
+      [ Alt [ Ref "Rule" ] (Just "\\r -> [r]")
+      , Alt [ Ref "RuleList", Ref "Rule" ] (Just "\\rs r -> snoc rs r")
+      ]
+
+  , Rule "Rule"
+      [ Alt [ Ref "IDENT", Ref "NL", Ref "Body" ]
+          (Just "\\lhs _ alts -> Rule lhs alts")
+      ]
+
+  , Rule "Body"
+      [ Alt [ Lit ":", Ref "Alt", Ref "AltTail" ]
+          (Just "\\_ a as -> cons a as")
+      ]
+
+  , Rule "AltTail"
+      [ Alt [ Ref "NL" ] (Just "\\_ -> []")
+      , Alt [ Ref "NL", Lit "|", Ref "Alt", Ref "AltTail" ]
+          (Just "\\_ _ a as -> cons a as")
+      ]
+
+  , Rule "Alt"
+      [ Alt [ Ref "SymList", Ref "Action" ]
+          (Just "\\syms act -> Alt syms act")
+      , Alt [ Ref "SymList" ] (Just "\\syms -> Alt syms Nothing")
+      ]
+
+  , Rule "SymList"
+      [ Alt [ Ref "Sym" ] (Just "\\s -> [s]")
+      , Alt [ Ref "SymList", Ref "Sym" ] (Just "\\ss s -> snoc ss s")
+      ]
+
+  , Rule "Sym"
+      [ Alt [ Ref "IDENT" ] (Just "\\i -> Ref i")
+      , Alt [ Ref "TERM_LIT" ] (Just "\\t -> Lit t")
+      ]
+
+  , Rule "Action"
+      [ Alt [ Ref "ACTION" ] (Just "\\a -> Just a") ]
+  ]
