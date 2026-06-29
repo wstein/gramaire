@@ -58,11 +58,14 @@ npm run typecheck
 npm test
 ```
 
-The PureScript core builds with [Spago](https://github.com/purescript/spago):
+The PureScript core builds with [Spago](https://github.com/purescript/spago).
+Its test suite includes the self-hosting check — the parser generated from the
+`lr` grammar reads `grammar/lr.gram.md` back to the hand-written
+`bootstrapGrammar` literal:
 
 ```sh
 npm i -g purescript spago
-spago build
+spago build --strict --pedantic-packages
 spago test
 ```
 
@@ -70,22 +73,33 @@ spago test
 
 | Path            | What lives there                                              |
 | --------------- | ------------------------------------------------------------- |
-| `src/Grammark/` | The PureScript core: AST, bootstrap literal, table builder.   |
+| `src/Grammark/` | The PureScript core: AST, lexer, table builder, parser.       |
 | `grammar/`      | `lr.gram.md` — the `lr` notation described in itself.         |
 | `examples/`     | Worked grammars, e.g. `calc.gram.md`.                         |
 | `bootstrap/`    | Disposable TypeScript `grammark --check` bridge (its README). |
 | `brand/`        | Logo and wordmark SVGs.                                       |
 | `docs/`         | Branding and the `fmt` output contract.                       |
-| `test/`         | PureScript tests (self-hosting + FIRST/FOLLOW).               |
+| `test/`         | PureScript tests (self-hosting, FIRST/FOLLOW, lexer, parser). |
 
 ## Status
 
-Bootstrap phase. Stage 1 of the table builder (symbol resolution +
-FIRST/FOLLOW) is implemented and cross-checked against the documented table in
-`grammar/lr.gram.md`; the LR automaton and code generation are the next build.
-Until the generated parser can read `.gram.md` files on its own, the
-TypeScript bridge keeps the project usable from commit one. See
-[`bootstrap/README.md`](bootstrap/README.md) for its delete-me conditions.
+The PureScript core lexes an `lr` block, builds parse tables by three methods —
+canonical LR(1), LALR(1), and IELR(1) (inadequacy-driven state splitting) — and
+runs them through a table-driven parser. The **self-hosting loop is closed**:
+the parser generated from the `lr` grammar reads `grammar/lr.gram.md` back to
+`bootstrapGrammar`, under all three methods. A differential oracle pins the
+methods against each other (an LR(1)-but-not-LALR(1) grammar is accepted by
+canonical, rejected by LALR, and recovered by IELR).
+
+Still ahead: source-emitting codegen and a real `grammark fmt` (railroad
+diagrams, canonical reformatting). Until those land, the TypeScript bridge
+keeps `grammark --check` usable from commit one; see
+[`bootstrap/README.md`](bootstrap/README.md) for its delete-me conditions —
+the self-host half of which now holds.
+
+The `lr` grammar's semantic actions are currently mirrored by hand in
+[`Grammark.Lr`](src/Grammark/Lr.purs) (the artifact codegen will emit); the
+bootstrap bridge is kept as a differential oracle and is not yet deleted.
 
 ## License
 
