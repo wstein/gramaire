@@ -11,6 +11,19 @@ the same time the exact input the generator reads. The productions live in
 fenced `lr` blocks; everything around them is documentation that travels with
 the grammar.
 
+Here is what a rule looks like — productions on the left, an optional
+semantic action between `{%` and `%}` carried verbatim to codegen:
+
+```lr
+Expr
+  : Expr `+` Term   {% \l _ r -> Add l r %}
+  | Term            {% \t -> t %}
+```
+
+On GitHub that fence renders as a code block; to Grammark it is the `Expr`
+rule. The prose around it, the railroad diagram beside it, and the
+FIRST/FOLLOW table below it are all the same document.
+
 The real implementation is PureScript (under [`src/`](src/)). It is
 self-hosting by design: Grammark's own notation is described, in itself, in
 [`grammar/lr.gram.md`](grammar/lr.gram.md), and the generated parser must read
@@ -33,6 +46,24 @@ Semantic actions are written between `{%` and `%}` as raw PureScript and are
 preserved verbatim through to code generation. Because fence contents are
 opaque to Markdown, `{%`, `|`, `+`, and backslashes inside a payload never
 trip the renderer or the linter.
+
+## Your grammar is the docs
+
+Every grammar in this repository is a working demonstration of the format:
+each renders on GitHub as the page you would have written by hand, and each
+passes `grammark --check`. See for yourself —
+
+- [`examples/json.gram.md`](examples/json.gram.md) — the complete JSON
+  grammar (RFC 8259). A full, instantly recognisable language on one
+  screen: the flagship showcase.
+- [`examples/calc.gram.md`](examples/calc.gram.md) — a small arithmetic
+  grammar that also shows the optional `## Precedence` section.
+- [`examples/readme.gram.md`](examples/readme.gram.md) — a grammar whose
+  intro prose is this very pitch: documentation and grammar in one file,
+  checking green.
+
+The arrow points one way. A grammar reads as documentation; a README is
+not a grammar. This file is a window onto those grammars, not itself one.
 
 ## Quick start
 
@@ -75,7 +106,7 @@ spago test
 | --------------- | ------------------------------------------------------------- |
 | `src/Grammark/` | The PureScript core: AST, lexer, table builder, parser.       |
 | `grammar/`      | `lr.gram.md` — the `lr` notation described in itself.         |
-| `examples/`     | Worked grammars, e.g. `calc.gram.md`.                         |
+| `examples/`     | Worked grammars: `json`, `calc`, and the `readme` meta demo.  |
 | `bootstrap/`    | Disposable TypeScript `grammark --check` bridge (its README). |
 | `brand/`        | Logo and wordmark SVGs.                                       |
 | `docs/`         | Branding and the `fmt` output contract.                       |
