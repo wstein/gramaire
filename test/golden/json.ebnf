@@ -1,0 +1,16 @@
+Value ::= Object
+      | Array
+      | STRING
+      | NUMBER
+      | "true"
+      | "false"
+      | "null"
+Object ::= "{" "}"
+       | "{" Members "}"
+Members ::= Member
+        | Members "," Member
+Member ::= STRING ":" Value
+Array ::= "[" "]"
+      | "[" Elements "]"
+Elements ::= Value
+         | Elements "," Value

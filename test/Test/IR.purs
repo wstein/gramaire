@@ -21,10 +21,10 @@ import Grammark.IR (IR, IRRef(..), IRTerminal(..), buildIR, serialize)
 import Grammark.Lr (parse)
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 import Grammark.Table (Method(..))
-import Effect.Exception (try)
 import Node.Encoding (Encoding(UTF8))
-import Node.FS.Sync (readTextFile, writeTextFile)
+import Node.FS.Sync (readTextFile)
 import Test.Assert (assert', assertEqual)
+import Test.Golden as Golden
 
 -- A tiny grammar exercised without any file IO: one literal terminal, one
 -- token class, a nonterminal reference, and an action.
@@ -66,15 +66,7 @@ golden path goldenPath = do
     Left e -> assert' ("could not parse " <> path <> ": " <> e) false
     Right g -> case serialize Canonical (grammarName path) g of
       Left _ -> assert' ("could not build IR for " <> path) false
-      Right actual -> do
-        attempt <- try (readTextFile UTF8 goldenPath)
-        case attempt of
-          -- Missing golden: write it so regeneration is one re-run away, but
-          -- fail this run so a deleted fixture never passes silently in CI.
-          Left _ -> do
-            writeTextFile UTF8 goldenPath actual
-            assert' ("golden " <> goldenPath <> " was missing; wrote it — inspect and re-run") false
-          Right expected -> assertEqual { actual, expected }
+      Right actual -> Golden.check goldenPath actual
 
 -- The H1 name is carried separately from the AST; for these fixtures we name
 -- them after their files.

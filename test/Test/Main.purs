@@ -6,6 +6,7 @@ import Prelude
 
 import Effect (Effect)
 import Effect.Console (log)
+import Test.Backend.Ebnf as BackendEbnf
 import Test.FirstFollow as FirstFollow
 import Test.IR as IR
 import Test.Lexer as Lexer
@@ -27,4 +28,6 @@ main = do
   FirstFollow.tests
   log "Test.IR"
   IR.tests
+  log "Test.Backend.Ebnf"
+  BackendEbnf.tests
   log "all suites passed"
