@@ -19,7 +19,7 @@ import Test.Assert (assert, assertEqual)
 counter :: Grammar
 counter =
   Grammar
-    [ Rule "S"
+    [ Rule "S" []
         [ Alt [ Lit "a", Ref "S" ] Nothing Nothing
         , Alt [ Lit "a" ] Nothing Nothing
         ]

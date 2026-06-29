@@ -47,14 +47,14 @@ check (Tuple path name) = do
 -- The textbook ambiguous grammar, for exercising the conflict lowering.
 ambiguous :: Grammar
 ambiguous = Grammar
-  [ Rule "E"
+  [ Rule "E" []
       [ Alt [ Ref "E", Lit "+", Ref "E" ] Nothing Nothing
       , Alt [ Ref "NUM" ] Nothing Nothing
       ]
   ]
 
 tiny :: Grammar
-tiny = Grammar [ Rule "S" [ Alt [ Ref "X" ] Nothing Nothing ], Rule "X" [ Alt [ Ref "NUM" ] Nothing Nothing ] ]
+tiny = Grammar [ Rule "S" [] [ Alt [ Ref "X" ] Nothing Nothing ], Rule "X" [] [ Alt [ Ref "NUM" ] Nothing Nothing ] ]
 
 -- A widened IR conflict ([S13] substrate): the lowering names the competing
 -- production ids, and the rich shape (ref onSymbol + rule ids) round-trips.

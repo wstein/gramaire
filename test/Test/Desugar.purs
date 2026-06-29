@@ -18,17 +18,17 @@ import Grammark.Table (Method(Canonical), buildTablesFor)
 import Test.Assert (assert')
 
 ruleNamed :: String -> Grammar -> Maybe Rule
-ruleNamed n (Grammar rs) = find (\(Rule lhs _) -> lhs == n) rs
+ruleNamed n (Grammar rs) = find (\(Rule lhs _ _) -> lhs == n) rs
 
 altActions :: Rule -> Array String
-altActions (Rule _ alts) = map (\(Alt _ _ a) -> show a) alts
+altActions (Rule _ _ alts) = map (\(Alt _ _ a) -> show a) alts
 
 -- `S : "a" B+ "c"`, `B : NUM`.
 plusG :: Either String Grammar
 plusG = desugar
   ( Grammar
-      [ Rule "S" [ Alt [ Lit "a", Rep (Ref "B"), Lit "c" ] Nothing (Just "\\_ bs _ -> bs") ]
-      , Rule "B" [ Alt [ Ref "NUM" ] Nothing Nothing ]
+      [ Rule "S" [] [ Alt [ Lit "a", Rep (Ref "B"), Lit "c" ] Nothing (Just "\\_ bs _ -> bs") ]
+      , Rule "B" [] [ Alt [ Ref "NUM" ] Nothing Nothing ]
       ]
   )
 
@@ -39,10 +39,10 @@ tests = do
     Left e -> assert' ("X+ desugar failed: " <> e) false
     Right g -> do
       case ruleNamed "S" g of
-        Just (Rule _ [ Alt syms _ _ ]) -> assert' "S keeps three symbols" (length syms == 3)
+        Just (Rule _ _ [ Alt syms _ _ ]) -> assert' "S keeps three symbols" (length syms == 3)
         _ -> assert' "S should have one three-symbol alternative" false
       case ruleNamed "B_plus" g of
-        Just (Rule _ alts) -> assert' "B_plus has two alternatives" (length alts == 2)
+        Just (Rule _ _ alts) -> assert' "B_plus has two alternatives" (length alts == 2)
         Nothing -> assert' "a fresh B_plus rule should be introduced" false
       assert' "X+ grammar is LR(1)" (isRight (buildTablesFor Canonical g))
 
@@ -77,7 +77,7 @@ tests = do
     Left e -> assert' ("Comma macro failed: " <> e) false
     Right g -> do
       case ruleNamed "NUM_comma" g of
-        Just (Rule _ alts) -> assert' "NUM_comma has two alternatives" (length alts == 2)
+        Just (Rule _ _ alts) -> assert' "NUM_comma has two alternatives" (length alts == 2)
         Nothing -> assert' "a NUM_comma list rule should be introduced" false
       assert' "the Comma<X> grammar is LR(1)" (isRight (buildTablesFor Canonical g))
 
@@ -95,6 +95,30 @@ tests = do
   case Lr.parse "```lr\nE\n  : left:NUM `+` right:NUM   {% Add left right %}\n```\n" of
     Left e -> assert' ("named-binding parse failed: " <> e) false
     Right g -> case ruleNamed "E" g of
-      Just (Rule _ [ Alt _ _ (Just act) ]) ->
+      Just (Rule _ _ [ Alt _ _ (Just act) ]) ->
         assert' ("action should become a field-named lambda: " <> act) (contains (Pattern "\\left _ right ->") act)
       _ -> assert' "E should have one alternative with an action" false
+
+  log "  desugar: #[inline] folds a single-production nonterminal into its use sites"
+  case Lr.parse "```lr\nS\n  : Pair Pair\n\n#[inline] Pair\n  : `(` `)`\n```\n" of
+    Left e -> assert' ("#[inline] parse failed: " <> e) false
+    Right g -> do
+      assert' "the inline rule is removed" (not (isJust (ruleNamed "Pair" g)))
+      case ruleNamed "S" g of
+        Just (Rule _ _ [ Alt syms _ _ ]) -> assert' "S splices to four symbols" (length syms == 4)
+        _ -> assert' "S should have one alternative" false
+      assert' "#[inline] grammar is LR(1)" (isRight (buildTablesFor Canonical g))
+
+  log "  desugar: #[inline] with an action threads the inlined value through a wrapper"
+  case Lr.parse "```lr\nN\n  : Sign NUM   {% \\s n -> mk s n %}\n\n#[inline] Sign\n  : `+`   {% \\_ -> Pos %}\n```\n" of
+    Left e -> assert' ("#[inline] action parse failed: " <> e) false
+    Right g -> case ruleNamed "N" g of
+      Just (Rule _ _ [ Alt syms _ (Just act) ]) -> do
+        assert' "N splices to two symbols" (length syms == 2)
+        assert' ("wrapper applies the inline action: " <> act) (contains (Pattern "\\_ -> Pos") act)
+      _ -> assert' "N should have one alternative with an action" false
+
+  log "  desugar: a multi-production #[inline] rule is rejected"
+  case Lr.parse "```lr\nT\n  : Op NUM\n\n#[inline] Op\n  : `+`\n  | `-`\n```\n" of
+    Left _ -> pure unit
+    Right _ -> assert' "a multi-production #[inline] should be a build error" false

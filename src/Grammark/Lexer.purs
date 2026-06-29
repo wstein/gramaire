@@ -8,6 +8,7 @@
 -- |   * `TERM_LIT` — a backtick-delimited terminal literal, e.g. `` `+` ``
 -- |   * `ACTION`   — a semantic action, the text between `{%` and `%}`
 -- |   * `LABEL`    — a `# Name` alternative label (the name is the payload)
+-- |   * `ATTR`     — a `#[name]` rule attribute (the name is the payload)
 -- |   * `PLUS` / `STAR` / `QUESTION` — bare `+` / `*` / `?` repetition postfixes
 -- |   * `LANGLE` / `RANGLE` / `COMMA` — `<` / `>` / `,` for macro calls
 -- |   * `NL`       — one or more line breaks
@@ -96,6 +97,9 @@ tokenizeSpanned src = go 0 []
       | c == '<' -> go (i + 1) (Array.snoc acc (sp "LANGLE" "<" i (i + 1)))
       | c == '>' -> go (i + 1) (Array.snoc acc (sp "RANGLE" ">" i (i + 1)))
       | c == ',' -> go (i + 1) (Array.snoc acc (sp "COMMA" "," i (i + 1)))
+      | c == '#' && at (i + 1) == Just '[' -> case findChar ']' (i + 2) of
+          Nothing -> Left (err i "unterminated #[...] attribute")
+          Just j -> go (j + 1) (Array.snoc acc (sp "ATTR" (slice (i + 2) j) i (j + 1)))
       | c == '#' ->
           let
             s = skipWhile (\ch -> ch == ' ' || ch == '\t') (i + 1)

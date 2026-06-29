@@ -92,7 +92,7 @@ type Analysis =
 
 nontermSet :: Grammar -> Set String
 nontermSet (Grammar rules) =
-  Set.fromFoldable (map (\(Rule n _) -> n) rules)
+  Set.fromFoldable (map (\(Rule n _ _) -> n) rules)
 
 resolve :: Set String -> Sym -> GSym
 resolve nts (Ref name) =
@@ -108,11 +108,11 @@ productions :: Grammar -> Array Prod
 productions g@(Grammar rules) = Array.concatMap ruleProds rules
   where
   nts = nontermSet g
-  ruleProds (Rule lhs alts) =
+  ruleProds (Rule lhs _ alts) =
     map (\(Alt syms _ _) -> { lhs, rhs: map (resolve nts) syms }) alts
 
 startSymbol :: Grammar -> String
-startSymbol (Grammar rules) = maybe "" (\(Rule n _) -> n) (Array.head rules)
+startSymbol (Grammar rules) = maybe "" (\(Rule n _ _) -> n) (Array.head rules)
 
 -- fixpoint helper ----------------------------------------------------------
 

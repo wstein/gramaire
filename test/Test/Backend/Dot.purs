@@ -19,8 +19,8 @@ import Test.Golden as Golden
 -- A minimal LR(1) grammar: `S -> "x" A`, `A -> "y"`.
 tiny :: Grammar
 tiny = Grammar
-  [ Rule "S" [ Alt [ Lit "x", Ref "A" ] Nothing Nothing ]
-  , Rule "A" [ Alt [ Lit "y" ] Nothing Nothing ]
+  [ Rule "S" [] [ Alt [ Lit "x", Ref "A" ] Nothing Nothing ]
+  , Rule "A" [] [ Alt [ Lit "y" ] Nothing Nothing ]
   ]
 
 tests :: Effect Unit
