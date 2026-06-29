@@ -24,6 +24,7 @@ import Grammark.IR
   ( IR
   , IRAct(..)
   , IRActionEntry
+  , IRConflict
   , IRGotoEntry
   , IRGrammar
   , IROn(..)
@@ -173,13 +174,14 @@ decodeGlr j = do
   conflictStates <- field o "conflictStates" >>= arr >>= traverse int
   pure { enabled, conflictStates }
 
-decodeConflict :: Json -> Either String { kind :: String, state :: Int, onSymbol :: String }
+decodeConflict :: Json -> Either String IRConflict
 decodeConflict j = do
   o <- obj j
   kind <- field o "kind" >>= str
   state <- field o "state" >>= int
-  onSymbol <- field o "onSymbol" >>= str
-  pure { kind, state, onSymbol }
+  onSymbol <- field o "onSymbol" >>= decodeOn
+  rules <- field o "rules" >>= arr >>= traverse int
+  pure { kind, state, onSymbol, rules }
 
 -- rebuild the parse table --------------------------------------------------
 

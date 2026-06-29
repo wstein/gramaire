@@ -30,6 +30,7 @@ module Grammark.IR
   , IRGotoRow
   , IRGotoEntry
   , IRConflict
+  , conflictToIR
   , IRPrec
   , IRRecovery
   , IRGlr
@@ -52,7 +53,7 @@ import Data.Set as Set
 import Data.Tuple (Tuple(..))
 import Grammark.Json (Json(..), stringify)
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
-import Grammark.Table (Action(..), Conflict, GSym(..), Method(..), ParseTable, buildTablesFor)
+import Grammark.Table (Action(..), Conflict(..), GSym(..), Method(..), ParseTable, buildTablesFor)
 
 -- | The current IR schema version. `0` means draft/unstable: files at this
 -- | version carry no compatibility promise.
@@ -163,8 +164,29 @@ derive instance eqIRAct :: Eq IRAct
 type IRGotoRow = { state :: Int, entries :: Array IRGotoEntry }
 type IRGotoEntry = { nonterminal :: Int, to :: Int }
 
--- | A construction conflict (empty on a successful build).
-type IRConflict = { kind :: String, state :: Int, onSymbol :: String }
+-- | A construction conflict (empty on a successful build). `onSymbol` is the
+-- | lookahead as a terminal ref — consistent with the rest of the IR rather
+-- | than a stringified symbol — and `rules` names the competing production
+-- | ids, the substrate every downstream diagnostic needs ([S13]).
+type IRConflict =
+  { kind :: String, state :: Int, onSymbol :: IROn, rules :: Array Int }
+
+-- | Lower a `Grammark.Table.Conflict` to its IR shape: the lookahead as a
+-- | terminal ref and the competing reduce production ids (the `-1` accept
+-- | sentinel dropped). The GLR / precedence path (D15) uses this when it
+-- | records a resolved conflict; until then `ir.conflicts` stays empty.
+conflictToIR :: (String -> Int) -> Conflict -> IRConflict
+conflictToIR termId = case _ of
+  ShiftReduce r ->
+    { kind: "shift-reduce", state: r.state, onSymbol: onOf r.onSymbol, rules: keep [ r.reduceProd ] }
+  ReduceReduce r ->
+    { kind: "reduce-reduce", state: r.state, onSymbol: onOf r.onSymbol, rules: keep [ r.prodA, r.prodB ] }
+  where
+  onOf = case _ of
+    Term t -> OnTerm (termId t)
+    EOF -> OnEof
+    NonTerm n -> OnTerm (termId n) -- unreachable: a lookahead is never a nonterminal
+  keep = Array.filter (_ >= 0)
 
 -- | An operator-precedence level (always empty for now; see module header).
 type IRPrec = { level :: Int, assoc :: String, terminals :: Array Int }
@@ -438,7 +460,8 @@ toJson ir =
     JObject
       [ Tuple "kind" (JString c.kind)
       , Tuple "state" (JInt c.state)
-      , Tuple "onSymbol" (JString c.onSymbol)
+      , Tuple "onSymbol" (onJson c.onSymbol)
+      , Tuple "rules" (JArray (map JInt c.rules))
       ]
 
 -- | Build and canonically serialize in one step.

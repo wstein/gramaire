@@ -5,15 +5,18 @@ module Test.IRDecode (tests) where
 
 import Prelude
 
+import Data.Array (null)
 import Data.Either (Either(..))
 import Data.Foldable (for_)
+import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.IR (buildIR, serialize)
+import Grammark.IR (IROn(OnTerm), buildIR, conflictToIR, serialize, toJson)
 import Grammark.IR.Decode (decode, toParseTable)
 import Grammark.Json as Json
 import Grammark.Lr as Lr
+import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 import Grammark.Table (Method(Canonical), buildTablesFor)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
@@ -41,11 +44,43 @@ check (Tuple path name) = do
           _ -> assert' (path <> ": could not build/rebuild the parse table") false
       _ -> assert' (path <> ": could not build/serialize the IR") false
 
+-- The textbook ambiguous grammar, for exercising the conflict lowering.
+ambiguous :: Grammar
+ambiguous = Grammar
+  [ Rule "E"
+      [ Alt [ Ref "E", Lit "+", Ref "E" ] Nothing Nothing
+      , Alt [ Ref "NUM" ] Nothing Nothing
+      ]
+  ]
+
+tiny :: Grammar
+tiny = Grammar [ Rule "S" [ Alt [ Ref "X" ] Nothing Nothing ], Rule "X" [ Alt [ Ref "NUM" ] Nothing Nothing ] ]
+
+-- A widened IR conflict ([S13] substrate): the lowering names the competing
+-- production ids, and the rich shape (ref onSymbol + rule ids) round-trips.
+conflicts :: Effect Unit
+conflicts = do
+  log "  ir-decode: conflicts carry competing rule ids + a ref onSymbol, and round-trip"
+  case buildTablesFor Canonical ambiguous of
+    Right _ -> assert' "the ambiguous grammar should conflict" false
+    Left cs -> do
+      let ircs = map (conflictToIR (const 0)) cs
+      assert' "expected at least one conflict" (not (null ircs))
+      for_ ircs \c -> assert' ("conflict should name competing rules: " <> c.kind) (not (null c.rules))
+  case buildIR Canonical "Tiny" tiny of
+    Left _ -> assert' "tiny should build" false
+    Right ir -> do
+      let ir' = ir { conflicts = [ { kind: "reduce-reduce", state: 3, onSymbol: OnTerm 1, rules: [ 0, 1 ] } ] }
+      case decode =<< Json.parse (Json.stringify (toJson ir')) of
+        Left e -> assert' ("conflict round-trip failed: " <> e) false
+        Right ir'' -> assert' "conflict did not survive serialize -> parse -> decode" (ir''.conflicts == ir'.conflicts)
+
 tests :: Effect Unit
-tests =
+tests = do
   for_
     [ Tuple "grammar/lr.gram.md" "Lr"
     , Tuple "examples/json.gram.md" "Json"
     , Tuple "examples/calc.gram.md" "Calc"
     ]
     check
+  conflicts
