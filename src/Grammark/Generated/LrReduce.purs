@@ -12,7 +12,7 @@ import Prelude
 import Data.Array (cons, snoc)
 import Data.Maybe (Maybe(Just, Nothing))
 import Grammark.Lr (SemVal(VGrammar, VRules, VRule, VAlts, VAlt, VSyms, VSym, VMaybeStr, VStr, VErr))
-import Grammark.Syntax (Alt(Alt), Grammar(Grammar), Rule(Rule), Sym(Ref, Lit, Rep, Star, Opt, Macro))
+import Grammark.Syntax (Alt(Alt), Grammar(Grammar), Rule(Rule), Sym(Ref, Lit, Rep, Star, Opt, Macro, Field))
 
 reduce :: Int -> Array SemVal -> SemVal
 reduce p kids = case p, kids of
@@ -38,8 +38,9 @@ reduce p kids = case p, kids of
   19, [ VStr i, _ ] -> VSym (Opt (Ref i))
   20, [ VStr t, _ ] -> VSym (Opt (Lit t))
   21, [ VStr name, _, VSyms args, _ ] -> VSym (Macro name args)
-  22, [ VSym s ] -> VSyms ([s])
-  23, [ VSyms as, _, VSym s ] -> VSyms (snoc as s)
-  24, [ VStr a ] -> VMaybeStr (Just a)
-  25, [ VStr l ] -> VMaybeStr (Just l)
+  22, [ VStr name, _, VSym s ] -> VSym (Field name s)
+  23, [ VSym s ] -> VSyms ([s])
+  24, [ VSyms as, _, VSym s ] -> VSyms (snoc as s)
+  25, [ VStr a ] -> VMaybeStr (Just a)
+  26, [ VStr l ] -> VMaybeStr (Just l)
   _, _ -> VErr ("unexpected reduce shape for production " <> show p)

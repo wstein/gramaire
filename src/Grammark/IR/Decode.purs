@@ -91,9 +91,10 @@ decodeRef j = do
   o <- obj j
   ref <- field o "ref" >>= str
   id <- field o "id" >>= int
+  fld <- optStr o "field"
   case ref of
-    "nt" -> Right (IRRefNT id)
-    "t" -> Right (IRRefT id)
+    "nt" -> Right (IRRefNT id fld)
+    "t" -> Right (IRRefT id fld)
     other -> Left ("unknown rhs ref kind: " <> other)
 
 decodePrec :: Json -> Either String { level :: Int, assoc :: String, terminals :: Array Int }
@@ -235,8 +236,8 @@ toParseTable ir = do
     pure { lhs, rhs }
 
   refSym = case _ of
-    IRRefNT i -> NonTerm <$> nonterm i
-    IRRefT i -> Term <$> term i
+    IRRefNT i _ -> NonTerm <$> nonterm i
+    IRRefT i _ -> Term <$> term i
 
 terminalId :: IRTerminal -> Int
 terminalId = case _ of

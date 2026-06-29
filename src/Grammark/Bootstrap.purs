@@ -68,6 +68,7 @@ bootstrapGrammar = Grammar
       , Alt [ Ref "TERM_LIT", Ref "QUESTION" ] Nothing (Just "\\t _ -> Opt (Lit t)")
       , Alt [ Ref "IDENT", Ref "LANGLE", Ref "Args", Ref "RANGLE" ] Nothing
           (Just "\\name _ args _ -> Macro name args")
+      , Alt [ Ref "IDENT", Lit ":", Ref "Sym" ] Nothing (Just "\\name _ s -> Field name s")
       ]
 
   , Rule "Args"

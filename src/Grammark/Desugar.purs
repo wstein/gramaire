@@ -49,6 +49,7 @@ desugar (Grammar rules) = do
     Rep x -> subSyms x
     Star x -> subSyms x
     Opt x -> subSyms x
+    Field _ x -> subSyms x
     Macro _ args -> Array.concatMap subSyms args
     _ -> []
 
@@ -95,13 +96,17 @@ desugar (Grammar rules) = do
   rhsOf (Tuple sym present) = case sym of
     Opt s -> if present then [ lowerOne s ] else []
     Star s -> if present then [ Ref (listName s) ] else []
+    -- a field is transparent: keep its name on whatever the inner produces
+    Field f inner -> map (Field f) (rhsOf (Tuple inner present))
     other -> [ lowerOne other ]
 
-  -- a non-sugar element, lowering Rep/Macro to their fresh nonterminal
+  -- a non-sugar element, lowering Rep/Macro to their fresh nonterminal and
+  -- keeping the field name on the lowered inner
   lowerOne :: Sym -> Sym
   lowerOne = case _ of
     Rep s -> Ref (listName s)
     Macro name args -> Ref (macroNameOf name args)
+    Field f s -> Field f (lowerOne s)
     other -> other
 
   wrap :: Array (Tuple Sym Boolean) -> String -> String
@@ -123,6 +128,7 @@ desugar (Grammar rules) = do
       Star _ ->
         if present then consume acc
         else acc { args = Array.snoc acc.args "[]" }
+      Field _ inner -> step acc (Tuple inner present) -- the field is just a name; value is the inner's
       _ -> consume acc
 
   param :: Int -> String
@@ -131,6 +137,7 @@ desugar (Grammar rules) = do
   optStar = case _ of
     Opt _ -> true
     Star _ -> true
+    Field _ s -> optStar s
     _ -> false
 
   listName s = baseName s <> "_plus"
@@ -181,3 +188,4 @@ baseName = case _ of
   Star s -> baseName s <> "_star"
   Opt s -> baseName s <> "_opt"
   Macro name _ -> name
+  Field _ s -> baseName s

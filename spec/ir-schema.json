@@ -91,7 +91,11 @@
       "additionalProperties": false,
       "properties": {
         "ref": { "enum": ["nt", "t"] },
-        "id": { "type": "integer", "minimum": 0 }
+        "id": { "type": "integer", "minimum": 0 },
+        "field": {
+          "description": "Optional `name:` field naming this right-hand-side position (ADR D28), for CST accessors and generated visitors. Absent when the position is unnamed.",
+          "type": "string"
+        }
       }
     },
     "precedence": {
