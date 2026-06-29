@@ -98,7 +98,11 @@ line-length cap.
 
 FIRST/FOLLOW and conflict data are GFM pipe tables with leading and
 trailing pipes on every row and a consistent column count (MD055, MD056,
-MD058).
+MD058). `fmt` computes the FIRST/FOLLOW rows from the parsed grammar and
+writes them in a canonical order — nonterminals in source order, terminals in
+first-appearance order with `$` last — so the table is a pure function of the
+grammar. (The conflict-summary line below the table stays author-owned: it
+needs the full LR automaton, which lives in the PureScript core.)
 
 ## Formatting invariants
 
