@@ -12,13 +12,21 @@ module Grammark.Cst
   , cstToken
   , cstReduce
   , render
+  , cstVersion
+  , toJson
+  , serialize
+  , validate
   ) where
 
 import Prelude
 
 import Data.Array (replicate)
+import Data.Array as Array
 import Data.Foldable (foldMap)
 import Data.String (joinWith)
+import Data.Tuple (Tuple(..))
+import Grammark.Json (Json(..))
+import Grammark.Json as Json
 import Grammark.Lexer (Token)
 
 data Cst
@@ -54,3 +62,36 @@ render = go 0
     Branch p _ -> "rule " <> show p
     Token t s -> t <> " " <> show s
   indent depth = joinWith "" (replicate depth "  ")
+
+-- | The schema version of the serialized CST document (`spec/cst-schema.json`).
+-- | 0 is draft/unstable, mirroring `irVersion`.
+cstVersion :: Int
+cstVersion = 0
+
+-- | Encode a node to canonical JSON: a `branch` carries its `rule` id and
+-- | `children`; a `token` carries its terminal `token` name and matched `text`.
+toJson :: Cst -> Json
+toJson = case _ of
+  Branch p kids ->
+    JObject [ Tuple "rule" (JInt p), Tuple "children" (JArray (map toJson kids)) ]
+  Token t s ->
+    JObject [ Tuple "token" (JString t), Tuple "text" (JString s) ]
+
+-- | Serialize a CST as a versioned document — the `grammark-cst` artifact a
+-- | backend or host consumes — to canonical JSON (no trailing newline).
+serialize :: Cst -> String
+serialize cst =
+  Json.stringify (JObject [ Tuple "cstVersion" (JInt cstVersion), Tuple "root" (toJson cst) ])
+
+-- | Structural checks the `grammark-cst` contract makes beyond the `Cst` type:
+-- | every branch's `rule` is a valid index into the grammar's productions
+-- | (`0 <= rule < prodCount`). A negative or out-of-range id is a malformed
+-- | tree — a branch tagged with a production that does not exist.
+validate :: Int -> Cst -> Array String
+validate prodCount = go
+  where
+  go = case _ of
+    Token _ _ -> []
+    Branch p kids ->
+      (if p >= 0 && p < prodCount then [] else [ "branch rule id " <> show p <> " is out of range [0, " <> show prodCount <> ")" ])
+        <> Array.concatMap go kids
