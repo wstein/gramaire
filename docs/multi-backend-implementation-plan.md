@@ -67,6 +67,12 @@ The narrow waist and its first consumers are built and gated on
   IR (omitted when absent). The self-host loop and the regenerated reduce stay
   green; a grammar written with `# Add` labels emits them. The
   ergonomic-visitor prerequisite is now in place.
+- **Spanned tokenizer (Phase-F substrate)** —
+  [`Grammark.Lexer`](../src/Grammark/Lexer.purs) `tokenizeSpanned` records each
+  token's exact source span; `tokenize` is it with spans dropped, so the parser
+  is unaffected. `Test.Lexer` proves the spans are ordered, non-overlapping, and
+  reconstruct the input (R1/R4) — the substrate the Phase-F `Tree` builds on.
+  Byte/UTF-16 mapping (R5) and trivia attachment (R7) are the runtime layer.
 
 Phase A's remaining gate is the **CST golden + `cst-schema.json`**; Phase B's is
 the **TypeScript backend** (then the out-of-process protocol, now decoder-ready).
