@@ -18,15 +18,15 @@ package:
     - strings # Data.String / Data.String.CodeUnits (lexer)
     - ordered-collections # Data.Map / Data.Set
     - foldable-traversable # Data.Foldable / Data.FoldableWithIndex
+    - effect # Effect (CLI)
+    - console # Effect.Console (CLI output)
+    - exceptions # Effect.Exception (CLI: graceful file-read failure)
+    - node-fs # Node.FS.Sync / Node.FS.Perms (CLI reads/writes files)
+    - node-buffer # Node.Encoding (CLI)
   test:
     main: Test.Main
     dependencies:
-      - effect # Effect
-      - console # Effect.Console
       - assert # Test.Assert
-      - exceptions # Effect.Exception (Test.IR golden generate-on-missing)
-      - node-fs # Node.FS.Sync (self-host test reads grammar/lr.gram.md)
-      - node-buffer # Node.Encoding
 workspace:
   packageSet:
     registry: 66.0.0

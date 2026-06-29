@@ -6,9 +6,14 @@
         "core": {
           "dependencies": [
             "arrays",
+            "console",
+            "effect",
             "either",
+            "exceptions",
             "foldable-traversable",
             "maybe",
+            "node-buffer",
+            "node-fs",
             "ordered-collections",
             "prelude",
             "strings",
@@ -17,12 +22,7 @@
         },
         "test": {
           "dependencies": [
-            "assert",
-            "console",
-            "effect",
-            "exceptions",
-            "node-buffer",
-            "node-fs"
+            "assert"
           ]
         }
       }
