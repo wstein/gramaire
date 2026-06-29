@@ -19,6 +19,16 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Cache Spago packages and output
+        uses: actions/cache@v4
+        with:
+          path: |
+            .spago
+            output
+          key: spago-${{ runner.os }}-${{ hashFiles('spago.yaml', 'spago.lock') }}
+          restore-keys: |
+            spago-${{ runner.os }}-
+
       - name: Install the PureScript toolchain
         run: npm i -g purescript@0.15.16 spago@1.0.4
 
