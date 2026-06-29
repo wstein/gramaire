@@ -119,3 +119,7 @@ tests = do
   log "  table: differential oracle — LR(1)-but-not-LALR(1) grammar"
   assert (isRight (buildTablesFor Canonical notLalr)) -- canonical accepts it
   assert (isLeft (buildTablesFor LALR notLalr)) -- LALR's merge breaks it
+  assert (isRight (buildTablesFor IELR notLalr)) -- IELR splits and recovers it
+
+  log "  table: IELR rejects a genuinely ambiguous grammar"
+  assert (isLeft (buildTablesFor IELR ambiguous))
