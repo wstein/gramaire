@@ -16,10 +16,11 @@ import Grammark.Backend (Backend)
 import Grammark.Backend.Dot as Dot
 import Grammark.Backend.Ebnf as Ebnf
 import Grammark.Backend.Ir as Ir
+import Grammark.Backend.Ts as Ts
 
 -- | Every first-party backend, in display order.
 backends :: Array Backend
-backends = [ Ir.backend, Ebnf.backend, Dot.backend ]
+backends = [ Ir.backend, Ebnf.backend, Dot.backend, Ts.backend ]
 
 -- | Find a backend by its `--backend` name.
 findBackend :: String -> Maybe Backend

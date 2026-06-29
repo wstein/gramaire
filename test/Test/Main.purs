@@ -9,6 +9,7 @@ import Effect.Console (log)
 import Test.Backend.Dot as BackendDot
 import Test.Backend.Ebnf as BackendEbnf
 import Test.Backend.Registry as BackendRegistry
+import Test.Backend.Ts as BackendTs
 import Test.Cli as Cli
 import Test.Codegen as Codegen
 import Test.Conformance as Conformance
@@ -49,6 +50,8 @@ main = do
   BackendDot.tests
   log "Test.Backend.Registry"
   BackendRegistry.tests
+  log "Test.Backend.Ts"
+  BackendTs.tests
   log "Test.Cli"
   Cli.tests
   log "Test.Codegen"
