@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "grammarSha256": "c435ca457362be717095de3a22e4a29cedb8d8fbb37fe7c83b727430bb970594",
+  "artifacts": [
+    {
+      "kind": "railroad",
+      "nonterminal": "Value",
+      "path": "diagrams/value.svg",
+      "sourceSha256": "2d7dfd590e2980bb73cb5728a03d81b64c158e0be9622eb5e06e274179c95804"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Object",
+      "path": "diagrams/object.svg",
+      "sourceSha256": "41be3b8637e39b4616adcf3662cf27e4cd167d218a468c361d546045d7c14fcb"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Members",
+      "path": "diagrams/members.svg",
+      "sourceSha256": "4fb81c84af9bf5954652cfa1ea0d5605d9c1e2dc2bed71b8805ba4af1310e307"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Member",
+      "path": "diagrams/member.svg",
+      "sourceSha256": "e2fa079226e8ed30e37eac93048d416652a1dae2dde589dca233eb4b5c37abd0"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Array",
+      "path": "diagrams/array.svg",
+      "sourceSha256": "82aa2d2820315e04974d8ae427b8e3b986b9e289e472abb79982491399e13df1"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Elements",
+      "path": "diagrams/elements.svg",
+      "sourceSha256": "97e06aa450d33a6a49a9ea3e8cda7484e9dc1311d0e6411c9ecb6b8aff5e2933"
+    },
+    {
+      "kind": "tables",
+      "section": "Generated tables",
+      "sourceSha256": "c435ca457362be717095de3a22e4a29cedb8d8fbb37fe7c83b727430bb970594"
+    }
+  ]
+}
