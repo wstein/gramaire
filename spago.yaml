@@ -1,0 +1,16 @@
+# Minimal Spago config for the Grammark bootstrap modules.
+# Build locally with:  npm i -g purescript spago  &&  spago build
+# (The packageSet registry version may need bumping to a current release.)
+package:
+  name: grammark
+  dependencies:
+    - prelude
+    - arrays
+    - maybe
+    - tuples
+    - ordered-collections # Data.Map / Data.Set
+    - foldable-traversable # Data.Foldable / Data.FoldableWithIndex
+    - partial # Partial.Unsafe (automaton stub)
+workspace:
+  packageSet:
+    registry: 66.0.0
