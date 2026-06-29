@@ -10,7 +10,8 @@
 -- | `|`, concatenation by juxtaposition, literal terminals quoted, and token
 -- | classes written bare (their ALL-CAPS name).
 module Grammark.Backend.Ebnf
-  ( emit
+  ( backend
+  , emit
   ) where
 
 import Prelude
@@ -24,7 +25,17 @@ import Data.String.CodeUnits (length)
 import Data.String.Common (replaceAll)
 import Data.String.Pattern (Pattern(..), Replacement(..))
 import Data.Tuple (Tuple(..))
+import Grammark.Backend (Backend, Capability(..))
 import Grammark.IR (IR, IRRef(..), IRRule, IRTerminal(..))
+
+-- | The EBNF backend as a first-party `format` backend: one `.ebnf` file
+-- | named after the grammar.
+backend :: Backend
+backend =
+  { name: "ebnf"
+  , capabilities: [ Format ]
+  , emit: \ir -> [ { path: ir.grammar.name <> ".ebnf", contents: emit ir } ]
+  }
 
 -- | Render the IR's grammar as EBNF, one production per nonterminal in id
 -- | order. Each production's alternatives come from the IR rules sharing that
