@@ -86,7 +86,7 @@ header =
     , "import Data.Array (cons, snoc)"
     , "import Data.Maybe (Maybe(Just, Nothing))"
     , "import Grammark.Lr (SemVal(VGrammar, VRules, VRule, VAlts, VAlt, VSyms, VSym, VMaybeStr, VStr, VErr))"
-    , "import Grammark.Syntax (Alt(Alt), Grammar(Grammar), Rule(Rule), Sym(Ref, Lit, Rep))"
+    , "import Grammark.Syntax (Alt(Alt), Grammar(Grammar), Rule(Rule), Sym(Ref, Lit, Rep, Star, Opt))"
     , ""
     , "reduce :: Int -> Array SemVal -> SemVal"
     , "reduce p kids = case p, kids of"

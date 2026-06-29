@@ -19,13 +19,13 @@ unambiguous with a single token of lookahead:
   every other name is a lexer token class.
 
 The lexer skips spaces and indentation, collapses runs of blank lines to a
-single `NL`, and emits six classes:
+single `NL`, and emits eight classes:
 
 - `IDENT` — a name matching `[A-Za-z_][A-Za-z0-9_]*`.
 - `TERM_LIT` — a backtick-delimited terminal, e.g. a quoted plus sign.
 - `ACTION` — a semantic action, from `{%` to the matching `%}`.
 - `LABEL` — a `# Name` alternative label; the name is the payload.
-- `PLUS` — a bare `+`, the one-or-more postfix (`X+`).
+- `PLUS` / `STAR` / `QUESTION` — bare `+` / `*` / `?` repetition postfixes.
 - `NL` — one or more line breaks.
 
 Semantic actions build this AST (the target PureScript shapes):
@@ -37,7 +37,7 @@ data Alt     = Alt (Array Sym)
                    (Maybe String)          -- optional # label
                    (Maybe String)          -- optional action
 data Sym     = Ref String | Lit String     -- nonterminal ref | terminal
-             | Rep Sym                     -- one-or-more sugar (X+)
+             | Rep Sym | Star Sym | Opt Sym -- X+ / X* / X? sugar
 ```
 
 The helpers `cons` and `snoc` prepend and append to an `Array`.
@@ -131,16 +131,21 @@ SymList
 
 ## Sym
 
-A symbol is a reference to a nonterminal or a terminal, optionally followed by
-the `+` one-or-more postfix (`Grammark.Desugar` lowers `X+` to a fresh list
-nonterminal before table construction).
+A symbol is a reference to a nonterminal or a terminal, optionally followed by a
+`+` (one-or-more), `*` (zero-or-more), or `?` (optional) postfix.
+`Grammark.Desugar` lowers all three to the epsilon-free Core before table
+construction (`X+` to a fresh list rule; `X*` / `X?` by use-site enumeration).
 
 ```lr
 Sym
-  : IDENT          {% \i -> Ref i %}
-  | TERM_LIT       {% \t -> Lit t %}
-  | IDENT PLUS     {% \i _ -> Rep (Ref i) %}
-  | TERM_LIT PLUS  {% \t _ -> Rep (Lit t) %}
+  : IDENT              {% \i -> Ref i %}
+  | TERM_LIT           {% \t -> Lit t %}
+  | IDENT PLUS         {% \i _ -> Rep (Ref i) %}
+  | TERM_LIT PLUS      {% \t _ -> Rep (Lit t) %}
+  | IDENT STAR         {% \i _ -> Star (Ref i) %}
+  | TERM_LIT STAR      {% \t _ -> Star (Lit t) %}
+  | IDENT QUESTION     {% \i _ -> Opt (Ref i) %}
+  | TERM_LIT QUESTION  {% \t _ -> Opt (Lit t) %}
 ```
 
 ![Railroad diagram for the Sym rule](diagrams/sym.svg)
