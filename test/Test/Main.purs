@@ -8,6 +8,7 @@ import Effect (Effect)
 import Effect.Console (log)
 import Test.Backend.Ebnf as BackendEbnf
 import Test.Backend.Registry as BackendRegistry
+import Test.Cli as Cli
 import Test.FirstFollow as FirstFollow
 import Test.IR as IR
 import Test.Lexer as Lexer
@@ -33,4 +34,6 @@ main = do
   BackendEbnf.tests
   log "Test.Backend.Registry"
   BackendRegistry.tests
+  log "Test.Cli"
+  Cli.tests
   log "all suites passed"

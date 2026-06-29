@@ -107,17 +107,33 @@ spago build --strict --pedantic-packages
 spago test
 ```
 
+The core also ships a **native PureScript CLI**, `grammark emit`, which reads a
+`.gram.md`, lowers it to `grammark-ir`, and runs a backend over the IR — with no
+TypeScript bridge involved. After `spago build`:
+
+```sh
+# print the canonical grammark-ir JSON (the default `ir` backend)
+node bin/grammark.mjs emit examples/json.gram.md
+
+# render the grammar as EBNF via the `ebnf` format backend
+node bin/grammark.mjs emit examples/calc.gram.md --backend ebnf
+
+# write the artifact into a directory instead of stdout
+node bin/grammark.mjs emit examples/json.gram.md --backend ebnf --out gen/
+```
+
 ## Repository layout
 
-| Path            | What lives there                                              |
-| --------------- | ------------------------------------------------------------- |
-| `src/Grammark/` | Core: AST, lexer, table builder, parser, `grammark-ir`.       |
-| `grammar/`      | `lr.gram.md` — the `lr` notation described in itself.         |
-| `examples/`     | Worked grammars: `json`, `calc`, and the `readme` meta demo.  |
-| `bootstrap/`    | Disposable TypeScript `grammark --check` bridge (its README). |
-| `brand/`        | Logo and wordmark SVGs.                                       |
-| `docs/`         | Branding, the `fmt` contract, the multi-backend plan.         |
-| `test/`         | PureScript tests (self-host, FIRST/FOLLOW, lexer, parser, IR).|
+| Path            | What lives there                                                |
+| --------------- | --------------------------------------------------------------- |
+| `src/Grammark/` | Core: AST, lexer, tables, parser, `grammark-ir`, backends, CLI. |
+| `bin/`          | `grammark.mjs` — entry shim for the native PureScript CLI.      |
+| `grammar/`      | `lr.gram.md` — the `lr` notation described in itself.           |
+| `examples/`     | Worked grammars: `json`, `calc`, and the `readme` meta demo.    |
+| `bootstrap/`    | Disposable TypeScript `grammark --check` bridge (its README).   |
+| `brand/`        | Logo and wordmark SVGs.                                         |
+| `docs/`         | Branding, the `fmt` contract, the multi-backend plan.           |
+| `test/`         | PureScript tests (self-host, tables, IR, backends, CLI).        |
 
 ## Status
 
