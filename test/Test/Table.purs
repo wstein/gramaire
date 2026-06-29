@@ -22,7 +22,7 @@ import Effect (Effect)
 import Effect.Console (log)
 import Grammark.Bootstrap (bootstrapGrammar)
 import Grammark.Syntax (Grammar(..), Rule(..), Alt(..), Sym(..))
-import Grammark.Table (GSym(..), analyze, buildTables, productions)
+import Grammark.Table (GSym(..), Method(..), analyze, buildTables, buildTablesFor, productions)
 import Test.Assert (assert, assertEqual)
 
 -- An ambiguous grammar: E -> E E | x. Canonical LR(1) cannot resolve the
@@ -34,6 +34,26 @@ ambiguous =
         [ Alt [ Ref "E", Ref "E" ] Nothing
         , Alt [ Lit "x" ] Nothing
         ]
+    ]
+
+-- The classic grammar that is LR(1) but not LALR(1): merging the two states
+-- that reduce `A -> c` and `B -> c` unions their lookaheads and creates a
+-- reduce/reduce conflict that canonical LR(1) keeps apart.
+--
+--   S -> a A d | b B d | a B e | b A e
+--   A -> c
+--   B -> c
+notLalr :: Grammar
+notLalr =
+  Grammar
+    [ Rule "S"
+        [ Alt [ Lit "a", Ref "A", Lit "d" ] Nothing
+        , Alt [ Lit "b", Ref "B", Lit "d" ] Nothing
+        , Alt [ Lit "a", Ref "B", Lit "e" ] Nothing
+        , Alt [ Lit "b", Ref "A", Lit "e" ] Nothing
+        ]
+    , Rule "A" [ Alt [ Lit "c" ] Nothing ]
+    , Rule "B" [ Alt [ Lit "c" ] Nothing ]
     ]
 
 -- A terminal symbol, written by its lexer token class or literal text.
@@ -92,3 +112,10 @@ tests = do
 
   log "  table: an ambiguous grammar is rejected with a conflict"
   assert (isLeft (buildTables ambiguous))
+
+  log "  table: lr grammar is also LALR(1) (LALR tables build)"
+  assert (isRight (buildTablesFor LALR bootstrapGrammar))
+
+  log "  table: differential oracle — LR(1)-but-not-LALR(1) grammar"
+  assert (isRight (buildTablesFor Canonical notLalr)) -- canonical accepts it
+  assert (isLeft (buildTablesFor LALR notLalr)) -- LALR's merge breaks it

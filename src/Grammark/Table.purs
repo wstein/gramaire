@@ -16,11 +16,13 @@ module Grammark.Table
   , Conflict(..)
   , ParseTable
   , Analysis
+  , Method(..)
   , productions
   , firstSets
   , followSets
   , analyze
   , buildTables
+  , buildTablesFor
   ) where
 
 import Prelude
@@ -293,18 +295,14 @@ type Fill =
   , conflicts :: Array Conflict
   }
 
--- | The public entry point. `bootstrapGrammar` flows in here. Builds the
--- | canonical LR(1) tables, returning `Left` with every conflict found if the
--- | grammar is not LR(1), otherwise the filled `ParseTable`.
-buildTables :: Grammar -> Either (Array Conflict) ParseTable
-buildTables g =
-  if Array.null filled.conflicts then Right { action: filled.action, goto: filled.goto, prods: a.prods }
+-- | Fill the action/goto tables from a state set and its transition table,
+-- | collecting every conflict. Shared by all construction methods, so a
+-- | conflict is reported identically however the states were produced.
+fillTables :: Ctx -> States -> Array Prod -> Either (Array Conflict) ParseTable
+fillTables ctx st realProds =
+  if Array.null filled.conflicts then Right { action: filled.action, goto: filled.goto, prods: realProds }
   else Left filled.conflicts
   where
-  a = analyze g
-  ctx = mkCtx a
-  st = buildStates ctx
-
   shifted :: Fill
   shifted =
     foldl addTrans { action: Map.empty, goto: Map.empty, conflicts: [] }
@@ -342,3 +340,82 @@ buildTables g =
   conflictAt state sym existing = case existing of
     Shift _ -> ShiftReduce { state, onSymbol: sym }
     _ -> ReduceReduce { state, onSymbol: sym }
+
+-- LALR(1): merge canonical states sharing an LR(0) core --------------------
+
+-- | The LR(0) core of a state: its items with lookahead dropped.
+type Core = Set { prod :: Int, dot :: Int }
+
+coreOf :: ItemSet -> Core
+coreOf = Set.map (\it -> { prod: it.prod, dot: it.dot })
+
+type Merge =
+  { coreToId :: Map Core Int
+  , oldToNew :: Map Int Int
+  , states :: Array ItemSet
+  }
+
+-- | Merge canonical LR(1) states that share an LR(0) core, unioning their
+-- | lookaheads, and rewire the transitions onto the merged ids. The start
+-- | state keeps id 0. This can introduce a mysterious conflict on a grammar
+-- | that is LR(1) but not LALR(1) — exactly what the differential oracle
+-- | detects, and what IELR repairs by splitting.
+mergeLALR :: States -> States
+mergeLALR st =
+  { states: merged.states
+  , index: foldlWithIndex (\i m s -> Map.insert s i m) Map.empty merged.states
+  , trans: foldl remap Map.empty (Map.toUnfoldable st.trans :: Array (Tuple (Tuple Int GSym) Int))
+  }
+  where
+  merged :: Merge
+  merged = foldlWithIndex assign { coreToId: Map.empty, oldToNew: Map.empty, states: [] } st.states
+
+  assign :: Int -> Merge -> ItemSet -> Merge
+  assign i acc items = case Map.lookup core acc.coreToId of
+    Just mid -> acc
+      { oldToNew = Map.insert i mid acc.oldToNew
+      , states = fromMaybe acc.states (Array.modifyAt mid (Set.union items) acc.states)
+      }
+    Nothing -> acc
+      { coreToId = Map.insert core nextId acc.coreToId
+      , oldToNew = Map.insert i nextId acc.oldToNew
+      , states = Array.snoc acc.states items
+      }
+    where
+    core = coreOf items
+    nextId = Array.length acc.states
+
+  newId :: Int -> Int
+  newId k = fromMaybe 0 (Map.lookup k merged.oldToNew)
+
+  remap :: Map (Tuple Int GSym) Int -> Tuple (Tuple Int GSym) Int -> Map (Tuple Int GSym) Int
+  remap acc (Tuple (Tuple i x) j) = Map.insert (Tuple (newId i) x) (newId j) acc
+
+-- public entry points ------------------------------------------------------
+
+-- | Which table-construction method to use.
+data Method = Canonical | LALR
+
+derive instance eqMethod :: Eq Method
+
+instance showMethod :: Show Method where
+  show Canonical = "Canonical"
+  show LALR = "LALR"
+
+-- | Build parse tables by the chosen method, returning `Left` with every
+-- | conflict if the grammar is not parseable by that method.
+buildTablesFor :: Method -> Grammar -> Either (Array Conflict) ParseTable
+buildTablesFor method g = fillTables ctx states a.prods
+  where
+  a = analyze g
+  ctx = mkCtx a
+  canonical = buildStates ctx
+  states = case method of
+    Canonical -> canonical
+    LALR -> mergeLALR canonical
+
+-- | The default entry point: canonical LR(1). `bootstrapGrammar` flows in
+-- | here. Canonical is the most powerful method and serves as the oracle the
+-- | LALR/IELR constructions are differentially tested against.
+buildTables :: Grammar -> Either (Array Conflict) ParseTable
+buildTables = buildTablesFor Canonical

@@ -11,6 +11,7 @@ module Grammark.Lr
   ( SemVal(..)
   , lrBlocks
   , parse
+  , parseWith
   ) where
 
 import Prelude
@@ -24,7 +25,7 @@ import Grammark.Bootstrap (bootstrapGrammar)
 import Grammark.Lexer (Token, tokenize)
 import Grammark.Parser (run)
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
-import Grammark.Table (buildTables)
+import Grammark.Table (Method(..), buildTablesFor)
 
 -- | A semantic value on the parse stack: the union of everything the `lr`
 -- | actions build. `VIgnore` is the value of a punctuation/NL token.
@@ -85,18 +86,23 @@ lrBlocks md =
     else acc
 
 -- | Parse a `.gram.md` document's `lr` blocks into a `Grammar`, using the
--- | tables generated from the `lr` grammar itself (`bootstrapGrammar`). The
--- | trailing newline lets the final rule's `AltTail` close on its `NL`.
-parse :: String -> Either String Grammar
-parse md =
+-- | tables generated from the `lr` grammar itself (`bootstrapGrammar`) by the
+-- | given method. The trailing newline lets the final rule's `AltTail` close
+-- | on its `NL`.
+parseWith :: Method -> String -> Either String Grammar
+parseWith method md =
   let
     src = joinWith "\n" (lrBlocks md) <> "\n"
   in
     case tokenize src of
       Left e -> Left (show e)
-      Right toks -> case buildTables bootstrapGrammar of
-        Left _ -> Left "internal: the lr grammar is not LR(1)"
+      Right toks -> case buildTablesFor method bootstrapGrammar of
+        Left _ -> Left "internal: the lr grammar is not parseable by this method"
         Right table -> case run table tokenVal reduce toks of
           Left e -> Left (show e)
           Right (VGrammar g) -> Right g
           Right _ -> Left "parse did not yield a Grammar"
+
+-- | Parse using canonical LR(1) tables.
+parse :: String -> Either String Grammar
+parse = parseWith Canonical

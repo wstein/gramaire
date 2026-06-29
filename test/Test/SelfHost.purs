@@ -12,13 +12,18 @@ import Data.Either (Either(..))
 import Effect (Effect)
 import Effect.Console (log)
 import Grammark.Bootstrap (bootstrapGrammar)
-import Grammark.Lr (parse)
+import Grammark.Lr (parseWith)
+import Grammark.Table (Method(..))
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Test.Assert (assertEqual)
 
 tests :: Effect Unit
 tests = do
-  log "  self-host: parse(grammar/lr.gram.md) == bootstrapGrammar"
   md <- readTextFile UTF8 "grammar/lr.gram.md"
-  assertEqual { actual: parse md, expected: Right bootstrapGrammar }
+
+  log "  self-host: canonical parse(grammar/lr.gram.md) == bootstrapGrammar"
+  assertEqual { actual: parseWith Canonical md, expected: Right bootstrapGrammar }
+
+  log "  self-host: LALR parse agrees with canonical (same reconstructed grammar)"
+  assertEqual { actual: parseWith LALR md, expected: Right bootstrapGrammar }
