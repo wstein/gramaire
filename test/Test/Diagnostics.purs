@@ -21,8 +21,8 @@ import Test.Assert (assert')
 ambiguous :: Grammar
 ambiguous = Grammar
   [ Rule "E"
-      [ Alt [ Ref "E", Lit "+", Ref "E" ] Nothing
-      , Alt [ Ref "NUM" ] Nothing
+      [ Alt [ Ref "E", Lit "+", Ref "E" ] Nothing Nothing
+      , Alt [ Ref "NUM" ] Nothing Nothing
       ]
   ]
 

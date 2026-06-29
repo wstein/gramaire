@@ -7,6 +7,7 @@
 -- |   * `IDENT`    — `[A-Za-z_][A-Za-z0-9_]*`
 -- |   * `TERM_LIT` — a backtick-delimited terminal literal, e.g. `` `+` ``
 -- |   * `ACTION`   — a semantic action, the text between `{%` and `%}`
+-- |   * `LABEL`    — a `# Name` alternative label (the name is the payload)
 -- |   * `NL`       — one or more line breaks
 -- |   * `:` / `|`  — the two raw punctuation terminals of the notation
 -- |
@@ -62,6 +63,17 @@ tokenize src = go 0 []
       | c == '\n' -> go (skipWhile isLayout (i + 1)) (Array.snoc acc nl)
       | c == ':' -> go (i + 1) (Array.snoc acc (tok ":" ":"))
       | c == '|' -> go (i + 1) (Array.snoc acc (tok "|" "|"))
+      | c == '#' ->
+          let
+            s = skipWhile (\ch -> ch == ' ' || ch == '\t') (i + 1)
+          in
+            case at s of
+              Just ch | isIdentStart ch ->
+                let
+                  j = skipWhile isIdentChar (s + 1)
+                in
+                  go j (Array.snoc acc (tok "LABEL" (slice s j)))
+              _ -> Left (err i "expected an identifier after `#` alternative label")
       | c == '`' -> case findChar '`' (i + 1) of
           Nothing -> Left (err i "unterminated `...` terminal literal")
           Just j -> go (j + 1) (Array.snoc acc (tok "TERM_LIT" (slice (i + 1) j)))

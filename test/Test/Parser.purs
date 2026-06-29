@@ -20,8 +20,8 @@ counter :: Grammar
 counter =
   Grammar
     [ Rule "S"
-        [ Alt [ Lit "a", Ref "S" ] Nothing
-        , Alt [ Lit "a" ] Nothing
+        [ Alt [ Lit "a", Ref "S" ] Nothing Nothing
+        , Alt [ Lit "a" ] Nothing Nothing
         ]
     ]
 

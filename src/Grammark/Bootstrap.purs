@@ -18,45 +18,53 @@ import Grammark.Syntax (Grammar(..), Rule(..), Alt(..), Sym(..))
 bootstrapGrammar :: Grammar
 bootstrapGrammar = Grammar
   [ Rule "Grammar"
-      [ Alt [ Ref "RuleList" ] (Just "\\rs -> Grammar rs") ]
+      [ Alt [ Ref "RuleList" ] Nothing (Just "\\rs -> Grammar rs") ]
 
   , Rule "RuleList"
-      [ Alt [ Ref "Rule" ] (Just "\\r -> [r]")
-      , Alt [ Ref "RuleList", Ref "Rule" ] (Just "\\rs r -> snoc rs r")
+      [ Alt [ Ref "Rule" ] Nothing (Just "\\r -> [r]")
+      , Alt [ Ref "RuleList", Ref "Rule" ] Nothing (Just "\\rs r -> snoc rs r")
       ]
 
   , Rule "Rule"
-      [ Alt [ Ref "IDENT", Ref "NL", Ref "Body" ]
+      [ Alt [ Ref "IDENT", Ref "NL", Ref "Body" ] Nothing
           (Just "\\lhs _ alts -> Rule lhs alts")
       ]
 
   , Rule "Body"
-      [ Alt [ Lit ":", Ref "Alt", Ref "AltTail" ]
+      [ Alt [ Lit ":", Ref "Alt", Ref "AltTail" ] Nothing
           (Just "\\_ a as -> cons a as")
       ]
 
   , Rule "AltTail"
-      [ Alt [ Ref "NL" ] (Just "\\_ -> []")
-      , Alt [ Ref "NL", Lit "|", Ref "Alt", Ref "AltTail" ]
+      [ Alt [ Ref "NL" ] Nothing (Just "\\_ -> []")
+      , Alt [ Ref "NL", Lit "|", Ref "Alt", Ref "AltTail" ] Nothing
           (Just "\\_ _ a as -> cons a as")
       ]
 
   , Rule "Alt"
-      [ Alt [ Ref "SymList", Ref "Action" ]
-          (Just "\\syms act -> Alt syms act")
-      , Alt [ Ref "SymList" ] (Just "\\syms -> Alt syms Nothing")
+      [ Alt [ Ref "SymList", Ref "Label", Ref "Action" ] Nothing
+          (Just "\\syms lbl act -> Alt syms lbl act")
+      , Alt [ Ref "SymList", Ref "Label" ] Nothing
+          (Just "\\syms lbl -> Alt syms lbl Nothing")
+      , Alt [ Ref "SymList", Ref "Action" ] Nothing
+          (Just "\\syms act -> Alt syms Nothing act")
+      , Alt [ Ref "SymList" ] Nothing
+          (Just "\\syms -> Alt syms Nothing Nothing")
       ]
 
   , Rule "SymList"
-      [ Alt [ Ref "Sym" ] (Just "\\s -> [s]")
-      , Alt [ Ref "SymList", Ref "Sym" ] (Just "\\ss s -> snoc ss s")
+      [ Alt [ Ref "Sym" ] Nothing (Just "\\s -> [s]")
+      , Alt [ Ref "SymList", Ref "Sym" ] Nothing (Just "\\ss s -> snoc ss s")
       ]
 
   , Rule "Sym"
-      [ Alt [ Ref "IDENT" ] (Just "\\i -> Ref i")
-      , Alt [ Ref "TERM_LIT" ] (Just "\\t -> Lit t")
+      [ Alt [ Ref "IDENT" ] Nothing (Just "\\i -> Ref i")
+      , Alt [ Ref "TERM_LIT" ] Nothing (Just "\\t -> Lit t")
       ]
 
   , Rule "Action"
-      [ Alt [ Ref "ACTION" ] (Just "\\a -> Just a") ]
+      [ Alt [ Ref "ACTION" ] Nothing (Just "\\a -> Just a") ]
+
+  , Rule "Label"
+      [ Alt [ Ref "LABEL" ] Nothing (Just "\\l -> Just l") ]
   ]

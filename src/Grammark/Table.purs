@@ -104,7 +104,7 @@ productions g@(Grammar rules) = Array.concatMap ruleProds rules
   where
   nts = nontermSet g
   ruleProds (Rule lhs alts) =
-    map (\(Alt syms _) -> { lhs, rhs: map (resolve nts) syms }) alts
+    map (\(Alt syms _ _) -> { lhs, rhs: map (resolve nts) syms }) alts
 
 startSymbol :: Grammar -> String
 startSymbol (Grammar rules) = maybe "" (\(Rule n _) -> n) (Array.head rules)

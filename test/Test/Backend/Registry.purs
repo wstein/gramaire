@@ -19,8 +19,8 @@ import Test.Assert (assert', assertEqual)
 
 tiny :: Grammar
 tiny = Grammar
-  [ Rule "S" [ Alt [ Ref "A", Lit "+", Ref "A" ] Nothing ]
-  , Rule "A" [ Alt [ Ref "NUM" ] Nothing ]
+  [ Rule "S" [ Alt [ Ref "A", Lit "+", Ref "A" ] Nothing Nothing ]
+  , Rule "A" [ Alt [ Ref "NUM" ] Nothing Nothing ]
   ]
 
 tests :: Effect Unit

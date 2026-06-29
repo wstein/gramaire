@@ -30,8 +30,8 @@ import Test.Golden as Golden
 -- token class, a nonterminal reference, and an action.
 tiny :: Grammar
 tiny = Grammar
-  [ Rule "S" [ Alt [ Ref "A", Lit "+", Ref "A" ] (Just "\\a _ b -> add a b") ]
-  , Rule "A" [ Alt [ Ref "NUM" ] Nothing ]
+  [ Rule "S" [ Alt [ Ref "A", Lit "+", Ref "A" ] Nothing (Just "\\a _ b -> add a b") ]
+  , Rule "A" [ Alt [ Ref "NUM" ] Nothing Nothing ]
   ]
 
 structural :: Effect Unit

@@ -48,6 +48,7 @@ tokenVal tok = case tok.terminal of
   "IDENT" -> VStr tok.text
   "TERM_LIT" -> VStr tok.text
   "ACTION" -> VStr tok.text
+  "LABEL" -> VStr tok.text
   _ -> VIgnore -- NL, `:`, `|`
 
 -- | The semantic actions of `grammar/lr.gram.md`, keyed by production index
@@ -63,13 +64,16 @@ reduce p kids = case p, kids of
   4, [ _, VAlt a, VAlts as ] -> VAlts (Array.cons a as) -- Body : `:` Alt AltTail
   5, _ -> VAlts [] -- AltTail : NL
   6, [ _, _, VAlt a, VAlts as ] -> VAlts (Array.cons a as) -- AltTail : NL `|` Alt AltTail
-  7, [ VSyms syms, VMaybeStr act ] -> VAlt (Alt syms act) -- Alt : SymList Action
-  8, [ VSyms syms ] -> VAlt (Alt syms Nothing) -- Alt : SymList
-  9, [ VSym s ] -> VSyms [ s ] -- SymList : Sym
-  10, [ VSyms ss, VSym s ] -> VSyms (Array.snoc ss s) -- SymList : SymList Sym
-  11, [ VStr i ] -> VSym (Ref i) -- Sym : IDENT
-  12, [ VStr t ] -> VSym (Lit t) -- Sym : TERM_LIT
-  13, [ VStr a ] -> VMaybeStr (Just a) -- Action : ACTION
+  7, [ VSyms syms, VMaybeStr lbl, VMaybeStr act ] -> VAlt (Alt syms lbl act) -- Alt : SymList Label Action
+  8, [ VSyms syms, VMaybeStr lbl ] -> VAlt (Alt syms lbl Nothing) -- Alt : SymList Label
+  9, [ VSyms syms, VMaybeStr act ] -> VAlt (Alt syms Nothing act) -- Alt : SymList Action
+  10, [ VSyms syms ] -> VAlt (Alt syms Nothing Nothing) -- Alt : SymList
+  11, [ VSym s ] -> VSyms [ s ] -- SymList : Sym
+  12, [ VSyms ss, VSym s ] -> VSyms (Array.snoc ss s) -- SymList : SymList Sym
+  13, [ VStr i ] -> VSym (Ref i) -- Sym : IDENT
+  14, [ VStr t ] -> VSym (Lit t) -- Sym : TERM_LIT
+  15, [ VStr a ] -> VMaybeStr (Just a) -- Action : ACTION
+  16, [ VStr l ] -> VMaybeStr (Just l) -- Label : LABEL
   _, _ -> VErr ("unexpected reduce shape for production " <> show p)
 
 -- | Extract the contents of every ```lr fenced block — the rule blocks, not
