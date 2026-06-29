@@ -111,13 +111,13 @@ spago test
 
 | Path            | What lives there                                              |
 | --------------- | ------------------------------------------------------------- |
-| `src/Grammark/` | The PureScript core: AST, lexer, table builder, parser.       |
+| `src/Grammark/` | Core: AST, lexer, table builder, parser, `grammark-ir`.       |
 | `grammar/`      | `lr.gram.md` — the `lr` notation described in itself.         |
 | `examples/`     | Worked grammars: `json`, `calc`, and the `readme` meta demo.  |
 | `bootstrap/`    | Disposable TypeScript `grammark --check` bridge (its README). |
 | `brand/`        | Logo and wordmark SVGs.                                       |
-| `docs/`         | Branding and the `fmt` output contract.                       |
-| `test/`         | PureScript tests (self-hosting, FIRST/FOLLOW, lexer, parser). |
+| `docs/`         | Branding, the `fmt` contract, the multi-backend plan.         |
+| `test/`         | PureScript tests (self-host, FIRST/FOLLOW, lexer, parser, IR).|
 
 ## Status
 
@@ -128,6 +128,12 @@ the parser generated from the `lr` grammar reads `grammar/lr.gram.md` back to
 `bootstrapGrammar`, under all three methods. A differential oracle pins the
 methods against each other (an LR(1)-but-not-LALR(1) grammar is accepted by
 canonical, rejected by LALR, and recovered by IELR).
+
+The front end also lowers a grammar and its tables into
+[`grammark-ir`](src/Grammark/IR.purs) — the versioned, canonically serialized
+JSON artifact that every backend will target (`Grammark.IR`, with the canonical
+serializer in `Grammark.Json`). `Test.IR` locks the emitted JSON against
+checked-in goldens for the `lr` and `json` grammars.
 
 The bridge's `grammark fmt` emits real railroad diagrams — sidecar SVGs by
 default, or GitHub-native mermaid fences with `--diagrams=mermaid` — and every

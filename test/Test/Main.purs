@@ -7,6 +7,7 @@ import Prelude
 import Effect (Effect)
 import Effect.Console (log)
 import Test.FirstFollow as FirstFollow
+import Test.IR as IR
 import Test.Lexer as Lexer
 import Test.Parser as Parser
 import Test.SelfHost as SelfHost
@@ -24,4 +25,6 @@ main = do
   SelfHost.tests
   log "Test.FirstFollow"
   FirstFollow.tests
+  log "Test.IR"
+  IR.tests
   log "all suites passed"
