@@ -20,6 +20,7 @@
             "assert",
             "console",
             "effect",
+            "exceptions",
             "node-buffer",
             "node-fs"
           ]

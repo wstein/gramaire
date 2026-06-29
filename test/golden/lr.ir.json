@@ -1,0 +1,936 @@
+{
+  "conflicts": [],
+  "grammar": {
+    "name": "Lr",
+    "nonterminals": [
+      {
+        "id": 0,
+        "name": "Grammar"
+      },
+      {
+        "id": 1,
+        "name": "RuleList"
+      },
+      {
+        "id": 2,
+        "name": "Rule"
+      },
+      {
+        "id": 3,
+        "name": "Body"
+      },
+      {
+        "id": 4,
+        "name": "AltTail"
+      },
+      {
+        "id": 5,
+        "name": "Alt"
+      },
+      {
+        "id": 6,
+        "name": "SymList"
+      },
+      {
+        "id": 7,
+        "name": "Sym"
+      },
+      {
+        "id": 8,
+        "name": "Action"
+      }
+    ],
+    "precedence": [],
+    "rules": [
+      {
+        "actions": {
+          "purescript": "\\rs -> Grammar rs"
+        },
+        "id": 0,
+        "lhs": 0,
+        "rhs": [
+          {
+            "id": 1,
+            "ref": "nt"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\r -> [r]"
+        },
+        "id": 1,
+        "lhs": 1,
+        "rhs": [
+          {
+            "id": 2,
+            "ref": "nt"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\rs r -> snoc rs r"
+        },
+        "id": 2,
+        "lhs": 1,
+        "rhs": [
+          {
+            "id": 1,
+            "ref": "nt"
+          },
+          {
+            "id": 2,
+            "ref": "nt"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\lhs _ alts -> Rule lhs alts"
+        },
+        "id": 3,
+        "lhs": 2,
+        "rhs": [
+          {
+            "id": 2,
+            "ref": "t"
+          },
+          {
+            "id": 3,
+            "ref": "t"
+          },
+          {
+            "id": 3,
+            "ref": "nt"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\_ a as -> cons a as"
+        },
+        "id": 4,
+        "lhs": 3,
+        "rhs": [
+          {
+            "id": 0,
+            "ref": "t"
+          },
+          {
+            "id": 5,
+            "ref": "nt"
+          },
+          {
+            "id": 4,
+            "ref": "nt"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\_ -> []"
+        },
+        "id": 5,
+        "lhs": 4,
+        "rhs": [
+          {
+            "id": 3,
+            "ref": "t"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\_ _ a as -> cons a as"
+        },
+        "id": 6,
+        "lhs": 4,
+        "rhs": [
+          {
+            "id": 3,
+            "ref": "t"
+          },
+          {
+            "id": 5,
+            "ref": "t"
+          },
+          {
+            "id": 5,
+            "ref": "nt"
+          },
+          {
+            "id": 4,
+            "ref": "nt"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\syms act -> Alt syms act"
+        },
+        "id": 7,
+        "lhs": 5,
+        "rhs": [
+          {
+            "id": 6,
+            "ref": "nt"
+          },
+          {
+            "id": 8,
+            "ref": "nt"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\syms -> Alt syms Nothing"
+        },
+        "id": 8,
+        "lhs": 5,
+        "rhs": [
+          {
+            "id": 6,
+            "ref": "nt"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\s -> [s]"
+        },
+        "id": 9,
+        "lhs": 6,
+        "rhs": [
+          {
+            "id": 7,
+            "ref": "nt"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\ss s -> snoc ss s"
+        },
+        "id": 10,
+        "lhs": 6,
+        "rhs": [
+          {
+            "id": 6,
+            "ref": "nt"
+          },
+          {
+            "id": 7,
+            "ref": "nt"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\i -> Ref i"
+        },
+        "id": 11,
+        "lhs": 7,
+        "rhs": [
+          {
+            "id": 2,
+            "ref": "t"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\t -> Lit t"
+        },
+        "id": 12,
+        "lhs": 7,
+        "rhs": [
+          {
+            "id": 4,
+            "ref": "t"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\a -> Just a"
+        },
+        "id": 13,
+        "lhs": 8,
+        "rhs": [
+          {
+            "id": 1,
+            "ref": "t"
+          }
+        ]
+      }
+    ],
+    "start": "Grammar",
+    "terminals": [
+      {
+        "id": 0,
+        "kind": "literal",
+        "spelling": ":"
+      },
+      {
+        "id": 1,
+        "kind": "class",
+        "name": "ACTION"
+      },
+      {
+        "id": 2,
+        "kind": "class",
+        "name": "IDENT"
+      },
+      {
+        "id": 3,
+        "kind": "class",
+        "name": "NL"
+      },
+      {
+        "id": 4,
+        "kind": "class",
+        "name": "TERM_LIT"
+      },
+      {
+        "id": 5,
+        "kind": "literal",
+        "spelling": "|"
+      }
+    ]
+  },
+  "irVersion": 0,
+  "tables": {
+    "action": [
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 4
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 0
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "accept": true
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 1
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 1
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 1
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 2
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 4
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 0
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 3
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 6
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 4
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 2
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 2
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 5
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 8
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 6
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 3
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 3
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 7
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 12
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 13
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 8
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 15
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 9
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 9
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 9
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 9
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 9
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 10
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 18
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 12
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 8
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 13
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 11
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 11
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 11
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 11
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 11
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 12
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 13
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 4
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 4
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 14
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 5
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 19
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 5
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 15
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 7
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 16
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 10
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 10
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 10
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 10
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 17
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 13
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 18
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 12
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 13
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 19
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 15
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 20
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 6
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 6
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 21
+      }
+    ],
+    "algorithm": "canonical-lr1",
+    "goto": [
+      {
+        "entries": [
+          {
+            "nonterminal": 0,
+            "to": 1
+          },
+          {
+            "nonterminal": 2,
+            "to": 2
+          },
+          {
+            "nonterminal": 1,
+            "to": 3
+          }
+        ],
+        "state": 0
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 2,
+            "to": 5
+          }
+        ],
+        "state": 3
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 3,
+            "to": 7
+          }
+        ],
+        "state": 6
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 5,
+            "to": 9
+          },
+          {
+            "nonterminal": 7,
+            "to": 10
+          },
+          {
+            "nonterminal": 6,
+            "to": 11
+          }
+        ],
+        "state": 8
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 4,
+            "to": 14
+          }
+        ],
+        "state": 9
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 8,
+            "to": 16
+          },
+          {
+            "nonterminal": 7,
+            "to": 17
+          }
+        ],
+        "state": 11
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 5,
+            "to": 20
+          },
+          {
+            "nonterminal": 7,
+            "to": 10
+          },
+          {
+            "nonterminal": 6,
+            "to": 11
+          }
+        ],
+        "state": 19
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 4,
+            "to": 21
+          }
+        ],
+        "state": 20
+      }
+    ],
+    "stateCount": 22
+  }
+}

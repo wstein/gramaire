@@ -24,6 +24,7 @@ package:
       - effect # Effect
       - console # Effect.Console
       - assert # Test.Assert
+      - exceptions # Effect.Exception (Test.IR golden generate-on-missing)
       - node-fs # Node.FS.Sync (self-host test reads grammar/lr.gram.md)
       - node-buffer # Node.Encoding
 workspace:

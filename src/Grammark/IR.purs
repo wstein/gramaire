@@ -1,0 +1,394 @@
+-- | `grammark-ir`: the narrow waist between the front end and every backend.
+-- |
+-- | The front end (`.gram.md` -> `Grammar` -> parse tables) lowers into this
+-- | one versioned artifact; a backend only ever sees the IR and never parses
+-- | Markdown. This module builds the in-memory IR from a `Grammar` plus the
+-- | tables a chosen `Method` produces, and serializes it to canonical JSON.
+-- |
+-- | Faithful-to-reality scope (irVersion 0, draft/unstable):
+-- |   * Rule order is exactly `Grammark.Table.productions`, so a table
+-- |     `Reduce n` indexes `rules[n]` directly.
+-- |   * Tables use the diffable "rows" form (one object per state), the
+-- |     normative encoding; compact/binary mirrors are future work.
+-- |   * `precedence` is always empty: the core `Grammar` AST does not yet model
+-- |     operator precedence, so the IR honestly carries none rather than
+-- |     inventing it.
+-- |   * `conflicts` is empty on success; `buildIR` returns `Left` (mirroring
+-- |     `buildTablesFor`) when the grammar is not parseable by the method.
+module Grammark.IR
+  ( IR
+  , IRGrammar
+  , IRTerminal(..)
+  , IRNonterminal
+  , IRRef(..)
+  , IRRule
+  , IRTables
+  , IROn(..)
+  , IRAct(..)
+  , IRActionRow
+  , IRActionEntry
+  , IRGotoRow
+  , IRGotoEntry
+  , IRConflict
+  , IRPrec
+  , irVersion
+  , buildIR
+  , toJson
+  , serialize
+  ) where
+
+import Prelude
+
+import Data.Array as Array
+import Data.Either (Either(..))
+import Data.Foldable (foldl)
+import Data.Map (Map)
+import Data.Map as Map
+import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Set (Set)
+import Data.Set as Set
+import Data.Tuple (Tuple(..))
+import Grammark.Json (Json(..), stringify)
+import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
+import Grammark.Table (Action(..), Conflict, GSym(..), Method(..), ParseTable, buildTablesFor)
+
+-- | The current IR schema version. `0` means draft/unstable: files at this
+-- | version carry no compatibility promise.
+irVersion :: Int
+irVersion = 0
+
+-- | The whole artifact.
+type IR =
+  { irVersion :: Int
+  , grammar :: IRGrammar
+  , tables :: IRTables
+  , conflicts :: Array IRConflict
+  }
+
+-- | The language definition: symbols, rules, and (eventually) precedence.
+type IRGrammar =
+  { name :: String
+  , start :: String
+  , terminals :: Array IRTerminal
+  , nonterminals :: Array IRNonterminal
+  , rules :: Array IRRule
+  , precedence :: Array IRPrec
+  }
+
+-- | A terminal carries a stable id and either a literal spelling (from a
+-- | backtick literal) or a token-class name (an ALL-CAPS lexer class).
+data IRTerminal
+  = IRLiteral Int String
+  | IRClass Int String
+
+derive instance eqIRTerminal :: Eq IRTerminal
+
+instance showIRTerminal :: Show IRTerminal where
+  show (IRLiteral i s) = "IRLiteral " <> show i <> " " <> show s
+  show (IRClass i s) = "IRClass " <> show i <> " " <> show s
+
+type IRNonterminal = { id :: Int, name :: String }
+
+-- | A right-hand-side symbol reference: into the nonterminal table or the
+-- | terminal table.
+data IRRef
+  = IRRefNT Int
+  | IRRefT Int
+
+derive instance eqIRRef :: Eq IRRef
+
+instance showIRRef :: Show IRRef where
+  show (IRRefNT i) = "IRRefNT " <> show i
+  show (IRRefT i) = "IRRefT " <> show i
+
+-- | A single production. `actions` maps a profile name to its opaque,
+-- | untrusted host-language text; empty when the alternative has no action.
+type IRRule =
+  { id :: Int
+  , lhs :: Int
+  , rhs :: Array IRRef
+  , actions :: Array (Tuple String String)
+  }
+
+-- | The parse tables in normative "rows" form.
+type IRTables =
+  { algorithm :: String
+  , stateCount :: Int
+  , action :: Array IRActionRow
+  , goto :: Array IRGotoRow
+  }
+
+type IRActionRow = { state :: Int, entries :: Array IRActionEntry }
+type IRActionEntry = { on :: IROn, action :: IRAct }
+
+-- | The lookahead an action fires on: a terminal id, or end-of-input.
+data IROn
+  = OnTerm Int
+  | OnEof
+
+-- | A parse action.
+data IRAct
+  = ActShift Int
+  | ActReduce Int
+  | ActAccept
+
+type IRGotoRow = { state :: Int, entries :: Array IRGotoEntry }
+type IRGotoEntry = { nonterminal :: Int, to :: Int }
+
+-- | A construction conflict (empty on a successful build).
+type IRConflict = { kind :: String, state :: Int, onSymbol :: String }
+
+-- | An operator-precedence level (always empty for now; see module header).
+type IRPrec = { level :: Int, assoc :: String, terminals :: Array Int }
+
+-- build --------------------------------------------------------------------
+
+-- | Lower a named grammar into the IR using the tables of the chosen method.
+-- | Returns `Left` with every conflict when the grammar is not parseable.
+buildIR :: Method -> String -> Grammar -> Either (Array Conflict) IR
+buildIR method name g@(Grammar rules) =
+  case buildTablesFor method g of
+    Left conflicts -> Left conflicts
+    Right table ->
+      Right
+        { irVersion
+        , grammar:
+            { name
+            , start: startSymbol
+            , terminals
+            , nonterminals
+            , rules: irRules
+            , precedence: []
+            }
+        , tables: assembleTables (algorithmName method) termId ntId table
+        , conflicts: []
+        }
+  where
+  ntNames :: Array String
+  ntNames = map (\(Rule n _) -> n) rules
+
+  ntSet :: Set String
+  ntSet = Set.fromFoldable ntNames
+
+  ntIdMap :: Map String Int
+  ntIdMap = Map.fromFoldable (Array.mapWithIndex (\i n -> Tuple n i) ntNames)
+
+  ntId :: String -> Int
+  ntId n = fromMaybe (-1) (Map.lookup n ntIdMap)
+
+  nonterminals :: Array IRNonterminal
+  nonterminals = Array.mapWithIndex (\i n -> { id: i, name: n }) ntNames
+
+  startSymbol :: String
+  startSymbol = fromMaybe "" (Array.head ntNames)
+
+  -- Every terminal string mapped to whether it is a literal. A name that is a
+  -- rule LHS is a nonterminal and is excluded; everything else is a terminal,
+  -- literal if it ever appears as a backtick literal. The ordered map keys
+  -- sort ascending, giving deterministic terminal ids.
+  termLiteralMap :: Map String Boolean
+  termLiteralMap = foldl perSym Map.empty allSyms
+    where
+    perSym m = case _ of
+      Lit s -> Map.insertWith (||) s true m
+      Ref n -> if Set.member n ntSet then m else Map.insertWith (||) n false m
+
+  termEntries :: Array { id :: Int, str :: String, isLiteral :: Boolean }
+  termEntries =
+    Array.mapWithIndex
+      (\i (Tuple str isLiteral) -> { id: i, str, isLiteral })
+      (Map.toUnfoldable termLiteralMap)
+
+  termIdMap :: Map String Int
+  termIdMap = Map.fromFoldable (map (\e -> Tuple e.str e.id) termEntries)
+
+  termId :: String -> Int
+  termId s = fromMaybe (-1) (Map.lookup s termIdMap)
+
+  terminals :: Array IRTerminal
+  terminals =
+    map (\e -> if e.isLiteral then IRLiteral e.id e.str else IRClass e.id e.str)
+      termEntries
+
+  -- Flattened in `Grammark.Table.productions` order, but keeping the actions
+  -- that table construction drops.
+  irRules :: Array IRRule
+  irRules = Array.mapWithIndex toRule flat
+    where
+    flat = Array.concatMap (\(Rule lhs alts) -> map (\alt -> Tuple lhs alt) alts) rules
+    toRule i (Tuple lhs (Alt syms act)) =
+      { id: i
+      , lhs: ntId lhs
+      , rhs: map toRef syms
+      , actions: case act of
+          Just code -> [ Tuple "purescript" code ]
+          Nothing -> []
+      }
+    toRef = case _ of
+      Ref n -> if Set.member n ntSet then IRRefNT (ntId n) else IRRefT (termId n)
+      Lit s -> IRRefT (termId s)
+
+  allSyms :: Array Sym
+  allSyms = Array.concatMap (\(Rule _ alts) -> Array.concatMap altSyms alts) rules
+    where
+    altSyms (Alt syms _) = syms
+
+algorithmName :: Method -> String
+algorithmName = case _ of
+  Canonical -> "canonical-lr1"
+  LALR -> "lalr1"
+  IELR -> "ielr1"
+
+-- | Turn a filled `ParseTable` into the IR's rows form. The action and goto
+-- | maps already iterate in ascending key order, so grouping by state and
+-- | appending preserves a deterministic, diffable layout.
+assembleTables
+  :: String
+  -> (String -> Int)
+  -> (String -> Int)
+  -> ParseTable
+  -> IRTables
+assembleTables algorithm termId ntId table =
+  { algorithm
+  , stateCount
+  , action: groupRows actionByState
+  , goto: groupRows gotoByState
+  }
+  where
+  actionList :: Array (Tuple (Tuple Int GSym) Action)
+  actionList = Map.toUnfoldable table.action
+
+  gotoList :: Array (Tuple (Tuple Int String) Int)
+  gotoList = Map.toUnfoldable table.goto
+
+  actionByState :: Map Int (Array IRActionEntry)
+  actionByState = foldl step Map.empty actionList
+    where
+    step m (Tuple (Tuple st sym) act) =
+      Map.insertWith (<>) st [ { on: onOf sym, action: actOf act } ] m
+
+  gotoByState :: Map Int (Array IRGotoEntry)
+  gotoByState = foldl step Map.empty gotoList
+    where
+    step m (Tuple (Tuple st nt) to) =
+      Map.insertWith (<>) st [ { nonterminal: ntId nt, to } ] m
+
+  groupRows :: forall e. Map Int (Array e) -> Array { state :: Int, entries :: Array e }
+  groupRows m = map (\(Tuple st entries) -> { state: st, entries }) (Map.toUnfoldable m)
+
+  onOf :: GSym -> IROn
+  onOf = case _ of
+    Term t -> OnTerm (termId t)
+    EOF -> OnEof
+    NonTerm n -> OnTerm (termId n) -- unreachable: action keys are never nonterminals
+
+  actOf :: Action -> IRAct
+  actOf = case _ of
+    Shift n -> ActShift n
+    Reduce n -> ActReduce n
+    Accept -> ActAccept
+
+  stateCount :: Int
+  stateCount = 1 + foldl max (-1) allStates
+    where
+    shiftTarget (Tuple _ a) = case a of
+      Shift n -> Just n
+      _ -> Nothing
+    allStates =
+      map (\(Tuple (Tuple st _) _) -> st) actionList
+        <> Array.mapMaybe shiftTarget actionList
+        <> map (\(Tuple (Tuple st _) _) -> st) gotoList
+        <> map (\(Tuple _ to) -> to) gotoList
+
+-- serialize ----------------------------------------------------------------
+
+-- | The IR as a `Json` value, ready for canonical serialization.
+toJson :: IR -> Json
+toJson ir =
+  JObject
+    [ Tuple "irVersion" (JInt ir.irVersion)
+    , Tuple "grammar" (grammarJson ir.grammar)
+    , Tuple "tables" (tablesJson ir.tables)
+    , Tuple "conflicts" (JArray (map conflictJson ir.conflicts))
+    ]
+  where
+  grammarJson g =
+    JObject
+      [ Tuple "name" (JString g.name)
+      , Tuple "start" (JString g.start)
+      , Tuple "terminals" (JArray (map terminalJson g.terminals))
+      , Tuple "nonterminals" (JArray (map ntJson g.nonterminals))
+      , Tuple "rules" (JArray (map ruleJson g.rules))
+      , Tuple "precedence" (JArray (map precJson g.precedence))
+      ]
+
+  terminalJson = case _ of
+    IRLiteral i spelling ->
+      JObject [ Tuple "id" (JInt i), Tuple "kind" (JString "literal"), Tuple "spelling" (JString spelling) ]
+    IRClass i name ->
+      JObject [ Tuple "id" (JInt i), Tuple "kind" (JString "class"), Tuple "name" (JString name) ]
+
+  ntJson n = JObject [ Tuple "id" (JInt n.id), Tuple "name" (JString n.name) ]
+
+  ruleJson r =
+    JObject
+      [ Tuple "id" (JInt r.id)
+      , Tuple "lhs" (JInt r.lhs)
+      , Tuple "rhs" (JArray (map refJson r.rhs))
+      , Tuple "actions" (JObject (map (\(Tuple k v) -> Tuple k (JString v)) r.actions))
+      ]
+
+  refJson = case _ of
+    IRRefNT i -> JObject [ Tuple "ref" (JString "nt"), Tuple "id" (JInt i) ]
+    IRRefT i -> JObject [ Tuple "ref" (JString "t"), Tuple "id" (JInt i) ]
+
+  precJson p =
+    JObject
+      [ Tuple "level" (JInt p.level)
+      , Tuple "assoc" (JString p.assoc)
+      , Tuple "terminals" (JArray (map JInt p.terminals))
+      ]
+
+  tablesJson t =
+    JObject
+      [ Tuple "algorithm" (JString t.algorithm)
+      , Tuple "stateCount" (JInt t.stateCount)
+      , Tuple "action" (JArray (map actionRowJson t.action))
+      , Tuple "goto" (JArray (map gotoRowJson t.goto))
+      ]
+
+  actionRowJson row =
+    JObject
+      [ Tuple "state" (JInt row.state)
+      , Tuple "entries" (JArray (map actionEntryJson row.entries))
+      ]
+
+  actionEntryJson e = JObject [ Tuple "on" (onJson e.on), Tuple "action" (actJson e.action) ]
+
+  onJson = case _ of
+    OnTerm i -> JObject [ Tuple "ref" (JString "t"), Tuple "id" (JInt i) ]
+    OnEof -> JObject [ Tuple "ref" (JString "eof") ]
+
+  actJson = case _ of
+    ActShift n -> JObject [ Tuple "shift" (JInt n) ]
+    ActReduce n -> JObject [ Tuple "reduce" (JInt n) ]
+    ActAccept -> JObject [ Tuple "accept" (JBool true) ]
+
+  gotoRowJson row =
+    JObject
+      [ Tuple "state" (JInt row.state)
+      , Tuple "entries" (JArray (map gotoEntryJson row.entries))
+      ]
+
+  gotoEntryJson e = JObject [ Tuple "nonterminal" (JInt e.nonterminal), Tuple "to" (JInt e.to) ]
+
+  conflictJson c =
+    JObject
+      [ Tuple "kind" (JString c.kind)
+      , Tuple "state" (JInt c.state)
+      , Tuple "onSymbol" (JString c.onSymbol)
+      ]
+
+-- | Build and canonically serialize in one step.
+serialize :: Method -> String -> Grammar -> Either (Array Conflict) String
+serialize method name g = map (stringify <<< toJson) (buildIR method name g)
