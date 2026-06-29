@@ -90,3 +90,11 @@ tests = do
   case Lr.parse "```lr\nU\n  : Bogus<NUM>\n```\n" of
     Left _ -> pure unit
     Right _ -> assert' "an unknown macro should be a build error" false
+
+  log "  desugar: a bare-body action binds the field names (named bindings)"
+  case Lr.parse "```lr\nE\n  : left:NUM `+` right:NUM   {% Add left right %}\n```\n" of
+    Left e -> assert' ("named-binding parse failed: " <> e) false
+    Right g -> case ruleNamed "E" g of
+      Just (Rule _ [ Alt _ _ (Just act) ]) ->
+        assert' ("action should become a field-named lambda: " <> act) (contains (Pattern "\\left _ right ->") act)
+      _ -> assert' "E should have one alternative with an action" false
