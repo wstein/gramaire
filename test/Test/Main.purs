@@ -10,6 +10,7 @@ import Test.Backend.Ebnf as BackendEbnf
 import Test.Backend.Registry as BackendRegistry
 import Test.Cli as Cli
 import Test.Codegen as Codegen
+import Test.Conformance as Conformance
 import Test.FirstFollow as FirstFollow
 import Test.IR as IR
 import Test.Lexer as Lexer
@@ -42,4 +43,6 @@ main = do
   Codegen.tests
   log "Test.Schema"
   Schema.tests
+  log "Test.Conformance"
+  Conformance.tests
   log "all suites passed"

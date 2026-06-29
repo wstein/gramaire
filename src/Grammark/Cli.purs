@@ -29,6 +29,8 @@ import Effect.Console (error, log)
 import Effect.Exception (message, try)
 import Grammark.Backend (Output)
 import Grammark.Backend.Registry (backends, findBackend)
+import Grammark.Bootstrap (bootstrapGrammar)
+import Grammark.Conformance (lrVectors, runSuite, summarize)
 import Grammark.IR (buildIR)
 import Grammark.Lr (parse)
 import Grammark.Table (Method(Canonical))
@@ -89,6 +91,7 @@ main = do
     Nothing -> usage *> setExitCode 1
     Just { head: cmd, tail } -> case cmd of
       "emit" -> runEmit tail
+      "conformance" -> runConformance
       "help" -> usage
       "--help" -> usage
       "-h" -> usage
@@ -125,6 +128,14 @@ deliver out outputs = case out of
       writeTextFile UTF8 path o.contents
       log ("wrote " <> path)
 
+runConformance :: Effect Unit
+runConformance = do
+  let summary = summarize (runSuite bootstrapGrammar lrVectors)
+  for_ summary.failures \f ->
+    error ("  FAIL " <> f.name <> " [" <> f.method <> "]: expected " <> show f.expected <> ", got " <> show f.actual)
+  log ("conformance: " <> show summary.passed <> "/" <> show summary.total <> " checks passed (lr corpus)")
+  when (not (Array.null summary.failures)) (setExitCode 1)
+
 die :: String -> Effect Unit
 die msg = do
   error ("grammark: " <> msg)
@@ -141,8 +152,10 @@ usage = for_ lines log
     , ""
     , "Usage:"
     , "  grammark emit <file.gram.md> [--backend <name>] [--out <dir>]"
+    , "  grammark conformance"
     , ""
     , "Backends: " <> backendNames
     , ""
     , "With no --out, the artifact is written to stdout."
+    , "conformance runs the differential oracle over the built-in lr corpus."
     ]
