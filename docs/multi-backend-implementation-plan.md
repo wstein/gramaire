@@ -226,6 +226,12 @@ surface conventions explicit and forgiving:
   that is referenced but never defined is rejected by name
   (`Grammark.Diagnostics.checkDefined`, wired into `Lr.parse`) instead of
   silently resolving to a phantom terminal — turning a typo into a build error.
+- **Deliberate newline significance + line continuation (shipped).** `NL` ends
+  an alternative on purpose — that is what lets the notation drop the `;`
+  terminators yacc-family grammars need and stay LR(1) on one token of
+  lookahead. To keep that from forcing a long alternative onto one physical
+  line, a trailing `\` continues the line (the lexer swallows the newline). A
+  `\` anywhere but the line end is a lex error.
 
 **The `X?` / `X*` correction (refines D27).** I had deferred optional/star as
 unable to be both epsilon-free *and* arity-preserving. That was wrong: they

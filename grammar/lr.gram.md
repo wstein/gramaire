@@ -8,9 +8,14 @@ that the toolchain can parse what it claims to.
 The notation is LR(1) by construction. Three conventions keep it
 unambiguous with a single token of lookahead:
 
-- **Newlines are significant.** `NL` ends an alternative. After it, one
-  token decides what comes next: a `|` continues the current rule, an
-  `IDENT` begins a new rule, and end-of-input finishes the grammar.
+- **Newlines are significant — deliberately.** `NL` ends an alternative.
+  After it, one token decides what comes next: a `|` continues the current
+  rule, an `IDENT` (or `ATTR`) begins a new rule, and end-of-input finishes
+  the grammar. This is the choice that lets the grammar drop the `;`
+  terminators most yacc-family notations need and stay LR(1) on one token of
+  lookahead. So that significance never forces a long alternative onto one
+  physical line, a `\` at the end of a line continues it: the lexer swallows
+  that newline, and the alternative runs on.
 - **Terminals** are written either as backtick-delimited literals (such as
   `:` and `|`) or as ALL-CAPS lexer token classes (`IDENT`, `TERM_LIT`,
   `ACTION`, `NL`).

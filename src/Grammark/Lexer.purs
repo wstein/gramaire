@@ -2,7 +2,9 @@
 -- |
 -- | It turns the raw text of an `lr` block into a flat token stream the
 -- | generated parser consumes. Per `grammar/lr.gram.md`, it skips spaces and
--- | indentation, collapses runs of blank lines to a single `NL`, and emits:
+-- | indentation, collapses runs of blank lines to a single `NL`, treats a
+-- | trailing `\` as a line continuation (swallowing the newline it precedes so
+-- | an alternative may span physical lines), and emits:
 -- |
 -- |   * `IDENT`    — `[A-Za-z_][A-Za-z0-9_]*`
 -- |   * `TERM_LIT` — a backtick-delimited terminal literal, e.g. `` `+` ``
@@ -89,6 +91,15 @@ tokenizeSpanned src = go 0 []
             e = skipWhile isLayout (i + 1)
           in
             go e (Array.snoc acc (sp "NL" "\n" i e))
+      -- A trailing `\` continues the line: the newline it precedes is swallowed,
+      -- so one alternative can span several physical lines without ending early.
+      | c == '\\' ->
+          let
+            j = skipWhile (\ch -> ch == ' ' || ch == '\t' || ch == '\r') (i + 1)
+          in
+            case at j of
+              Just '\n' -> go (skipWhile isLayout (j + 1)) acc
+              _ -> Left (err i "a `\\` line continuation must be the last character on its line")
       | c == ':' -> go (i + 1) (Array.snoc acc (sp ":" ":" i (i + 1)))
       | c == '|' -> go (i + 1) (Array.snoc acc (sp "|" "|" i (i + 1)))
       | c == '+' -> go (i + 1) (Array.snoc acc (sp "PLUS" "+" i (i + 1)))
