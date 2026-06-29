@@ -12,6 +12,7 @@ import Test.Backend.Registry as BackendRegistry
 import Test.Cli as Cli
 import Test.Codegen as Codegen
 import Test.Conformance as Conformance
+import Test.Cst as Cst
 import Test.Desugar as Desugar
 import Test.Diagnostics as Diagnostics
 import Test.FirstFollow as FirstFollow
@@ -56,6 +57,8 @@ main = do
   Schema.tests
   log "Test.Conformance"
   Conformance.tests
+  log "Test.Cst"
+  Cst.tests
   log "Test.Diagnostics"
   Diagnostics.tests
   log "Test.Desugar"

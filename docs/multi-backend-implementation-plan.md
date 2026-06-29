@@ -603,7 +603,7 @@ then the committed GLR engine phase, then incremental/LSP.
 
 | Phase                         | What                                                                                                                    | Status | Done when                                                                                                                                                   |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A. Spec + seam + keystone** | emit IR; [S2] codegen oracle; IR schema                                                                                 | ◐      | interpreter *reads* IR ✅ (decoder D16); CST golden + `cst-schema` remain                                                                                   |
+| **A. Spec + seam + keystone** | emit IR; [S2] codegen oracle; IR schema                                                                                 | ✅     | interpreter *reads* IR ✅ (decoder D16); CST golden + `cst-schema.json` ✅ — Phase A closed                                                                 |
 | **B. Backend SPI**            | in-process record; `grammark emit`; then TS backend; then out-of-process protocol                                       | ◐      | in-process + CLI done; decoder unblocks out-of-process; TS backend remains                                                                                  |
 | **C. Conformance**            | corpus + vectors + oracle; `grammark conformance`                                                                       | ◐      | shipped for `lr`; refine to descriptor-driven [S18] + per-language input lexers                                                                             |
 | **DX. Errors + sugar**        | grammar-relative diagnostics [S13]; EBNF macros + `#[inline]` desugaring to epsilon-free Core [S15]                     | ✅     | diagnostics ✅ + labels ✅; sugar `X+` / `X*` / `X?` ✅, `Comma<X>` / `Sep<X,S>` ✅, `left:X` fields ✅, `#[inline]` ✅ ([S15] `Grammark.Desugar`, D27/D28) |
@@ -612,7 +612,7 @@ then the committed GLR engine phase, then incremental/LSP.
 | **GLR. Engine (committed)**   | multi-action table + fork driver; Earley debug recognizer + `grammark explain-conflict`                                 | ○      | GLR parses a deliberately ambiguous grammar; `explain-conflict` separates real ambiguity from an LALR artifact                                              |
 | **E. Open ecosystem**         | publish IR schema + protocol + worked external backend + trust markers; registry threat model [S10]                     | ○      | a third-party backend builds against published docs alone                                                                                                   |
 | **F. Incremental + LSP**      | CST `Tree` + `edit()` (R13); deterministic recovery; Tier-1 LSP; FS-abstracted memfs playground [S16/S19] (see Layer 3) | ○      | gates on A not D; `conformance/incremental/` C1–C4 green (C3 gates C1): `edit(parse(a),e,b) ≡ parse(b)`; playground runs in-browser                         |
-|  |
+
 ## Backends — ordered, with mechanism and acceptance
 
 Value/Effort are 1–10. Acceptance for every code backend = **passes the

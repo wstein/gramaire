@@ -1,0 +1,132 @@
+{
+  "cstVersion": 0,
+  "root": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "text": "Sum",
+                "token": "IDENT"
+              },
+              {
+                "text": "\n",
+                "token": "NL"
+              },
+              {
+                "children": [
+                  {
+                    "text": ":",
+                    "token": ":"
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "children": [
+                              {
+                                "children": [
+                                  {
+                                    "children": [
+                                      {
+                                        "text": "Sum",
+                                        "token": "IDENT"
+                                      }
+                                    ],
+                                    "rule": 14
+                                  }
+                                ],
+                                "rule": 12
+                              },
+                              {
+                                "children": [
+                                  {
+                                    "text": "+",
+                                    "token": "TERM_LIT"
+                                  }
+                                ],
+                                "rule": 15
+                              }
+                            ],
+                            "rule": 13
+                          },
+                          {
+                            "children": [
+                              {
+                                "text": "NUM",
+                                "token": "IDENT"
+                              }
+                            ],
+                            "rule": 14
+                          }
+                        ],
+                        "rule": 13
+                      },
+                      {
+                        "children": [
+                          {
+                            "text": "\\a _ b -> a",
+                            "token": "ACTION"
+                          }
+                        ],
+                        "rule": 26
+                      }
+                    ],
+                    "rule": 10
+                  },
+                  {
+                    "children": [
+                      {
+                        "text": "\n",
+                        "token": "NL"
+                      },
+                      {
+                        "text": "|",
+                        "token": "|"
+                      },
+                      {
+                        "children": [
+                          {
+                            "children": [
+                              {
+                                "children": [
+                                  {
+                                    "text": "NUM",
+                                    "token": "IDENT"
+                                  }
+                                ],
+                                "rule": 14
+                              }
+                            ],
+                            "rule": 12
+                          }
+                        ],
+                        "rule": 11
+                      },
+                      {
+                        "children": [
+                          {
+                            "text": "\n",
+                            "token": "NL"
+                          }
+                        ],
+                        "rule": 6
+                      }
+                    ],
+                    "rule": 7
+                  }
+                ],
+                "rule": 5
+              }
+            ],
+            "rule": 4
+          }
+        ],
+        "rule": 1
+      }
+    ],
+    "rule": 0
+  }
+}
