@@ -15,8 +15,9 @@ import Data.Maybe (Maybe)
 -- | A grammar is an ordered list of rules.
 newtype Grammar = Grammar (Array Rule)
 
--- | A rule: a left-hand nonterminal name and its alternatives.
-data Rule = Rule String (Array Alt)
+-- | A rule: a left-hand nonterminal name, its `#[attr]` attributes (e.g.
+-- | `inline`, ADR D28), and its alternatives. The shape is `Rule name attrs alts`.
+data Rule = Rule String (Array String) (Array Alt)
 
 -- | An alternative: a sequence of right-hand symbols, an optional `# Label`
 -- | naming the alternative (for per-alternative visitor methods and CST
@@ -57,7 +58,7 @@ instance showAlt :: Show Alt where
     "Alt " <> show syms <> " " <> show label <> " " <> show act
 
 instance showRule :: Show Rule where
-  show (Rule n alts) = "Rule " <> show n <> " " <> show alts
+  show (Rule n attrs alts) = "Rule " <> show n <> " " <> show attrs <> " " <> show alts
 
 instance showGrammar :: Show Grammar where
   show (Grammar rs) = "Grammar " <> show rs

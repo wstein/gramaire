@@ -17,31 +17,33 @@ import Grammark.Syntax (Grammar(..), Rule(..), Alt(..), Sym(..))
 
 bootstrapGrammar :: Grammar
 bootstrapGrammar = Grammar
-  [ Rule "Grammar"
+  [ Rule "Grammar" []
       [ Alt [ Ref "RuleList" ] Nothing (Just "\\rs -> Grammar rs") ]
 
-  , Rule "RuleList"
+  , Rule "RuleList" []
       [ Alt [ Ref "Rule" ] Nothing (Just "\\r -> [r]")
       , Alt [ Ref "RuleList", Ref "Rule" ] Nothing (Just "\\rs r -> snoc rs r")
       ]
 
-  , Rule "Rule"
-      [ Alt [ Ref "IDENT", Ref "NL", Ref "Body" ] Nothing
-          (Just "\\lhs _ alts -> Rule lhs alts")
+  , Rule "Rule" []
+      [ Alt [ Ref "ATTR", Ref "IDENT", Ref "NL", Ref "Body" ] Nothing
+          (Just "\\attr lhs _ alts -> Rule lhs [ attr ] alts")
+      , Alt [ Ref "IDENT", Ref "NL", Ref "Body" ] Nothing
+          (Just "\\lhs _ alts -> Rule lhs [] alts")
       ]
 
-  , Rule "Body"
+  , Rule "Body" []
       [ Alt [ Lit ":", Ref "Alt", Ref "AltTail" ] Nothing
           (Just "\\_ a as -> cons a as")
       ]
 
-  , Rule "AltTail"
+  , Rule "AltTail" []
       [ Alt [ Ref "NL" ] Nothing (Just "\\_ -> []")
       , Alt [ Ref "NL", Lit "|", Ref "Alt", Ref "AltTail" ] Nothing
           (Just "\\_ _ a as -> cons a as")
       ]
 
-  , Rule "Alt"
+  , Rule "Alt" []
       [ Alt [ Ref "SymList", Ref "Label", Ref "Action" ] Nothing
           (Just "\\syms lbl act -> Alt syms lbl act")
       , Alt [ Ref "SymList", Ref "Label" ] Nothing
@@ -52,12 +54,12 @@ bootstrapGrammar = Grammar
           (Just "\\syms -> Alt syms Nothing Nothing")
       ]
 
-  , Rule "SymList"
+  , Rule "SymList" []
       [ Alt [ Ref "Sym" ] Nothing (Just "\\s -> [s]")
       , Alt [ Ref "SymList", Ref "Sym" ] Nothing (Just "\\ss s -> snoc ss s")
       ]
 
-  , Rule "Sym"
+  , Rule "Sym" []
       [ Alt [ Ref "IDENT" ] Nothing (Just "\\i -> Ref i")
       , Alt [ Ref "TERM_LIT" ] Nothing (Just "\\t -> Lit t")
       , Alt [ Ref "IDENT", Ref "PLUS" ] Nothing (Just "\\i _ -> Rep (Ref i)")
@@ -71,14 +73,14 @@ bootstrapGrammar = Grammar
       , Alt [ Ref "IDENT", Lit ":", Ref "Sym" ] Nothing (Just "\\name _ s -> Field name s")
       ]
 
-  , Rule "Args"
+  , Rule "Args" []
       [ Alt [ Ref "Sym" ] Nothing (Just "\\s -> [s]")
       , Alt [ Ref "Args", Ref "COMMA", Ref "Sym" ] Nothing (Just "\\as _ s -> snoc as s")
       ]
 
-  , Rule "Action"
+  , Rule "Action" []
       [ Alt [ Ref "ACTION" ] Nothing (Just "\\a -> Just a") ]
 
-  , Rule "Label"
+  , Rule "Label" []
       [ Alt [ Ref "LABEL" ] Nothing (Just "\\l -> Just l") ]
   ]

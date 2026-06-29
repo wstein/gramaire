@@ -30,8 +30,8 @@ import Test.Golden as Golden
 -- token class, a nonterminal reference, and an action.
 tiny :: Grammar
 tiny = Grammar
-  [ Rule "S" [ Alt [ Ref "A", Lit "+", Ref "A" ] Nothing (Just "\\a _ b -> add a b") ]
-  , Rule "A" [ Alt [ Ref "NUM" ] Nothing Nothing ]
+  [ Rule "S" [] [ Alt [ Ref "A", Lit "+", Ref "A" ] Nothing (Just "\\a _ b -> add a b") ]
+  , Rule "A" [] [ Alt [ Ref "NUM" ] Nothing Nothing ]
   ]
 
 structural :: Effect Unit
@@ -86,7 +86,7 @@ grammarName path = case path of
 fields :: Effect Unit
 fields = do
   log "  ir: a named field on a rhs symbol reaches the IR ref"
-  case buildIR Canonical "F" (Grammar [ Rule "S" [ Alt [ Field "x" (Ref "NUM") ] Nothing Nothing ] ]) of
+  case buildIR Canonical "F" (Grammar [ Rule "S" [] [ Alt [ Field "x" (Ref "NUM") ] Nothing Nothing ] ]) of
     Left _ -> assert' "the field grammar should build" false
     Right ir -> case Array.head ir.grammar.rules of
       Just r -> assertEqual { actual: r.rhs, expected: [ IRRefT 0 (Just "x") ] }

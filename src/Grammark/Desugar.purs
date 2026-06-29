@@ -35,8 +35,13 @@ import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 
+-- | Run the surface passes in order: fold `#[inline]` nonterminals into their
+-- | use sites (D28), then lower the remaining EBNF/macro/field sugar.
 desugar :: Grammar -> Either String Grammar
-desugar (Grammar rules) = do
+desugar g = inlineExpand g >>= sugarDesugar
+
+sugarDesugar :: Grammar -> Either String Grammar
+sugarDesugar (Grammar rules) = do
   fresh <- collectFresh
   lowered <- traverse lowerRule rules
   pure (Grammar (lowered <> Array.fromFoldable (Map.values fresh)))
@@ -44,7 +49,7 @@ desugar (Grammar rules) = do
   -- every symbol in the grammar, including nested sugar and macro arguments
   everySym :: Array Sym
   everySym = Array.concatMap subSyms (Array.concatMap altSyms (Array.concatMap ruleAlts rules))
-  ruleAlts (Rule _ alts) = alts
+  ruleAlts (Rule _ _ alts) = alts
   altSyms (Alt syms _ _) = syms
   subSyms s = Array.cons s case s of
     Rep x -> subSyms x
@@ -70,7 +75,7 @@ desugar (Grammar rules) = do
     _ -> Nothing
 
   lowerRule :: Rule -> Either String Rule
-  lowerRule (Rule lhs alts) = Rule lhs <<< Array.concat <$> traverse enumerateAlt alts
+  lowerRule (Rule lhs attrs alts) = Rule lhs attrs <<< Array.concat <$> traverse enumerateAlt alts
 
   enumerateAlt :: Alt -> Either String (Array Alt)
   enumerateAlt (Alt syms label action0) =
@@ -85,18 +90,6 @@ desugar (Grammar rules) = do
       in
         if Array.null rhs then Left allOptional
         else Right (Alt rhs label (map (wrap presences) action))
-
-  -- Normalize an action: a `\…->` lambda is left as is; a bare body becomes a
-  -- lambda whose parameter per right-hand symbol is its `name:` field (D28) or
-  -- `_`, so actions can reference field names instead of positions (#5).
-  normalizeAction :: Array Sym -> String -> String
-  normalizeAction syms body = case String.stripPrefix (Pattern "\\") (String.trim body) of
-    Just _ -> body
-    Nothing -> "\\" <> joinWith " " (map paramOf syms) <> " -> " <> body
-    where
-    paramOf = case _ of
-      Field f _ -> f
-      _ -> "_"
 
   assign :: Array Sym -> Array Boolean -> Array (Tuple Sym Boolean)
   assign syms flags = (foldl step { out: [], fs: flags } syms).out
@@ -161,7 +154,7 @@ desugar (Grammar rules) = do
     let
       inner = lowerOne s
     in
-      Rule (listName s)
+      Rule (listName s) []
         [ Alt [ inner ] Nothing (Just "\\x -> [x]")
         , Alt [ Ref (listName s), inner ] Nothing (Just "\\xs x -> snoc xs x")
         ]
@@ -182,7 +175,7 @@ desugar (Grammar rules) = do
     _, _ -> Left ("unknown macro " <> name <> "; known macros are Comma<X> and Sep<X, S>")
 
   sepRule key x sep =
-    Rule key
+    Rule key []
       [ Alt [ x ] Nothing (Just "\\x -> [x]")
       , Alt [ Ref key, sep, x ] Nothing (Just "\\xs _ x -> snoc xs x")
       ]
@@ -204,3 +197,132 @@ baseName = case _ of
   Opt s -> baseName s <> "_opt"
   Macro name _ -> name
   Field _ s -> baseName s
+
+-- | Normalize an action: a `\…->` lambda is left as is; a bare body becomes a
+-- | lambda whose parameter per right-hand symbol is its `name:` field (D28) or
+-- | `_`, so actions can reference field names instead of positions (#5).
+normalizeAction :: Array Sym -> String -> String
+normalizeAction syms body = case String.stripPrefix (Pattern "\\") (String.trim body) of
+  Just _ -> body
+  Nothing -> "\\" <> joinWith " " (map paramOf syms) <> " -> " <> body
+  where
+  paramOf = case _ of
+    Field f _ -> f
+    _ -> "_"
+
+-- | Fold every `#[inline]` nonterminal (D28) into its use sites, then drop it.
+-- |
+-- | An inline rule must be a single, sugar-free production. At each plain
+-- | reference to it its symbols are spliced in place; when the using
+-- | alternative carries an action, the inline rule's own action is applied at
+-- | that position so the action still receives the value the reference stood
+-- | for (use an explicit `\… ->` lambda to bind it). This both removes
+-- | repetition and is a way to make a grammar LR(1) by hand.
+inlineExpand :: Grammar -> Either String Grammar
+inlineExpand (Grammar rules) = do
+  inlineMap <- foldl addInline (Right Map.empty) rules
+  expanded <- traverse (expandRule inlineMap) (Array.filter (not <<< isInline) rules)
+  case Array.find (\n -> Array.any (mentions n) expanded) (Array.fromFoldable (Map.keys inlineMap)) of
+    Just n -> Left ("#[inline] nonterminal `" <> n <> "` must be used as a plain reference")
+    Nothing -> Right (Grammar expanded)
+  where
+  isInline (Rule _ attrs _) = Array.elem "inline" attrs
+
+  addInline acc (Rule name attrs alts)
+    | Array.elem "inline" attrs = do
+        m <- acc
+        case alts of
+          [ Alt syms _ _ ] | Array.any hasSugar syms ->
+            Left ("#[inline] rule `" <> name <> "` may not use repetition or macro sugar")
+          [ a ] -> Right (Map.insert name a m)
+          _ -> Left ("#[inline] rule `" <> name <> "` must have exactly one production")
+    | otherwise = acc
+
+  mentions n (Rule _ _ alts) =
+    Array.any (\(Alt syms _ _) -> Array.any (\s -> Array.elem n (deepRefs s)) syms) alts
+
+expandRule :: Map String Alt -> Rule -> Either String Rule
+expandRule im (Rule lhs attrs alts) = Rule lhs attrs <$> traverse (expandAlt im) alts
+
+expandAlt :: Map String Alt -> Alt -> Either String Alt
+expandAlt im (Alt syms label action)
+  | not (Array.any (isInlineRef im) syms) = Right (Alt syms label action)
+  | otherwise = case action of
+      Nothing -> Right (Alt (Array.concatMap (spliceCst im) syms) label Nothing)
+      Just a -> do
+        built <- buildWrapped im syms (normalizeAction syms a)
+        Right (Alt built.syms label (Just built.action))
+
+isInlineRef :: Map String Alt -> Sym -> Boolean
+isInlineRef im = case _ of
+  Ref n -> Map.member n im
+  _ -> false
+
+-- Action-free use: the inline production's symbols stand in positionally.
+spliceCst :: Map String Alt -> Sym -> Array Sym
+spliceCst im sym = case sym of
+  Ref n | Just (Alt aSyms _ _) <- Map.lookup n im -> aSyms
+  _ -> [ sym ]
+
+-- Action use: splice the symbols and rebuild the action so each inlined
+-- reference is replaced by the inline rule's own action applied to its symbols.
+buildWrapped
+  :: Map String Alt
+  -> Array Sym
+  -> String
+  -> Either String { syms :: Array Sym, action :: String }
+buildWrapped im syms usingAction =
+  case foldl step (Right { syms: [], params: [], args: [], k: 0 }) syms of
+    Left e -> Left e
+    Right r -> Right
+      { syms: r.syms
+      , action: "\\" <> joinWith " " r.params <> " -> (" <> usingAction <> ") " <> joinWith " " r.args
+      }
+  where
+  step (Left e) _ = Left e
+  step (Right acc) sym = case sym of
+    Ref n | Just (Alt aSyms _ aAction) <- Map.lookup n im -> case aAction of
+      Nothing -> Left ("#[inline] rule `" <> n <> "` is action-free but its value is used in an action")
+      Just f ->
+        let
+          ps = map inlineParam (Array.range acc.k (acc.k + Array.length aSyms - 1))
+          arg = "((" <> normalizeAction aSyms f <> ") " <> joinWith " " ps <> ")"
+        in
+          Right acc
+            { syms = acc.syms <> aSyms
+            , params = acc.params <> ps
+            , args = Array.snoc acc.args arg
+            , k = acc.k + Array.length aSyms
+            }
+    _ ->
+      let
+        p = inlineParam acc.k
+      in
+        Right acc
+          { syms = Array.snoc acc.syms sym
+          , params = Array.snoc acc.params p
+          , args = Array.snoc acc.args p
+          , k = acc.k + 1
+          }
+
+inlineParam :: Int -> String
+inlineParam k = "q" <> show k
+
+hasSugar :: Sym -> Boolean
+hasSugar = case _ of
+  Rep _ -> true
+  Star _ -> true
+  Opt _ -> true
+  Macro _ _ -> true
+  Field _ s -> hasSugar s
+  _ -> false
+
+deepRefs :: Sym -> Array String
+deepRefs = case _ of
+  Ref n -> [ n ]
+  Lit _ -> []
+  Rep s -> deepRefs s
+  Star s -> deepRefs s
+  Opt s -> deepRefs s
+  Field _ s -> deepRefs s
+  Macro _ args -> Array.concatMap deepRefs args

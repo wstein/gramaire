@@ -218,7 +218,7 @@ buildIR method name g@(Grammar rules) =
         }
   where
   ntNames :: Array String
-  ntNames = map (\(Rule n _) -> n) rules
+  ntNames = map (\(Rule n _ _) -> n) rules
 
   ntSet :: Set String
   ntSet = Set.fromFoldable ntNames
@@ -273,7 +273,7 @@ buildIR method name g@(Grammar rules) =
   irRules :: Array IRRule
   irRules = Array.mapWithIndex toRule flat
     where
-    flat = Array.concatMap (\(Rule lhs alts) -> map (\alt -> Tuple lhs alt) alts) rules
+    flat = Array.concatMap (\(Rule lhs _ alts) -> map (\alt -> Tuple lhs alt) alts) rules
     toRule i (Tuple lhs (Alt syms label act)) =
       { id: i
       , lhs: ntId lhs
@@ -297,7 +297,7 @@ buildIR method name g@(Grammar rules) =
       IRRefT i _ -> IRRefT i f
 
   allSyms :: Array Sym
-  allSyms = Array.concatMap (\(Rule _ alts) -> Array.concatMap altSyms alts) rules
+  allSyms = Array.concatMap (\(Rule _ _ alts) -> Array.concatMap altSyms alts) rules
     where
     altSyms (Alt syms _ _) = syms
 

@@ -20,7 +20,7 @@ import Test.Assert (assert')
 -- lookahead `+`, so canonical LR(1) reports a shift/reduce conflict.
 ambiguous :: Grammar
 ambiguous = Grammar
-  [ Rule "E"
+  [ Rule "E" []
       [ Alt [ Ref "E", Lit "+", Ref "E" ] Nothing Nothing
       , Alt [ Ref "NUM" ] Nothing Nothing
       ]

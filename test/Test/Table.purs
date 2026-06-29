@@ -30,7 +30,7 @@ import Test.Assert (assert, assertEqual)
 ambiguous :: Grammar
 ambiguous =
   Grammar
-    [ Rule "E"
+    [ Rule "E" []
         [ Alt [ Ref "E", Ref "E" ] Nothing Nothing
         , Alt [ Lit "x" ] Nothing Nothing
         ]
@@ -46,14 +46,14 @@ ambiguous =
 notLalr :: Grammar
 notLalr =
   Grammar
-    [ Rule "S"
+    [ Rule "S" []
         [ Alt [ Lit "a", Ref "A", Lit "d" ] Nothing Nothing
         , Alt [ Lit "b", Ref "B", Lit "d" ] Nothing Nothing
         , Alt [ Lit "a", Ref "B", Lit "e" ] Nothing Nothing
         , Alt [ Lit "b", Ref "A", Lit "e" ] Nothing Nothing
         ]
-    , Rule "A" [ Alt [ Lit "c" ] Nothing Nothing ]
-    , Rule "B" [ Alt [ Lit "c" ] Nothing Nothing ]
+    , Rule "A" [] [ Alt [ Lit "c" ] Nothing Nothing ]
+    , Rule "B" [] [ Alt [ Lit "c" ] Nothing Nothing ]
     ]
 
 -- A terminal symbol, written by its lexer token class or literal text.
@@ -66,9 +66,9 @@ set = Set.fromFoldable
 -- | FIRST sets documented in `grammar/lr.gram.md`.
 expectedFirst :: Map String (Set GSym)
 expectedFirst = Map.fromFoldable
-  [ Tuple "Grammar" (set [ t "IDENT" ])
-  , Tuple "RuleList" (set [ t "IDENT" ])
-  , Tuple "Rule" (set [ t "IDENT" ])
+  [ Tuple "Grammar" (set [ t "ATTR", t "IDENT" ])
+  , Tuple "RuleList" (set [ t "ATTR", t "IDENT" ])
+  , Tuple "Rule" (set [ t "ATTR", t "IDENT" ])
   , Tuple "Body" (set [ t ":" ])
   , Tuple "AltTail" (set [ t "NL" ])
   , Tuple "Alt" (set [ t "IDENT", t "TERM_LIT" ])
@@ -83,10 +83,10 @@ expectedFirst = Map.fromFoldable
 expectedFollow :: Map String (Set GSym)
 expectedFollow = Map.fromFoldable
   [ Tuple "Grammar" (set [ EOF ])
-  , Tuple "RuleList" (set [ t "IDENT", EOF ])
-  , Tuple "Rule" (set [ t "IDENT", EOF ])
-  , Tuple "Body" (set [ t "IDENT", EOF ])
-  , Tuple "AltTail" (set [ t "IDENT", EOF ])
+  , Tuple "RuleList" (set [ t "ATTR", t "IDENT", EOF ])
+  , Tuple "Rule" (set [ t "ATTR", t "IDENT", EOF ])
+  , Tuple "Body" (set [ t "ATTR", t "IDENT", EOF ])
+  , Tuple "AltTail" (set [ t "ATTR", t "IDENT", EOF ])
   , Tuple "Alt" (set [ t "NL" ])
   , Tuple "SymList" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT" ])
   , Tuple "Sym" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT", t "RANGLE", t "COMMA" ])
@@ -99,8 +99,8 @@ tests :: Effect Unit
 tests = do
   let a = analyze bootstrapGrammar
 
-  log "  table: bootstrapGrammar flattens to 27 productions"
-  assertEqual { actual: length (productions bootstrapGrammar), expected: 27 }
+  log "  table: bootstrapGrammar flattens to 28 productions"
+  assertEqual { actual: length (productions bootstrapGrammar), expected: 28 }
 
   log "  table: start symbol is Grammar"
   assertEqual { actual: a.start, expected: "Grammar" }
