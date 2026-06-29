@@ -63,10 +63,14 @@ data Action = Shift Int | Reduce Int | Accept
 
 derive instance eqAction :: Eq Action
 
--- | A conflict surfaced during construction.
+-- | A conflict surfaced during construction. Each variant names the competing
+-- | production(s) by **real** index (into `productions`), so a diagnostic can
+-- | phrase the conflict in grammar terms rather than LR-item jargon ([S13]); a
+-- | `-1` index denotes the augmented start/accept item, which has no real
+-- | production.
 data Conflict
-  = ShiftReduce { state :: Int, onSymbol :: GSym }
-  | ReduceReduce { state :: Int, onSymbol :: GSym }
+  = ShiftReduce { state :: Int, onSymbol :: GSym, reduceProd :: Int }
+  | ReduceReduce { state :: Int, onSymbol :: GSym, prodA :: Int, prodB :: Int }
 
 -- | The finished tables (filled by the automaton stage).
 type ParseTable =
@@ -326,20 +330,24 @@ fillTables ctx st realProds =
     else
       let
         act = if it.prod == 0 then Accept else Reduce (it.prod - 1)
+        -- Real index of the completing item (`-1` for the accept item).
+        newProd = it.prod - 1
         key = Tuple i it.look
       in
         case Map.lookup key acc.action of
           Nothing -> acc { action = Map.insert key act acc.action }
           Just existing ->
             if existing == act then acc
-            else acc { conflicts = Array.snoc acc.conflicts (conflictAt i it.look existing) }
+            else acc { conflicts = Array.snoc acc.conflicts (conflictAt i it.look existing newProd) }
 
   -- A clash where the incumbent is a Shift is shift/reduce; otherwise it is a
-  -- reduce/reduce (two distinct reductions on the same lookahead).
-  conflictAt :: Int -> GSym -> Action -> Conflict
-  conflictAt state sym existing = case existing of
-    Shift _ -> ShiftReduce { state, onSymbol: sym }
-    _ -> ReduceReduce { state, onSymbol: sym }
+  -- reduce/reduce (two distinct reductions on the same lookahead). Both name
+  -- the competing production(s) by real index for grammar-relative reporting.
+  conflictAt :: Int -> GSym -> Action -> Int -> Conflict
+  conflictAt state sym existing newProd = case existing of
+    Shift _ -> ShiftReduce { state, onSymbol: sym, reduceProd: newProd }
+    Reduce n -> ReduceReduce { state, onSymbol: sym, prodA: n, prodB: newProd }
+    Accept -> ReduceReduce { state, onSymbol: sym, prodA: -1, prodB: newProd }
 
 -- LALR(1): merge canonical states sharing an LR(0) core --------------------
 

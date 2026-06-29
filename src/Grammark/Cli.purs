@@ -31,6 +31,7 @@ import Grammark.Backend (Output)
 import Grammark.Backend.Registry (backends, findBackend)
 import Grammark.Bootstrap (bootstrapGrammar)
 import Grammark.Conformance (lrVectors, runSuite, summarize)
+import Grammark.Diagnostics (renderConflicts)
 import Grammark.IR (buildIR)
 import Grammark.Lr (parse)
 import Grammark.Table (Method(Canonical))
@@ -114,8 +115,11 @@ runEmit args = case parseEmit args of
           Right md -> case parse md of
             Left pe -> die ("emit: parse error in " <> file <> ": " <> pe)
             Right g -> case buildIR Canonical (grammarName md file) g of
-              Left _ ->
-                die ("emit: " <> file <> " is not parseable by canonical LR(1) (unresolved conflicts)")
+              Left conflicts ->
+                die
+                  ( "emit: " <> file <> " has unresolved LR(1) conflicts:\n\n"
+                      <> String.joinWith "\n\n" (renderConflicts g conflicts)
+                  )
               Right ir -> deliver opts.out (b.emit ir)
 
 deliver :: Maybe String -> Array Output -> Effect Unit
