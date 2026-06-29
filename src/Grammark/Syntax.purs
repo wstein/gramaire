@@ -33,3 +33,18 @@ derive instance eqSym :: Eq Sym
 derive instance eqAlt :: Eq Alt
 derive instance eqRule :: Eq Rule
 derive instance eqGrammar :: Eq Grammar
+
+-- Show mirrors the constructors, so a failed self-host assertion prints a
+-- readable diff between the parsed grammar and the literal.
+instance showSym :: Show Sym where
+  show (Ref n) = "Ref " <> show n
+  show (Lit s) = "Lit " <> show s
+
+instance showAlt :: Show Alt where
+  show (Alt syms act) = "Alt " <> show syms <> " " <> show act
+
+instance showRule :: Show Rule where
+  show (Rule n alts) = "Rule " <> show n <> " " <> show alts
+
+instance showGrammar :: Show Grammar where
+  show (Grammar rs) = "Grammar " <> show rs

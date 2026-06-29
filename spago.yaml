@@ -24,6 +24,8 @@ package:
       - effect # Effect
       - console # Effect.Console
       - assert # Test.Assert
+      - node-fs # Node.FS.Sync (self-host test reads grammar/lr.gram.md)
+      - node-buffer # Node.Encoding
 workspace:
   packageSet:
     registry: 66.0.0
