@@ -21,7 +21,7 @@ compiler emits. Keywords MUST / SHOULD / MAY per RFC 2119.
 
 A Grammark grammar is hosted in a GitHub-Flavored Markdown document. The compiler
 ignores prose, list markers, and images; it extracts the grammar by scanning ATX
-headings and fenced code blocks whose info string begins with `lr`.
+headings and fenced code blocks whose info string begins with `grammark`.
 
 - **Grammar name.** The single `# H1`. There MUST be exactly one.
 - **Nonterminal rules.** Every non-reserved `## H2` names a nonterminal; the
