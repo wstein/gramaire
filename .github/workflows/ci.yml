@@ -13,14 +13,14 @@ jobs:
     name: PureScript core (Spago)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "24"
 
       - name: Cache Spago packages and output
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             .spago
@@ -66,9 +66,9 @@ jobs:
       run:
         working-directory: bootstrap
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           # Node 24+ runs the TypeScript bridge directly (native type
           # stripping) and provides import.meta.main + top-level await.
@@ -117,9 +117,9 @@ jobs:
       run:
         working-directory: site
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "24"
           cache: npm
