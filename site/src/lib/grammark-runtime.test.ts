@@ -21,17 +21,25 @@ const jsonGrammar = readFileSync(
 test("the default grammar accepts its sample input", async () => {
   const result = await parseGrammarkDocument(getDefaultGrammar());
   assert.equal(result.success, true);
-  assert.match(result.raw ?? "", /Rules: S/);
+  assert.match(result.raw ?? "", /Rules: prog/);
 });
 
-test("the default grammar rejects unbalanced input", async () => {
-  const result = await parseGrammarkDocument(getDefaultGrammar(), "(()");
+test("the default grammar rejects an incomplete expression", async () => {
+  const result = await parseGrammarkDocument(getDefaultGrammar(), "1 +\n");
   assert.equal(result.success, false);
 });
 
 test("input no terminal can lex is rejected, not crashed", async () => {
-  const result = await parseGrammarkDocument(getDefaultGrammar(), "(x)");
+  const result = await parseGrammarkDocument(getDefaultGrammar(), "1 $ 2\n");
   assert.equal(result.success, false);
+});
+
+test("precedence is honored: * binds tighter than + (both accepted)", async () => {
+  const result = await parseGrammarkDocument(
+    getDefaultGrammar(),
+    "1 + 2 * 3\n",
+  );
+  assert.equal(result.success, true);
 });
 
 test("a malformed grammar reports a grammar error", async () => {
@@ -55,6 +63,6 @@ test("json.gram.md rejects malformed JSON", async () => {
   assert.equal(typoKeyword.success, false);
 });
 
-test("getDefaultInput is the balanced sample", () => {
-  assert.equal(getDefaultInput(), "(())");
+test("getDefaultInput is the sample expression program", () => {
+  assert.equal(getDefaultInput(), "1 + 2 * 3\n(4 - 1) / 3\n");
 });

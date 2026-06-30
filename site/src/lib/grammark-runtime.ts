@@ -51,23 +51,62 @@ function formatReport(result: {
   return parts.join("\n");
 }
 
-// The lab's sample grammar — balanced parentheses, every terminal a backtick
-// literal, so it lexes with no `## Tokens` block.
-const DEFAULT_GRAMMAR = `# Brackets
+// The lab's sample grammar — arithmetic expressions, the classic LR(1)
+// stratification (expr / term / factor) that bakes precedence and
+// left-associativity into the shape. Terminals use single-quoted literals
+// ('+', '(') and the INT / NEWLINE classes are declared in `## Tokens`, so the
+// preview lexes it with the real engine — no hand-written scanner.
+const DEFAULT_GRAMMAR = `# Expr
 
-A grammar over balanced parentheses. Every terminal is a backtick literal,
-so the preview lexes input straight from the grammar.
+A small calculator grammar: newline-separated arithmetic expressions over
+integers. \`*\` and \`/\` bind tighter than \`+\` and \`-\`, and all four
+associate left — encoded by stratifying \`expr\` → \`term\` → \`factor\` rather
+than by precedence declarations, so the grammar stays LR(1) by construction.
 
-## S
+## Tokens
+
+\`\`\`lr tokens
+INT     : /[0-9]+/
+NEWLINE : /[\\r\\n]+/
+WS      : /[ \\t]+/   %skip
+\`\`\`
+
+## prog
 
 \`\`\`lr
-S
-  : \`(\` \`)\`
-  | \`(\` S \`)\`
+prog
+  : expr NEWLINE
+  | prog expr NEWLINE
+\`\`\`
+
+## expr
+
+\`\`\`lr
+expr
+  : expr '+' term
+  | expr '-' term
+  | term
+\`\`\`
+
+## term
+
+\`\`\`lr
+term
+  : term '*' factor
+  | term '/' factor
+  | factor
+\`\`\`
+
+## factor
+
+\`\`\`lr
+factor
+  : INT
+  | '(' expr ')'
 \`\`\`
 `;
 
-const DEFAULT_INPUT = "(())";
+const DEFAULT_INPUT = "1 + 2 * 3\n(4 - 1) / 3\n";
 
 export function getDefaultGrammar(): string {
   return DEFAULT_GRAMMAR;
