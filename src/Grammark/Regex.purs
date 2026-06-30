@@ -16,7 +16,7 @@ module Grammark.Regex
   , ClassItem(..)
   , parseRegex
   , longestMatch
-  , matchEnds
+  , longestMatchSpan
   ) where
 
 import Prelude
@@ -25,9 +25,9 @@ import Data.Array as Array
 import Data.Char (fromCharCode, toCharCode)
 import Data.Either (Either(..))
 import Data.Foldable (foldl)
+import Data.Map (Map)
+import Data.Map as Map
 import Data.Maybe (Maybe(..), isJust)
-import Data.Set (Set)
-import Data.Set as Set
 import Data.String.CodeUnits (toCharArray)
 import Data.Tuple (Tuple(..))
 
@@ -41,6 +41,7 @@ data Rx
   | Concat (Array Rx)
   | Alt (Array Rx)
   | Star Rx
+  | Capture Rx -- `( … )`: marks the span emitted as the token's text (M5)
 
 -- | A character-class member: a single character or an inclusive range.
 data ClassItem
@@ -62,6 +63,7 @@ instance showRx :: Show Rx where
   show (Concat xs) = "Concat " <> show xs
   show (Alt xs) = "Alt " <> show xs
   show (Star r) = "Star (" <> show r <> ")"
+  show (Capture r) = "Capture (" <> show r <> ")"
 
 -- Parser ---------------------------------------------------------------------
 
@@ -77,8 +79,20 @@ parseRegex src =
     case pAlt chars 0 of
       Left e -> Left e
       Right (Tuple rx pos)
-        | pos == Array.length chars -> Right rx
-        | otherwise -> Left ("unexpected `" <> show (at chars pos) <> "` in regex at " <> show pos)
+        | pos /= Array.length chars -> Left ("unexpected `" <> show (at chars pos) <> "` in regex at " <> show pos)
+        | countCaptures rx > 1 -> Left "at most one capturing group `( … )` per pattern; use `(?:…)` for the rest"
+        | otherwise -> Right rx
+
+-- | Count capturing groups (M5 allows at most one).
+countCaptures :: Rx -> Int
+countCaptures = case _ of
+  Capture r -> 1 + countCaptures r
+  Concat xs -> sum (map countCaptures xs)
+  Alt xs -> sum (map countCaptures xs)
+  Star r -> countCaptures r
+  _ -> 0
+  where
+  sum = foldl (+) 0
 
 at :: Chars -> Int -> Maybe Char
 at = Array.index
@@ -137,11 +151,17 @@ pAtom :: Chars -> Int -> Either String (Tuple Rx Int)
 pAtom chars pos = case at chars pos of
   Nothing -> Left "unexpected end of regex"
   Just '(' -> case at chars (pos + 1) of
-    Just '?' -> Left "groups `(?…)` (lookaround, named, conditional) are not permitted"
+    Just '?' -> case at chars (pos + 2) of
+      Just ':' -> do
+        Tuple inner p1 <- pAlt chars (pos + 3)
+        case at chars p1 of
+          Just ')' -> Right (Tuple inner (p1 + 1))
+          _ -> Left "unclosed group `(?:`"
+      _ -> Left "groups `(?…)` (lookaround, named, conditional) are not permitted; use `(?:…)` for non-capturing grouping"
     _ -> do
       Tuple inner p1 <- pAlt chars (pos + 1)
       case at chars p1 of
-        Just ')' -> Right (Tuple inner (p1 + 1))
+        Just ')' -> Right (Tuple (Capture inner) (p1 + 1))
         _ -> Left "unclosed group `(`"
   Just '[' -> pClass chars (pos + 1)
   Just '.' -> Right (Tuple AnyChar (pos + 1))
@@ -256,41 +276,63 @@ pInt chars pos = case at chars pos >>= digit of
 
 -- Matching -------------------------------------------------------------------
 
--- | The set of end positions at which `rx` matches `chars` starting at `start`.
--- | Position-set simulation: never backtracks, so it is immune to catastrophic
--- | blowup. Bounded by the input length.
-matchEnds :: Rx -> Chars -> Int -> Set Int
-matchEnds rx chars start = case rx of
-  Empty -> Set.singleton start
-  Lit c -> advance (eq c) start
-  AnyChar -> advance (\x -> x /= '\n' && x /= '\r') start
-  Class neg items -> advance (classMatch neg items) start
-  Concat xs ->
-    foldl
-      (\ends r -> bigUnion (\e -> matchEnds r chars e) ends)
-      (Set.singleton start)
-      xs
-  Alt xs -> foldl (\acc r -> Set.union acc (matchEnds r chars start)) Set.empty xs
-  Star r -> closure r start
+-- A captured span (start, end), if the path went through the one capture group.
+type Cap = Maybe (Tuple Int Int)
+
+-- | Every end position at which `rx` matches `chars` from `start`, each mapped to
+-- | the captured span on the path that reached it. Position-map simulation:
+-- | never backtracks, so it is immune to catastrophic blowup; bounded by the
+-- | input length.
+matchCap :: Rx -> Chars -> Int -> Map Int Cap
+matchCap rx chars start = case rx of
+  Empty -> Map.singleton start Nothing
+  Lit c -> advance (eq c)
+  AnyChar -> advance (\x -> x /= '\n' && x /= '\r')
+  Class neg items -> advance (classMatch neg items)
+  Capture inner -> map (\_ -> Just (Tuple start (lastKey inner))) (matchCap inner chars start)
+  Concat xs -> foldl step (Map.singleton start Nothing) xs
+  Alt xs -> foldl (\acc r -> merge acc (matchCap r chars start)) Map.empty xs
+  Star r -> closure r
   where
-  advance pred s = case at chars s of
-    Just x | pred x -> Set.singleton (s + 1)
-    _ -> Set.empty
+  advance pred = case at chars start of
+    Just x | pred x -> Map.singleton (start + 1) Nothing
+    _ -> Map.empty
 
-  bigUnion f set =
-    foldl (\acc e -> Set.union acc (f e)) Set.empty (Set.toUnfoldable set :: Array Int)
+  -- A capture wraps a single contiguous span; with at most one capture per
+  -- pattern its end is the (single) longest end of the inner match.
+  lastKey inner = case Map.findMax (matchCap inner chars start) of
+    Just { key } -> key
+    Nothing -> start
 
-  -- positions reachable by zero or more repetitions of `r`, found by closure so
-  -- an empty-matching `r` cannot loop forever
-  closure r s = go (Set.singleton s) [ s ]
+  step acc r =
+    foldl
+      ( \out (Tuple e cap) ->
+          foldl (\o (Tuple e' cap') -> Map.insertWith orElse e' (orElse cap cap') o)
+            out
+            (Map.toUnfoldable (matchCap r chars e) :: Array (Tuple Int Cap))
+      )
+      Map.empty
+      (Map.toUnfoldable acc :: Array (Tuple Int Cap))
+
+  -- zero or more repetitions of `r`, by closure so an empty match cannot loop
+  closure r = go (Map.singleton start Nothing) [ start ]
     where
     go visited frontier = case Array.uncons frontier of
       Nothing -> visited
       Just { head, tail } ->
         let
-          fresh = Set.difference (matchEnds r chars head) visited
+          nexts = matchCap r chars head
+          fresh = Map.toUnfoldable nexts :: Array (Tuple Int Cap)
+          newKeys = Array.filter (\k -> not (Map.member k visited)) (map fst' fresh)
         in
-          go (Set.union visited fresh) (tail <> (Set.toUnfoldable fresh :: Array Int))
+          go (foldl (\m (Tuple k v) -> Map.insertWith orElse k v m) visited fresh) (tail <> newKeys)
+
+  fst' (Tuple k _) = k
+  merge a b = foldl (\m (Tuple k v) -> Map.insertWith orElse k v m) a (Map.toUnfoldable b :: Array (Tuple Int Cap))
+
+orElse :: Cap -> Cap -> Cap
+orElse (Just x) _ = Just x
+orElse Nothing y = y
 
 classMatch :: Boolean -> Array ClassItem -> Char -> Boolean
 classMatch neg items x =
@@ -307,4 +349,14 @@ classMatch neg items x =
 -- | (maximal munch), or `Nothing` if it does not match at all. An empty match
 -- | returns `Just start`; the scanner is responsible for requiring progress.
 longestMatch :: Rx -> Chars -> Int -> Maybe Int
-longestMatch rx chars start = Set.findMax (matchEnds rx chars start)
+longestMatch rx chars start = map _.key (Map.findMax (matchCap rx chars start))
+
+-- | The longest match's end and the source span of its emitted **text**: the
+-- | capturing group's span if the pattern has one (M5), else the whole match.
+longestMatchSpan
+  :: Rx -> Chars -> Int -> Maybe { end :: Int, textStart :: Int, textEnd :: Int }
+longestMatchSpan rx chars start = case Map.findMax (matchCap rx chars start) of
+  Nothing -> Nothing
+  Just { key: end, value: cap } -> case cap of
+    Just (Tuple cs ce) -> Just { end, textStart: cs, textEnd: ce }
+    Nothing -> Just { end, textStart: start, textEnd: end }

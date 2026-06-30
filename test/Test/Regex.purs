@@ -6,10 +6,10 @@ import Prelude
 
 import Data.Either (Either(..), isLeft)
 import Data.Maybe (Maybe(..))
-import Data.String.CodeUnits (toCharArray)
+import Data.String.CodeUnits (slice, toCharArray)
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Regex (longestMatch, parseRegex)
+import Grammark.Regex (longestMatch, longestMatchSpan, parseRegex)
 import Test.Assert (assert')
 
 -- Longest match end position of a pattern over an input, or Nothing.
@@ -17,6 +17,12 @@ matchLen :: String -> String -> Maybe Int
 matchLen pattern input = case parseRegex pattern of
   Left _ -> Nothing
   Right rx -> longestMatch rx (toCharArray input) 0
+
+-- The emitted text of the longest match: the capture span, else the whole match.
+matchText :: String -> String -> Maybe String
+matchText pattern input = case parseRegex pattern of
+  Left _ -> Nothing
+  Right rx -> map (\s -> slice s.textStart s.textEnd input) (longestMatchSpan rx (toCharArray input) 0)
 
 rejects :: String -> String -> Effect Unit
 rejects why pattern =
@@ -41,13 +47,20 @@ tests = do
   assert' "IDENT matches abc_1, stops at space"
     (matchLen "[A-Za-z_][A-Za-z0-9_]*" "abc_1 x" == Just 5)
 
-  log "  regex: a JSON number with fraction and exponent"
+  log "  regex: a JSON number with fraction and exponent (non-capturing groups)"
   assert' "NUMBER matches 123.45e-6"
-    (matchLen "-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][-+]?[0-9]+)?" "123.45e-6 " == Just 9)
+    (matchLen "-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][-+]?[0-9]+)?" "123.45e-6 " == Just 9)
 
   log "  regex: a quoted string with an escaped quote"
   assert' "STRING matches \"a\\\"b\""
-    (matchLen "\"([^\"\\\\]|\\\\.)*\"" "\"a\\\"b\" rest" == Just 6)
+    (matchLen "\"(?:[^\"\\\\]|\\\\.)*\"" "\"a\\\"b\" rest" == Just 6)
+
+  log "  regex: a capture group is the emitted text; a second capture is rejected (M5)"
+  assert' "TERM_LIT captures the inner content"
+    (matchText "`([^`]+)`" "`+` rest" == Just "+")
+  assert' "no capture emits the whole match"
+    (matchText "[0-9]+" "123 x" == Just "123")
+  rejects "two capture groups" "(a)(b)"
 
   log "  regex: alternation takes the longest branch (maximal munch)"
   assert' "ab|abc on abc matches abc, not ab" (matchLen "ab|abc" "abc" == Just 3)

@@ -16,7 +16,8 @@
 -- |     and resynchronize at the next position, so editor/recovery use never
 -- |     aborts. `hasError` lets a strict caller (the CLI) reject instead.
 module Grammark.Scanner
-  ( ScanItem
+  ( Span
+  , ScanItem
   , buildItems
   , scan
   , hasError
@@ -28,14 +29,18 @@ import Data.Array as Array
 import Data.Maybe (Maybe(..))
 import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Grammark.Lexer (Token)
-import Grammark.Regex (longestMatch)
+import Grammark.Regex (longestMatchSpan)
 import Grammark.Tokens (TokenDef, TokenPattern(..))
+
+-- | A successful match: where it ends (for the cursor) and the source span of
+-- | its emitted text (the capture group if any, else the whole match — M5).
+type Span = { end :: Int, textStart :: Int, textEnd :: Int }
 
 -- | One matchable token: its terminal name, a longest-match function, whether
 -- | it is skipped (extras), and its tie-break priority (smaller wins).
 type ScanItem =
   { terminal :: String
-  , match :: Array Char -> Int -> Maybe Int
+  , match :: Array Char -> Int -> Maybe Span
   , skip :: Boolean
   , priority :: Int
   }
@@ -61,7 +66,7 @@ buildItems defs literals = implicitItems <> Array.mapWithIndex classItem defs
       }
     Regex _ rx ->
       { terminal: def.name
-      , match: longestMatch rx
+      , match: longestMatchSpan rx
       , skip: def.skip
       , priority: priorityOf (2 + idx) def.prec
       }
@@ -71,11 +76,12 @@ buildItems defs literals = implicitItems <> Array.mapWithIndex classItem defs
     Nothing -> base
 
 -- An exact (literal) matcher: succeed iff `pat` is a prefix of the input at the
--- cursor, returning the end position.
-exactMatch :: Array Char -> Array Char -> Int -> Maybe Int
+-- cursor. The whole match is the text (a literal has no capture group).
+exactMatch :: Array Char -> Array Char -> Int -> Maybe Span
 exactMatch pat chars pos =
-  if matchesAt 0 then Just (pos + Array.length pat) else Nothing
+  if matchesAt 0 then Just { end, textStart: pos, textEnd: end } else Nothing
   where
+  end = pos + Array.length pat
   matchesAt i
     | i >= Array.length pat = true
     | otherwise = Array.index chars (pos + i) == Array.index pat i && matchesAt (i + 1)
@@ -95,9 +101,9 @@ scan items input = go 0 []
     | otherwise = case best pos of
         Just hit ->
           let
-            tok = { terminal: hit.item.terminal, text: slice pos hit.end }
+            tok = { terminal: hit.item.terminal, text: slice hit.span.textStart hit.span.textEnd }
           in
-            go hit.end (if hit.item.skip then acc else Array.cons tok acc)
+            go hit.span.end (if hit.item.skip then acc else Array.cons tok acc)
         Nothing ->
           go (pos + 1) (Array.cons { terminal: "ERROR", text: slice pos (pos + 1) } acc)
 
@@ -111,11 +117,11 @@ scan items input = go 0 []
         Just { head, tail } -> Just (Array.foldl better head tail)
 
   toHit pos item = case item.match chars pos of
-    Just end | end > pos -> Just { item, end }
+    Just span | span.end > pos -> Just { item, span }
     _ -> Nothing
 
   better a b
-    | a.end /= b.end = if a.end > b.end then a else b
+    | a.span.end /= b.span.end = if a.span.end > b.span.end then a else b
     | otherwise = if a.item.priority <= b.item.priority then a else b
 
 -- | Whether a token stream contains any lexical-error token (M4).

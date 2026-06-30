@@ -20,7 +20,7 @@ idTokens = joinWith "\n"
 
 numberTokens :: String
 numberTokens =
-  "NUMBER : /-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][-+]?[0-9]+)?/"
+  "NUMBER : /-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/"
 
 tests :: Effect Unit
 tests = do
