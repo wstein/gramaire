@@ -19,4 +19,6 @@ npm run build
 
 ## Publish to GitHub Pages
 
-The GitHub Actions workflow in [.github/workflows/deploy-docs.yml](../.github/workflows/deploy-docs.yml) publishes the generated site from the `site/dist` directory.
+The GitHub Actions workflow in
+[.github/workflows/deploy-docs.yml](../.github/workflows/deploy-docs.yml)
+publishes the generated site from the `site/dist` directory.
