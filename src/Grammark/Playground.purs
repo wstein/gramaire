@@ -12,13 +12,18 @@ module Grammark.Playground (Result, evaluate) where
 
 import Prelude
 
+import Data.Array as Array
 import Data.Either (Either(..))
+import Data.Foldable (foldMap)
 import Data.Maybe (Maybe(..))
+import Data.String (joinWith)
 import Grammark.Conformance (Outcome(..), recognize)
 import Grammark.Conformance.Lexers (scannerLexer, tokensBlock)
+import Grammark.Cst (Cst(..))
+import Grammark.Glr (forest)
 import Grammark.Lr (parse)
 import Grammark.Syntax (Grammar(..), Rule(..))
-import Grammark.Table (Method(..))
+import Grammark.Table (Method(..), Prod, productions)
 import Grammark.Tokens (parseTokens)
 
 type Result =
@@ -28,6 +33,7 @@ type Result =
   , diagnostics :: Array String
   , rules :: Array String -- the grammar's nonterminals, in order
   , tokens :: Array String -- the input's lexed token texts
+  , tree :: String -- the parse tree (CST), one node per line, "" if rejected
   }
 
 evaluate :: { source :: String, input :: String } -> Result
@@ -39,6 +45,7 @@ evaluate { source, input } = case parse source of
     , diagnostics: [ err ]
     , rules: []
     , tokens: []
+    , tree: ""
     }
   Right grammar ->
     let
@@ -60,10 +67,20 @@ evaluate { source, input } = case parse source of
           , diagnostics: [ lexErr ]
           , rules
           , tokens: []
+          , tree: ""
           }
         Right toks ->
           let
             accepted = recognize lexer Canonical grammar input == Accept
+            -- The CST, rendered with rule names. GLR returns every parse; an
+            -- unambiguous grammar yields one, an ambiguous one ≥2 (we show the
+            -- first and say so). Empty when the input is rejected.
+            csts = forest Canonical grammar toks
+            tree = case Array.head csts of
+              Just t ->
+                renderTree (productions grammar) t
+                  <> (if Array.length csts > 1 then "\n\n(ambiguous: " <> show (Array.length csts) <> " parses; showing the first)" else "")
+              Nothing -> ""
           in
             { ok: true
             , accepted
@@ -75,7 +92,28 @@ evaluate { source, input } = case parse source of
                 else [ "The input did not match the grammar." ]
             , rules
             , tokens: map _.text toks
+            , tree
             }
 
 ruleNamesOf :: Grammar -> Array String
 ruleNamesOf (Grammar rules) = map (\(Rule name _ _) -> name) rules
+
+-- | An indented one-node-per-line rendering of a CST, labelling each branch
+-- | with the rule it reduced (`productions` maps the production id to its LHS)
+-- | and each leaf with its terminal and matched text. The concrete tree — every
+-- | token the parser matched, brackets and operators included — so the reader
+-- | can see, e.g., a `Factor` sitting under a `Term` under an `Expr`.
+renderTree :: Array Prod -> Cst -> String
+renderTree prods = go 0
+  where
+  go depth node =
+    indent depth <> label node
+      <> case node of
+        Branch _ kids -> foldMap (\k -> "\n" <> go (depth + 1) k) kids
+        Token _ _ -> ""
+  label = case _ of
+    Branch p _ -> case Array.index prods p of
+      Just pr -> pr.lhs
+      Nothing -> "(start)"
+    Token t s -> t <> " " <> show s
+  indent depth = joinWith "" (Array.replicate depth "  ")
