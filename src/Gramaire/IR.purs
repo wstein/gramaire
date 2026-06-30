@@ -297,6 +297,8 @@ buildIRP prec method name g@(Grammar rules) =
       Macro _ args -> foldl perSym m args -- unreachable
       Field _ s -> perSym m s
       Group alts -> foldl (foldl perSym) m alts -- unreachable: groups are hoisted before IR construction
+      Any -> m -- unreachable: `.` is lowered before IR construction
+      Not set -> foldl perSym m set -- unreachable: `~` is lowered before IR construction
 
   termEntries :: Array { id :: Int, str :: String, isLiteral :: Boolean }
   termEntries =
@@ -359,6 +361,8 @@ buildIRP prec method name g@(Grammar rules) =
       Opt s -> toRef s -- unreachable
       Macro nm _ -> toRef (Ref nm) -- unreachable
       Group _ -> IRRefT (termId "(group)") Nothing -- unreachable: groups are hoisted before IR construction
+      Any -> IRRefT (termId "(any)") Nothing -- unreachable: `.` is lowered before IR construction
+      Not _ -> IRRefT (termId "(not)") Nothing -- unreachable: `~` is lowered before IR construction
 
     withField f = case _ of
       IRRefNT i _ -> IRRefNT i f

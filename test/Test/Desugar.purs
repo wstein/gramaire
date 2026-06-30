@@ -134,6 +134,14 @@ tests = do
       assert' "no Group node survives desugaring" (not (any altHasGroup (rulesOf g)))
       assert' "the grouped grammar is LR(1)" (isRight (buildTablesFor Canonical g))
 
+  log "  desugar: `.` and `~set` lower to a closed-alphabet group (D-token-ops)"
+  case wildG of
+    Left e -> assert' ("wildcard desugar failed: " <> e) false
+    Right g -> do
+      assert' "the negation is lowered to a group (a fresh rule)" (isJust (ruleNamed "__group_0" g))
+      assert' "no Any/Not node survives desugaring" (not (any altHasWild (rulesOf g)))
+      assert' "the lowered grammar is LR(1)" (isRight (buildTablesFor Canonical g))
+
 -- `A : (B C)+ D`, with B/C/D terminals.
 groupG :: Either String Grammar
 groupG = desugar
@@ -153,4 +161,19 @@ altHasGroup (Rule _ _ alts) = any (\(Alt syms _ _) -> any isGroup syms) alts
   where
   isGroup = case _ of
     Group _ -> true
+    _ -> false
+
+-- `S : 'a' 'b' ~'a'` — the alphabet is {a, b}, so `~'a'` lowers to a group of {b}.
+wildG :: Either String Grammar
+wildG = desugar
+  ( Grammar
+      [ Rule "S" [] [ Alt [ Lit "a", Lit "b", Not [ Lit "a" ] ] Nothing Nothing ] ]
+  )
+
+altHasWild :: Rule -> Boolean
+altHasWild (Rule _ _ alts) = any (\(Alt syms _ _) -> any isWild syms) alts
+  where
+  isWild = case _ of
+    Any -> true
+    Not _ -> true
     _ -> false

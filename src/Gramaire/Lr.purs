@@ -116,12 +116,24 @@ reduce p kids = case p, kids of
   24, [ _, VGroupBody g, _, _ ] -> VSym (Rep (Group g)) -- Sym : `(` GroupBody `)` PLUS
   25, [ _, VGroupBody g, _, _ ] -> VSym (Star (Group g)) -- Sym : `(` GroupBody `)` STAR
   26, [ _, VGroupBody g, _, _ ] -> VSym (Opt (Group g)) -- Sym : `(` GroupBody `)` QUESTION
-  27, [ VSym s ] -> VSyms [ s ] -- Args : Sym
-  28, [ VSyms as, _, VSym s ] -> VSyms (Array.snoc as s) -- Args : Args COMMA Sym
-  29, [ VStr a ] -> VMaybeStr (Just a) -- Action : ACTION
-  30, [ VStr l ] -> VMaybeStr (Just l) -- Label : LABEL
-  31, [ VSyms syms ] -> VGroupBody [ syms ] -- GroupBody : SymList
-  32, [ VGroupBody alts, _, VSyms syms ] -> VGroupBody (Array.snoc alts syms) -- GroupBody : GroupBody `|` SymList
+  27, [ VSym a ] -> VSym a -- Sym : Atom
+  28, [ VSym a, _ ] -> VSym (Rep a) -- Sym : Atom PLUS
+  29, [ VSym a, _ ] -> VSym (Star a) -- Sym : Atom STAR
+  30, [ VSym a, _ ] -> VSym (Opt a) -- Sym : Atom QUESTION
+  31, [ VSym s ] -> VSyms [ s ] -- Args : Sym
+  32, [ VSyms as, _, VSym s ] -> VSyms (Array.snoc as s) -- Args : Args COMMA Sym
+  33, [ VStr a ] -> VMaybeStr (Just a) -- Action : ACTION
+  34, [ VStr l ] -> VMaybeStr (Just l) -- Label : LABEL
+  35, [ VSyms syms ] -> VGroupBody [ syms ] -- GroupBody : SymList
+  36, [ VGroupBody alts, _, VSyms syms ] -> VGroupBody (Array.snoc alts syms) -- GroupBody : GroupBody `|` SymList
+  37, [ _ ] -> VSym Any -- Atom : `.`
+  38, [ _, VSyms set ] -> VSym (Not set) -- Atom : `~` NotArg
+  39, [ VSym i ] -> VSyms [ i ] -- NotArg : SetItem
+  40, [ _, VSyms set, _ ] -> VSyms set -- NotArg : `(` SetBody `)`
+  41, [ VSym i ] -> VSyms [ i ] -- SetBody : SetItem
+  42, [ VSyms set, _, VSym i ] -> VSyms (Array.snoc set i) -- SetBody : SetBody `|` SetItem
+  43, [ VStr i ] -> VSym (Ref i) -- SetItem : IDENT
+  44, [ VStr t ] -> VSym (Lit t) -- SetItem : TERM_LIT
   _, _ -> VErr ("unexpected reduce shape for production " <> show p)
 
 -- | Extract the contents of every ```gramaire fenced block — the rule blocks, not
@@ -329,7 +341,7 @@ decomment ls = Array.reverse (foldl step { inBlock: false, out: [] } ls).out
 -- | self-host oracle's reference (Test.LexerSelfHost proves the two agree
 -- | token-for-token on all of lr.gram.md).
 lrScanItems :: Array ScanItem
-lrScanItems = buildItems (fromRight [] (parseTokens lrTokensSource)) [ ":", "|", "(", ")" ]
+lrScanItems = buildItems (fromRight [] (parseTokens lrTokensSource)) [ ":", "|", "(", ")", ".", "~" ]
 
 -- | Parse a `.gram.md` document's `lr` blocks into a `Grammar`, using the
 -- | tables generated from the `lr` grammar itself (`bootstrapGrammar`) by the

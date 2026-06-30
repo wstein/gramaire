@@ -69,14 +69,18 @@ expectedFirst = Map.fromFoldable
   [ Tuple "Grammar" (set [ t "ATTR", t "IDENT" ])
   , Tuple "RuleList" (set [ t "ATTR", t "IDENT" ])
   , Tuple "Rule" (set [ t "ATTR", t "IDENT" ])
-  , Tuple "Body" (set [ t "IDENT", t "TERM_LIT", t "(" ])
-  , Tuple "Alt" (set [ t "IDENT", t "TERM_LIT", t "(" ])
-  , Tuple "SymList" (set [ t "IDENT", t "TERM_LIT", t "(" ])
-  , Tuple "Sym" (set [ t "IDENT", t "TERM_LIT", t "(" ])
-  , Tuple "Args" (set [ t "IDENT", t "TERM_LIT", t "(" ])
+  , Tuple "Body" (set [ t "IDENT", t "TERM_LIT", t "(", t ".", t "~" ])
+  , Tuple "Alt" (set [ t "IDENT", t "TERM_LIT", t "(", t ".", t "~" ])
+  , Tuple "SymList" (set [ t "IDENT", t "TERM_LIT", t "(", t ".", t "~" ])
+  , Tuple "Sym" (set [ t "IDENT", t "TERM_LIT", t "(", t ".", t "~" ])
+  , Tuple "Args" (set [ t "IDENT", t "TERM_LIT", t "(", t ".", t "~" ])
   , Tuple "Action" (set [ t "ACTION" ])
   , Tuple "Label" (set [ t "LABEL" ])
-  , Tuple "GroupBody" (set [ t "IDENT", t "TERM_LIT", t "(" ])
+  , Tuple "GroupBody" (set [ t "IDENT", t "TERM_LIT", t "(", t ".", t "~" ])
+  , Tuple "Atom" (set [ t ".", t "~" ])
+  , Tuple "NotArg" (set [ t "IDENT", t "TERM_LIT", t "(" ])
+  , Tuple "SetBody" (set [ t "IDENT", t "TERM_LIT" ])
+  , Tuple "SetItem" (set [ t "IDENT", t "TERM_LIT" ])
   ]
 
 -- | FOLLOW sets documented in `grammar/lr.gram.md` (`$` is `EOF`).
@@ -87,20 +91,46 @@ expectedFollow = Map.fromFoldable
   , Tuple "Rule" (set [ t "NL", EOF ])
   , Tuple "Body" (set [ t "NL", t "|", EOF ])
   , Tuple "Alt" (set [ t "NL", t "|", EOF ])
-  , Tuple "SymList" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT", t "|", t "(", t ")", EOF ])
-  , Tuple "Sym" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT", t "RANGLE", t "COMMA", t "|", t "(", t ")", EOF ])
+  , Tuple "SymList" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT", t "|", t "(", t ")", t ".", t "~", EOF ])
+  , Tuple "Sym" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT", t "RANGLE", t "COMMA", t "|", t "(", t ")", t ".", t "~", EOF ])
   , Tuple "Args" (set [ t "RANGLE", t "COMMA" ])
   , Tuple "Action" (set [ t "NL", t "|", EOF ])
   , Tuple "Label" (set [ t "ACTION", t "NL", t "|", EOF ])
   , Tuple "GroupBody" (set [ t ")", t "|" ])
+  , Tuple "Atom" (bigFollow)
+  , Tuple "NotArg" (bigFollow)
+  , Tuple "SetBody" (set [ t ")", t "|" ])
+  , Tuple "SetItem" (bigFollow)
+  ]
+
+-- The FOLLOW shared by the token-set atoms (Atom / NotArg / SetItem): every
+-- terminal that can begin or end a symbol, since a set atom is just another Sym.
+bigFollow :: Set GSym
+bigFollow = set
+  [ t "("
+  , t ")"
+  , t "."
+  , t "ACTION"
+  , t "COMMA"
+  , t "IDENT"
+  , t "LABEL"
+  , t "NL"
+  , t "PLUS"
+  , t "QUESTION"
+  , t "RANGLE"
+  , t "STAR"
+  , t "TERM_LIT"
+  , t "|"
+  , t "~"
+  , EOF
   ]
 
 tests :: Effect Unit
 tests = do
   let a = analyze bootstrapGrammar
 
-  log "  table: bootstrapGrammar flattens to 33 productions"
-  assertEqual { actual: length (productions bootstrapGrammar), expected: 33 }
+  log "  table: bootstrapGrammar flattens to 45 productions"
+  assertEqual { actual: length (productions bootstrapGrammar), expected: 45 }
 
   log "  table: start symbol is Grammar"
   assertEqual { actual: a.start, expected: "Grammar" }

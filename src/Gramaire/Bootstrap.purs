@@ -92,6 +92,10 @@ bootstrapGrammar = Grammar
       , Alt [ Lit "(", Ref "GroupBody", Lit ")", Ref "PLUS" ] Nothing (Just "\\_ g _ _ -> Rep (Group g)")
       , Alt [ Lit "(", Ref "GroupBody", Lit ")", Ref "STAR" ] Nothing (Just "\\_ g _ _ -> Star (Group g)")
       , Alt [ Lit "(", Ref "GroupBody", Lit ")", Ref "QUESTION" ] Nothing (Just "\\_ g _ _ -> Opt (Group g)")
+      , Alt [ Ref "Atom" ] Nothing (Just "\\a -> a")
+      , Alt [ Ref "Atom", Ref "PLUS" ] Nothing (Just "\\a _ -> Rep a")
+      , Alt [ Ref "Atom", Ref "STAR" ] Nothing (Just "\\a _ -> Star a")
+      , Alt [ Ref "Atom", Ref "QUESTION" ] Nothing (Just "\\a _ -> Opt a")
       ]
 
   , Rule "Args" []
@@ -108,5 +112,25 @@ bootstrapGrammar = Grammar
   , Rule "GroupBody" []
       [ Alt [ Ref "SymList" ] Nothing (Just "\\syms -> [syms]")
       , Alt [ Ref "GroupBody", Lit "|", Ref "SymList" ] Nothing (Just "\\alts _ syms -> snoc alts syms")
+      ]
+
+  , Rule "Atom" []
+      [ Alt [ Lit "." ] Nothing (Just "\\_ -> Any")
+      , Alt [ Lit "~", Ref "NotArg" ] Nothing (Just "\\_ s -> Not s")
+      ]
+
+  , Rule "NotArg" []
+      [ Alt [ Ref "SetItem" ] Nothing (Just "\\i -> [i]")
+      , Alt [ Lit "(", Ref "SetBody", Lit ")" ] Nothing (Just "\\_ s _ -> s")
+      ]
+
+  , Rule "SetBody" []
+      [ Alt [ Ref "SetItem" ] Nothing (Just "\\i -> [i]")
+      , Alt [ Ref "SetBody", Lit "|", Ref "SetItem" ] Nothing (Just "\\s _ i -> snoc s i")
+      ]
+
+  , Rule "SetItem" []
+      [ Alt [ Ref "IDENT" ] Nothing (Just "\\i -> Ref i")
+      , Alt [ Ref "TERM_LIT" ] Nothing (Just "\\t -> Lit t")
       ]
   ]

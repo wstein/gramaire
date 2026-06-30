@@ -18,110 +18,161 @@ const ACTION: Record<number, Record<string, Act>> = {
   8: { ":": { shift: 11 } },
   9: { "NL": { reduce: 2 }, "": { reduce: 2 } },
   10: { ":": { shift: 12 } },
-  11: { "(": { shift: 17 }, "IDENT": { shift: 18 }, "TERM_LIT": { shift: 19 } },
-  12: { "(": { shift: 17 }, "IDENT": { shift: 18 }, "TERM_LIT": { shift: 19 } },
+  11: { "(": { shift: 18 }, ".": { shift: 19 }, "IDENT": { shift: 20 }, "TERM_LIT": { shift: 21 }, "~": { shift: 22 } },
+  12: { "(": { shift: 18 }, ".": { shift: 19 }, "IDENT": { shift: 20 }, "TERM_LIT": { shift: 21 }, "~": { shift: 22 } },
   13: { "NL": { reduce: 5 }, "|": { reduce: 5 }, "": { reduce: 5 } },
-  14: { "NL": { reduce: 4 }, "|": { shift: 21 }, "": { reduce: 4 } },
-  15: { "(": { reduce: 11 }, "ACTION": { reduce: 11 }, "IDENT": { reduce: 11 }, "LABEL": { reduce: 11 }, "NL": { reduce: 11 }, "TERM_LIT": { reduce: 11 }, "|": { reduce: 11 }, "": { reduce: 11 } },
-  16: { "(": { shift: 17 }, "ACTION": { shift: 25 }, "IDENT": { shift: 18 }, "LABEL": { shift: 26 }, "NL": { reduce: 10 }, "TERM_LIT": { shift: 19 }, "|": { reduce: 10 }, "": { reduce: 10 } },
-  17: { "(": { shift: 30 }, "IDENT": { shift: 31 }, "TERM_LIT": { shift: 32 } },
-  18: { "(": { reduce: 13 }, ":": { shift: 33 }, "ACTION": { reduce: 13 }, "IDENT": { reduce: 13 }, "LABEL": { reduce: 13 }, "LANGLE": { shift: 34 }, "NL": { reduce: 13 }, "PLUS": { shift: 35 }, "QUESTION": { shift: 36 }, "STAR": { shift: 37 }, "TERM_LIT": { reduce: 13 }, "|": { reduce: 13 }, "": { reduce: 13 } },
-  19: { "(": { reduce: 14 }, "ACTION": { reduce: 14 }, "IDENT": { reduce: 14 }, "LABEL": { reduce: 14 }, "NL": { reduce: 14 }, "PLUS": { shift: 38 }, "QUESTION": { shift: 39 }, "STAR": { shift: 40 }, "TERM_LIT": { reduce: 14 }, "|": { reduce: 14 }, "": { reduce: 14 } },
-  20: { "NL": { reduce: 3 }, "|": { shift: 21 }, "": { reduce: 3 } },
-  21: { "(": { shift: 17 }, "IDENT": { shift: 18 }, "TERM_LIT": { shift: 19 } },
-  22: { "NL": { reduce: 9 }, "|": { reduce: 9 }, "": { reduce: 9 } },
-  23: { "ACTION": { shift: 25 }, "NL": { reduce: 8 }, "|": { reduce: 8 }, "": { reduce: 8 } },
-  24: { "(": { reduce: 12 }, "ACTION": { reduce: 12 }, "IDENT": { reduce: 12 }, "LABEL": { reduce: 12 }, "NL": { reduce: 12 }, "TERM_LIT": { reduce: 12 }, "|": { reduce: 12 }, "": { reduce: 12 } },
-  25: { "NL": { reduce: 29 }, "|": { reduce: 29 }, "": { reduce: 29 } },
-  26: { "ACTION": { reduce: 30 }, "NL": { reduce: 30 }, "|": { reduce: 30 }, "": { reduce: 30 } },
-  27: { ")": { shift: 43 }, "|": { shift: 44 } },
-  28: { "(": { reduce: 11 }, ")": { reduce: 11 }, "IDENT": { reduce: 11 }, "TERM_LIT": { reduce: 11 }, "|": { reduce: 11 } },
-  29: { "(": { shift: 30 }, ")": { reduce: 31 }, "IDENT": { shift: 31 }, "TERM_LIT": { shift: 32 }, "|": { reduce: 31 } },
-  30: { "(": { shift: 30 }, "IDENT": { shift: 31 }, "TERM_LIT": { shift: 32 } },
-  31: { "(": { reduce: 13 }, ")": { reduce: 13 }, ":": { shift: 47 }, "IDENT": { reduce: 13 }, "LANGLE": { shift: 48 }, "PLUS": { shift: 49 }, "QUESTION": { shift: 50 }, "STAR": { shift: 51 }, "TERM_LIT": { reduce: 13 }, "|": { reduce: 13 } },
-  32: { "(": { reduce: 14 }, ")": { reduce: 14 }, "IDENT": { reduce: 14 }, "PLUS": { shift: 52 }, "QUESTION": { shift: 53 }, "STAR": { shift: 54 }, "TERM_LIT": { reduce: 14 }, "|": { reduce: 14 } },
-  33: { "(": { shift: 17 }, "IDENT": { shift: 18 }, "TERM_LIT": { shift: 19 } },
-  34: { "(": { shift: 58 }, "IDENT": { shift: 59 }, "TERM_LIT": { shift: 60 } },
-  35: { "(": { reduce: 15 }, "ACTION": { reduce: 15 }, "IDENT": { reduce: 15 }, "LABEL": { reduce: 15 }, "NL": { reduce: 15 }, "TERM_LIT": { reduce: 15 }, "|": { reduce: 15 }, "": { reduce: 15 } },
-  36: { "(": { reduce: 19 }, "ACTION": { reduce: 19 }, "IDENT": { reduce: 19 }, "LABEL": { reduce: 19 }, "NL": { reduce: 19 }, "TERM_LIT": { reduce: 19 }, "|": { reduce: 19 }, "": { reduce: 19 } },
-  37: { "(": { reduce: 17 }, "ACTION": { reduce: 17 }, "IDENT": { reduce: 17 }, "LABEL": { reduce: 17 }, "NL": { reduce: 17 }, "TERM_LIT": { reduce: 17 }, "|": { reduce: 17 }, "": { reduce: 17 } },
-  38: { "(": { reduce: 16 }, "ACTION": { reduce: 16 }, "IDENT": { reduce: 16 }, "LABEL": { reduce: 16 }, "NL": { reduce: 16 }, "TERM_LIT": { reduce: 16 }, "|": { reduce: 16 }, "": { reduce: 16 } },
-  39: { "(": { reduce: 20 }, "ACTION": { reduce: 20 }, "IDENT": { reduce: 20 }, "LABEL": { reduce: 20 }, "NL": { reduce: 20 }, "TERM_LIT": { reduce: 20 }, "|": { reduce: 20 }, "": { reduce: 20 } },
-  40: { "(": { reduce: 18 }, "ACTION": { reduce: 18 }, "IDENT": { reduce: 18 }, "LABEL": { reduce: 18 }, "NL": { reduce: 18 }, "TERM_LIT": { reduce: 18 }, "|": { reduce: 18 }, "": { reduce: 18 } },
-  41: { "NL": { reduce: 6 }, "|": { reduce: 6 }, "": { reduce: 6 } },
-  42: { "NL": { reduce: 7 }, "|": { reduce: 7 }, "": { reduce: 7 } },
-  43: { "(": { reduce: 23 }, "ACTION": { reduce: 23 }, "IDENT": { reduce: 23 }, "LABEL": { reduce: 23 }, "NL": { reduce: 23 }, "PLUS": { shift: 61 }, "QUESTION": { shift: 62 }, "STAR": { shift: 63 }, "TERM_LIT": { reduce: 23 }, "|": { reduce: 23 }, "": { reduce: 23 } },
-  44: { "(": { shift: 30 }, "IDENT": { shift: 31 }, "TERM_LIT": { shift: 32 } },
-  45: { "(": { reduce: 12 }, ")": { reduce: 12 }, "IDENT": { reduce: 12 }, "TERM_LIT": { reduce: 12 }, "|": { reduce: 12 } },
-  46: { ")": { shift: 65 }, "|": { shift: 44 } },
-  47: { "(": { shift: 30 }, "IDENT": { shift: 31 }, "TERM_LIT": { shift: 32 } },
-  48: { "(": { shift: 58 }, "IDENT": { shift: 59 }, "TERM_LIT": { shift: 60 } },
-  49: { "(": { reduce: 15 }, ")": { reduce: 15 }, "IDENT": { reduce: 15 }, "TERM_LIT": { reduce: 15 }, "|": { reduce: 15 } },
-  50: { "(": { reduce: 19 }, ")": { reduce: 19 }, "IDENT": { reduce: 19 }, "TERM_LIT": { reduce: 19 }, "|": { reduce: 19 } },
-  51: { "(": { reduce: 17 }, ")": { reduce: 17 }, "IDENT": { reduce: 17 }, "TERM_LIT": { reduce: 17 }, "|": { reduce: 17 } },
-  52: { "(": { reduce: 16 }, ")": { reduce: 16 }, "IDENT": { reduce: 16 }, "TERM_LIT": { reduce: 16 }, "|": { reduce: 16 } },
-  53: { "(": { reduce: 20 }, ")": { reduce: 20 }, "IDENT": { reduce: 20 }, "TERM_LIT": { reduce: 20 }, "|": { reduce: 20 } },
-  54: { "(": { reduce: 18 }, ")": { reduce: 18 }, "IDENT": { reduce: 18 }, "TERM_LIT": { reduce: 18 }, "|": { reduce: 18 } },
-  55: { "(": { reduce: 22 }, "ACTION": { reduce: 22 }, "IDENT": { reduce: 22 }, "LABEL": { reduce: 22 }, "NL": { reduce: 22 }, "TERM_LIT": { reduce: 22 }, "|": { reduce: 22 }, "": { reduce: 22 } },
-  56: { "COMMA": { shift: 68 }, "RANGLE": { shift: 69 } },
-  57: { "COMMA": { reduce: 27 }, "RANGLE": { reduce: 27 } },
-  58: { "(": { shift: 30 }, "IDENT": { shift: 31 }, "TERM_LIT": { shift: 32 } },
-  59: { ":": { shift: 71 }, "COMMA": { reduce: 13 }, "LANGLE": { shift: 72 }, "PLUS": { shift: 73 }, "QUESTION": { shift: 74 }, "RANGLE": { reduce: 13 }, "STAR": { shift: 75 } },
-  60: { "COMMA": { reduce: 14 }, "PLUS": { shift: 76 }, "QUESTION": { shift: 77 }, "RANGLE": { reduce: 14 }, "STAR": { shift: 78 } },
-  61: { "(": { reduce: 24 }, "ACTION": { reduce: 24 }, "IDENT": { reduce: 24 }, "LABEL": { reduce: 24 }, "NL": { reduce: 24 }, "TERM_LIT": { reduce: 24 }, "|": { reduce: 24 }, "": { reduce: 24 } },
-  62: { "(": { reduce: 26 }, "ACTION": { reduce: 26 }, "IDENT": { reduce: 26 }, "LABEL": { reduce: 26 }, "NL": { reduce: 26 }, "TERM_LIT": { reduce: 26 }, "|": { reduce: 26 }, "": { reduce: 26 } },
-  63: { "(": { reduce: 25 }, "ACTION": { reduce: 25 }, "IDENT": { reduce: 25 }, "LABEL": { reduce: 25 }, "NL": { reduce: 25 }, "TERM_LIT": { reduce: 25 }, "|": { reduce: 25 }, "": { reduce: 25 } },
-  64: { "(": { shift: 30 }, ")": { reduce: 32 }, "IDENT": { shift: 31 }, "TERM_LIT": { shift: 32 }, "|": { reduce: 32 } },
-  65: { "(": { reduce: 23 }, ")": { reduce: 23 }, "IDENT": { reduce: 23 }, "PLUS": { shift: 79 }, "QUESTION": { shift: 80 }, "STAR": { shift: 81 }, "TERM_LIT": { reduce: 23 }, "|": { reduce: 23 } },
-  66: { "(": { reduce: 22 }, ")": { reduce: 22 }, "IDENT": { reduce: 22 }, "TERM_LIT": { reduce: 22 }, "|": { reduce: 22 } },
-  67: { "COMMA": { shift: 68 }, "RANGLE": { shift: 82 } },
-  68: { "(": { shift: 58 }, "IDENT": { shift: 59 }, "TERM_LIT": { shift: 60 } },
-  69: { "(": { reduce: 21 }, "ACTION": { reduce: 21 }, "IDENT": { reduce: 21 }, "LABEL": { reduce: 21 }, "NL": { reduce: 21 }, "TERM_LIT": { reduce: 21 }, "|": { reduce: 21 }, "": { reduce: 21 } },
-  70: { ")": { shift: 84 }, "|": { shift: 44 } },
-  71: { "(": { shift: 58 }, "IDENT": { shift: 59 }, "TERM_LIT": { shift: 60 } },
-  72: { "(": { shift: 58 }, "IDENT": { shift: 59 }, "TERM_LIT": { shift: 60 } },
-  73: { "COMMA": { reduce: 15 }, "RANGLE": { reduce: 15 } },
-  74: { "COMMA": { reduce: 19 }, "RANGLE": { reduce: 19 } },
-  75: { "COMMA": { reduce: 17 }, "RANGLE": { reduce: 17 } },
-  76: { "COMMA": { reduce: 16 }, "RANGLE": { reduce: 16 } },
-  77: { "COMMA": { reduce: 20 }, "RANGLE": { reduce: 20 } },
-  78: { "COMMA": { reduce: 18 }, "RANGLE": { reduce: 18 } },
-  79: { "(": { reduce: 24 }, ")": { reduce: 24 }, "IDENT": { reduce: 24 }, "TERM_LIT": { reduce: 24 }, "|": { reduce: 24 } },
-  80: { "(": { reduce: 26 }, ")": { reduce: 26 }, "IDENT": { reduce: 26 }, "TERM_LIT": { reduce: 26 }, "|": { reduce: 26 } },
-  81: { "(": { reduce: 25 }, ")": { reduce: 25 }, "IDENT": { reduce: 25 }, "TERM_LIT": { reduce: 25 }, "|": { reduce: 25 } },
-  82: { "(": { reduce: 21 }, ")": { reduce: 21 }, "IDENT": { reduce: 21 }, "TERM_LIT": { reduce: 21 }, "|": { reduce: 21 } },
-  83: { "COMMA": { reduce: 28 }, "RANGLE": { reduce: 28 } },
-  84: { "COMMA": { reduce: 23 }, "PLUS": { shift: 87 }, "QUESTION": { shift: 88 }, "RANGLE": { reduce: 23 }, "STAR": { shift: 89 } },
-  85: { "COMMA": { reduce: 22 }, "RANGLE": { reduce: 22 } },
-  86: { "COMMA": { shift: 68 }, "RANGLE": { shift: 90 } },
-  87: { "COMMA": { reduce: 24 }, "RANGLE": { reduce: 24 } },
-  88: { "COMMA": { reduce: 26 }, "RANGLE": { reduce: 26 } },
-  89: { "COMMA": { reduce: 25 }, "RANGLE": { reduce: 25 } },
-  90: { "COMMA": { reduce: 21 }, "RANGLE": { reduce: 21 } },
+  14: { "(": { reduce: 27 }, ".": { reduce: 27 }, "ACTION": { reduce: 27 }, "IDENT": { reduce: 27 }, "LABEL": { reduce: 27 }, "NL": { reduce: 27 }, "PLUS": { shift: 24 }, "QUESTION": { shift: 25 }, "STAR": { shift: 26 }, "TERM_LIT": { reduce: 27 }, "|": { reduce: 27 }, "~": { reduce: 27 }, "": { reduce: 27 } },
+  15: { "NL": { reduce: 4 }, "|": { shift: 27 }, "": { reduce: 4 } },
+  16: { "(": { reduce: 11 }, ".": { reduce: 11 }, "ACTION": { reduce: 11 }, "IDENT": { reduce: 11 }, "LABEL": { reduce: 11 }, "NL": { reduce: 11 }, "TERM_LIT": { reduce: 11 }, "|": { reduce: 11 }, "~": { reduce: 11 }, "": { reduce: 11 } },
+  17: { "(": { shift: 18 }, ".": { shift: 19 }, "ACTION": { shift: 31 }, "IDENT": { shift: 20 }, "LABEL": { shift: 32 }, "NL": { reduce: 10 }, "TERM_LIT": { shift: 21 }, "|": { reduce: 10 }, "~": { shift: 22 }, "": { reduce: 10 } },
+  18: { "(": { shift: 37 }, ".": { shift: 38 }, "IDENT": { shift: 39 }, "TERM_LIT": { shift: 40 }, "~": { shift: 41 } },
+  19: { "(": { reduce: 37 }, ".": { reduce: 37 }, "ACTION": { reduce: 37 }, "IDENT": { reduce: 37 }, "LABEL": { reduce: 37 }, "NL": { reduce: 37 }, "PLUS": { reduce: 37 }, "QUESTION": { reduce: 37 }, "STAR": { reduce: 37 }, "TERM_LIT": { reduce: 37 }, "|": { reduce: 37 }, "~": { reduce: 37 }, "": { reduce: 37 } },
+  20: { "(": { reduce: 13 }, ".": { reduce: 13 }, ":": { shift: 42 }, "ACTION": { reduce: 13 }, "IDENT": { reduce: 13 }, "LABEL": { reduce: 13 }, "LANGLE": { shift: 43 }, "NL": { reduce: 13 }, "PLUS": { shift: 44 }, "QUESTION": { shift: 45 }, "STAR": { shift: 46 }, "TERM_LIT": { reduce: 13 }, "|": { reduce: 13 }, "~": { reduce: 13 }, "": { reduce: 13 } },
+  21: { "(": { reduce: 14 }, ".": { reduce: 14 }, "ACTION": { reduce: 14 }, "IDENT": { reduce: 14 }, "LABEL": { reduce: 14 }, "NL": { reduce: 14 }, "PLUS": { shift: 47 }, "QUESTION": { shift: 48 }, "STAR": { shift: 49 }, "TERM_LIT": { reduce: 14 }, "|": { reduce: 14 }, "~": { reduce: 14 }, "": { reduce: 14 } },
+  22: { "(": { shift: 52 }, "IDENT": { shift: 53 }, "TERM_LIT": { shift: 54 } },
+  23: { "NL": { reduce: 3 }, "|": { shift: 27 }, "": { reduce: 3 } },
+  24: { "(": { reduce: 28 }, ".": { reduce: 28 }, "ACTION": { reduce: 28 }, "IDENT": { reduce: 28 }, "LABEL": { reduce: 28 }, "NL": { reduce: 28 }, "TERM_LIT": { reduce: 28 }, "|": { reduce: 28 }, "~": { reduce: 28 }, "": { reduce: 28 } },
+  25: { "(": { reduce: 30 }, ".": { reduce: 30 }, "ACTION": { reduce: 30 }, "IDENT": { reduce: 30 }, "LABEL": { reduce: 30 }, "NL": { reduce: 30 }, "TERM_LIT": { reduce: 30 }, "|": { reduce: 30 }, "~": { reduce: 30 }, "": { reduce: 30 } },
+  26: { "(": { reduce: 29 }, ".": { reduce: 29 }, "ACTION": { reduce: 29 }, "IDENT": { reduce: 29 }, "LABEL": { reduce: 29 }, "NL": { reduce: 29 }, "TERM_LIT": { reduce: 29 }, "|": { reduce: 29 }, "~": { reduce: 29 }, "": { reduce: 29 } },
+  27: { "(": { shift: 18 }, ".": { shift: 19 }, "IDENT": { shift: 20 }, "TERM_LIT": { shift: 21 }, "~": { shift: 22 } },
+  28: { "NL": { reduce: 9 }, "|": { reduce: 9 }, "": { reduce: 9 } },
+  29: { "ACTION": { shift: 31 }, "NL": { reduce: 8 }, "|": { reduce: 8 }, "": { reduce: 8 } },
+  30: { "(": { reduce: 12 }, ".": { reduce: 12 }, "ACTION": { reduce: 12 }, "IDENT": { reduce: 12 }, "LABEL": { reduce: 12 }, "NL": { reduce: 12 }, "TERM_LIT": { reduce: 12 }, "|": { reduce: 12 }, "~": { reduce: 12 }, "": { reduce: 12 } },
+  31: { "NL": { reduce: 33 }, "|": { reduce: 33 }, "": { reduce: 33 } },
+  32: { "ACTION": { reduce: 34 }, "NL": { reduce: 34 }, "|": { reduce: 34 }, "": { reduce: 34 } },
+  33: { "(": { reduce: 27 }, ")": { reduce: 27 }, ".": { reduce: 27 }, "IDENT": { reduce: 27 }, "PLUS": { shift: 57 }, "QUESTION": { shift: 58 }, "STAR": { shift: 59 }, "TERM_LIT": { reduce: 27 }, "|": { reduce: 27 }, "~": { reduce: 27 } },
+  34: { ")": { shift: 60 }, "|": { shift: 61 } },
+  35: { "(": { reduce: 11 }, ")": { reduce: 11 }, ".": { reduce: 11 }, "IDENT": { reduce: 11 }, "TERM_LIT": { reduce: 11 }, "|": { reduce: 11 }, "~": { reduce: 11 } },
+  36: { "(": { shift: 37 }, ")": { reduce: 35 }, ".": { shift: 38 }, "IDENT": { shift: 39 }, "TERM_LIT": { shift: 40 }, "|": { reduce: 35 }, "~": { shift: 41 } },
+  37: { "(": { shift: 37 }, ".": { shift: 38 }, "IDENT": { shift: 39 }, "TERM_LIT": { shift: 40 }, "~": { shift: 41 } },
+  38: { "(": { reduce: 37 }, ")": { reduce: 37 }, ".": { reduce: 37 }, "IDENT": { reduce: 37 }, "PLUS": { reduce: 37 }, "QUESTION": { reduce: 37 }, "STAR": { reduce: 37 }, "TERM_LIT": { reduce: 37 }, "|": { reduce: 37 }, "~": { reduce: 37 } },
+  39: { "(": { reduce: 13 }, ")": { reduce: 13 }, ".": { reduce: 13 }, ":": { shift: 64 }, "IDENT": { reduce: 13 }, "LANGLE": { shift: 65 }, "PLUS": { shift: 66 }, "QUESTION": { shift: 67 }, "STAR": { shift: 68 }, "TERM_LIT": { reduce: 13 }, "|": { reduce: 13 }, "~": { reduce: 13 } },
+  40: { "(": { reduce: 14 }, ")": { reduce: 14 }, ".": { reduce: 14 }, "IDENT": { reduce: 14 }, "PLUS": { shift: 69 }, "QUESTION": { shift: 70 }, "STAR": { shift: 71 }, "TERM_LIT": { reduce: 14 }, "|": { reduce: 14 }, "~": { reduce: 14 } },
+  41: { "(": { shift: 74 }, "IDENT": { shift: 75 }, "TERM_LIT": { shift: 76 } },
+  42: { "(": { shift: 18 }, ".": { shift: 19 }, "IDENT": { shift: 20 }, "TERM_LIT": { shift: 21 }, "~": { shift: 22 } },
+  43: { "(": { shift: 81 }, ".": { shift: 82 }, "IDENT": { shift: 83 }, "TERM_LIT": { shift: 84 }, "~": { shift: 85 } },
+  44: { "(": { reduce: 15 }, ".": { reduce: 15 }, "ACTION": { reduce: 15 }, "IDENT": { reduce: 15 }, "LABEL": { reduce: 15 }, "NL": { reduce: 15 }, "TERM_LIT": { reduce: 15 }, "|": { reduce: 15 }, "~": { reduce: 15 }, "": { reduce: 15 } },
+  45: { "(": { reduce: 19 }, ".": { reduce: 19 }, "ACTION": { reduce: 19 }, "IDENT": { reduce: 19 }, "LABEL": { reduce: 19 }, "NL": { reduce: 19 }, "TERM_LIT": { reduce: 19 }, "|": { reduce: 19 }, "~": { reduce: 19 }, "": { reduce: 19 } },
+  46: { "(": { reduce: 17 }, ".": { reduce: 17 }, "ACTION": { reduce: 17 }, "IDENT": { reduce: 17 }, "LABEL": { reduce: 17 }, "NL": { reduce: 17 }, "TERM_LIT": { reduce: 17 }, "|": { reduce: 17 }, "~": { reduce: 17 }, "": { reduce: 17 } },
+  47: { "(": { reduce: 16 }, ".": { reduce: 16 }, "ACTION": { reduce: 16 }, "IDENT": { reduce: 16 }, "LABEL": { reduce: 16 }, "NL": { reduce: 16 }, "TERM_LIT": { reduce: 16 }, "|": { reduce: 16 }, "~": { reduce: 16 }, "": { reduce: 16 } },
+  48: { "(": { reduce: 20 }, ".": { reduce: 20 }, "ACTION": { reduce: 20 }, "IDENT": { reduce: 20 }, "LABEL": { reduce: 20 }, "NL": { reduce: 20 }, "TERM_LIT": { reduce: 20 }, "|": { reduce: 20 }, "~": { reduce: 20 }, "": { reduce: 20 } },
+  49: { "(": { reduce: 18 }, ".": { reduce: 18 }, "ACTION": { reduce: 18 }, "IDENT": { reduce: 18 }, "LABEL": { reduce: 18 }, "NL": { reduce: 18 }, "TERM_LIT": { reduce: 18 }, "|": { reduce: 18 }, "~": { reduce: 18 }, "": { reduce: 18 } },
+  50: { "(": { reduce: 38 }, ".": { reduce: 38 }, "ACTION": { reduce: 38 }, "IDENT": { reduce: 38 }, "LABEL": { reduce: 38 }, "NL": { reduce: 38 }, "PLUS": { reduce: 38 }, "QUESTION": { reduce: 38 }, "STAR": { reduce: 38 }, "TERM_LIT": { reduce: 38 }, "|": { reduce: 38 }, "~": { reduce: 38 }, "": { reduce: 38 } },
+  51: { "(": { reduce: 39 }, ".": { reduce: 39 }, "ACTION": { reduce: 39 }, "IDENT": { reduce: 39 }, "LABEL": { reduce: 39 }, "NL": { reduce: 39 }, "PLUS": { reduce: 39 }, "QUESTION": { reduce: 39 }, "STAR": { reduce: 39 }, "TERM_LIT": { reduce: 39 }, "|": { reduce: 39 }, "~": { reduce: 39 }, "": { reduce: 39 } },
+  52: { "IDENT": { shift: 88 }, "TERM_LIT": { shift: 89 } },
+  53: { "(": { reduce: 43 }, ".": { reduce: 43 }, "ACTION": { reduce: 43 }, "IDENT": { reduce: 43 }, "LABEL": { reduce: 43 }, "NL": { reduce: 43 }, "PLUS": { reduce: 43 }, "QUESTION": { reduce: 43 }, "STAR": { reduce: 43 }, "TERM_LIT": { reduce: 43 }, "|": { reduce: 43 }, "~": { reduce: 43 }, "": { reduce: 43 } },
+  54: { "(": { reduce: 44 }, ".": { reduce: 44 }, "ACTION": { reduce: 44 }, "IDENT": { reduce: 44 }, "LABEL": { reduce: 44 }, "NL": { reduce: 44 }, "PLUS": { reduce: 44 }, "QUESTION": { reduce: 44 }, "STAR": { reduce: 44 }, "TERM_LIT": { reduce: 44 }, "|": { reduce: 44 }, "~": { reduce: 44 }, "": { reduce: 44 } },
+  55: { "NL": { reduce: 6 }, "|": { reduce: 6 }, "": { reduce: 6 } },
+  56: { "NL": { reduce: 7 }, "|": { reduce: 7 }, "": { reduce: 7 } },
+  57: { "(": { reduce: 28 }, ")": { reduce: 28 }, ".": { reduce: 28 }, "IDENT": { reduce: 28 }, "TERM_LIT": { reduce: 28 }, "|": { reduce: 28 }, "~": { reduce: 28 } },
+  58: { "(": { reduce: 30 }, ")": { reduce: 30 }, ".": { reduce: 30 }, "IDENT": { reduce: 30 }, "TERM_LIT": { reduce: 30 }, "|": { reduce: 30 }, "~": { reduce: 30 } },
+  59: { "(": { reduce: 29 }, ")": { reduce: 29 }, ".": { reduce: 29 }, "IDENT": { reduce: 29 }, "TERM_LIT": { reduce: 29 }, "|": { reduce: 29 }, "~": { reduce: 29 } },
+  60: { "(": { reduce: 23 }, ".": { reduce: 23 }, "ACTION": { reduce: 23 }, "IDENT": { reduce: 23 }, "LABEL": { reduce: 23 }, "NL": { reduce: 23 }, "PLUS": { shift: 90 }, "QUESTION": { shift: 91 }, "STAR": { shift: 92 }, "TERM_LIT": { reduce: 23 }, "|": { reduce: 23 }, "~": { reduce: 23 }, "": { reduce: 23 } },
+  61: { "(": { shift: 37 }, ".": { shift: 38 }, "IDENT": { shift: 39 }, "TERM_LIT": { shift: 40 }, "~": { shift: 41 } },
+  62: { "(": { reduce: 12 }, ")": { reduce: 12 }, ".": { reduce: 12 }, "IDENT": { reduce: 12 }, "TERM_LIT": { reduce: 12 }, "|": { reduce: 12 }, "~": { reduce: 12 } },
+  63: { ")": { shift: 94 }, "|": { shift: 61 } },
+  64: { "(": { shift: 37 }, ".": { shift: 38 }, "IDENT": { shift: 39 }, "TERM_LIT": { shift: 40 }, "~": { shift: 41 } },
+  65: { "(": { shift: 81 }, ".": { shift: 82 }, "IDENT": { shift: 83 }, "TERM_LIT": { shift: 84 }, "~": { shift: 85 } },
+  66: { "(": { reduce: 15 }, ")": { reduce: 15 }, ".": { reduce: 15 }, "IDENT": { reduce: 15 }, "TERM_LIT": { reduce: 15 }, "|": { reduce: 15 }, "~": { reduce: 15 } },
+  67: { "(": { reduce: 19 }, ")": { reduce: 19 }, ".": { reduce: 19 }, "IDENT": { reduce: 19 }, "TERM_LIT": { reduce: 19 }, "|": { reduce: 19 }, "~": { reduce: 19 } },
+  68: { "(": { reduce: 17 }, ")": { reduce: 17 }, ".": { reduce: 17 }, "IDENT": { reduce: 17 }, "TERM_LIT": { reduce: 17 }, "|": { reduce: 17 }, "~": { reduce: 17 } },
+  69: { "(": { reduce: 16 }, ")": { reduce: 16 }, ".": { reduce: 16 }, "IDENT": { reduce: 16 }, "TERM_LIT": { reduce: 16 }, "|": { reduce: 16 }, "~": { reduce: 16 } },
+  70: { "(": { reduce: 20 }, ")": { reduce: 20 }, ".": { reduce: 20 }, "IDENT": { reduce: 20 }, "TERM_LIT": { reduce: 20 }, "|": { reduce: 20 }, "~": { reduce: 20 } },
+  71: { "(": { reduce: 18 }, ")": { reduce: 18 }, ".": { reduce: 18 }, "IDENT": { reduce: 18 }, "TERM_LIT": { reduce: 18 }, "|": { reduce: 18 }, "~": { reduce: 18 } },
+  72: { "(": { reduce: 38 }, ")": { reduce: 38 }, ".": { reduce: 38 }, "IDENT": { reduce: 38 }, "PLUS": { reduce: 38 }, "QUESTION": { reduce: 38 }, "STAR": { reduce: 38 }, "TERM_LIT": { reduce: 38 }, "|": { reduce: 38 }, "~": { reduce: 38 } },
+  73: { "(": { reduce: 39 }, ")": { reduce: 39 }, ".": { reduce: 39 }, "IDENT": { reduce: 39 }, "PLUS": { reduce: 39 }, "QUESTION": { reduce: 39 }, "STAR": { reduce: 39 }, "TERM_LIT": { reduce: 39 }, "|": { reduce: 39 }, "~": { reduce: 39 } },
+  74: { "IDENT": { shift: 88 }, "TERM_LIT": { shift: 89 } },
+  75: { "(": { reduce: 43 }, ")": { reduce: 43 }, ".": { reduce: 43 }, "IDENT": { reduce: 43 }, "PLUS": { reduce: 43 }, "QUESTION": { reduce: 43 }, "STAR": { reduce: 43 }, "TERM_LIT": { reduce: 43 }, "|": { reduce: 43 }, "~": { reduce: 43 } },
+  76: { "(": { reduce: 44 }, ")": { reduce: 44 }, ".": { reduce: 44 }, "IDENT": { reduce: 44 }, "PLUS": { reduce: 44 }, "QUESTION": { reduce: 44 }, "STAR": { reduce: 44 }, "TERM_LIT": { reduce: 44 }, "|": { reduce: 44 }, "~": { reduce: 44 } },
+  77: { "(": { reduce: 22 }, ".": { reduce: 22 }, "ACTION": { reduce: 22 }, "IDENT": { reduce: 22 }, "LABEL": { reduce: 22 }, "NL": { reduce: 22 }, "TERM_LIT": { reduce: 22 }, "|": { reduce: 22 }, "~": { reduce: 22 }, "": { reduce: 22 } },
+  78: { "COMMA": { shift: 98 }, "RANGLE": { shift: 99 } },
+  79: { "COMMA": { reduce: 27 }, "PLUS": { shift: 100 }, "QUESTION": { shift: 101 }, "RANGLE": { reduce: 27 }, "STAR": { shift: 102 } },
+  80: { "COMMA": { reduce: 31 }, "RANGLE": { reduce: 31 } },
+  81: { "(": { shift: 37 }, ".": { shift: 38 }, "IDENT": { shift: 39 }, "TERM_LIT": { shift: 40 }, "~": { shift: 41 } },
+  82: { "COMMA": { reduce: 37 }, "PLUS": { reduce: 37 }, "QUESTION": { reduce: 37 }, "RANGLE": { reduce: 37 }, "STAR": { reduce: 37 } },
+  83: { ":": { shift: 104 }, "COMMA": { reduce: 13 }, "LANGLE": { shift: 105 }, "PLUS": { shift: 106 }, "QUESTION": { shift: 107 }, "RANGLE": { reduce: 13 }, "STAR": { shift: 108 } },
+  84: { "COMMA": { reduce: 14 }, "PLUS": { shift: 109 }, "QUESTION": { shift: 110 }, "RANGLE": { reduce: 14 }, "STAR": { shift: 111 } },
+  85: { "(": { shift: 114 }, "IDENT": { shift: 115 }, "TERM_LIT": { shift: 116 } },
+  86: { ")": { shift: 117 }, "|": { shift: 118 } },
+  87: { ")": { reduce: 41 }, "|": { reduce: 41 } },
+  88: { ")": { reduce: 43 }, "|": { reduce: 43 } },
+  89: { ")": { reduce: 44 }, "|": { reduce: 44 } },
+  90: { "(": { reduce: 24 }, ".": { reduce: 24 }, "ACTION": { reduce: 24 }, "IDENT": { reduce: 24 }, "LABEL": { reduce: 24 }, "NL": { reduce: 24 }, "TERM_LIT": { reduce: 24 }, "|": { reduce: 24 }, "~": { reduce: 24 }, "": { reduce: 24 } },
+  91: { "(": { reduce: 26 }, ".": { reduce: 26 }, "ACTION": { reduce: 26 }, "IDENT": { reduce: 26 }, "LABEL": { reduce: 26 }, "NL": { reduce: 26 }, "TERM_LIT": { reduce: 26 }, "|": { reduce: 26 }, "~": { reduce: 26 }, "": { reduce: 26 } },
+  92: { "(": { reduce: 25 }, ".": { reduce: 25 }, "ACTION": { reduce: 25 }, "IDENT": { reduce: 25 }, "LABEL": { reduce: 25 }, "NL": { reduce: 25 }, "TERM_LIT": { reduce: 25 }, "|": { reduce: 25 }, "~": { reduce: 25 }, "": { reduce: 25 } },
+  93: { "(": { shift: 37 }, ")": { reduce: 36 }, ".": { shift: 38 }, "IDENT": { shift: 39 }, "TERM_LIT": { shift: 40 }, "|": { reduce: 36 }, "~": { shift: 41 } },
+  94: { "(": { reduce: 23 }, ")": { reduce: 23 }, ".": { reduce: 23 }, "IDENT": { reduce: 23 }, "PLUS": { shift: 119 }, "QUESTION": { shift: 120 }, "STAR": { shift: 121 }, "TERM_LIT": { reduce: 23 }, "|": { reduce: 23 }, "~": { reduce: 23 } },
+  95: { "(": { reduce: 22 }, ")": { reduce: 22 }, ".": { reduce: 22 }, "IDENT": { reduce: 22 }, "TERM_LIT": { reduce: 22 }, "|": { reduce: 22 }, "~": { reduce: 22 } },
+  96: { "COMMA": { shift: 98 }, "RANGLE": { shift: 122 } },
+  97: { ")": { shift: 123 }, "|": { shift: 118 } },
+  98: { "(": { shift: 81 }, ".": { shift: 82 }, "IDENT": { shift: 83 }, "TERM_LIT": { shift: 84 }, "~": { shift: 85 } },
+  99: { "(": { reduce: 21 }, ".": { reduce: 21 }, "ACTION": { reduce: 21 }, "IDENT": { reduce: 21 }, "LABEL": { reduce: 21 }, "NL": { reduce: 21 }, "TERM_LIT": { reduce: 21 }, "|": { reduce: 21 }, "~": { reduce: 21 }, "": { reduce: 21 } },
+  100: { "COMMA": { reduce: 28 }, "RANGLE": { reduce: 28 } },
+  101: { "COMMA": { reduce: 30 }, "RANGLE": { reduce: 30 } },
+  102: { "COMMA": { reduce: 29 }, "RANGLE": { reduce: 29 } },
+  103: { ")": { shift: 125 }, "|": { shift: 61 } },
+  104: { "(": { shift: 81 }, ".": { shift: 82 }, "IDENT": { shift: 83 }, "TERM_LIT": { shift: 84 }, "~": { shift: 85 } },
+  105: { "(": { shift: 81 }, ".": { shift: 82 }, "IDENT": { shift: 83 }, "TERM_LIT": { shift: 84 }, "~": { shift: 85 } },
+  106: { "COMMA": { reduce: 15 }, "RANGLE": { reduce: 15 } },
+  107: { "COMMA": { reduce: 19 }, "RANGLE": { reduce: 19 } },
+  108: { "COMMA": { reduce: 17 }, "RANGLE": { reduce: 17 } },
+  109: { "COMMA": { reduce: 16 }, "RANGLE": { reduce: 16 } },
+  110: { "COMMA": { reduce: 20 }, "RANGLE": { reduce: 20 } },
+  111: { "COMMA": { reduce: 18 }, "RANGLE": { reduce: 18 } },
+  112: { "COMMA": { reduce: 38 }, "PLUS": { reduce: 38 }, "QUESTION": { reduce: 38 }, "RANGLE": { reduce: 38 }, "STAR": { reduce: 38 } },
+  113: { "COMMA": { reduce: 39 }, "PLUS": { reduce: 39 }, "QUESTION": { reduce: 39 }, "RANGLE": { reduce: 39 }, "STAR": { reduce: 39 } },
+  114: { "IDENT": { shift: 88 }, "TERM_LIT": { shift: 89 } },
+  115: { "COMMA": { reduce: 43 }, "PLUS": { reduce: 43 }, "QUESTION": { reduce: 43 }, "RANGLE": { reduce: 43 }, "STAR": { reduce: 43 } },
+  116: { "COMMA": { reduce: 44 }, "PLUS": { reduce: 44 }, "QUESTION": { reduce: 44 }, "RANGLE": { reduce: 44 }, "STAR": { reduce: 44 } },
+  117: { "(": { reduce: 40 }, ".": { reduce: 40 }, "ACTION": { reduce: 40 }, "IDENT": { reduce: 40 }, "LABEL": { reduce: 40 }, "NL": { reduce: 40 }, "PLUS": { reduce: 40 }, "QUESTION": { reduce: 40 }, "STAR": { reduce: 40 }, "TERM_LIT": { reduce: 40 }, "|": { reduce: 40 }, "~": { reduce: 40 }, "": { reduce: 40 } },
+  118: { "IDENT": { shift: 88 }, "TERM_LIT": { shift: 89 } },
+  119: { "(": { reduce: 24 }, ")": { reduce: 24 }, ".": { reduce: 24 }, "IDENT": { reduce: 24 }, "TERM_LIT": { reduce: 24 }, "|": { reduce: 24 }, "~": { reduce: 24 } },
+  120: { "(": { reduce: 26 }, ")": { reduce: 26 }, ".": { reduce: 26 }, "IDENT": { reduce: 26 }, "TERM_LIT": { reduce: 26 }, "|": { reduce: 26 }, "~": { reduce: 26 } },
+  121: { "(": { reduce: 25 }, ")": { reduce: 25 }, ".": { reduce: 25 }, "IDENT": { reduce: 25 }, "TERM_LIT": { reduce: 25 }, "|": { reduce: 25 }, "~": { reduce: 25 } },
+  122: { "(": { reduce: 21 }, ")": { reduce: 21 }, ".": { reduce: 21 }, "IDENT": { reduce: 21 }, "TERM_LIT": { reduce: 21 }, "|": { reduce: 21 }, "~": { reduce: 21 } },
+  123: { "(": { reduce: 40 }, ")": { reduce: 40 }, ".": { reduce: 40 }, "IDENT": { reduce: 40 }, "PLUS": { reduce: 40 }, "QUESTION": { reduce: 40 }, "STAR": { reduce: 40 }, "TERM_LIT": { reduce: 40 }, "|": { reduce: 40 }, "~": { reduce: 40 } },
+  124: { "COMMA": { reduce: 32 }, "RANGLE": { reduce: 32 } },
+  125: { "COMMA": { reduce: 23 }, "PLUS": { shift: 130 }, "QUESTION": { shift: 131 }, "RANGLE": { reduce: 23 }, "STAR": { shift: 132 } },
+  126: { "COMMA": { reduce: 22 }, "RANGLE": { reduce: 22 } },
+  127: { "COMMA": { shift: 98 }, "RANGLE": { shift: 133 } },
+  128: { ")": { shift: 134 }, "|": { shift: 118 } },
+  129: { ")": { reduce: 42 }, "|": { reduce: 42 } },
+  130: { "COMMA": { reduce: 24 }, "RANGLE": { reduce: 24 } },
+  131: { "COMMA": { reduce: 26 }, "RANGLE": { reduce: 26 } },
+  132: { "COMMA": { reduce: 25 }, "RANGLE": { reduce: 25 } },
+  133: { "COMMA": { reduce: 21 }, "RANGLE": { reduce: 21 } },
+  134: { "COMMA": { reduce: 40 }, "PLUS": { reduce: 40 }, "QUESTION": { reduce: 40 }, "RANGLE": { reduce: 40 }, "STAR": { reduce: 40 } },
 };
 
 
 const GOTO: Record<number, Record<number, number>> = {
   0: { 0: 1, 2: 2, 1: 3 },
   6: { 2: 9 },
-  11: { 4: 13, 3: 14, 6: 15, 5: 16 },
-  12: { 4: 13, 3: 20, 6: 15, 5: 16 },
-  16: { 8: 22, 9: 23, 6: 24 },
-  17: { 10: 27, 6: 28, 5: 29 },
-  21: { 4: 41, 6: 15, 5: 16 },
-  23: { 8: 42 },
-  29: { 6: 45 },
-  30: { 10: 46, 6: 28, 5: 29 },
-  33: { 6: 55 },
-  34: { 7: 56, 6: 57 },
-  44: { 6: 28, 5: 64 },
-  47: { 6: 66 },
-  48: { 7: 67, 6: 57 },
-  58: { 10: 70, 6: 28, 5: 29 },
-  64: { 6: 45 },
-  68: { 6: 83 },
-  71: { 6: 85 },
-  72: { 7: 86, 6: 57 },
+  11: { 4: 13, 11: 14, 3: 15, 6: 16, 5: 17 },
+  12: { 4: 13, 11: 14, 3: 23, 6: 16, 5: 17 },
+  17: { 8: 28, 11: 14, 9: 29, 6: 30 },
+  18: { 11: 33, 10: 34, 6: 35, 5: 36 },
+  22: { 12: 50, 14: 51 },
+  27: { 4: 55, 11: 14, 6: 16, 5: 17 },
+  29: { 8: 56 },
+  36: { 11: 33, 6: 62 },
+  37: { 11: 33, 10: 63, 6: 35, 5: 36 },
+  41: { 12: 72, 14: 73 },
+  42: { 11: 14, 6: 77 },
+  43: { 7: 78, 11: 79, 6: 80 },
+  52: { 13: 86, 14: 87 },
+  61: { 11: 33, 6: 35, 5: 93 },
+  64: { 11: 33, 6: 95 },
+  65: { 7: 96, 11: 79, 6: 80 },
+  74: { 13: 97, 14: 87 },
+  81: { 11: 33, 10: 103, 6: 35, 5: 36 },
+  85: { 12: 112, 14: 113 },
+  93: { 11: 33, 6: 62 },
+  98: { 11: 79, 6: 124 },
+  104: { 11: 79, 6: 126 },
+  105: { 7: 127, 11: 79, 6: 80 },
+  114: { 13: 128, 14: 87 },
+  118: { 14: 129 },
 };
 
 
@@ -153,12 +204,24 @@ const PRODS: { lhs: number; len: number }[] = [
   { lhs: 6, len: 4 }, // 24
   { lhs: 6, len: 4 }, // 25
   { lhs: 6, len: 4 }, // 26
-  { lhs: 7, len: 1 }, // 27
-  { lhs: 7, len: 3 }, // 28
-  { lhs: 8, len: 1 }, // 29
-  { lhs: 9, len: 1 }, // 30
-  { lhs: 10, len: 1 }, // 31
-  { lhs: 10, len: 3 }, // 32
+  { lhs: 6, len: 1 }, // 27
+  { lhs: 6, len: 2 }, // 28
+  { lhs: 6, len: 2 }, // 29
+  { lhs: 6, len: 2 }, // 30
+  { lhs: 7, len: 1 }, // 31
+  { lhs: 7, len: 3 }, // 32
+  { lhs: 8, len: 1 }, // 33
+  { lhs: 9, len: 1 }, // 34
+  { lhs: 10, len: 1 }, // 35
+  { lhs: 10, len: 3 }, // 36
+  { lhs: 11, len: 1 }, // 37
+  { lhs: 11, len: 2 }, // 38
+  { lhs: 12, len: 1 }, // 39
+  { lhs: 12, len: 3 }, // 40
+  { lhs: 13, len: 1 }, // 41
+  { lhs: 13, len: 3 }, // 42
+  { lhs: 14, len: 1 }, // 43
+  { lhs: 14, len: 1 }, // 44
 ];
 
 type Act = { shift: number } | { reduce: number } | { accept: true };
@@ -236,6 +299,18 @@ export interface Visitor<T> {
   rule30(children: T[]): T;
   rule31(children: T[]): T;
   rule32(children: T[]): T;
+  rule33(children: T[]): T;
+  rule34(children: T[]): T;
+  rule35(children: T[]): T;
+  rule36(children: T[]): T;
+  rule37(children: T[]): T;
+  rule38(children: T[]): T;
+  rule39(children: T[]): T;
+  rule40(children: T[]): T;
+  rule41(children: T[]): T;
+  rule42(children: T[]): T;
+  rule43(children: T[]): T;
+  rule44(children: T[]): T;
 }
 
 export function fold<T>(node: CstNode, v: Visitor<T>): T {
@@ -275,6 +350,18 @@ export function fold<T>(node: CstNode, v: Visitor<T>): T {
     case 30: return v.rule30(kids);
     case 31: return v.rule31(kids);
     case 32: return v.rule32(kids);
+    case 33: return v.rule33(kids);
+    case 34: return v.rule34(kids);
+    case 35: return v.rule35(kids);
+    case 36: return v.rule36(kids);
+    case 37: return v.rule37(kids);
+    case 38: return v.rule38(kids);
+    case 39: return v.rule39(kids);
+    case 40: return v.rule40(kids);
+    case 41: return v.rule41(kids);
+    case 42: return v.rule42(kids);
+    case 43: return v.rule43(kids);
+    case 44: return v.rule44(kids);
     default:
       throw new Error(`unknown rule ${node.rule}`);
   }

@@ -142,6 +142,8 @@ flatten = case _ of
   Opt s -> flatten s
   Macro n _ -> { name: n, terminal: false }
   Group _ -> { name: "(group)", terminal: false } -- unreachable: groups are hoisted before the ATN is built
+  Any -> { name: "(any)", terminal: true } -- unreachable: `.` is lowered before the ATN is built
+  Not _ -> { name: "(not)", terminal: true } -- unreachable: `~` is lowered before the ATN is built
 
 lookup :: String -> Map String Int -> Int
 lookup k m = fromMaybe 0 (Map.lookup k m)
