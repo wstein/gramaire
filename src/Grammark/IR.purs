@@ -34,8 +34,12 @@ module Grammark.IR
   , IRPrec
   , IRRecovery
   , IRGlr
+  , IRLexer
+  , IRTokenClass
+  , IRPattern(..)
   , irVersion
   , buildIR
+  , buildIRWithTokens
   , toJson
   , serialize
   ) where
@@ -53,6 +57,7 @@ import Data.Set as Set
 import Data.Tuple (Tuple(..))
 import Grammark.Json (Json(..), stringify)
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
+import Grammark.Tokens (TokenDef, TokenPattern(..))
 import Grammark.Table (Action(..), Conflict(..), GSym(..), Method(..), ParseTable, buildTablesFor)
 
 -- | The current IR schema version. `0` means draft/unstable: files at this
@@ -66,7 +71,37 @@ type IR =
   , grammar :: IRGrammar
   , tables :: IRTables
   , conflicts :: Array IRConflict
+  , lexer :: Maybe IRLexer
   }
+
+-- | A grammar's lexis (lexer-spec §7): the scan mode, the class terminal ids in
+-- | declaration order (which resolves M2 priority ties), and a per-class
+-- | definition. Absent (`Nothing`) when the grammar brings its own lexer.
+type IRLexer =
+  { mode :: String -- "regular" | "external"
+  , order :: Array Int
+  , classes :: Array IRTokenClass
+  }
+
+-- | One token class's lexis: the terminal id it defines, its pattern, whether it
+-- | is skipped (extras), and an optional explicit priority.
+type IRTokenClass =
+  { terminal :: Int
+  , pattern :: IRPattern
+  , skip :: Boolean
+  , prec :: Maybe Int
+  }
+
+-- | A token pattern: a regular expression (its source) or an exact literal.
+data IRPattern
+  = IRRegex String
+  | IRPatLiteral String
+
+derive instance eqIRPattern :: Eq IRPattern
+
+instance showIRPattern :: Show IRPattern where
+  show (IRRegex s) = "IRRegex " <> show s
+  show (IRPatLiteral s) = "IRPatLiteral " <> show s
 
 -- | The language definition: symbols, rules, and (eventually) precedence.
 -- |
@@ -215,6 +250,7 @@ buildIR method name g@(Grammar rules) =
             }
         , tables: assembleTables (algorithmName method) termId ntId table
         , conflicts: []
+        , lexer: Nothing
         }
   where
   ntNames :: Array String
@@ -375,13 +411,38 @@ assembleTables algorithm termId ntId table =
 -- | The IR as a `Json` value, ready for canonical serialization.
 toJson :: IR -> Json
 toJson ir =
-  JObject
+  JObject $
     [ Tuple "irVersion" (JInt ir.irVersion)
     , Tuple "grammar" (grammarJson ir.grammar)
     , Tuple "tables" (tablesJson ir.tables)
     , Tuple "conflicts" (JArray (map conflictJson ir.conflicts))
     ]
+      <> case ir.lexer of
+        Nothing -> []
+        Just lx -> [ Tuple "lexer" (lexerJson lx) ]
   where
+  lexerJson lx =
+    JObject
+      [ Tuple "mode" (JString lx.mode)
+      , Tuple "order" (JArray (map JInt lx.order))
+      , Tuple "classes" (JArray (map classJson lx.classes))
+      ]
+
+  classJson c =
+    JObject $
+      [ Tuple "terminal" (JInt c.terminal)
+      , Tuple "pattern" (patternJson c.pattern)
+      ]
+        <> (if c.skip then [ Tuple "skip" (JBool true) ] else [])
+        <>
+          ( case c.prec of
+              Nothing -> []
+              Just p -> [ Tuple "prec" (JInt p) ]
+          )
+
+  patternJson = case _ of
+    IRRegex src -> JObject [ Tuple "regex" (JString src) ]
+    IRPatLiteral s -> JObject [ Tuple "literal" (JString s) ]
   grammarJson g =
     JObject $
       [ Tuple "name" (JString g.name)
@@ -491,5 +552,60 @@ toJson ir =
       ]
 
 -- | Build and canonically serialize in one step.
+-- | Build the IR and attach the grammar's lexis (lexer-spec §7). Token classes
+-- | not used in any production (the `%skip` ones — whitespace, comments) get
+-- | fresh terminal ids appended; `%skip` terminals populate `grammar.extras`.
+-- | With no token definitions this is exactly `buildIR`.
+buildIRWithTokens :: Array TokenDef -> Method -> String -> Grammar -> Either (Array Conflict) IR
+buildIRWithTokens defs method name g = case buildIR method name g of
+  Left conflicts -> Left conflicts
+  Right ir
+    | Array.null defs -> Right ir
+    | otherwise -> Right (attachLexer defs ir)
+
+attachLexer :: Array TokenDef -> IR -> IR
+attachLexer defs ir =
+  ir
+    { grammar = ir.grammar { terminals = ir.grammar.terminals <> newTerminals, extras = extras }
+    , lexer = Just { mode: "regular", order, classes }
+    }
+  where
+  existing :: Map String Int
+  existing = Map.fromFoldable (Array.mapMaybe classNameId ir.grammar.terminals)
+
+  maxId :: Int
+  maxId = foldl max (-1) (map terminalIdOf ir.grammar.terminals)
+
+  -- token classes the productions never mention need their own ids
+  newDefs = Array.filter (\d -> not (Map.member d.name existing)) defs
+  newTerminals = Array.mapWithIndex (\i d -> IRClass (maxId + 1 + i) d.name) newDefs
+
+  nameId :: Map String Int
+  nameId =
+    Map.union existing
+      (Map.fromFoldable (Array.mapWithIndex (\i d -> Tuple d.name (maxId + 1 + i)) newDefs))
+
+  classes = Array.mapMaybe classFor defs
+  classFor d = map (\tid -> { terminal: tid, pattern: patternOf d.pattern, skip: d.skip, prec: d.prec })
+    (Map.lookup d.name nameId)
+
+  order = Array.mapMaybe (\d -> Map.lookup d.name nameId) defs
+  extras = Array.mapMaybe (\d -> if d.skip then Map.lookup d.name nameId else Nothing) defs
+
+patternOf :: TokenPattern -> IRPattern
+patternOf = case _ of
+  Exact s -> IRPatLiteral s
+  Regex src _ -> IRRegex src
+
+classNameId :: IRTerminal -> Maybe (Tuple String Int)
+classNameId = case _ of
+  IRClass i n -> Just (Tuple n i)
+  IRLiteral _ _ -> Nothing
+
+terminalIdOf :: IRTerminal -> Int
+terminalIdOf = case _ of
+  IRLiteral i _ -> i
+  IRClass i _ -> i
+
 serialize :: Method -> String -> Grammar -> Either (Array Conflict) String
 serialize method name g = map (stringify <<< toJson) (buildIR method name g)

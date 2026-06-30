@@ -17,7 +17,7 @@ import Data.Array (find)
 import Data.Either (Either(..), note)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..), snd)
 import Grammark.IR
@@ -27,11 +27,14 @@ import Grammark.IR
   , IRConflict
   , IRGotoEntry
   , IRGrammar
+  , IRLexer
   , IROn(..)
+  , IRPattern(..)
   , IRRef(..)
   , IRRule
   , IRTables
   , IRTerminal(..)
+  , IRTokenClass
   )
 import Grammark.Json (Json(..))
 import Grammark.Table (Action(..), GSym(..), ParseTable, Prod)
@@ -45,7 +48,49 @@ decode j = do
   grammar <- field o "grammar" >>= decodeGrammar
   tables <- field o "tables" >>= decodeTables
   conflicts <- field o "conflicts" >>= arr >>= traverse decodeConflict
-  pure { irVersion, grammar, tables, conflicts }
+  lexer <- optLexer o
+  pure { irVersion, grammar, tables, conflicts, lexer }
+
+optLexer :: Array (Tuple String Json) -> Either String (Maybe IRLexer)
+optLexer kvs = case map snd (find (\(Tuple k _) -> k == "lexer") kvs) of
+  Nothing -> Right Nothing
+  Just v -> Just <$> decodeLexer v
+
+decodeLexer :: Json -> Either String IRLexer
+decodeLexer j = do
+  o <- obj j
+  mode <- field o "mode" >>= str
+  order <- optArr o "order" int
+  classes <- field o "classes" >>= arr >>= traverse decodeClass
+  pure { mode, order, classes }
+
+decodeClass :: Json -> Either String IRTokenClass
+decodeClass j = do
+  o <- obj j
+  terminal <- field o "terminal" >>= int
+  pattern <- field o "pattern" >>= decodePattern
+  skipM <- optBool o "skip"
+  prec <- optInt o "prec"
+  pure { terminal, pattern, skip: fromMaybe false skipM, prec }
+
+decodePattern :: Json -> Either String IRPattern
+decodePattern j = do
+  o <- obj j
+  case map snd (find (\(Tuple k _) -> k == "regex") o) of
+    Just v -> IRRegex <$> str v
+    Nothing -> case map snd (find (\(Tuple k _) -> k == "literal") o) of
+      Just v -> IRPatLiteral <$> str v
+      Nothing -> Left "token pattern must carry `regex` or `literal`"
+
+optBool :: Array (Tuple String Json) -> String -> Either String (Maybe Boolean)
+optBool kvs k = case map snd (find (\(Tuple key _) -> key == k) kvs) of
+  Nothing -> Right Nothing
+  Just v -> Just <$> bool v
+
+optInt :: Array (Tuple String Json) -> String -> Either String (Maybe Int)
+optInt kvs k = case map snd (find (\(Tuple key _) -> key == k) kvs) of
+  Nothing -> Right Nothing
+  Just v -> Just <$> int v
 
 decodeGrammar :: Json -> Either String IRGrammar
 decodeGrammar j = do

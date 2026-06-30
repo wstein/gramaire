@@ -21,6 +21,7 @@ import Test.FirstFollow as FirstFollow
 import Test.Glr as Glr
 import Test.IR as IR
 import Test.IRDecode as IRDecode
+import Test.IRLexer as IRLexer
 import Test.Json as Json
 import Test.Lexer as Lexer
 import Test.Parser as Parser
@@ -57,6 +58,8 @@ main = do
   Json.tests
   log "Test.IRDecode"
   IRDecode.tests
+  log "Test.IRLexer"
+  IRLexer.tests
   log "Test.Backend.Ebnf"
   BackendEbnf.tests
   log "Test.Backend.Dot"

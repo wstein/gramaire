@@ -40,16 +40,17 @@ type TokenDef =
   }
 
 -- | A token's pattern: an exact string (a literal class) or a regular
--- | expression.
+-- | expression — kept as both its source (for the IR / backends) and its
+-- | parsed form (for the scanner).
 data TokenPattern
   = Exact String
-  | Regex Rx
+  | Regex String Rx
 
 derive instance eqTokenPattern :: Eq TokenPattern
 
 instance showTokenPattern :: Show TokenPattern where
   show (Exact s) = "Exact " <> show s
-  show (Regex r) = "Regex " <> show r
+  show (Regex src r) = "Regex " <> show src <> " " <> show r
 
 -- | Parse the content of an `lr tokens` block (the lines between the fences).
 -- | The first error stops the parse and names the offending line.
@@ -100,7 +101,7 @@ parseDefinition s = case Array.head (toCharArray s) of
     Tuple src rest <- readDelimited '/' false (String.drop 1 s)
     case parseRegex src of
       Left e -> Left ("invalid pattern /" <> src <> "/: " <> e)
-      Right rx -> Right (Tuple (Regex rx) rest)
+      Right rx -> Right (Tuple (Regex src rx) rest)
   _ -> Left ("token definition must be a \"string\" or /regex/: " <> s)
 
 -- Read up to the next unescaped `delim`. With `unescape`, resolve `\x` to its

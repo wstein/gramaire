@@ -11,9 +11,48 @@
     "grammar": { "$ref": "#/$defs/grammar" },
     "tables": { "$ref": "#/$defs/tables" },
     "conflicts": { "type": "array", "items": { "$ref": "#/$defs/conflict" } },
-    "diagnostics": { "$ref": "#/$defs/diagnostics" }
+    "diagnostics": { "$ref": "#/$defs/diagnostics" },
+    "lexer": { "$ref": "#/$defs/lexer" }
   },
   "$defs": {
+    "lexer": {
+      "description": "The grammar's lexis (lexer-spec §7). Absent when the grammar brings its own lexer. `order` lists class terminal ids in declaration order, which resolves maximal-munch priority ties.",
+      "type": "object",
+      "required": ["mode", "order", "classes"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["regular", "external"] },
+        "order": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+        "classes": { "type": "array", "items": { "$ref": "#/$defs/tokenClass" } }
+      }
+    },
+    "tokenClass": {
+      "description": "One token class's lexis: the terminal id it defines, its pattern, whether it is skipped (extras), and an optional explicit priority.",
+      "type": "object",
+      "required": ["terminal", "pattern"],
+      "additionalProperties": false,
+      "properties": {
+        "terminal": { "type": "integer", "minimum": 0 },
+        "pattern": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["regex"],
+              "additionalProperties": false,
+              "properties": { "regex": { "type": "string" } }
+            },
+            {
+              "type": "object",
+              "required": ["literal"],
+              "additionalProperties": false,
+              "properties": { "literal": { "type": "string" } }
+            }
+          ]
+        },
+        "skip": { "type": "boolean" },
+        "prec": { "type": "integer" }
+      }
+    },
     "grammar": {
       "type": "object",
       "required": ["name", "start", "terminals", "nonterminals", "rules", "precedence"],
