@@ -187,12 +187,21 @@ surface is reached by **conversion**, not syntax expansion (§4).
   `.gram.md`; the round trip `import → parse → IR → emit antlr → import` reaches
   a **fixed point**; predicates/actions are flagged and never leak into output.
 
-### Phase 4 — Adaptive lexer (optional, gated)
+### Phase 4 — Adaptive lexer (optional, gated) ✅ simulator
 
-- Port `LexerATNSimulator` so the _lexer_ can also be ATN-driven (modes,
-  channels, longest-match by simulation). Gramaire's scanner is regex-DFA today;
-  this is only needed for grammars that want lexer modes / predicates. Keep it
-  behind a capability flag.
+- ✅ `Gramaire.Lexer.Atn` ports `LexerATNSimulator`: every token class and
+  implicit literal is compiled to a character-level NFA by Thompson construction
+  over `Rx`, unioned under one start state, and tokenizing is a subset-of-states
+  simulation that records the furthest accepting position (maximal munch) with
+  the scanner's exact priority tie-break; unmatched input → `ERROR` + advance.
+- ✅ **Test (`Test.LexerAtn`):** the ATN lexer tokenizes **identically** to the
+  regex-DFA scanner (`Gramaire.Scanner`) on the capture-free `calc`/`json` corpus
+  (escaped strings, `-12.5e+3`, keyword-vs-identifier munch).
+- **Gated:** nothing wires it into the production path (still the regex scanner);
+  it carries the machinery a future lexer-mode / lexer-predicate feature needs.
+- ⏳ **Deferred:** emitted-text **captures** (`( … )`) — this lexer takes the
+  whole lexeme as the token text — and actual modes/channels (which need grammar
+  syntax Gramaire has deliberately not grown).
 
 ### Phase 5 — IR + codegen
 
