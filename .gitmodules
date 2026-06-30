@@ -1,0 +1,4 @@
+[submodule "vendor/antlr-ng"]
+	path = vendor/antlr-ng
+	url = https://github.com/antlr-ng/antlr-ng
+	shallow = true
