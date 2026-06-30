@@ -31,6 +31,7 @@ import Grammark.Backend (Output)
 import Grammark.Backend.Registry (backends, findBackend)
 import Grammark.Conformance (Descriptor, calcDescriptor, lrDescriptor, runSuites, summarize)
 import Grammark.Diagnostics (renderConflicts)
+import Grammark.Glr (explain)
 import Grammark.IR (buildIR)
 import Grammark.Lr (parse)
 import Grammark.Syntax (Grammar)
@@ -93,6 +94,7 @@ main = do
     Just { head: cmd, tail } -> case cmd of
       "emit" -> runEmit tail
       "conformance" -> runConformance
+      "explain-conflict" -> runExplain tail
       "help" -> usage
       "--help" -> usage
       "-h" -> usage
@@ -155,6 +157,19 @@ loadDescriptor path mk = do
       Left _ -> Nothing
       Right g -> Just (mk g)
 
+-- Classify a grammar's conflicts (LALR artifact vs genuine) by comparing the
+-- three construction methods, via the GLR explainer.
+runExplain :: Array String -> Effect Unit
+runExplain args = case Array.head args of
+  Nothing -> die "explain-conflict: no grammar file given"
+  Just file -> do
+    attempt <- try (readTextFile UTF8 file)
+    case attempt of
+      Left err -> die ("explain-conflict: cannot read " <> file <> ": " <> message err)
+      Right md -> case parse md of
+        Left pe -> die ("explain-conflict: parse error in " <> file <> ": " <> pe)
+        Right g -> log (explain g)
+
 die :: String -> Effect Unit
 die msg = do
   error ("grammark: " <> msg)
@@ -172,9 +187,11 @@ usage = for_ lines log
     , "Usage:"
     , "  grammark emit <file.gram.md> [--backend <name>] [--out <dir>]"
     , "  grammark conformance"
+    , "  grammark explain-conflict <file.gram.md>"
     , ""
     , "Backends: " <> backendNames
     , ""
     , "With no --out, the artifact is written to stdout."
-    , "conformance runs the differential oracle over the built-in lr corpus."
+    , "conformance runs the differential oracle over the built-in corpora."
+    , "explain-conflict classifies a grammar's conflicts: LALR artifact vs genuine."
     ]
