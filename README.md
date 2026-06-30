@@ -118,6 +118,9 @@ node bin/gramark.mjs emit examples/json.grmk.md
 # render the grammar as EBNF via the `ebnf` format backend
 node bin/gramark.mjs emit examples/calc.grmk.md --backend ebnf
 
+# convert the grammar to an ANTLR4 `.g4` (parser rules + lexer rules)
+node bin/gramark.mjs emit examples/json.grmk.md --backend antlr
+
 # write the artifact into a directory instead of stdout
 node bin/gramark.mjs emit examples/json.grmk.md --backend ebnf --out gen/
 
