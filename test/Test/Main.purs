@@ -24,6 +24,7 @@ import Test.IRDecode as IRDecode
 import Test.IRLexer as IRLexer
 import Test.Json as Json
 import Test.Lexer as Lexer
+import Test.LexerSelfHost as LexerSelfHost
 import Test.Parser as Parser
 import Test.Regex as Regex
 import Test.Scanner as Scanner
@@ -38,6 +39,8 @@ main = do
   Table.tests
   log "Test.Lexer"
   Lexer.tests
+  log "Test.LexerSelfHost"
+  LexerSelfHost.tests
   log "Test.Parser"
   Parser.tests
   log "Test.Regex"
