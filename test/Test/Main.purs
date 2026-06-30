@@ -9,6 +9,7 @@ import Effect.Console (log)
 import Test.Backend.Dot as BackendDot
 import Test.Backend.Antlr as BackendAntlr
 import Test.Backend.Ebnf as BackendEbnf
+import Test.Backend.Js as BackendJs
 import Test.Backend.Registry as BackendRegistry
 import Test.Backend.Ts as BackendTs
 import Test.Cli as Cli
@@ -42,6 +43,7 @@ import Test.SelfHost as SelfHost
 import Test.Strip as Strip
 import Test.Table as Table
 import Test.Tokens as Tokens
+import Test.Transform as Transform
 
 main :: Effect Unit
 main = do
@@ -85,6 +87,8 @@ main = do
   BackendEbnf.tests
   log "Test.Backend.Antlr"
   BackendAntlr.tests
+  log "Test.Backend.Js"
+  BackendJs.tests
   log "Test.Backend.Dot"
   BackendDot.tests
   log "Test.Backend.Registry"
@@ -117,4 +121,6 @@ main = do
   Desugar.tests
   log "Test.Ll"
   Ll.tests
+  log "Test.Transform"
+  Transform.tests
   log "all suites passed"
