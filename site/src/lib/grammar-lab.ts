@@ -1,5 +1,5 @@
 export interface GrammarSymbol {
-  kind: 'nonterminal' | 'terminal' | 'token';
+  kind: "nonterminal" | "terminal" | "token";
   value: string;
 }
 
@@ -33,25 +33,25 @@ export function formatEvaluationReport(result: EvaluationResult): string {
   const parts = [result.message];
 
   if (result.inputTokens.length > 0) {
-    parts.push(`Tokens: ${result.inputTokens.join(', ')}`);
+    parts.push(`Tokens: ${result.inputTokens.join(", ")}`);
   }
 
   if (result.trace.length > 0) {
-    parts.push('Trace:');
+    parts.push("Trace:");
     parts.push(...result.trace.map((entry) => `- ${entry}`));
   }
 
   if (result.diagnostics.length > 0) {
-    parts.push('Diagnostics:');
+    parts.push("Diagnostics:");
     parts.push(...result.diagnostics.map((entry) => `- ${entry}`));
   }
 
-  return parts.join('\n');
+  return parts.join("\n");
 }
 
 export interface ParseIssue {
   message: string;
-  severity: 'error' | 'warning';
+  severity: "error" | "warning";
 }
 
 interface EarleyState {
@@ -62,7 +62,7 @@ interface EarleyState {
 }
 
 interface Token {
-  kind: 'number' | 'identifier' | 'punctuation' | 'whitespace';
+  kind: "number" | "identifier" | "punctuation" | "whitespace";
   value: string;
 }
 
@@ -81,7 +81,7 @@ Term
 \`\`\`
 `;
 
-const DEFAULT_INPUT = '4 + 7';
+const DEFAULT_INPUT = "4 + 7";
 
 export function getDefaultGrammar(): string {
   return DEFAULT_GRAMMAR;
@@ -91,23 +91,29 @@ export function getDefaultInput(): string {
   return DEFAULT_INPUT;
 }
 
-export function parseMarkdownGrammar(source: string): { grammar: Grammar | null; issues: ParseIssue[] } {
+export function parseMarkdownGrammar(source: string): {
+  grammar: Grammar | null;
+  issues: ParseIssue[];
+} {
   const lines = source.split(/\r?\n/);
   const rules = new Map<string, GrammarRule>();
   const issues: ParseIssue[] = [];
-  let currentRule: string | null = null;
   let currentBlock: string[] = [];
   let inFence = false;
+  let currentRule: string | null = null;
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
-    if (line.startsWith('```')) {
+
+    if (line.startsWith("```")) {
       if (!inFence) {
         inFence = true;
         currentBlock = [];
       } else {
-        const block = currentBlock.join('\n');
-        parseRuleBlock(block, rules, issues);
+        const block = currentBlock.join("\n");
+        if (looksLikeGrammarBlock(block)) {
+          parseRuleBlock(block, rules, issues, currentRule);
+        }
         currentBlock = [];
         inFence = false;
       }
@@ -119,7 +125,7 @@ export function parseMarkdownGrammar(source: string): { grammar: Grammar | null;
       continue;
     }
 
-    if (line.startsWith('## ')) {
+    if (line.startsWith("## ")) {
       currentRule = null;
       continue;
     }
@@ -130,29 +136,47 @@ export function parseMarkdownGrammar(source: string): { grammar: Grammar | null;
   }
 
   if (inFence) {
-    issues.push({ severity: 'error', message: 'Unterminated lr fence.' });
+    issues.push({ severity: "error", message: "Unterminated lr fence." });
   }
 
   if (rules.size === 0) {
-    issues.push({ severity: 'error', message: 'No lr grammar rules were found.' });
+    issues.push({
+      severity: "error",
+      message: "No lr grammar rules were found.",
+    });
   }
 
   const grammarRules = Array.from(rules.values());
-  const startSymbol = grammarRules[0]?.name ?? 'Start';
+  const startSymbol = grammarRules[0]?.name ?? "Start";
 
   return {
-    grammar: rules.size > 0
-      ? {
-          name: 'Lab Grammar',
-          startSymbol,
-          rules: grammarRules,
-        }
-      : null,
+    grammar:
+      rules.size > 0
+        ? {
+            name: "Lab Grammar",
+            startSymbol,
+            rules: grammarRules,
+          }
+        : null,
     issues,
   };
 }
 
-function parseRuleBlock(block: string, rules: Map<string, GrammarRule>, issues: ParseIssue[]): void {
+function looksLikeGrammarBlock(block: string): boolean {
+  return block
+    .split(/\r?\n/)
+    .some(
+      (line) =>
+        /^\s*(:|\|)/.test(line) || /^[A-Za-z][A-Za-z0-9_-]*$/.test(line.trim()),
+    );
+}
+
+function parseRuleBlock(
+  block: string,
+  rules: Map<string, GrammarRule>,
+  issues: ParseIssue[],
+  currentRuleName: string | null,
+): void {
   const normalized = block
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -162,30 +186,62 @@ function parseRuleBlock(block: string, rules: Map<string, GrammarRule>, issues: 
     return;
   }
 
+  const productionLines = normalized.filter((line) => line !== "lr");
+  const matchedRuleNames = productionLines.filter(
+    (line) =>
+      /^[A-Za-z][A-Za-z0-9_-]*$/.test(line) &&
+      !line.startsWith(":") &&
+      !line.startsWith("|"),
+  );
+
   let currentRule: GrammarRule | null = null;
-  const productionLines = normalized.filter((line) => line !== 'lr');
+  const targetRuleName = currentRuleName ?? matchedRuleNames[0] ?? null;
 
   for (const line of productionLines) {
-    if (/^[A-Za-z][A-Za-z0-9_-]*$/.test(line) && !line.startsWith(':') && !line.startsWith('|')) {
-      currentRule = rules.get(line) ?? { name: line, productions: [] };
-      rules.set(line, currentRule);
+    if (
+      /^[A-Za-z][A-Za-z0-9_-]*$/.test(line) &&
+      !line.startsWith(":") &&
+      !line.startsWith("|")
+    ) {
+      const ruleName = line;
+      currentRule = rules.get(ruleName) ?? { name: ruleName, productions: [] };
+      rules.set(ruleName, currentRule);
       continue;
     }
 
     if (!currentRule) {
-      issues.push({ severity: 'error', message: 'Rule body found before a rule name.' });
+      if (targetRuleName) {
+        currentRule = rules.get(targetRuleName) ?? {
+          name: targetRuleName,
+          productions: [],
+        };
+        rules.set(targetRuleName, currentRule);
+      } else {
+        issues.push({
+          severity: "error",
+          message: "Rule body found before a rule name.",
+        });
+        continue;
+      }
+    }
+
+    if (line.startsWith(":")) {
+      const rhs = parseProductionBody(line.slice(1).trim());
+      currentRule.productions.push({
+        lhs: currentRule.name,
+        rhs,
+        source: line,
+      });
       continue;
     }
 
-    if (line.startsWith(':')) {
+    if (line.startsWith("|")) {
       const rhs = parseProductionBody(line.slice(1).trim());
-      currentRule.productions.push({ lhs: currentRule.name, rhs, source: line });
-      continue;
-    }
-
-    if (line.startsWith('|')) {
-      const rhs = parseProductionBody(line.slice(1).trim());
-      currentRule.productions.push({ lhs: currentRule.name, rhs, source: line });
+      currentRule.productions.push({
+        lhs: currentRule.name,
+        rhs,
+        source: line,
+      });
       continue;
     }
   }
@@ -196,33 +252,38 @@ function parseProductionBody(body: string): GrammarSymbol[] {
     return [];
   }
 
-  const tokens = body.match(/`[^`]+`|[A-Za-z_][A-Za-z0-9_-]*|[^\s]+/g) ?? [];
+  const trimmed = body.split(/\s+{%/)[0]?.trim() ?? body.trim();
+  const tokens = trimmed.match(/`[^`]+`|[A-Za-z_][A-Za-z0-9_-]*|[^\s]+/g) ?? [];
+
   return tokens.map((token) => {
-    if (token.startsWith('`') && token.endsWith('`')) {
-      return { kind: 'terminal', value: token.slice(1, -1) };
+    if (token.startsWith("`") && token.endsWith("`")) {
+      return { kind: "terminal", value: token.slice(1, -1) };
     }
 
     if (/^[A-Za-z_][A-Za-z0-9_-]*$/.test(token)) {
       if (/^[A-Z][A-Z0-9_]*$/.test(token)) {
-        return { kind: 'token', value: token };
+        return { kind: "token", value: token };
       }
-      return { kind: 'nonterminal', value: token };
+      return { kind: "nonterminal", value: token };
     }
 
-    if (token === 'PLUS') {
-      return { kind: 'terminal', value: '+' };
+    if (token === "PLUS") {
+      return { kind: "terminal", value: "+" };
     }
 
-    return { kind: 'terminal', value: token };
+    return { kind: "terminal", value: token };
   });
 }
 
-export function evaluateGrammar(grammar: Grammar | null, input: string): EvaluationResult {
+export function evaluateGrammar(
+  grammar: Grammar | null,
+  input: string,
+): EvaluationResult {
   if (!grammar) {
     return {
       success: false,
-      message: 'The grammar could not be parsed.',
-      diagnostics: ['Enter a valid grammar to begin.'],
+      message: "The grammar could not be parsed.",
+      diagnostics: ["Enter a valid grammar to begin."],
       trace: [],
       inputTokens: [],
       grammarRules: [],
@@ -230,18 +291,22 @@ export function evaluateGrammar(grammar: Grammar | null, input: string): Evaluat
   }
 
   const tokens = tokenize(input);
-  const inputTokens = tokens.filter((token) => token.kind !== 'whitespace').map((token) => token.value);
+  const inputTokens = tokens
+    .filter((token) => token.kind !== "whitespace")
+    .map((token) => token.value);
   const result = runEarley(grammar, tokens);
   const diagnostics = result.success
-    ? ['Accepted by the live evaluator.', `Parsed ${inputTokens.length} token(s).`]
-    : [
-        'The input did not match the grammar.',
-        ...result.trace.slice(0, 3),
-      ];
+    ? [
+        "Accepted by the live evaluator.",
+        `Parsed ${inputTokens.length} token(s).`,
+      ]
+    : ["The input did not match the grammar.", ...result.trace.slice(0, 3)];
 
   return {
     success: result.success,
-    message: result.success ? 'The input matched the grammar.' : 'The input did not match the grammar.',
+    message: result.success
+      ? "The input matched the grammar."
+      : "The input did not match the grammar.",
     diagnostics,
     trace: result.trace,
     inputTokens,
@@ -249,15 +314,26 @@ export function evaluateGrammar(grammar: Grammar | null, input: string): Evaluat
   };
 }
 
-function runEarley(grammar: Grammar, tokens: Token[]): { success: boolean; trace: string[] } {
-  const chart: EarleyState[][] = Array.from({ length: tokens.length + 1 }, () => []);
+function runEarley(
+  grammar: Grammar,
+  tokens: Token[],
+): { success: boolean; trace: string[] } {
+  const chart: EarleyState[][] = Array.from(
+    { length: tokens.length + 1 },
+    () => [],
+  );
   const startProduction: GrammarProduction = {
-    lhs: '$start',
-    rhs: [{ kind: 'nonterminal', value: grammar.startSymbol }],
+    lhs: "$start",
+    rhs: [{ kind: "nonterminal", value: grammar.startSymbol }],
     source: `start -> ${grammar.startSymbol}`,
   };
 
-  const initialState: EarleyState = { production: startProduction, dot: 0, start: 0, end: 0 };
+  const initialState: EarleyState = {
+    production: startProduction,
+    dot: 0,
+    start: 0,
+    end: 0,
+  };
   chart[0].push(initialState);
   const trace: string[] = [];
 
@@ -273,12 +349,18 @@ function runEarley(grammar: Grammar, tokens: Token[]): { success: boolean; trace
           const previousStates = chart[state.start];
           for (const previous of previousStates) {
             const symbol = previous.production.rhs[previous.dot];
-            if (symbol && symbol.kind === 'nonterminal' && symbol.value === completedSymbol) {
+            if (
+              symbol &&
+              symbol.kind === "nonterminal" &&
+              symbol.value === completedSymbol
+            ) {
               const nextState = advanceState(previous, completedSymbol, state);
               if (addState(chart[position], nextState)) {
                 changed = true;
-                if (completedSymbol !== '$start') {
-                  trace.push(`${completedSymbol} -> ${state.production.rhs.map((item) => item.value).join(' ')}`);
+                if (completedSymbol !== "$start") {
+                  trace.push(
+                    `${completedSymbol} -> ${state.production.rhs.map((item) => item.value).join(" ")}`,
+                  );
                 }
               }
             }
@@ -291,14 +373,21 @@ function runEarley(grammar: Grammar, tokens: Token[]): { success: boolean; trace
           continue;
         }
 
-        if (nextSymbol.kind === 'nonterminal') {
-          const rule = grammar.rules.find((candidate) => candidate.name === nextSymbol.value);
+        if (nextSymbol.kind === "nonterminal") {
+          const rule = grammar.rules.find(
+            (candidate) => candidate.name === nextSymbol.value,
+          );
           if (!rule) {
             continue;
           }
 
           for (const production of rule.productions) {
-            const predicted = { production, dot: 0, start: position, end: position };
+            const predicted = {
+              production,
+              dot: 0,
+              start: position,
+              end: position,
+            };
             if (addState(chart[position], predicted)) {
               changed = true;
             }
@@ -306,7 +395,10 @@ function runEarley(grammar: Grammar, tokens: Token[]): { success: boolean; trace
           continue;
         }
 
-        if (position < tokens.length && tokenMatches(nextSymbol, tokens[position])) {
+        if (
+          position < tokens.length &&
+          tokenMatches(nextSymbol, tokens[position])
+        ) {
           const advanced = advanceState(state, nextSymbol.value, undefined);
           if (addState(chart[position + 1], advanced)) {
             changed = true;
@@ -317,13 +409,20 @@ function runEarley(grammar: Grammar, tokens: Token[]): { success: boolean; trace
   }
 
   const accepted = chart[tokens.length].some((candidate) => {
-    return candidate.production.lhs === '$start' && candidate.dot === candidate.production.rhs.length;
+    return (
+      candidate.production.lhs === "$start" &&
+      candidate.dot === candidate.production.rhs.length
+    );
   });
 
   return { success: accepted, trace };
 }
 
-function advanceState(state: EarleyState, symbol: string, completedState?: EarleyState): EarleyState {
+function advanceState(
+  state: EarleyState,
+  symbol: string,
+  completedState?: EarleyState,
+): EarleyState {
   return {
     production: state.production,
     dot: state.dot + 1,
@@ -334,10 +433,12 @@ function advanceState(state: EarleyState, symbol: string, completedState?: Earle
 
 function addState(chart: EarleyState[], state: EarleyState): boolean {
   const exists = chart.some((candidate) => {
-    return candidate.production.lhs === state.production.lhs
-      && candidate.production.source === state.production.source
-      && candidate.dot === state.dot
-      && candidate.start === state.start;
+    return (
+      candidate.production.lhs === state.production.lhs &&
+      candidate.production.source === state.production.source &&
+      candidate.dot === state.dot &&
+      candidate.start === state.start
+    );
   });
 
   if (!exists) {
@@ -367,7 +468,7 @@ function tokenize(input: string): Token[] {
         value += input[index];
         index += 1;
       }
-      tokens.push({ kind: 'number', value });
+      tokens.push({ kind: "number", value });
       continue;
     }
 
@@ -378,11 +479,11 @@ function tokenize(input: string): Token[] {
         value += input[index];
         index += 1;
       }
-      tokens.push({ kind: 'identifier', value });
+      tokens.push({ kind: "identifier", value });
       continue;
     }
 
-    tokens.push({ kind: 'punctuation', value: char });
+    tokens.push({ kind: "punctuation", value: char });
     index += 1;
   }
 
@@ -390,18 +491,18 @@ function tokenize(input: string): Token[] {
 }
 
 function tokenMatches(symbol: GrammarSymbol, token: Token): boolean {
-  if (symbol.kind === 'terminal') {
+  if (symbol.kind === "terminal") {
     return token.value === symbol.value;
   }
 
-  if (symbol.kind === 'token') {
-    if (symbol.value === 'NUM') {
-      return token.kind === 'number';
+  if (symbol.kind === "token") {
+    if (symbol.value === "NUM") {
+      return token.kind === "number";
     }
-    if (symbol.value === 'PLUS') {
-      return token.kind === 'punctuation' && token.value === '+';
+    if (symbol.value === "PLUS") {
+      return token.kind === "punctuation" && token.value === "+";
     }
-    return token.kind === 'identifier' || token.kind === 'number';
+    return token.kind === "identifier" || token.kind === "number";
   }
 
   return false;
