@@ -45,6 +45,19 @@ Section order is fixed so that `fmt` is a pure function of the grammar:
 the same grammar always serializes to byte-identical Markdown, which is
 what makes the drift hash and reproducible builds work.
 
+**Heading layers (ADR D29).** Only the H1 and H2 layers are structural.
+An H2 is **a nonterminal or a reserved section** (`Precedence`,
+`Error messages`, `Generated tables`) — not a pure bijection — and that is
+the whole of what the structure gate and the per-section drift hash check.
+Headings at `###` and deeper are **presentational grouping** ("Expressions",
+"Statements", or a subsection): the gate ignores them for structure, the
+drift hash never covers them, and authors may place them freely (the GitHub
+table of contents still nests them). They remain ordinary Markdown and are
+linted as such — in particular `###` must follow the usual heading-increment
+rule (MD001). One file is always exactly one grammar: one start symbol, one
+namespace; reuse across grammars is a future cross-file `import` (see
+`spec/import-rfc.md`), never in-file sub-grammars or multiple H1s (ADR D30).
+
 ## Block specifications
 
 ### Payload fences

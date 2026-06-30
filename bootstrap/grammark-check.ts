@@ -190,7 +190,9 @@ export function checkStructure(doc: Doc): string[] {
 
   // Canonical order: H1, then each lr-nonterminal as an H2 in block order,
   // then the optional Precedence section, then Error messages and Generated
-  // tables.
+  // tables. Only the H1 and H2 layers are structural — `###`+ headings are
+  // deliberately ignored here (free presentational grouping; ADR D29), so do
+  // not add a level-3+ check.
   const ruleNames = doc.blocks
     .filter((b) => b.info === "lr" && b.nonterminal)
     .map((b) => b.nonterminal as string);
