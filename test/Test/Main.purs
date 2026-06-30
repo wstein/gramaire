@@ -12,6 +12,7 @@ import Test.Backend.Registry as BackendRegistry
 import Test.Backend.Ts as BackendTs
 import Test.Cli as Cli
 import Test.Codegen as Codegen
+import Test.Conflict as Conflict
 import Test.Conformance as Conformance
 import Test.Continuation as Continuation
 import Test.Cst as Cst
@@ -86,6 +87,8 @@ main = do
   Codegen.tests
   log "Test.Schema"
   Schema.tests
+  log "Test.Conflict"
+  Conflict.tests
   log "Test.Conformance"
   Conformance.tests
   log "Test.Continuation"
