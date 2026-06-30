@@ -86,35 +86,39 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
           id="conflicts-output"
           style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 60px; overflow: auto; font-size: 0.85rem;">—</pre>
       </section>
-      <section
-        style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
+      <div
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem;"
       >
-        <h2>Parse tree</h2>
-        <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
-          The concrete syntax tree the engine built — every rule it reduced and
-          token it matched. Watch precedence in the shape: in <code
-            >1 + 2 * 3</code
-          >, the <code>2 * 3</code> sits in one <code>Term</code> below the
-          <code>+</code>.
-        </p>
-        <pre
-          id="tree-output"
-          style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 80px; overflow: auto; font-size: 0.85rem;">—</pre>
-      </section>
-      <section
-        style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
-      >
-        <h2>Parse trace</h2>
-        <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
-          The bottom-up LR steps, in order: the engine <strong>shift</strong>s
-          each token onto its stack and <strong>reduce</strong>s by a rule once
-          a right-hand side is complete. Reading the reduces bottom-to-top
-          reconstructs the parse tree.
-        </p>
-        <pre
-          id="trace-output"
-          style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 80px; overflow: auto; font-size: 0.85rem;">—</pre>
-      </section>
+        <section
+          style="border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
+        >
+          <h2>Parse tree</h2>
+          <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
+            The concrete syntax tree the engine built — every rule it reduced
+            and token it matched. Watch precedence in the shape: in <code
+              >1 + 2 * 3</code
+            >, the <code>2 * 3</code> sits in one <code>Term</code> below the
+            <code>+</code>.
+          </p>
+          <pre
+            id="tree-output"
+            style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 80px; overflow: auto; font-size: 0.85rem;">—</pre>
+        </section>
+        <section
+          style="border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
+        >
+          <h2>Parse trace</h2>
+          <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
+            The bottom-up LR steps, in order: the engine <strong>shift</strong>s
+            each token onto its stack and <strong>reduce</strong>s by a rule
+            once a right-hand side is complete. Reading the reduces
+            bottom-to-top reconstructs the parse tree.
+          </p>
+          <pre
+            id="trace-output"
+            style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 80px; overflow: auto; font-size: 0.85rem;">—</pre>
+        </section>
+      </div>
       <section
         style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
       >
