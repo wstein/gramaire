@@ -23,6 +23,8 @@ export interface EngineResult {
   cstJson: string;
   /** Per-production [{label, fields}] JSON — the handler shape for evaluation. */
   meta: string;
+  /** The self-contained JS evaluator (Backend.Js) — its inline {% %} actions baked into one `evaluate(cst)`; "" if not LR-buildable. */
+  evalJs: string;
 }
 
 export function evaluate(args: { source: string; input: string }): EngineResult;

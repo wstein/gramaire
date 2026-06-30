@@ -18,6 +18,8 @@ export interface GramaireParseResult {
   cstJson: string;
   /** Per-production [{label, fields}] JSON — the evaluator's handler shape. */
   meta: string;
+  /** The grammar's self-contained JS evaluator (`evaluate(cst)`); "" if not LR-buildable. */
+  evalJs: string;
   raw?: string;
 }
 
@@ -39,6 +41,7 @@ export async function parseGramaireDocument(
     conflicts: result.conflicts,
     cstJson: result.cstJson,
     meta: result.meta,
+    evalJs: result.evalJs,
     raw: formatReport(result),
   };
 }
@@ -65,42 +68,44 @@ function formatReport(result: {
   return parts.join("\n");
 }
 
-// The lab's sample grammar — arithmetic expressions in the raw, fence-free
+// The lab's sample grammar — a live arithmetic calculator in the raw, fence-free
 // `.gram` projection (ADR D36): a `/** */` banner and `//` comments carry the
-// docs, ALL-CAPS `NAME : /regex/` lines declare the token classes, Mixed-case
-// productions carry `{% … %}` actions, and `%left` lines declare precedence.
-// The same engine reads it as it reads a fenced `.gram.md` — `toFenced` re-fences
-// it and `decomment` skips the comments — so the preview lexes NUMBER natively.
+// docs, ALL-CAPS `NAME : /regex/` lines declare the token classes, and Mixed-case
+// productions carry inline `{% … %}` actions. The `%lang javascript` setting
+// (the `## General settings` block in the fenced form) declares those actions as
+// JavaScript, so the engine bakes them into one `evaluate(cst)` the Lab runs in
+// its sandbox. Children are passed positionally: `(l, _, r) => l + r`. The same
+// engine reads this as it reads a fenced `.gram.md` — `toFenced` re-fences it and
+// `decomment` skips the comments — so the preview lexes NUMBER natively.
 const DEFAULT_GRAMAR = `/**
- * Calc
+ * Calc-js
  *
- * A small arithmetic grammar demonstrating the Gramaire fenced envelope.
- * Operators are left-associative; \`*\` and \`/\` bind tighter than \`+\` and \`-\`.
+ * A small arithmetic calculator. Inline actions carry the meaning; \`*\` and \`/\`
+ * bind tighter than \`+\` and \`-\` because the grammar is stratified into
+ * Expr / Term / Factor. Press "Evaluate" to run the baked evaluator.
  */
 
-NUMBER : /[0-9]+/
+%lang javascript
+
+NUMBER : /[0-9]+(?:\\.[0-9]+)?/
 WS     : /[ \\t\\r\\n]+/   %skip
 
 // An expression is a sum or difference of terms.
 Expr
-  : Expr '+' Term   {% \\l _ r -> Add l r %}
-  | Expr '-' Term   {% \\l _ r -> Sub l r %}
-  | Term            {% \\t -> t %}
+  : Expr '+' Term   {% (l, _, r) => l + r %}
+  | Expr '-' Term   {% (l, _, r) => l - r %}
+  | Term
 
 // A term is a product or quotient of factors.
 Term
-  : Term '*' Factor {% \\l _ r -> Mul l r %}
-  | Term '/' Factor {% \\l _ r -> Div l r %}
-  | Factor          {% \\f -> f %}
+  : Term '*' Factor {% (l, _, r) => l * r %}
+  | Term '/' Factor {% (l, _, r) => l / r %}
+  | Factor
 
 // A factor is a number or a parenthesised expression.
 Factor
-  : '(' Expr ')'    {% \\_ e _ -> e %}
-  | NUMBER          {% \\n -> Lit n %}
-
-// Earlier declarations bind more loosely than later ones.
-%left '+' '-'
-%left '*' '/'
+  : '(' Expr ')'    {% (_, e, __) => e %}
+  | NUMBER          {% (n) => parseFloat(n) %}
 `;
 
 const DEFAULT_INPUT = "(4 - 1) * 3 + 2";

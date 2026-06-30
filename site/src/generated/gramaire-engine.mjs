@@ -60,6 +60,13 @@ var unconsImpl = function(empty4, next, xs) {
 var indexImpl = function(just, nothing, xs, i) {
   return i < 0 || i >= xs.length ? nothing : just(xs[i]);
 };
+var findMapImpl = function(nothing, isJust2, f, xs) {
+  for (var i = 0; i < xs.length; i++) {
+    var result = f(xs[i]);
+    if (isJust2(result)) return result;
+  }
+  return nothing;
+};
 var findIndexImpl = function(just, nothing, f, xs) {
   for (var i = 0, l = xs.length; i < l; i++) {
     if (f(xs[i])) return just(i);
@@ -224,10 +231,10 @@ var map = function(dict) {
   return dict.map;
 };
 var mapFlipped = function(dictFunctor) {
-  var map110 = map(dictFunctor);
+  var map112 = map(dictFunctor);
   return function(fa) {
     return function(f) {
-      return map110(f)(fa);
+      return map112(f)(fa);
     };
   };
 };
@@ -1595,7 +1602,7 @@ var traverseArrayImpl = /* @__PURE__ */ (function() {
     };
   }
   return function(apply2) {
-    return function(map25) {
+    return function(map26) {
       return function(pure4) {
         return function(f) {
           return function(array) {
@@ -1604,14 +1611,14 @@ var traverseArrayImpl = /* @__PURE__ */ (function() {
                 case 0:
                   return pure4([]);
                 case 1:
-                  return map25(array1)(f(array[bot]));
+                  return map26(array1)(f(array[bot]));
                 case 2:
-                  return apply2(map25(array2)(f(array[bot])))(f(array[bot + 1]));
+                  return apply2(map26(array2)(f(array[bot])))(f(array[bot + 1]));
                 case 3:
-                  return apply2(apply2(map25(array3)(f(array[bot])))(f(array[bot + 1])))(f(array[bot + 2]));
+                  return apply2(apply2(map26(array3)(f(array[bot])))(f(array[bot + 1])))(f(array[bot + 2]));
                 default:
                   var pivot = bot + Math.floor((top2 - bot) / 4) * 2;
-                  return apply2(map25(concat2)(go(bot, pivot)))(go(pivot, top2));
+                  return apply2(map26(concat2)(go(bot, pivot)))(go(pivot, top2));
               }
             }
             return go(0, array.length);
@@ -1906,6 +1913,9 @@ var fromFoldable = function(dictFoldable) {
   return runFn2(fromFoldableImpl)(foldr(dictFoldable));
 };
 var foldl2 = /* @__PURE__ */ foldl(foldableArray);
+var findMap = /* @__PURE__ */ (function() {
+  return runFn4(findMapImpl)(Nothing.value)(isJust);
+})();
 var findIndex = /* @__PURE__ */ (function() {
   return runFn4(findIndexImpl)(Just.create)(Nothing.value);
 })();
@@ -1991,6 +2001,9 @@ var split = function(sep) {
     return s.split(sep);
   };
 };
+var toLower = function(s) {
+  return s.toLowerCase();
+};
 var toUpper = function(s) {
   return s.toUpperCase();
 };
@@ -2001,6 +2014,414 @@ var joinWith = function(s) {
   return function(xs) {
     return xs.join(s);
   };
+};
+
+// ../output/Data.String.CodePoints/foreign.js
+var hasArrayFrom = typeof Array.from === "function";
+var hasStringIterator = typeof Symbol !== "undefined" && Symbol != null && typeof Symbol.iterator !== "undefined" && typeof String.prototype[Symbol.iterator] === "function";
+var hasFromCodePoint = typeof String.prototype.fromCodePoint === "function";
+var hasCodePointAt = typeof String.prototype.codePointAt === "function";
+var _unsafeCodePointAt0 = function(fallback) {
+  return hasCodePointAt ? function(str) {
+    return str.codePointAt(0);
+  } : fallback;
+};
+var _singleton = function(fallback) {
+  return hasFromCodePoint ? String.fromCodePoint : fallback;
+};
+var _take = function(fallback) {
+  return function(n) {
+    if (hasStringIterator) {
+      return function(str) {
+        var accum = "";
+        var iter = str[Symbol.iterator]();
+        for (var i = 0; i < n; ++i) {
+          var o = iter.next();
+          if (o.done) return accum;
+          accum += o.value;
+        }
+        return accum;
+      };
+    }
+    return fallback(n);
+  };
+};
+var _toCodePointArray = function(fallback) {
+  return function(unsafeCodePointAt02) {
+    if (hasArrayFrom) {
+      return function(str) {
+        return Array.from(str, unsafeCodePointAt02);
+      };
+    }
+    return fallback;
+  };
+};
+
+// ../output/Data.Enum/foreign.js
+function toCharCode(c) {
+  return c.charCodeAt(0);
+}
+function fromCharCode(c) {
+  return String.fromCharCode(c);
+}
+
+// ../output/Data.Enum/index.js
+var bottom1 = /* @__PURE__ */ bottom(boundedChar);
+var top1 = /* @__PURE__ */ top(boundedChar);
+var toEnum = function(dict) {
+  return dict.toEnum;
+};
+var fromEnum = function(dict) {
+  return dict.fromEnum;
+};
+var toEnumWithDefaults = function(dictBoundedEnum) {
+  var toEnum1 = toEnum(dictBoundedEnum);
+  var fromEnum1 = fromEnum(dictBoundedEnum);
+  var bottom2 = bottom(dictBoundedEnum.Bounded0());
+  return function(low) {
+    return function(high) {
+      return function(x) {
+        var v = toEnum1(x);
+        if (v instanceof Just) {
+          return v.value0;
+        }
+        ;
+        if (v instanceof Nothing) {
+          var $140 = x < fromEnum1(bottom2);
+          if ($140) {
+            return low;
+          }
+          ;
+          return high;
+        }
+        ;
+        throw new Error("Failed pattern match at Data.Enum (line 158, column 33 - line 160, column 62): " + [v.constructor.name]);
+      };
+    };
+  };
+};
+var defaultSucc = function(toEnum$prime) {
+  return function(fromEnum$prime) {
+    return function(a) {
+      return toEnum$prime(fromEnum$prime(a) + 1 | 0);
+    };
+  };
+};
+var defaultPred = function(toEnum$prime) {
+  return function(fromEnum$prime) {
+    return function(a) {
+      return toEnum$prime(fromEnum$prime(a) - 1 | 0);
+    };
+  };
+};
+var charToEnum = function(v) {
+  if (v >= toCharCode(bottom1) && v <= toCharCode(top1)) {
+    return new Just(fromCharCode(v));
+  }
+  ;
+  return Nothing.value;
+};
+var enumChar = {
+  succ: /* @__PURE__ */ defaultSucc(charToEnum)(toCharCode),
+  pred: /* @__PURE__ */ defaultPred(charToEnum)(toCharCode),
+  Ord0: function() {
+    return ordChar;
+  }
+};
+var boundedEnumChar = /* @__PURE__ */ (function() {
+  return {
+    cardinality: toCharCode(top1) - toCharCode(bottom1) | 0,
+    toEnum: charToEnum,
+    fromEnum: toCharCode,
+    Bounded0: function() {
+      return boundedChar;
+    },
+    Enum1: function() {
+      return enumChar;
+    }
+  };
+})();
+
+// ../output/Data.String.CodeUnits/foreign.js
+var fromCharArray = function(a) {
+  return a.join("");
+};
+var toCharArray = function(s) {
+  return s.split("");
+};
+var singleton3 = function(c) {
+  return c;
+};
+var _charAt = function(just) {
+  return function(nothing) {
+    return function(i) {
+      return function(s) {
+        return i >= 0 && i < s.length ? just(s.charAt(i)) : nothing;
+      };
+    };
+  };
+};
+var length2 = function(s) {
+  return s.length;
+};
+var _indexOf = function(just) {
+  return function(nothing) {
+    return function(x) {
+      return function(s) {
+        var i = s.indexOf(x);
+        return i === -1 ? nothing : just(i);
+      };
+    };
+  };
+};
+var take2 = function(n) {
+  return function(s) {
+    return s.substr(0, n);
+  };
+};
+var drop2 = function(n) {
+  return function(s) {
+    return s.substring(n);
+  };
+};
+var slice2 = function(b) {
+  return function(e) {
+    return function(s) {
+      return s.slice(b, e);
+    };
+  };
+};
+var splitAt = function(i) {
+  return function(s) {
+    return { before: s.substring(0, i), after: s.substring(i) };
+  };
+};
+
+// ../output/Data.String.Unsafe/foreign.js
+var charAt = function(i) {
+  return function(s) {
+    if (i >= 0 && i < s.length) return s.charAt(i);
+    throw new Error("Data.String.Unsafe.charAt: Invalid index.");
+  };
+};
+
+// ../output/Data.String.CodeUnits/index.js
+var stripSuffix = function(v) {
+  return function(str) {
+    var v1 = splitAt(length2(str) - length2(v) | 0)(str);
+    var $14 = v1.after === v;
+    if ($14) {
+      return new Just(v1.before);
+    }
+    ;
+    return Nothing.value;
+  };
+};
+var stripPrefix = function(v) {
+  return function(str) {
+    var v1 = splitAt(length2(v))(str);
+    var $20 = v1.before === v;
+    if ($20) {
+      return new Just(v1.after);
+    }
+    ;
+    return Nothing.value;
+  };
+};
+var indexOf = /* @__PURE__ */ (function() {
+  return _indexOf(Just.create)(Nothing.value);
+})();
+var contains = function(pat) {
+  var $23 = indexOf(pat);
+  return function($24) {
+    return isJust($23($24));
+  };
+};
+var charAt2 = /* @__PURE__ */ (function() {
+  return _charAt(Just.create)(Nothing.value);
+})();
+
+// ../output/Data.String.CodePoints/index.js
+var fromEnum2 = /* @__PURE__ */ fromEnum(boundedEnumChar);
+var map5 = /* @__PURE__ */ map(functorMaybe);
+var unfoldr2 = /* @__PURE__ */ unfoldr(unfoldableArray);
+var div2 = /* @__PURE__ */ div(euclideanRingInt);
+var mod2 = /* @__PURE__ */ mod(euclideanRingInt);
+var unsurrogate = function(lead) {
+  return function(trail) {
+    return (((lead - 55296 | 0) * 1024 | 0) + (trail - 56320 | 0) | 0) + 65536 | 0;
+  };
+};
+var isTrail = function(cu) {
+  return 56320 <= cu && cu <= 57343;
+};
+var isLead = function(cu) {
+  return 55296 <= cu && cu <= 56319;
+};
+var uncons2 = function(s) {
+  var v = length2(s);
+  if (v === 0) {
+    return Nothing.value;
+  }
+  ;
+  if (v === 1) {
+    return new Just({
+      head: fromEnum2(charAt(0)(s)),
+      tail: ""
+    });
+  }
+  ;
+  var cu1 = fromEnum2(charAt(1)(s));
+  var cu0 = fromEnum2(charAt(0)(s));
+  var $43 = isLead(cu0) && isTrail(cu1);
+  if ($43) {
+    return new Just({
+      head: unsurrogate(cu0)(cu1),
+      tail: drop2(2)(s)
+    });
+  }
+  ;
+  return new Just({
+    head: cu0,
+    tail: drop2(1)(s)
+  });
+};
+var unconsButWithTuple = function(s) {
+  return map5(function(v) {
+    return new Tuple(v.head, v.tail);
+  })(uncons2(s));
+};
+var toCodePointArrayFallback = function(s) {
+  return unfoldr2(unconsButWithTuple)(s);
+};
+var unsafeCodePointAt0Fallback = function(s) {
+  var cu0 = fromEnum2(charAt(0)(s));
+  var $47 = isLead(cu0) && length2(s) > 1;
+  if ($47) {
+    var cu1 = fromEnum2(charAt(1)(s));
+    var $48 = isTrail(cu1);
+    if ($48) {
+      return unsurrogate(cu0)(cu1);
+    }
+    ;
+    return cu0;
+  }
+  ;
+  return cu0;
+};
+var unsafeCodePointAt0 = /* @__PURE__ */ _unsafeCodePointAt0(unsafeCodePointAt0Fallback);
+var toCodePointArray = /* @__PURE__ */ _toCodePointArray(toCodePointArrayFallback)(unsafeCodePointAt0);
+var length3 = function($74) {
+  return length(toCodePointArray($74));
+};
+var indexOf2 = function(p) {
+  return function(s) {
+    return map5(function(i) {
+      return length3(take2(i)(s));
+    })(indexOf(p)(s));
+  };
+};
+var fromCharCode2 = /* @__PURE__ */ (function() {
+  var $75 = toEnumWithDefaults(boundedEnumChar)(bottom(boundedChar))(top(boundedChar));
+  return function($76) {
+    return singleton3($75($76));
+  };
+})();
+var singletonFallback = function(v) {
+  if (v <= 65535) {
+    return fromCharCode2(v);
+  }
+  ;
+  var lead = div2(v - 65536 | 0)(1024) + 55296 | 0;
+  var trail = mod2(v - 65536 | 0)(1024) + 56320 | 0;
+  return fromCharCode2(lead) + fromCharCode2(trail);
+};
+var singleton4 = /* @__PURE__ */ _singleton(singletonFallback);
+var takeFallback = function(v) {
+  return function(v1) {
+    if (v < 1) {
+      return "";
+    }
+    ;
+    var v2 = uncons2(v1);
+    if (v2 instanceof Just) {
+      return singleton4(v2.value0.head) + takeFallback(v - 1 | 0)(v2.value0.tail);
+    }
+    ;
+    return v1;
+  };
+};
+var take3 = /* @__PURE__ */ _take(takeFallback);
+var drop3 = function(n) {
+  return function(s) {
+    return drop2(length2(take3(n)(s)))(s);
+  };
+};
+
+// ../output/Gramaire.Backend.Js/index.js
+var map6 = /* @__PURE__ */ map(functorArray);
+var map12 = /* @__PURE__ */ map(functorMaybe);
+var unwrapBinder = function(code) {
+  var v = stripPrefix("\\")(trim(code));
+  if (v instanceof Nothing) {
+    return trim(code);
+  }
+  ;
+  if (v instanceof Just) {
+    var v1 = indexOf2(" -> ")(code);
+    if (v1 instanceof Just) {
+      return trim(drop3(v1.value0 + 4 | 0)(code));
+    }
+    ;
+    if (v1 instanceof Nothing) {
+      return trim(code);
+    }
+    ;
+    throw new Error("Failed pattern match at Gramaire.Backend.Js (line 76, column 13 - line 78, column 25): " + [v1.constructor.name]);
+  }
+  ;
+  throw new Error("Failed pattern match at Gramaire.Backend.Js (line 74, column 21 - line 78, column 25): " + [v.constructor.name]);
+};
+var runtime = /* @__PURE__ */ joinWith("\n")(["function fold(node) {", "  if (node.token !== undefined) return node.text;", "  const kids = node.children.map(fold);", "  const action = actions[node.rule];", "  if (action) return action(...kids);", "  return kids.length === 1 ? kids[0] : kids;", "}", "", "// Evaluate a gramaire-cst tree to a value using the baked inline actions.", "export function evaluate(cst) {", "  return fold(cst);", "}"]);
+var jsStr = function(s) {
+  var esc = function(c) {
+    if (c === '"') {
+      return '\\"';
+    }
+    ;
+    if (c === "\\") {
+      return "\\\\";
+    }
+    ;
+    if (c === "\n") {
+      return "\\n";
+    }
+    ;
+    return singleton3(c);
+  };
+  return '"' + (joinWith("")(map6(esc)(toCharArray(s))) + '"');
+};
+var jsAction = function(r) {
+  return map12(function($20) {
+    return unwrapBinder(snd($20));
+  })(find2(function(v) {
+    return v.value0 === "js";
+  })(r.actions));
+};
+var emit = function(ir) {
+  var actionSlot = function(r) {
+    var v = jsAction(r);
+    if (v instanceof Just) {
+      return v.value0;
+    }
+    ;
+    if (v instanceof Nothing) {
+      return "null";
+    }
+    ;
+    throw new Error("Failed pattern match at Gramaire.Backend.Js (line 56, column 18 - line 58, column 22): " + [v.constructor.name]);
+  };
+  return joinWith("\n")(["// Generated by gramaire --backend js for grammar " + (jsStr(ir.grammar.name) + "."), "// Self-contained bottom-up evaluator: each production's inline action is", "// baked as a positional function over its children's values; an", "// action-less production passes its single child through (else an array).", "// `cst` is a gramaire-cst JSON tree ({ rule, children } | { token, text });", "// a leaf's value is its matched text.", "", "// production id -> positional action over child values, or null", "const actions = [" + (joinWith(", ")(map6(actionSlot)(ir.grammar.rules)) + "];"), "", runtime]);
 };
 
 // ../output/Gramaire.Syntax/index.js
@@ -2146,111 +2567,12 @@ var bootstrapGrammar = /* @__PURE__ */ (function() {
   return [new Rule("Grammar", [], [new Alt([new Ref("RuleList")], Nothing.value, new Just("\\rs -> Grammar rs"))]), new Rule("RuleList", [], [new Alt([new Ref("Rule")], Nothing.value, new Just("\\r -> [r]")), new Alt([new Ref("RuleList"), new Ref("NL"), new Ref("Rule")], Nothing.value, new Just("\\rs _ r -> snoc rs r"))]), new Rule("Rule", [], [new Alt([new Ref("ATTR"), new Ref("IDENT"), new Ref("NL"), new Lit(":"), new Ref("Body")], Nothing.value, new Just("\\attr lhs _ _ alts -> Rule lhs [ attr ] alts")), new Alt([new Ref("IDENT"), new Ref("NL"), new Lit(":"), new Ref("Body")], Nothing.value, new Just("\\lhs _ _ alts -> Rule lhs [] alts"))]), new Rule("Body", [], [new Alt([new Ref("Alt")], Nothing.value, new Just("\\a -> [a]")), new Alt([new Ref("Body"), new Lit("|"), new Ref("Alt")], Nothing.value, new Just("\\bs _ a -> snoc bs a"))]), new Rule("Alt", [], [new Alt([new Ref("SymList"), new Ref("Label"), new Ref("Action")], Nothing.value, new Just("\\syms lbl act -> Alt syms lbl act")), new Alt([new Ref("SymList"), new Ref("Label")], Nothing.value, new Just("\\syms lbl -> Alt syms lbl Nothing")), new Alt([new Ref("SymList"), new Ref("Action")], Nothing.value, new Just("\\syms act -> Alt syms Nothing act")), new Alt([new Ref("SymList")], Nothing.value, new Just("\\syms -> Alt syms Nothing Nothing"))]), new Rule("SymList", [], [new Alt([new Ref("Sym")], Nothing.value, new Just("\\s -> [s]")), new Alt([new Ref("SymList"), new Ref("Sym")], Nothing.value, new Just("\\ss s -> snoc ss s"))]), new Rule("Sym", [], [new Alt([new Ref("IDENT")], Nothing.value, new Just("\\i -> Ref i")), new Alt([new Ref("TERM_LIT")], Nothing.value, new Just("\\t -> Lit t")), new Alt([new Ref("IDENT"), new Ref("PLUS")], Nothing.value, new Just("\\i _ -> Rep (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("PLUS")], Nothing.value, new Just("\\t _ -> Rep (Lit t)")), new Alt([new Ref("IDENT"), new Ref("STAR")], Nothing.value, new Just("\\i _ -> Star (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("STAR")], Nothing.value, new Just("\\t _ -> Star (Lit t)")), new Alt([new Ref("IDENT"), new Ref("QUESTION")], Nothing.value, new Just("\\i _ -> Opt (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("QUESTION")], Nothing.value, new Just("\\t _ -> Opt (Lit t)")), new Alt([new Ref("IDENT"), new Ref("LANGLE"), new Ref("Args"), new Ref("RANGLE")], Nothing.value, new Just("\\name _ args _ -> Macro name args")), new Alt([new Ref("IDENT"), new Lit(":"), new Ref("Sym")], Nothing.value, new Just("\\name _ s -> Field name s")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")")], Nothing.value, new Just("\\_ g _ -> Group g")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")"), new Ref("PLUS")], Nothing.value, new Just("\\_ g _ _ -> Rep (Group g)")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")"), new Ref("STAR")], Nothing.value, new Just("\\_ g _ _ -> Star (Group g)")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")"), new Ref("QUESTION")], Nothing.value, new Just("\\_ g _ _ -> Opt (Group g)")), new Alt([new Ref("Atom")], Nothing.value, new Just("\\a -> a")), new Alt([new Ref("Atom"), new Ref("PLUS")], Nothing.value, new Just("\\a _ -> Rep a")), new Alt([new Ref("Atom"), new Ref("STAR")], Nothing.value, new Just("\\a _ -> Star a")), new Alt([new Ref("Atom"), new Ref("QUESTION")], Nothing.value, new Just("\\a _ -> Opt a"))]), new Rule("Args", [], [new Alt([new Ref("Sym")], Nothing.value, new Just("\\s -> [s]")), new Alt([new Ref("Args"), new Ref("COMMA"), new Ref("Sym")], Nothing.value, new Just("\\as _ s -> snoc as s"))]), new Rule("Action", [], [new Alt([new Ref("ACTION")], Nothing.value, new Just("\\a -> Just a"))]), new Rule("Label", [], [new Alt([new Ref("LABEL")], Nothing.value, new Just("\\l -> Just l"))]), new Rule("GroupBody", [], [new Alt([new Ref("SymList")], Nothing.value, new Just("\\syms -> [syms]")), new Alt([new Ref("GroupBody"), new Lit("|"), new Ref("SymList")], Nothing.value, new Just("\\alts _ syms -> snoc alts syms"))]), new Rule("Atom", [], [new Alt([new Lit(".")], Nothing.value, new Just("\\_ -> Any")), new Alt([new Lit("~"), new Ref("NotArg")], Nothing.value, new Just("\\_ s -> Not s"))]), new Rule("NotArg", [], [new Alt([new Ref("SetItem")], Nothing.value, new Just("\\i -> [i]")), new Alt([new Lit("("), new Ref("SetBody"), new Lit(")")], Nothing.value, new Just("\\_ s _ -> s"))]), new Rule("SetBody", [], [new Alt([new Ref("SetItem")], Nothing.value, new Just("\\i -> [i]")), new Alt([new Ref("SetBody"), new Lit("|"), new Ref("SetItem")], Nothing.value, new Just("\\s _ i -> snoc s i"))]), new Rule("SetItem", [], [new Alt([new Ref("IDENT")], Nothing.value, new Just("\\i -> Ref i")), new Alt([new Ref("TERM_LIT")], Nothing.value, new Just("\\t -> Lit t"))])];
 })();
 
-// ../output/Data.String.CodeUnits/foreign.js
-var fromCharArray = function(a) {
-  return a.join("");
-};
-var toCharArray = function(s) {
-  return s.split("");
-};
-var singleton3 = function(c) {
-  return c;
-};
-var _charAt = function(just) {
-  return function(nothing) {
-    return function(i) {
-      return function(s) {
-        return i >= 0 && i < s.length ? just(s.charAt(i)) : nothing;
-      };
-    };
-  };
-};
-var length2 = function(s) {
-  return s.length;
-};
-var _indexOf = function(just) {
-  return function(nothing) {
-    return function(x) {
-      return function(s) {
-        var i = s.indexOf(x);
-        return i === -1 ? nothing : just(i);
-      };
-    };
-  };
-};
-var take2 = function(n) {
-  return function(s) {
-    return s.substr(0, n);
-  };
-};
-var drop2 = function(n) {
-  return function(s) {
-    return s.substring(n);
-  };
-};
-var slice2 = function(b) {
-  return function(e) {
-    return function(s) {
-      return s.slice(b, e);
-    };
-  };
-};
-var splitAt = function(i) {
-  return function(s) {
-    return { before: s.substring(0, i), after: s.substring(i) };
-  };
-};
-
-// ../output/Data.String.Unsafe/foreign.js
-var charAt = function(i) {
-  return function(s) {
-    if (i >= 0 && i < s.length) return s.charAt(i);
-    throw new Error("Data.String.Unsafe.charAt: Invalid index.");
-  };
-};
-
-// ../output/Data.String.CodeUnits/index.js
-var stripSuffix = function(v) {
-  return function(str) {
-    var v1 = splitAt(length2(str) - length2(v) | 0)(str);
-    var $14 = v1.after === v;
-    if ($14) {
-      return new Just(v1.before);
-    }
-    ;
-    return Nothing.value;
-  };
-};
-var stripPrefix = function(v) {
-  return function(str) {
-    var v1 = splitAt(length2(v))(str);
-    var $20 = v1.before === v;
-    if ($20) {
-      return new Just(v1.after);
-    }
-    ;
-    return Nothing.value;
-  };
-};
-var indexOf = /* @__PURE__ */ (function() {
-  return _indexOf(Just.create)(Nothing.value);
-})();
-var contains = function(pat) {
-  var $23 = indexOf(pat);
-  return function($24) {
-    return isJust($23($24));
-  };
-};
-var charAt2 = /* @__PURE__ */ (function() {
-  return _charAt(Just.create)(Nothing.value);
-})();
-
 // ../output/Gramaire.Lexer/index.js
-var map5 = /* @__PURE__ */ map(functorMaybe);
+var map7 = /* @__PURE__ */ map(functorMaybe);
 var eq3 = /* @__PURE__ */ eq(/* @__PURE__ */ eqMaybe(eqString));
 var normalizeNewlines = function(toks) {
   var term = function(j) {
-    return map5(function(v) {
+    return map7(function(v) {
       return v.terminal;
     })(index(toks)(j));
   };
@@ -2279,249 +2601,6 @@ var normalizeNewlines = function(toks) {
     };
   };
   return catMaybes(mapWithIndex2(decide)(toks));
-};
-
-// ../output/Data.String.CodePoints/foreign.js
-var hasArrayFrom = typeof Array.from === "function";
-var hasStringIterator = typeof Symbol !== "undefined" && Symbol != null && typeof Symbol.iterator !== "undefined" && typeof String.prototype[Symbol.iterator] === "function";
-var hasFromCodePoint = typeof String.prototype.fromCodePoint === "function";
-var hasCodePointAt = typeof String.prototype.codePointAt === "function";
-var _unsafeCodePointAt0 = function(fallback) {
-  return hasCodePointAt ? function(str) {
-    return str.codePointAt(0);
-  } : fallback;
-};
-var _singleton = function(fallback) {
-  return hasFromCodePoint ? String.fromCodePoint : fallback;
-};
-var _take = function(fallback) {
-  return function(n) {
-    if (hasStringIterator) {
-      return function(str) {
-        var accum = "";
-        var iter = str[Symbol.iterator]();
-        for (var i = 0; i < n; ++i) {
-          var o = iter.next();
-          if (o.done) return accum;
-          accum += o.value;
-        }
-        return accum;
-      };
-    }
-    return fallback(n);
-  };
-};
-var _toCodePointArray = function(fallback) {
-  return function(unsafeCodePointAt02) {
-    if (hasArrayFrom) {
-      return function(str) {
-        return Array.from(str, unsafeCodePointAt02);
-      };
-    }
-    return fallback;
-  };
-};
-
-// ../output/Data.Enum/foreign.js
-function toCharCode(c) {
-  return c.charCodeAt(0);
-}
-function fromCharCode(c) {
-  return String.fromCharCode(c);
-}
-
-// ../output/Data.Enum/index.js
-var bottom1 = /* @__PURE__ */ bottom(boundedChar);
-var top1 = /* @__PURE__ */ top(boundedChar);
-var toEnum = function(dict) {
-  return dict.toEnum;
-};
-var fromEnum = function(dict) {
-  return dict.fromEnum;
-};
-var toEnumWithDefaults = function(dictBoundedEnum) {
-  var toEnum1 = toEnum(dictBoundedEnum);
-  var fromEnum1 = fromEnum(dictBoundedEnum);
-  var bottom2 = bottom(dictBoundedEnum.Bounded0());
-  return function(low) {
-    return function(high) {
-      return function(x) {
-        var v = toEnum1(x);
-        if (v instanceof Just) {
-          return v.value0;
-        }
-        ;
-        if (v instanceof Nothing) {
-          var $140 = x < fromEnum1(bottom2);
-          if ($140) {
-            return low;
-          }
-          ;
-          return high;
-        }
-        ;
-        throw new Error("Failed pattern match at Data.Enum (line 158, column 33 - line 160, column 62): " + [v.constructor.name]);
-      };
-    };
-  };
-};
-var defaultSucc = function(toEnum$prime) {
-  return function(fromEnum$prime) {
-    return function(a) {
-      return toEnum$prime(fromEnum$prime(a) + 1 | 0);
-    };
-  };
-};
-var defaultPred = function(toEnum$prime) {
-  return function(fromEnum$prime) {
-    return function(a) {
-      return toEnum$prime(fromEnum$prime(a) - 1 | 0);
-    };
-  };
-};
-var charToEnum = function(v) {
-  if (v >= toCharCode(bottom1) && v <= toCharCode(top1)) {
-    return new Just(fromCharCode(v));
-  }
-  ;
-  return Nothing.value;
-};
-var enumChar = {
-  succ: /* @__PURE__ */ defaultSucc(charToEnum)(toCharCode),
-  pred: /* @__PURE__ */ defaultPred(charToEnum)(toCharCode),
-  Ord0: function() {
-    return ordChar;
-  }
-};
-var boundedEnumChar = /* @__PURE__ */ (function() {
-  return {
-    cardinality: toCharCode(top1) - toCharCode(bottom1) | 0,
-    toEnum: charToEnum,
-    fromEnum: toCharCode,
-    Bounded0: function() {
-      return boundedChar;
-    },
-    Enum1: function() {
-      return enumChar;
-    }
-  };
-})();
-
-// ../output/Data.String.CodePoints/index.js
-var fromEnum2 = /* @__PURE__ */ fromEnum(boundedEnumChar);
-var map6 = /* @__PURE__ */ map(functorMaybe);
-var unfoldr2 = /* @__PURE__ */ unfoldr(unfoldableArray);
-var div2 = /* @__PURE__ */ div(euclideanRingInt);
-var mod2 = /* @__PURE__ */ mod(euclideanRingInt);
-var unsurrogate = function(lead) {
-  return function(trail) {
-    return (((lead - 55296 | 0) * 1024 | 0) + (trail - 56320 | 0) | 0) + 65536 | 0;
-  };
-};
-var isTrail = function(cu) {
-  return 56320 <= cu && cu <= 57343;
-};
-var isLead = function(cu) {
-  return 55296 <= cu && cu <= 56319;
-};
-var uncons2 = function(s) {
-  var v = length2(s);
-  if (v === 0) {
-    return Nothing.value;
-  }
-  ;
-  if (v === 1) {
-    return new Just({
-      head: fromEnum2(charAt(0)(s)),
-      tail: ""
-    });
-  }
-  ;
-  var cu1 = fromEnum2(charAt(1)(s));
-  var cu0 = fromEnum2(charAt(0)(s));
-  var $43 = isLead(cu0) && isTrail(cu1);
-  if ($43) {
-    return new Just({
-      head: unsurrogate(cu0)(cu1),
-      tail: drop2(2)(s)
-    });
-  }
-  ;
-  return new Just({
-    head: cu0,
-    tail: drop2(1)(s)
-  });
-};
-var unconsButWithTuple = function(s) {
-  return map6(function(v) {
-    return new Tuple(v.head, v.tail);
-  })(uncons2(s));
-};
-var toCodePointArrayFallback = function(s) {
-  return unfoldr2(unconsButWithTuple)(s);
-};
-var unsafeCodePointAt0Fallback = function(s) {
-  var cu0 = fromEnum2(charAt(0)(s));
-  var $47 = isLead(cu0) && length2(s) > 1;
-  if ($47) {
-    var cu1 = fromEnum2(charAt(1)(s));
-    var $48 = isTrail(cu1);
-    if ($48) {
-      return unsurrogate(cu0)(cu1);
-    }
-    ;
-    return cu0;
-  }
-  ;
-  return cu0;
-};
-var unsafeCodePointAt0 = /* @__PURE__ */ _unsafeCodePointAt0(unsafeCodePointAt0Fallback);
-var toCodePointArray = /* @__PURE__ */ _toCodePointArray(toCodePointArrayFallback)(unsafeCodePointAt0);
-var length3 = function($74) {
-  return length(toCodePointArray($74));
-};
-var indexOf2 = function(p) {
-  return function(s) {
-    return map6(function(i) {
-      return length3(take2(i)(s));
-    })(indexOf(p)(s));
-  };
-};
-var fromCharCode2 = /* @__PURE__ */ (function() {
-  var $75 = toEnumWithDefaults(boundedEnumChar)(bottom(boundedChar))(top(boundedChar));
-  return function($76) {
-    return singleton3($75($76));
-  };
-})();
-var singletonFallback = function(v) {
-  if (v <= 65535) {
-    return fromCharCode2(v);
-  }
-  ;
-  var lead = div2(v - 65536 | 0)(1024) + 55296 | 0;
-  var trail = mod2(v - 65536 | 0)(1024) + 56320 | 0;
-  return fromCharCode2(lead) + fromCharCode2(trail);
-};
-var singleton4 = /* @__PURE__ */ _singleton(singletonFallback);
-var takeFallback = function(v) {
-  return function(v1) {
-    if (v < 1) {
-      return "";
-    }
-    ;
-    var v2 = uncons2(v1);
-    if (v2 instanceof Just) {
-      return singleton4(v2.value0.head) + takeFallback(v - 1 | 0)(v2.value0.tail);
-    }
-    ;
-    return v1;
-  };
-};
-var take3 = /* @__PURE__ */ _take(takeFallback);
-var drop3 = function(n) {
-  return function(s) {
-    return drop2(length2(take3(n)(s)))(s);
-  };
 };
 
 // ../output/Data.FoldableWithIndex/index.js
@@ -3703,7 +3782,7 @@ var alter = function(dictOrd) {
 };
 
 // ../output/Data.List/index.js
-var map7 = /* @__PURE__ */ map(functorMaybe);
+var map8 = /* @__PURE__ */ map(functorMaybe);
 var uncons3 = function(v) {
   if (v instanceof Nil) {
     return Nothing.value;
@@ -3720,7 +3799,7 @@ var uncons3 = function(v) {
 };
 var toUnfoldable2 = function(dictUnfoldable) {
   return unfoldr(dictUnfoldable)(function(xs) {
-    return map7(function(rec) {
+    return map8(function(rec) {
       return new Tuple(rec.head, rec.tail);
     })(uncons3(xs));
   });
@@ -3827,7 +3906,7 @@ var fromFoldable3 = function(dictFoldable) {
     })(empty3);
   };
 };
-var map8 = function(dictOrd) {
+var map9 = function(dictOrd) {
   var insert12 = insert2(dictOrd);
   return function(f) {
     return foldl12(function(m) {
@@ -3848,7 +3927,7 @@ var keys2 = /* @__PURE__ */ (function() {
 
 // ../output/Gramaire.Desugar/index.js
 var elem3 = /* @__PURE__ */ elem2(eqString);
-var map9 = /* @__PURE__ */ map(functorArray);
+var map10 = /* @__PURE__ */ map(functorArray);
 var fromFoldable4 = /* @__PURE__ */ fromFoldable3(foldableArray)(ordString);
 var member3 = /* @__PURE__ */ member2(ordString);
 var lookup2 = /* @__PURE__ */ lookup(ordString);
@@ -3857,7 +3936,7 @@ var member1 = /* @__PURE__ */ member(ordString);
 var show2 = /* @__PURE__ */ show(showInt);
 var append1 = /* @__PURE__ */ append(semigroupArray);
 var bind2 = /* @__PURE__ */ bind(bindEither);
-var map12 = /* @__PURE__ */ map(functorEither);
+var map13 = /* @__PURE__ */ map(functorEither);
 var traverse2 = /* @__PURE__ */ traverse(traversableArray)(applicativeEither);
 var insert3 = /* @__PURE__ */ insert(ordString);
 var fromFoldable1 = /* @__PURE__ */ fromFoldable(foldableSet);
@@ -3913,10 +3992,10 @@ var wildcardLower = function(v) {
   };
   var notInSet = function(set) {
     return function(t) {
-      return !elem3(termName(t))(map9(termName)(set));
+      return !elem3(termName(t))(map10(termName)(set));
     };
   };
-  var nonterms = fromFoldable4(map9(function(v1) {
+  var nonterms = fromFoldable4(map10(function(v1) {
     return v1.value0;
   })(v));
   var terminalOf = function(v1) {
@@ -3947,13 +4026,13 @@ var wildcardLower = function(v) {
   })(mapMaybe(terminalOf)(concatMap(subSyms)(allSyms)));
   var lowerSym = function(v1) {
     if (v1 instanceof Any) {
-      return new Group(map9(function(t) {
+      return new Group(map10(function(t) {
         return [t];
       })(alphabet));
     }
     ;
     if (v1 instanceof Not) {
-      return new Group(map9(function(t) {
+      return new Group(map10(function(t) {
         return [t];
       })(filter(notInSet(v1.value0))(alphabet)));
     }
@@ -3975,18 +4054,18 @@ var wildcardLower = function(v) {
     }
     ;
     if (v1 instanceof Group) {
-      return new Group(map9(map9(lowerSym))(v1.value0));
+      return new Group(map10(map10(lowerSym))(v1.value0));
     }
     ;
     return v1;
   };
   var lowerAlt = function(v1) {
-    return new Alt(map9(lowerSym)(v1.value0), v1.value1, v1.value2);
+    return new Alt(map10(lowerSym)(v1.value0), v1.value1, v1.value2);
   };
   var lowerRule = function(v1) {
-    return new Rule(v1.value0, v1.value1, map9(lowerAlt)(v1.value2));
+    return new Rule(v1.value0, v1.value1, map10(lowerAlt)(v1.value2));
   };
-  return map9(lowerRule)(v);
+  return map10(lowerRule)(v);
 };
 var spliceCst = function(im) {
   return function(sym2) {
@@ -4020,7 +4099,7 @@ var normalizeAction = function(syms) {
     }
     ;
     if (v instanceof Nothing) {
-      return "\\" + (joinWith(" ")(map9(paramOf)(syms)) + (" -> " + body));
+      return "\\" + (joinWith(" ")(map10(paramOf)(syms)) + (" -> " + body));
     }
     ;
     throw new Error("Failed pattern match at Gramaire.Desugar (line 325, column 29 - line 327, column 71): " + [v.constructor.name]);
@@ -4119,7 +4198,7 @@ var groupHoist = function(v) {
           };
         })(v1.value0);
         var name = "__group_" + show2(st.counter);
-        var newRule = new Rule(name, [], map9(function(g) {
+        var newRule = new Rule(name, [], map10(function(g) {
           return new Alt(g, Nothing.value, Nothing.value);
         })(r.out));
         return {
@@ -4254,7 +4333,7 @@ var buildWrapped = function(im) {
                 }
                 ;
                 if ($190.value0.value2 instanceof Just) {
-                  var ps = map9(inlineParam)(range2(v2.value0.k)((v2.value0.k + length($190.value0.value0) | 0) - 1 | 0));
+                  var ps = map10(inlineParam)(range2(v2.value0.k)((v2.value0.k + length($190.value0.value0) | 0) - 1 | 0));
                   var arg = "((" + (normalizeAction($190.value0.value0)($190.value0.value2.value0) + (") " + (joinWith(" ")(ps) + ")")));
                   return new Right({
                     syms: append1(v2.value0.syms)($190.value0.value0),
@@ -4322,7 +4401,7 @@ var expandAlt = function(im) {
 };
 var expandRule = function(im) {
   return function(v) {
-    return map12(Rule.create(v.value0)(v.value1))(traverse2(expandAlt(im))(v.value2));
+    return map13(Rule.create(v.value0)(v.value1))(traverse2(expandAlt(im))(v.value2));
   };
 };
 var inlineExpand = function(v) {
@@ -4648,7 +4727,7 @@ var sugarDesugar = function(v) {
     }
     ;
     if (v1.value0 instanceof Field) {
-      return map9(Field.create(v1.value0.value0))(rhsOf2(new Tuple(v1.value0.value1, v1.value1)));
+      return map10(Field.create(v1.value0.value0))(rhsOf2(new Tuple(v1.value0.value1, v1.value1)));
     }
     ;
     return [lowerOne(v1.value0)];
@@ -4730,13 +4809,13 @@ var sugarDesugar = function(v) {
     };
     var $330 = !any2(optStar)(v1.value0);
     if ($330) {
-      return new Right([new Alt(map9(lowerOne)(v1.value0), v1.value1, action)]);
+      return new Right([new Alt(map10(lowerOne)(v1.value0), v1.value1, action)]);
     }
     ;
-    return traverse2(build)(map9(assign(v1.value0))(bools(length(filter(optStar)(v1.value0)))));
+    return traverse2(build)(map10(assign(v1.value0))(bools(length(filter(optStar)(v1.value0)))));
   };
   var lowerRule = function(v1) {
-    return map12((function() {
+    return map13((function() {
       var $339 = Rule.create(v1.value0)(v1.value1);
       return function($340) {
         return $339(concat($340));
@@ -4757,7 +4836,7 @@ var desugar = function(g) {
 var lookup3 = /* @__PURE__ */ lookup(ordString);
 var member4 = /* @__PURE__ */ member2(ordString);
 var eq4 = /* @__PURE__ */ eq(/* @__PURE__ */ eqMaybe(eqChar));
-var map10 = /* @__PURE__ */ map(functorArray);
+var map11 = /* @__PURE__ */ map(functorArray);
 var foldl5 = /* @__PURE__ */ foldl(foldableArray);
 var insert4 = /* @__PURE__ */ insert(ordString);
 var foldlWithIndex2 = /* @__PURE__ */ foldlWithIndex(foldableWithIndexArray);
@@ -4798,7 +4877,7 @@ var insert1 = /* @__PURE__ */ insert(ordInt);
 var insert22 = /* @__PURE__ */ insert(ordTuple1);
 var insertWith1 = /* @__PURE__ */ insertWith(ordInt);
 var append3 = /* @__PURE__ */ append(semigroupArray);
-var map13 = /* @__PURE__ */ map(functorMap);
+var map14 = /* @__PURE__ */ map(functorMap);
 var eq32 = /* @__PURE__ */ eq(/* @__PURE__ */ eqMap(eqInt)(eqInt));
 var insert32 = /* @__PURE__ */ insert(/* @__PURE__ */ ordTuple2(ordString));
 var ordRecord1 = /* @__PURE__ */ ordRecord2(/* @__PURE__ */ ordRecordCons2(dotIsSymbol)(ordInt));
@@ -5028,7 +5107,7 @@ var parsePrecedence = function(content) {
   };
   var meaningful = filter(function(l) {
     return l !== "" && l !== "gramaire precedence";
-  })(map10(trim)(split("\n")(content)));
+  })(map11(trim)(split("\n")(content)));
   var literalsOf = function(line) {
     return mapMaybe(unquoteTok)(split(" ")(trim(line)));
   };
@@ -5093,17 +5172,17 @@ var parsePrecedence = function(content) {
   };
 };
 var nontermSet = function(v) {
-  return fromFoldable12(map10(function(v1) {
+  return fromFoldable12(map11(function(v1) {
     return v1.value0;
   })(v));
 };
 var productions = function(v) {
   var nts = nontermSet(v);
   var ruleProds = function(v1) {
-    return map10(function(v2) {
+    return map11(function(v2) {
       return {
         lhs: v1.value0,
-        rhs: map10(resolve(nts))(v2.value0)
+        rhs: map11(resolve(nts))(v2.value0)
       };
     })(v1.value2);
   };
@@ -5387,14 +5466,14 @@ var fromPartition = function(canonical) {
       };
     };
     return {
-      states: map10(blockItems)(range2(0)(numBlocks - 1 | 0)),
+      states: map11(blockItems)(range2(0)(numBlocks - 1 | 0)),
       index: foldlWithIndex2(function(i) {
         return function(m) {
           return function(s) {
             return insert6(s)(i)(m);
           };
         };
-      })(empty2)(map10(blockItems)(range2(0)(numBlocks - 1 | 0))),
+      })(empty2)(map11(blockItems)(range2(0)(numBlocks - 1 | 0))),
       trans: foldl5(remap)(empty2)(toUnfoldable4(canonical.trans))
     };
   };
@@ -5473,7 +5552,7 @@ var refineOnce = function(ctx) {
             return insertWith1(append3)(blk(c))([c])(m);
           };
         })(empty2)(ids);
-        var inadeqOf = map13(function(members) {
+        var inadeqOf = map14(function(members) {
           return inadequate(ctx)(foldl5(function(acc) {
             return function(c) {
               return union22(acc)(itemsOf(c));
@@ -5504,9 +5583,9 @@ var refineOnce = function(ctx) {
             ;
             return b;
           })();
-          return new Tuple(marker, map10(succBlk(c))(symbols));
+          return new Tuple(marker, map11(succBlk(c))(symbols));
         };
-        return renumber(map10(sigOf)(ids));
+        return renumber(map11(sigOf)(ids));
       };
     };
   };
@@ -5557,7 +5636,7 @@ var transSymbols = function(canonical) {
     return v.value0.value1;
   };
   var entries = toUnfoldable4(canonical.trans);
-  return toUnfoldable1(fromFoldable23(map10(keySym)(entries)));
+  return toUnfoldable1(fromFoldable23(map11(keySym)(entries)));
 };
 var eqAction = {
   eq: function(x) {
@@ -5807,7 +5886,7 @@ var fillTables = function(ctx) {
 var emptyPrec = {
   terms: empty2
 };
-var coreOf = /* @__PURE__ */ map8(ordRecord1)(function(it) {
+var coreOf = /* @__PURE__ */ map9(ordRecord1)(function(it) {
   return {
     prod: it.prod,
     dot: it.dot
@@ -6123,7 +6202,7 @@ var buildTablesForP = function(prec) {
 var buildTablesFor = /* @__PURE__ */ buildTablesForP(emptyPrec);
 
 // ../output/Gramaire.Diagnostics/index.js
-var map11 = /* @__PURE__ */ map(functorArray);
+var map15 = /* @__PURE__ */ map(functorArray);
 var show3 = /* @__PURE__ */ show(showInt);
 var member5 = /* @__PURE__ */ member2(ordString);
 var nub2 = /* @__PURE__ */ nub(ordString);
@@ -6195,7 +6274,7 @@ var prodName = function(prods) {
           return "\u03B5";
         }
         ;
-        return joinWith(" ")(map11(sym)(v.value0.rhs));
+        return joinWith(" ")(map15(sym)(v.value0.rhs));
       })());
     }
     ;
@@ -6220,7 +6299,7 @@ var renderConflict = function(prods) {
   };
 };
 var renderConflicts = function(g) {
-  return map11(renderConflict(productions(g)));
+  return map15(renderConflict(productions(g)));
 };
 var isNonterminalName = function(name) {
   return toUpper(name) !== name;
@@ -6251,7 +6330,7 @@ var checkDefined = function(g) {
     }
     ;
     return "s ";
-  })() + (joinWith(", ")(map11(function(n) {
+  })() + (joinWith(", ")(map15(function(n) {
     return "`" + (n + "`");
   })(v)) + ": a mixed-case name must be defined by some rule (an ALL-CAPS name is a lexer token class).")));
 };
@@ -6460,12 +6539,12 @@ var fromCharCode3 = /* @__PURE__ */ toEnum(boundedEnumChar);
 var add2 = /* @__PURE__ */ add(semiringInt);
 var eq6 = /* @__PURE__ */ eq(eqChar);
 var foldl6 = /* @__PURE__ */ foldl(foldableArray);
-var map14 = /* @__PURE__ */ map(functorArray);
+var map16 = /* @__PURE__ */ map(functorArray);
 var insertWith3 = /* @__PURE__ */ insertWith(ordInt);
 var toUnfoldable5 = /* @__PURE__ */ toUnfoldable(unfoldableArray);
 var member6 = /* @__PURE__ */ member(ordInt);
 var append12 = /* @__PURE__ */ append(semigroupArray);
-var map15 = /* @__PURE__ */ map(functorMap);
+var map17 = /* @__PURE__ */ map(functorMap);
 var bind4 = /* @__PURE__ */ bind(bindMaybe);
 var bind1 = /* @__PURE__ */ bind(bindEither);
 var notEq1 = /* @__PURE__ */ notEq(/* @__PURE__ */ eqMaybe(eqChar));
@@ -6626,11 +6705,11 @@ var countCaptures = /* @__PURE__ */ (function() {
     }
     ;
     if (v instanceof Concat) {
-      return sum2(map14(countCaptures)(v.value0));
+      return sum2(map16(countCaptures)(v.value0));
     }
     ;
     if (v instanceof Alt2) {
-      return sum2(map14(countCaptures)(v.value0));
+      return sum2(map16(countCaptures)(v.value0));
     }
     ;
     if (v instanceof Star2) {
@@ -6736,7 +6815,7 @@ var matchCap = function(caseless) {
                   var fresh = toUnfoldable5(nexts);
                   var newKeys = filter(function(k) {
                     return !member6(k)(visited);
-                  })(map14(fst$prime)(fresh));
+                  })(map16(fst$prime)(fresh));
                   $tco_var_visited = foldl6(function(m) {
                     return function(v1) {
                       return insertWith3(orElse)(v1.value0)(v1.value1)(m);
@@ -6785,7 +6864,7 @@ var matchCap = function(caseless) {
         }
         ;
         if (rx instanceof Capture) {
-          return map15(function(v) {
+          return map17(function(v) {
             return new Just(new Tuple(start, lastKey(rx.value0)));
           })(matchCap(caseless)(rx.value0)(chars)(start));
         }
@@ -7329,7 +7408,7 @@ var bind5 = /* @__PURE__ */ bind(bindEither);
 var bind12 = /* @__PURE__ */ bind(bindMaybe);
 var pure3 = /* @__PURE__ */ pure(applicativeEither);
 var traverse3 = /* @__PURE__ */ traverse(traversableArray)(applicativeEither);
-var map16 = /* @__PURE__ */ map(functorArray);
+var map18 = /* @__PURE__ */ map(functorArray);
 var Exact = /* @__PURE__ */ (function() {
   function Exact2(value0) {
     this.value0 = value0;
@@ -7672,11 +7751,11 @@ var parseTokens = function(content) {
   var meaningful = function(line) {
     return line !== "" && line !== "gramaire tokens";
   };
-  return traverse3(parseLine)(filter(meaningful)(map16(trim)(split("\n")(content))));
+  return traverse3(parseLine)(filter(meaningful)(map18(trim)(split("\n")(content))));
 };
 
 // ../output/Gramaire.Scanner/index.js
-var map17 = /* @__PURE__ */ map(functorArray);
+var map19 = /* @__PURE__ */ map(functorArray);
 var append4 = /* @__PURE__ */ append(semigroupArray);
 var scan = function(items) {
   return function(input) {
@@ -7844,7 +7923,7 @@ var buildItems = function(defs) {
         throw new Error("Failed pattern match at Gramaire.Scanner (line 74, column 21 - line 76, column 20): " + [v.constructor.name]);
       };
     };
-    var implicitItems = map17(function(lit) {
+    var implicitItems = map19(function(lit) {
       return {
         terminal: lit,
         match: exactMatch(false)(toCharArray(lit)),
@@ -7883,11 +7962,13 @@ var buildItems = function(defs) {
 var foldl7 = /* @__PURE__ */ foldl(foldableArray);
 var show5 = /* @__PURE__ */ show(showInt);
 var all3 = /* @__PURE__ */ all(foldableArray)(heytingAlgebraBoolean);
+var elem5 = /* @__PURE__ */ elem2(eqString);
 var notEq13 = /* @__PURE__ */ notEq(/* @__PURE__ */ eqMaybe(eqChar));
 var any5 = /* @__PURE__ */ any(foldableArray)(heytingAlgebraBoolean);
 var append14 = /* @__PURE__ */ append(semigroupArray);
 var show12 = /* @__PURE__ */ show(showParseError);
 var bind6 = /* @__PURE__ */ bind(bindEither);
+var map110 = /* @__PURE__ */ map(functorMaybe);
 var VStr = /* @__PURE__ */ (function() {
   function VStr2(value0) {
     this.value0 = value0;
@@ -8022,17 +8103,17 @@ var $$unescape = /* @__PURE__ */ (function() {
         return ["\\"];
       }
       ;
-      throw new Error("Failed pattern match at Gramaire.Lr (line 81, column 34 - line 83, column 26): " + [v1.constructor.name]);
+      throw new Error("Failed pattern match at Gramaire.Lr (line 83, column 34 - line 85, column 26): " + [v1.constructor.name]);
     }
     ;
     if (v instanceof Just) {
       return cons(v.value0.head)(go(v.value0.tail));
     }
     ;
-    throw new Error("Failed pattern match at Gramaire.Lr (line 79, column 11 - line 84, column 53): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramaire.Lr (line 81, column 11 - line 86, column 53): " + [v.constructor.name]);
   };
-  return function($276) {
-    return fromCharArray(go(toCharArray($276)));
+  return function($282) {
+    return fromCharArray(go(toCharArray($282)));
   };
 })();
 var unquoteLit = function(s) {
@@ -8052,8 +8133,8 @@ var trimBlankEnds = /* @__PURE__ */ (function() {
   var dropBlank = dropWhile(function(l) {
     return trim(l) === "";
   });
-  return function($277) {
-    return reverse(dropBlank(reverse(dropBlank($277))));
+  return function($283) {
+    return reverse(dropBlank(reverse(dropBlank($283))));
   };
 })();
 var tokenVal = function(tok) {
@@ -8264,13 +8345,42 @@ var reduce = function(p) {
     return new VErr("unexpected reduce shape for production " + show5(p));
   };
 };
+var normalizeLang = function(raw) {
+  var isDigit = function(c) {
+    return c >= "0" && c <= "9";
+  };
+  var prefixThenDigits = function(p) {
+    return function(l2) {
+      var v = stripPrefix(p)(l2);
+      if (v instanceof Just) {
+        return v.value0 !== "" && all3(isDigit)(toCharArray(v.value0));
+      }
+      ;
+      if (v instanceof Nothing) {
+        return false;
+      }
+      ;
+      throw new Error("Failed pattern match at Gramaire.Lr (line 412, column 26 - line 414, column 21): " + [v.constructor.name]);
+    };
+  };
+  var isJs = function(l2) {
+    return elem5(l2)(["js", "javascript", "jsx", "mjs", "cjs", "ecmascript", "esnext"]) || (prefixThenDigits("es")(l2) || prefixThenDigits("ecmascript")(l2));
+  };
+  var l = toLower(trim(raw));
+  var $252 = isJs(l);
+  if ($252) {
+    return "js";
+  }
+  ;
+  return l;
+};
 var lrScanItems = /* @__PURE__ */ buildItems(/* @__PURE__ */ fromRight([])(/* @__PURE__ */ parseTokens(lrTokensSource)))([":", "|", "(", ")", ".", "~"]);
 var lrBlocks = function(md) {
   var scan2 = function(acc) {
     return function(line) {
       if (acc.inside) {
-        var $248 = trim(line) === "```";
-        if ($248) {
+        var $254 = trim(line) === "```";
+        if ($254) {
           return {
             inside: false,
             cur: [],
@@ -8285,8 +8395,8 @@ var lrBlocks = function(md) {
         };
       }
       ;
-      var $249 = trim(line) === "```gramaire";
-      if ($249) {
+      var $255 = trim(line) === "```gramaire";
+      if ($255) {
         return {
           blocks: acc.blocks,
           inside: true,
@@ -8317,7 +8427,7 @@ var isUpperName = function(name) {
       return false;
     }
     ;
-    throw new Error("Failed pattern match at Gramaire.Lr (line 308, column 8 - line 310, column 23): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramaire.Lr (line 312, column 8 - line 314, column 23): " + [v.constructor.name]);
   })());
 };
 var isTokenDef = function(l) {
@@ -8331,8 +8441,11 @@ var isTokenDef = function(l) {
       return isUpperName(trim(take3(v.value0)(l)));
     }
     ;
-    throw new Error("Failed pattern match at Gramaire.Lr (line 300, column 8 - line 302, column 46): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramaire.Lr (line 304, column 8 - line 306, column 46): " + [v.constructor.name]);
   })());
+};
+var isSettingDecl = function(l) {
+  return isJust(stripPrefix("%lang ")(trim(l)));
 };
 var isPrecDecl = function(l) {
   var t = trim(l);
@@ -8344,8 +8457,8 @@ var gramaireBlocks = function(md) {
   var step = function(acc) {
     return function(line) {
       if (acc.inside) {
-        var $255 = trim(line) === "```";
-        if ($255) {
+        var $261 = trim(line) === "```";
+        if ($261) {
           return {
             info: acc.info,
             cur: acc.cur,
@@ -8379,7 +8492,7 @@ var gramaireBlocks = function(md) {
         return acc;
       }
       ;
-      throw new Error("Failed pattern match at Gramaire.Lr (line 165, column 10 - line 167, column 21): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Gramaire.Lr (line 167, column 10 - line 169, column 21): " + [v.constructor.name]);
     };
   };
   return foldl7(step)({
@@ -8401,15 +8514,15 @@ var precedenceOf = function(md) {
     return emptyPrec;
   }
   ;
-  throw new Error("Failed pattern match at Gramaire.Lr (line 373, column 19 - line 375, column 23): " + [v.constructor.name]);
+  throw new Error("Failed pattern match at Gramaire.Lr (line 383, column 19 - line 385, column 23): " + [v.constructor.name]);
 };
 var decomment = function(ls) {
   var step = function(acc) {
     return function(line) {
       var t = trim(line);
       if (acc.inBlock) {
-        var $261 = contains("*/")(t);
-        if ($261) {
+        var $267 = contains("*/")(t);
+        if ($267) {
           return {
             out: acc.out,
             inBlock: false
@@ -8419,15 +8532,15 @@ var decomment = function(ls) {
         return acc;
       }
       ;
-      var $262 = isJust(stripPrefix("//")(t));
-      if ($262) {
+      var $268 = isJust(stripPrefix("//")(t));
+      if ($268) {
         return acc;
       }
       ;
-      var $263 = isJust(stripPrefix("/*")(t));
-      if ($263) {
-        var $264 = contains("*/")(t);
-        if ($264) {
+      var $269 = isJust(stripPrefix("/*")(t));
+      if ($269) {
+        var $270 = contains("*/")(t);
+        if ($270) {
           return acc;
         }
         ;
@@ -8449,35 +8562,36 @@ var decomment = function(ls) {
   })(ls).out);
 };
 var toFenced = function(src) {
-  var $265 = contains("```gramaire")(src);
-  if ($265) {
+  var $271 = contains("```gramaire")(src);
+  if ($271) {
     return src;
   }
   ;
   var ls = decomment(split("\n")(src));
   var prodLines = filter(function(l) {
-    return !isTokenDef(l) && !isPrecDecl(l);
+    return !isTokenDef(l) && (!isPrecDecl(l) && !isSettingDecl(l));
   })(ls);
+  var settingLines = filter(isSettingDecl)(ls);
   var tokenLines = filter(isTokenDef)(ls);
   var block = function(info) {
     return function(body) {
       var trimmed = trimBlankEnds(body);
-      var $266 = $$null(trimmed);
-      if ($266) {
+      var $272 = $$null(trimmed);
+      if ($272) {
         return [];
       }
       ;
       return ["```gramaire" + (info + ("\n" + (joinWith("\n")(trimmed) + "\n```")))];
     };
   };
-  return joinWith("\n\n")(append14(block(" tokens")(tokenLines))(block("")(prodLines)));
+  return joinWith("\n\n")(append14(block(" settings")(settingLines))(append14(block(" tokens")(tokenLines))(block("")(prodLines))));
 };
 var parseWith = function(method) {
   return function(md) {
     var src = joinWith("\n")(lrBlocks(toFenced(md))) + "\n";
     var raw = scan(lrScanItems)(src);
-    var $267 = hasError(raw);
-    if ($267) {
+    var $273 = hasError(raw);
+    if ($273) {
       return new Left("lexical error in grammar source");
     }
     ;
@@ -8500,15 +8614,21 @@ var parseWith = function(method) {
         return new Left("parse did not yield a Grammar");
       }
       ;
-      throw new Error("Failed pattern match at Gramaire.Lr (line 359, column 22 - line 362, column 56): " + [v1.constructor.name]);
+      throw new Error("Failed pattern match at Gramaire.Lr (line 369, column 22 - line 372, column 56): " + [v1.constructor.name]);
     }
     ;
-    throw new Error("Failed pattern match at Gramaire.Lr (line 357, column 10 - line 362, column 56): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramaire.Lr (line 367, column 10 - line 372, column 56): " + [v.constructor.name]);
   };
 };
 var parse = /* @__PURE__ */ (function() {
   return parseWith(Canonical.value);
 })();
+var actionLangOf = function(md) {
+  var langLine = function(line) {
+    return map110(trim)(stripPrefix("%lang ")(trim(line)));
+  };
+  return map110(normalizeLang)(findMap(langLine)(split("\n")(md)));
+};
 
 // ../output/Gramaire.Conformance.Lexers/index.js
 var foldl9 = /* @__PURE__ */ foldl(foldableArray);
@@ -8619,7 +8739,7 @@ var show6 = /* @__PURE__ */ show(showInt);
 var div3 = /* @__PURE__ */ div(euclideanRingInt);
 var mod3 = /* @__PURE__ */ mod(euclideanRingInt);
 var foldMap3 = /* @__PURE__ */ foldMap(foldableArray)(monoidString);
-var map18 = /* @__PURE__ */ map(functorArray);
+var map111 = /* @__PURE__ */ map(functorArray);
 var sortWith2 = /* @__PURE__ */ sortWith(ordString);
 var JNull = /* @__PURE__ */ (function() {
   function JNull2() {
@@ -8722,7 +8842,7 @@ var stringify = /* @__PURE__ */ (function() {
       return function(close) {
         return function(entries) {
           var inner = indent + "  ";
-          return open + ("\n" + (joinWith(",\n")(map18(function(e) {
+          return open + ("\n" + (joinWith(",\n")(map111(function(e) {
             return inner + e;
           })(entries)) + ("\n" + (indent + close))));
         };
@@ -8756,7 +8876,7 @@ var stringify = /* @__PURE__ */ (function() {
       }
       ;
       if (v instanceof JArray) {
-        return block(indent)("[")("]")(map18(go(indent + "  "))(v.value0));
+        return block(indent)("[")("]")(map111(go(indent + "  "))(v.value0));
       }
       ;
       if (v instanceof JObject && v.value0.length === 0) {
@@ -8767,7 +8887,7 @@ var stringify = /* @__PURE__ */ (function() {
         var renderPair = function(v1) {
           return encodeString(v1.value0) + (": " + go(indent + "  ")(v1.value1));
         };
-        return block(indent)("{")("}")(map18(renderPair)(sortWith2(fst)(v.value0)));
+        return block(indent)("{")("}")(map111(renderPair)(sortWith2(fst)(v.value0)));
       }
       ;
       throw new Error("Failed pattern match at Gramaire.Json (line 48, column 15 - line 60, column 79): " + [v.constructor.name]);
@@ -8777,7 +8897,7 @@ var stringify = /* @__PURE__ */ (function() {
 })();
 
 // ../output/Gramaire.Cst/index.js
-var map19 = /* @__PURE__ */ map(functorArray);
+var map20 = /* @__PURE__ */ map(functorArray);
 var Branch = /* @__PURE__ */ (function() {
   function Branch2(value0, value1) {
     this.value0 = value0;
@@ -8806,7 +8926,7 @@ var Token = /* @__PURE__ */ (function() {
 })();
 var toJson = function(v) {
   if (v instanceof Branch) {
-    return new JObject([new Tuple("rule", new JInt(v.value0)), new Tuple("children", new JArray(map19(toJson)(v.value1)))]);
+    return new JObject([new Tuple("rule", new JInt(v.value0)), new Tuple("children", new JArray(map20(toJson)(v.value1)))]);
   }
   ;
   if (v instanceof Token) {
@@ -8895,7 +9015,7 @@ var eqOutcome = {
 // ../output/Gramaire.Glr/index.js
 var show8 = /* @__PURE__ */ show(showInt);
 var append15 = /* @__PURE__ */ append(semigroupArray);
-var map20 = /* @__PURE__ */ map(functorArray);
+var map21 = /* @__PURE__ */ map(functorArray);
 var ordTuple4 = /* @__PURE__ */ ordTuple(ordInt);
 var lookup7 = /* @__PURE__ */ lookup(/* @__PURE__ */ ordTuple4(ordString));
 var lookup13 = /* @__PURE__ */ lookup(/* @__PURE__ */ ordTuple4(ordSymbol));
@@ -8968,7 +9088,7 @@ var explainP = function(prec) {
           }
           ;
           return "";
-        })() + "; the grammar is not LR(1)"))), "         (ambiguous, or in need of a refactor, more precedence, or the GLR driver). conflicts:"])(map20(function(c) {
+        })() + "; the grammar is not LR(1)"))), "         (ambiguous, or in need of a refactor, more precedence, or the GLR driver). conflicts:"])(map21(function(c) {
           return "  " + c;
         })(genuineConflicts));
       }
@@ -9154,7 +9274,7 @@ var forest = function(method) {
 };
 
 // ../output/Gramaire.IR/index.js
-var map21 = /* @__PURE__ */ map(functorArray);
+var map24 = /* @__PURE__ */ map(functorArray);
 var append5 = /* @__PURE__ */ append(semigroupArray);
 var foldl10 = /* @__PURE__ */ foldl(foldableArray);
 var max4 = /* @__PURE__ */ max(ordInt);
@@ -9262,6 +9382,46 @@ var ActAccept = /* @__PURE__ */ (function() {
   ActAccept2.value = new ActAccept2();
   return ActAccept2;
 })();
+var withActionLang = function(v) {
+  return function(v1) {
+    if (v instanceof Nothing) {
+      return v1;
+    }
+    ;
+    if (v instanceof Just) {
+      var retag = function(r) {
+        return {
+          id: r.id,
+          label: r.label,
+          lhs: r.lhs,
+          rhs: r.rhs,
+          actions: map24(function(v3) {
+            return new Tuple(v.value0, v3.value1);
+          })(r.actions)
+        };
+      };
+      return {
+        irVersion: v1.irVersion,
+        strategy: v1.strategy,
+        tables: v1.tables,
+        conflicts: v1.conflicts,
+        lexer: v1.lexer,
+        atn: v1.atn,
+        grammar: {
+          name: v1.grammar.name,
+          start: v1.grammar.start,
+          terminals: v1.grammar.terminals,
+          nonterminals: v1.grammar.nonterminals,
+          precedence: v1.grammar.precedence,
+          extras: v1.grammar.extras,
+          rules: map24(retag)(v1.grammar.rules)
+        }
+      };
+    }
+    ;
+    throw new Error("Failed pattern match at Gramaire.IR (line 700, column 1 - line 700, column 43): " + [v.constructor.name, v1.constructor.name]);
+  };
+};
 var irVersion = 0;
 var assembleTables = function(algorithm) {
   return function(termId) {
@@ -9280,10 +9440,10 @@ var assembleTables = function(algorithm) {
             return new OnTerm(termId(v.value0));
           }
           ;
-          throw new Error("Failed pattern match at Gramaire.IR (line 465, column 10 - line 468, column 35): " + [v.constructor.name]);
+          throw new Error("Failed pattern match at Gramaire.IR (line 466, column 10 - line 469, column 35): " + [v.constructor.name]);
         };
         var groupRows = function(m) {
-          return map21(function(v) {
+          return map24(function(v) {
             return {
               state: v.value0,
               entries: v.value1
@@ -9311,11 +9471,11 @@ var assembleTables = function(algorithm) {
             ;
             return Nothing.value;
           };
-          var allStates = append5(map21(function(v) {
+          var allStates = append5(map24(function(v) {
             return v.value0.value0;
-          })(actionList))(append5(mapMaybe(shiftTarget)(actionList))(append5(map21(function(v) {
+          })(actionList))(append5(mapMaybe(shiftTarget)(actionList))(append5(map24(function(v) {
             return v.value0.value0;
-          })(gotoList))(map21(function(v) {
+          })(gotoList))(map24(function(v) {
             return v.value1;
           })(gotoList))));
           return 1 + foldl10(max4)(-1 | 0)(allStates) | 0;
@@ -9333,7 +9493,7 @@ var assembleTables = function(algorithm) {
             return ActAccept.value;
           }
           ;
-          throw new Error("Failed pattern match at Gramaire.IR (line 471, column 11 - line 474, column 24): " + [v.constructor.name]);
+          throw new Error("Failed pattern match at Gramaire.IR (line 472, column 11 - line 475, column 24): " + [v.constructor.name]);
         };
         var actionByState = (function() {
           var step = function(m) {
@@ -9371,13 +9531,13 @@ var algorithmName = function(v) {
     return "ielr1";
   }
   ;
-  throw new Error("Failed pattern match at Gramaire.IR (line 420, column 17 - line 423, column 18): " + [v.constructor.name]);
+  throw new Error("Failed pattern match at Gramaire.IR (line 421, column 17 - line 424, column 18): " + [v.constructor.name]);
 };
 var buildIRP = function(prec) {
   return function(method) {
     return function(name) {
       return function(v) {
-        var ntNames = map21(function(v12) {
+        var ntNames = map24(function(v12) {
           return v12.value0;
         })(v);
         var ntSet = fromFoldable13(ntNames);
@@ -9414,8 +9574,8 @@ var buildIRP = function(prec) {
               }
               ;
               if (v12 instanceof Ref) {
-                var $340 = member13(v12.value0)(ntSet);
-                if ($340) {
+                var $352 = member13(v12.value0)(ntSet);
+                if ($352) {
                   return m;
                 }
                 ;
@@ -9454,7 +9614,7 @@ var buildIRP = function(prec) {
                 return foldl10(perSym)(m)(v12.value0);
               }
               ;
-              throw new Error("Failed pattern match at Gramaire.IR (line 334, column 16 - line 344, column 36): " + [v12.constructor.name]);
+              throw new Error("Failed pattern match at Gramaire.IR (line 335, column 16 - line 345, column 36): " + [v12.constructor.name]);
             };
           };
           return foldl10(perSym)(empty2)(allSyms);
@@ -9468,7 +9628,7 @@ var buildIRP = function(prec) {
             };
           };
         })(toUnfoldable6(termLiteralMap));
-        var termIdMap = fromFoldable6(map21(function(e) {
+        var termIdMap = fromFoldable6(map24(function(e) {
           return new Tuple(e.str, e.id);
         })(termEntries));
         var termId = function(s) {
@@ -9496,24 +9656,24 @@ var buildIRP = function(prec) {
               return "nonassoc";
             }
             ;
-            throw new Error("Failed pattern match at Gramaire.IR (line 373, column 18 - line 376, column 25): " + [a.constructor.name]);
+            throw new Error("Failed pattern match at Gramaire.IR (line 374, column 18 - line 377, column 25): " + [a.constructor.name]);
           };
           var toLevel = function(v12) {
             return {
               level: v12.value0,
-              assoc: maybe("left")(function($399) {
+              assoc: maybe("left")(function($411) {
                 return assocStr((function(v2) {
                   return v2.assoc;
-                })($399));
+                })($411));
               })(head(v12.value1)),
-              terminals: map21(function($400) {
+              terminals: map24(function($412) {
                 return termId((function(v2) {
                   return v2.term;
-                })($400));
+                })($412));
               })(v12.value1)
             };
           };
-          return map21(toLevel)(toUnfoldable6(grouped));
+          return map24(toLevel)(toUnfoldable6(grouped));
         })();
         var irRules = (function() {
           var withField = function(f) {
@@ -9526,13 +9686,13 @@ var buildIRP = function(prec) {
                 return new IRRefT(v12.value0, f);
               }
               ;
-              throw new Error("Failed pattern match at Gramaire.IR (line 410, column 19 - line 412, column 31): " + [v12.constructor.name]);
+              throw new Error("Failed pattern match at Gramaire.IR (line 411, column 19 - line 413, column 31): " + [v12.constructor.name]);
             };
           };
           var toRef = function(v12) {
             if (v12 instanceof Ref) {
-              var $367 = member13(v12.value0)(ntSet);
-              if ($367) {
+              var $379 = member13(v12.value0)(ntSet);
+              if ($379) {
                 return new IRRefNT(ntId(v12.value0), Nothing.value);
               }
               ;
@@ -9575,14 +9735,14 @@ var buildIRP = function(prec) {
               return new IRRefT(termId("(not)"), Nothing.value);
             }
             ;
-            throw new Error("Failed pattern match at Gramaire.IR (line 398, column 13 - line 408, column 47): " + [v12.constructor.name]);
+            throw new Error("Failed pattern match at Gramaire.IR (line 399, column 13 - line 409, column 47): " + [v12.constructor.name]);
           };
           var toRule = function(i) {
             return function(v12) {
               return {
                 id: i,
                 lhs: ntId(v12.value0),
-                rhs: map21(toRef)(v12.value1.value0),
+                rhs: map24(toRef)(v12.value1.value0),
                 label: v12.value1.value1,
                 actions: (function() {
                   if (v12.value1.value2 instanceof Just) {
@@ -9593,19 +9753,19 @@ var buildIRP = function(prec) {
                     return [];
                   }
                   ;
-                  throw new Error("Failed pattern match at Gramaire.IR (line 394, column 18 - line 396, column 24): " + [v12.value1.value2.constructor.name]);
+                  throw new Error("Failed pattern match at Gramaire.IR (line 395, column 18 - line 397, column 24): " + [v12.value1.value2.constructor.name]);
                 })()
               };
             };
           };
           var flat = concatMap(function(v12) {
-            return map21(function(alt2) {
+            return map24(function(alt2) {
               return new Tuple(v12.value0, alt2);
             })(v12.value2);
           })(v);
           return mapWithIndex2(toRule)(flat);
         })();
-        var terminals = map21(function(e) {
+        var terminals = map24(function(e) {
           if (e.isLiteral) {
             return new IRLiteral(e.id, e.str);
           }
@@ -9637,7 +9797,7 @@ var buildIRP = function(prec) {
           });
         }
         ;
-        throw new Error("Failed pattern match at Gramaire.IR (line 288, column 3 - line 307, column 10): " + [v1.constructor.name]);
+        throw new Error("Failed pattern match at Gramaire.IR (line 289, column 3 - line 308, column 10): " + [v1.constructor.name]);
       };
     };
   };
@@ -9645,14 +9805,14 @@ var buildIRP = function(prec) {
 var buildIR = /* @__PURE__ */ buildIRP(emptyPrec);
 
 // ../output/Gramaire.Playground/index.js
-var map24 = /* @__PURE__ */ map(functorArray);
+var map25 = /* @__PURE__ */ map(functorArray);
 var show9 = /* @__PURE__ */ show(showString);
 var foldMap4 = /* @__PURE__ */ foldMap(foldableArray)(monoidString);
 var append16 = /* @__PURE__ */ append(semigroupArray);
 var show13 = /* @__PURE__ */ show(showInt);
 var eq7 = /* @__PURE__ */ eq(eqOutcome);
 var ruleNamesOf = function(v) {
-  return map24(function(v1) {
+  return map25(function(v1) {
     return v1.value0;
   })(v);
 };
@@ -9668,14 +9828,14 @@ var renderTree = function(prods) {
         return "(start)";
       }
       ;
-      throw new Error("Failed pattern match at Gramaire.Playground (line 168, column 19 - line 170, column 27): " + [v1.constructor.name]);
+      throw new Error("Failed pattern match at Gramaire.Playground (line 186, column 19 - line 188, column 27): " + [v1.constructor.name]);
     }
     ;
     if (v instanceof Token) {
       return v.value0 + (" " + show9(v.value1));
     }
     ;
-    throw new Error("Failed pattern match at Gramaire.Playground (line 167, column 11 - line 171, column 36): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramaire.Playground (line 185, column 11 - line 189, column 36): " + [v.constructor.name]);
   };
   var indent = function(depth) {
     return joinWith("")(replicate(depth)("  "));
@@ -9693,7 +9853,7 @@ var renderTree = function(prods) {
           return "";
         }
         ;
-        throw new Error("Failed pattern match at Gramaire.Playground (line 164, column 10 - line 166, column 24): " + [node.constructor.name]);
+        throw new Error("Failed pattern match at Gramaire.Playground (line 182, column 10 - line 184, column 24): " + [node.constructor.name]);
       })());
     };
   };
@@ -9714,18 +9874,18 @@ var renderTrace = function(prods) {
         return "$";
       }
       ;
-      throw new Error("Failed pattern match at Gramaire.Playground (line 189, column 13 - line 192, column 15): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Gramaire.Playground (line 207, column 13 - line 210, column 15): " + [v.constructor.name]);
     };
     var prodLabel = function(p) {
       var v = index(prods)(p);
       if (v instanceof Just) {
         return v.value0.lhs + (" -> " + (function() {
-          var $50 = $$null(v.value0.rhs);
-          if ($50) {
+          var $51 = $$null(v.value0.rhs);
+          if ($51) {
             return "\u03B5";
           }
           ;
-          return joinWith(" ")(map24(symText)(v.value0.rhs));
+          return joinWith(" ")(map25(symText)(v.value0.rhs));
         })());
       }
       ;
@@ -9733,7 +9893,7 @@ var renderTrace = function(prods) {
         return "(accept)";
       }
       ;
-      throw new Error("Failed pattern match at Gramaire.Playground (line 184, column 17 - line 188, column 26): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Gramaire.Playground (line 202, column 17 - line 206, column 26): " + [v.constructor.name]);
     };
     var steps = function(v) {
       if (v instanceof Token) {
@@ -9744,7 +9904,7 @@ var renderTrace = function(prods) {
         return append16(concatMap(steps)(v.value1))(["reduce " + prodLabel(v.value0)]);
       }
       ;
-      throw new Error("Failed pattern match at Gramaire.Playground (line 181, column 11 - line 183, column 80): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Gramaire.Playground (line 199, column 11 - line 201, column 80): " + [v.constructor.name]);
     };
     var numbered = function(i) {
       return function(s) {
@@ -9764,16 +9924,16 @@ var metaJsonOf = function(grammar) {
       return v2.value1;
     }
     ;
-    throw new Error("Failed pattern match at Gramaire.Playground (line 150, column 14 - line 152, column 20): " + [v2.constructor.name]);
+    throw new Error("Failed pattern match at Gramaire.Playground (line 168, column 14 - line 170, column 20): " + [v2.constructor.name]);
   };
   var fieldJson = (function() {
-    var $88 = maybe(JNull.value)(JString.create);
-    return function($89) {
-      return $88(refField($89));
+    var $92 = maybe(JNull.value)(JString.create);
+    return function($93) {
+      return $92(refField($93));
     };
   })();
   var ruleMeta = function(r) {
-    return new JObject([new Tuple("label", maybe(JNull.value)(JString.create)(r.label)), new Tuple("fields", new JArray(map24(fieldJson)(r.rhs)))]);
+    return new JObject([new Tuple("label", maybe(JNull.value)(JString.create)(r.label)), new Tuple("fields", new JArray(map25(fieldJson)(r.rhs)))]);
   };
   var v = buildIR(Canonical.value)("Lab")(grammar);
   if (v instanceof Left) {
@@ -9781,10 +9941,24 @@ var metaJsonOf = function(grammar) {
   }
   ;
   if (v instanceof Right) {
-    return stringify(new JArray(map24(ruleMeta)(v.value0.grammar.rules)));
+    return stringify(new JArray(map25(ruleMeta)(v.value0.grammar.rules)));
   }
   ;
-  throw new Error("Failed pattern match at Gramaire.Playground (line 140, column 22 - line 142, column 65): " + [v.constructor.name]);
+  throw new Error("Failed pattern match at Gramaire.Playground (line 158, column 22 - line 160, column 65): " + [v.constructor.name]);
+};
+var evalJsOf = function(source) {
+  return function(grammar) {
+    var v = buildIR(Canonical.value)("Lab")(grammar);
+    if (v instanceof Left) {
+      return "";
+    }
+    ;
+    if (v instanceof Right) {
+      return emit(withActionLang(actionLangOf(source))(v.value0));
+    }
+    ;
+    throw new Error("Failed pattern match at Gramaire.Playground (line 149, column 27 - line 151, column 64): " + [v.constructor.name]);
+  };
 };
 var evaluate = function(v) {
   var v1 = parse(v.source);
@@ -9800,13 +9974,15 @@ var evaluate = function(v) {
       trace: "",
       conflicts: "",
       cstJson: "",
-      meta: "[]"
+      meta: "[]",
+      evalJs: ""
     };
   }
   ;
   if (v1 instanceof Right) {
     var rules = ruleNamesOf(v1.value0);
     var meta = metaJsonOf(v1.value0);
+    var evalJs = evalJsOf(v.source)(v1.value0);
     var defs = (function() {
       var v22 = tokensBlock(v.source);
       if (v22 instanceof Just) {
@@ -9819,14 +9995,14 @@ var evaluate = function(v) {
           return [];
         }
         ;
-        throw new Error("Failed pattern match at Gramaire.Playground (line 72, column 23 - line 74, column 23): " + [v3.constructor.name]);
+        throw new Error("Failed pattern match at Gramaire.Playground (line 75, column 23 - line 77, column 23): " + [v3.constructor.name]);
       }
       ;
       if (v22 instanceof Nothing) {
         return [];
       }
       ;
-      throw new Error("Failed pattern match at Gramaire.Playground (line 71, column 14 - line 75, column 22): " + [v22.constructor.name]);
+      throw new Error("Failed pattern match at Gramaire.Playground (line 74, column 14 - line 78, column 22): " + [v22.constructor.name]);
     })();
     var lexer = scannerLexer(defs)(v1.value0);
     var conflicts = explainP(precedenceOf(v.source))(v1.value0);
@@ -9843,7 +10019,8 @@ var evaluate = function(v) {
         trace: "",
         conflicts,
         cstJson: "",
-        meta
+        meta,
+        evalJs
       };
     }
     ;
@@ -9860,14 +10037,14 @@ var evaluate = function(v) {
           return "";
         }
         ;
-        throw new Error("Failed pattern match at Gramaire.Playground (line 108, column 21 - line 110, column 28): " + [v3.constructor.name]);
+        throw new Error("Failed pattern match at Gramaire.Playground (line 116, column 21 - line 118, column 28): " + [v3.constructor.name]);
       })();
       var tree = (function() {
         var v3 = head(csts);
         if (v3 instanceof Just) {
           return renderTree(prods)(v3.value0) + (function() {
-            var $78 = length(csts) > 1;
-            if ($78) {
+            var $82 = length(csts) > 1;
+            if ($82) {
               return "\n\n(ambiguous: " + (show13(length(csts)) + " parses; showing the first)");
             }
             ;
@@ -9879,7 +10056,7 @@ var evaluate = function(v) {
           return "";
         }
         ;
-        throw new Error("Failed pattern match at Gramaire.Playground (line 103, column 20 - line 107, column 28): " + [v3.constructor.name]);
+        throw new Error("Failed pattern match at Gramaire.Playground (line 111, column 20 - line 115, column 28): " + [v3.constructor.name]);
       })();
       var cstJson = (function() {
         var v3 = head(csts);
@@ -9891,7 +10068,7 @@ var evaluate = function(v) {
           return "";
         }
         ;
-        throw new Error("Failed pattern match at Gramaire.Playground (line 111, column 23 - line 113, column 28): " + [v3.constructor.name]);
+        throw new Error("Failed pattern match at Gramaire.Playground (line 119, column 23 - line 121, column 28): " + [v3.constructor.name]);
       })();
       var accepted = eq7(recognize(lexer)(Canonical.value)(v1.value0)(v.input))(Accept2.value);
       return {
@@ -9912,21 +10089,22 @@ var evaluate = function(v) {
           return ["The input did not match the grammar."];
         })(),
         rules,
-        tokens: map24(function(v3) {
+        tokens: map25(function(v3) {
           return v3.text;
         })(v2.value0),
         tree,
         trace,
         conflicts,
         cstJson,
-        meta
+        meta,
+        evalJs
       };
     }
     ;
-    throw new Error("Failed pattern match at Gramaire.Playground (line 81, column 7 - line 130, column 14): " + [v2.constructor.name]);
+    throw new Error("Failed pattern match at Gramaire.Playground (line 88, column 7 - line 139, column 14): " + [v2.constructor.name]);
   }
   ;
-  throw new Error("Failed pattern match at Gramaire.Playground (line 49, column 30 - line 130, column 14): " + [v1.constructor.name]);
+  throw new Error("Failed pattern match at Gramaire.Playground (line 51, column 30 - line 139, column 14): " + [v1.constructor.name]);
 };
 export {
   evaluate

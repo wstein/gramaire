@@ -46,6 +46,7 @@ module Gramaire.IR
   , buildIRP
   , attachLexer
   , withStrategy
+  , withActionLang
   , irAtnOf
   , toJson
   , serialize
@@ -689,6 +690,19 @@ withStrategy strat g ir = case strat of
     Right dg -> ir { strategy = "ll-star", atn = Just (irAtnOf (buildAtn (eliminate dg))) }
     Left _ -> ir { strategy = "ll-star" }
   other -> ir { strategy = other }
+
+-- | Re-tag every production's inline-action profile with the document's declared
+-- | host language (`Gramaire.Lr.actionLangOf`). `Nothing` leaves the IR
+-- | byte-unchanged; a `Just lang` rewrites each `actions` entry's profile from
+-- | the front end's default `"purescript"` placeholder to `lang`, so a backend
+-- | can recognize (e.g.) `js` actions as its own. The action text is untouched —
+-- | only the profile key changes.
+withActionLang :: Maybe String -> IR -> IR
+withActionLang Nothing ir = ir
+withActionLang (Just lang) ir =
+  ir { grammar = ir.grammar { rules = map retag ir.grammar.rules } }
+  where
+  retag r = r { actions = map (\(Tuple _ code) -> Tuple lang code) r.actions }
 
 -- | Project a `Gramaire.Atn` onto its serializable IR mirror.
 irAtnOf :: Atn -> IRAtn

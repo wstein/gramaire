@@ -23,10 +23,11 @@ import Gramaire.Conformance (Outcome(..), recognize)
 import Gramaire.Conformance.Lexers (scannerLexer, tokensBlock)
 import Gramaire.Cst (toJson) as Cst
 import Gramaire.Cst (Cst(..))
+import Gramaire.Backend.Js (emit) as Js
 import Gramaire.Glr (explainP, forest)
-import Gramaire.IR (IRRef(..), buildIR)
+import Gramaire.IR (IRRef(..), buildIR, withActionLang)
 import Gramaire.Json (Json(..), stringify)
-import Gramaire.Lr (parse, precedenceOf)
+import Gramaire.Lr (actionLangOf, parse, precedenceOf)
 import Gramaire.Syntax (Grammar(..), Rule(..))
 import Gramaire.Table (GSym(..), Method(..), Prod, productions)
 import Gramaire.Tokens (parseTokens)
@@ -43,6 +44,7 @@ type Result =
   , conflicts :: String -- the explain-conflict analysis of the grammar itself
   , cstJson :: String -- the parse tree as gramaire-cst JSON, "" if rejected
   , meta :: String -- per-production [{label, fields}] JSON (the handler shape)
+  , evalJs :: String -- the self-contained JS evaluator for the grammar (Backend.Js), "" if not LR-buildable
   }
 
 evaluate :: { source :: String, input :: String } -> Result
@@ -59,6 +61,7 @@ evaluate { source, input } = case parse source of
     , conflicts: ""
     , cstJson: ""
     , meta: "[]"
+    , evalJs: ""
     }
   Right grammar ->
     let
@@ -77,6 +80,10 @@ evaluate { source, input } = case parse source of
       -- The handler shape: each production's `# Label` and its `name:` fields, so
       -- an external evaluator can bind semantics by label (see Gramaire.Transform).
       meta = metaJsonOf grammar
+      -- The self-contained JS evaluator: the grammar's inline `{% %}` actions
+      -- baked into one `evaluate(cst)` (Backend.Js), tagged by the `%lang`
+      -- directive. The Lab runs exactly this — no second hand-written fold.
+      evalJs = evalJsOf source grammar
     in
       case lexer input of
         Left lexErr ->
@@ -91,6 +98,7 @@ evaluate { source, input } = case parse source of
           , conflicts
           , cstJson: ""
           , meta
+          , evalJs
           }
         Right toks ->
           let
@@ -127,10 +135,20 @@ evaluate { source, input } = case parse source of
             , conflicts
             , cstJson
             , meta
+            , evalJs
             }
 
 ruleNamesOf :: Grammar -> Array String
 ruleNamesOf (Grammar rules) = map (\(Rule name _ _) -> name) rules
+
+-- | The grammar's self-contained JS evaluator (`Gramaire.Backend.Js`): its inline
+-- | `{% %}` actions baked into one `evaluate(cst)`, with the action profile set
+-- | from the document's `%lang` directive. `""` when the grammar is not
+-- | LR-buildable (the Lab then offers no evaluation).
+evalJsOf :: String -> Grammar -> String
+evalJsOf source grammar = case buildIR Canonical "Lab" grammar of
+  Left _ -> ""
+  Right ir -> Js.emit (withActionLang (actionLangOf source) ir)
 
 -- | The per-production handler shape as JSON: `[{ label, fields }]`, indexed by
 -- | production id (matching the CST's branch ids). Built from the IR; `"[]"` if

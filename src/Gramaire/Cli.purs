@@ -35,8 +35,8 @@ import Gramaire.Conformance.Lexers (tokensBlock)
 import Gramaire.Tokens (parseTokens)
 import Gramaire.Diagnostics (renderConflicts)
 import Gramaire.Glr (explainP)
-import Gramaire.IR (IR, attachLexer, buildIRP, withStrategy)
-import Gramaire.Lr (parse, precedenceOf, strip)
+import Gramaire.IR (IR, attachLexer, buildIRP, withActionLang, withStrategy)
+import Gramaire.Lr (actionLangOf, parse, precedenceOf, strip)
 import Gramaire.Syntax (Grammar)
 import Gramaire.Table (Method(Canonical))
 import Node.Encoding (Encoding(UTF8))
@@ -132,7 +132,7 @@ runEmit args = case parseEmit args of
               Right ir
                 | not (Array.elem opts.strategy b.strategies) ->
                     die ("emit: backend '" <> b.name <> "' does not support strategy '" <> opts.strategy <> "'")
-                | otherwise -> deliver opts.out (b.emit (withStrategy opts.strategy g (withLexis md ir)))
+                | otherwise -> deliver opts.out (b.emit (withStrategy opts.strategy g (withActionLang (actionLangOf md) (withLexis md ir))))
 
 -- Attach the grammar's `## Tokens` lexis to the IR, if any, so lexer-aware
 -- backends (e.g. ANTLR) can emit token rules. Malformed or absent tokens leave

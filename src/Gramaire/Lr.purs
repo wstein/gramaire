@@ -9,6 +9,7 @@
 -- | reconstructs `bootstrapGrammar` — the self-hosting loop (see Test.SelfHost).
 module Gramaire.Lr
   ( SemVal(..)
+  , actionLangOf
   , lrBlocks
   , parse
   , parseWith
@@ -25,6 +26,7 @@ import Data.Either (Either(..), fromRight)
 import Data.Foldable (all, any, foldl)
 import Data.Maybe (Maybe(..), fromMaybe, isJust, maybe)
 import Data.String (Pattern(..), contains, indexOf, joinWith, split, stripPrefix, take, trim)
+import Data.String.Common (toLower)
 import Data.String.CodeUnits (charAt, fromCharArray, length, slice, toCharArray)
 import Gramaire.Bootstrap (bootstrapGrammar, lrTokensSource)
 import Gramaire.Desugar (desugar)
@@ -240,8 +242,9 @@ strip md =
     Just rest -> keepInfo (trim rest)
     Nothing -> false
 
-  -- Productions, tokens, and precedence carry grammar; errors do not.
-  keepInfo info = info == "" || info == "tokens" || info == "precedence"
+  -- Productions, tokens, precedence, and the general-settings block carry
+  -- grammar metadata; errors do not.
+  keepInfo info = info == "" || info == "tokens" || info == "precedence" || info == "settings"
   keepProse line =
     let
       t = trim line
@@ -272,8 +275,9 @@ toFenced src =
   else
     let
       ls = decomment (split (Pattern "\n") src)
+      settingLines = Array.filter isSettingDecl ls
       tokenLines = Array.filter isTokenDef ls
-      prodLines = Array.filter (\l -> not (isTokenDef l) && not (isPrecDecl l)) ls
+      prodLines = Array.filter (\l -> not (isTokenDef l) && not (isPrecDecl l) && not (isSettingDecl l)) ls
       block info body =
         let
           trimmed = trimBlankEnds body
@@ -281,7 +285,7 @@ toFenced src =
           if Array.null trimmed then []
           else [ "```gramaire" <> info <> "\n" <> joinWith "\n" trimmed <> "\n```" ]
     in
-      joinWith "\n\n" (block " tokens" tokenLines <> block "" prodLines)
+      joinWith "\n\n" (block " settings" settingLines <> block " tokens" tokenLines <> block "" prodLines)
 
 -- Drop leading and trailing all-blank lines (internal blanks, which separate
 -- rules, are kept) so a re-fenced block does not start with a stray `NL`.
@@ -317,6 +321,12 @@ isPrecDecl l =
     t = trim l
   in
     any (\p -> isJust (stripPrefix (Pattern p) t)) [ "%left ", "%right ", "%nonassoc " ]
+
+-- A document-level settings directive (the `## General settings` block), e.g.
+-- `%lang javascript`. Like a precedence decl, it is filtered out of the
+-- productions and re-fenced into its own `gramaire settings` block.
+isSettingDecl :: String -> Boolean
+isSettingDecl l = isJust (stripPrefix (Pattern "%lang ") (trim l))
 
 -- | Drop `//` line comments and `/* … */` block comments (the prose `strip`
 -- | writes into a `.gram`), so the grammar lexer never sees them. Whole-line
@@ -373,3 +383,33 @@ precedenceOf :: String -> Precedence
 precedenceOf md = case Array.find (\b -> b.info == "precedence") (gramaireBlocks md) of
   Just b -> parsePrecedence b.content
   Nothing -> emptyPrec
+
+-- | The declared inline-action host language of a `.gram.md` — its `## General
+-- | settings` block's `%lang <ident>` line, fence-free or fenced alike (the line
+-- | is the same in either projection). The ident is normalized: `js`,
+-- | `javascript`, `ecmascript`, and `esNNNN`/`esnext` all fold to `"js"`.
+-- | `Nothing` when the document declares none, in which case backends treat
+-- | inline `{% %}` actions as opaque (the JS backend bakes nothing).
+actionLangOf :: String -> Maybe String
+actionLangOf md = map normalizeLang (Array.findMap langLine (split (Pattern "\n") md))
+  where
+  langLine line = map trim (stripPrefix (Pattern "%lang ") (trim line))
+
+-- Fold the recognized JavaScript aliases onto the canonical `"js"` profile; any
+-- other language name is carried through lowercased (and a non-`js` profile
+-- simply means the JS backend will not bake it).
+normalizeLang :: String -> String
+normalizeLang raw =
+  let
+    l = toLower (trim raw)
+  in
+    if isJs l then "js" else l
+  where
+  isJs l =
+    Array.elem l [ "js", "javascript", "jsx", "mjs", "cjs", "ecmascript", "esnext" ]
+      || prefixThenDigits "es" l
+      || prefixThenDigits "ecmascript" l
+  prefixThenDigits p l = case stripPrefix (Pattern p) l of
+    Just rest -> rest /= "" && all isDigit (toCharArray rest)
+    Nothing -> false
+  isDigit c = c >= '0' && c <= '9'

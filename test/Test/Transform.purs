@@ -1,9 +1,10 @@
--- | The value oracle for the structure-only action-binding model: the
--- | `examples/calc-eval.gram.md` grammar carries no host code — only `# Label`s
--- | and `name:` fields — yet evaluates correctly when bound to an **external**
--- | PureScript handler set (`calcHandlers`) via `Gramaire.Transform.fold`. The
--- | same grammar would bind to a JavaScript handler object in the Lab; that the
--- | grammar names no language is the whole point.
+-- | The value oracle for the **structure-only** action-binding model (the PS
+-- | side of `Gramaire.Transform`): a grammar that carries no host code — only
+-- | `# Label`s and `name:` fields — still evaluates correctly when bound to an
+-- | **external** PureScript handler set (`calcHandlers`) via `foldRoot`. The
+-- | inline-JS calculator (`examples/calc-js.gram.md`) is the other half of the
+-- | story; this proves the label-keyed binding independently of any host
+-- | language, so the fixture is a small self-contained labelled calc.
 module Test.Transform (tests) where
 
 import Prelude
@@ -24,9 +25,49 @@ import Gramaire.Lr (parse)
 import Gramaire.Table (Method(Canonical))
 import Gramaire.Tokens (TokenDef, parseTokens)
 import Gramaire.Transform (Child(..), Handlers, foldRoot, metaOf)
-import Node.Encoding (Encoding(UTF8))
-import Node.FS.Sync (readTextFile)
 import Test.Assert (assert')
+
+-- A small labelled arithmetic grammar (the structure-only model): every
+-- alternative is named with a `# Label` and its operands with `name:` fields, so
+-- the semantics can live entirely in an external handler set. Kept inline so the
+-- test does not depend on any example file.
+calcLabels :: String
+calcLabels =
+  """# Mini-calc (labelled)
+
+## Tokens
+
+```gramaire tokens
+NUMBER : /[0-9]+(?:\.[0-9]+)?/
+WS     : /[ \t\r\n]+/   %skip
+```
+
+## Expr
+
+```gramaire
+Expr
+  : left:Expr '+' right:Term   # Add
+  | left:Expr '-' right:Term   # Sub
+  | Term
+```
+
+## Term
+
+```gramaire
+Term
+  : left:Term '*' right:Factor   # Mul
+  | left:Term '/' right:Factor   # Div
+  | Factor
+```
+
+## Factor
+
+```gramaire
+Factor
+  : '(' inner:Expr ')'   # Paren
+  | value:NUMBER         # Num
+```
+"""
 
 -- The calculator's semantics, written **outside** the grammar and keyed by its
 -- alternative labels (the multi-target binding the design chose).
@@ -71,12 +112,12 @@ defsOf md = case tokensBlock md of
 
 tests :: Effect Unit
 tests = do
-  log "  transform: external handlers evaluate the structure-only calc-eval grammar"
-  md <- readTextFile UTF8 "examples/calc-eval.gram.md"
+  log "  transform: external handlers evaluate a structure-only labelled grammar"
+  let md = calcLabels
   case parse md of
-    Left e -> assert' ("calc-eval should parse: " <> e) false
-    Right g -> case buildIR Canonical "Calc-eval" g of
-      Left _ -> assert' "calc-eval should build an IR" false
+    Left e -> assert' ("labelled calc should parse: " <> e) false
+    Right g -> case buildIR Canonical "Mini-calc" g of
+      Left _ -> assert' "labelled calc should build an IR" false
       Right ir -> do
         let
           meta = metaOf ir.grammar

@@ -92,6 +92,21 @@ test("getDefaultInput is a single sample expression", () => {
   assert.equal(getDefaultInput(), "(4 - 1) * 3 + 2");
 });
 
+test("the default grammar bakes a JS evaluator that computes the sample", async () => {
+  const result = await parseGramaireDocument(
+    getDefaultGrammar(),
+    getDefaultInput(),
+  );
+  assert.equal(result.success, true);
+  assert.notEqual(result.evalJs, "");
+  // Run the generated `evaluate(cst)` the same way the Lab's sandbox does.
+  const evaluate = new Function(
+    result.evalJs.replace(/export\s+function\s+evaluate/, "function evaluate") +
+      "\nreturn evaluate;",
+  )();
+  assert.equal(evaluate(JSON.parse(result.cstJson)), 11);
+});
+
 test("renderDiagrams draws one railroad SVG per rule of the default grammar", () => {
   const diags = renderDiagrams(getDefaultGrammar(), ["Expr", "Term", "Factor"]);
   assert.deepEqual(
