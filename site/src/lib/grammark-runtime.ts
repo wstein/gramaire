@@ -1,10 +1,10 @@
-import {
-  evaluateGrammar,
-  getDefaultGrammar,
-  getDefaultInput,
-  parseMarkdownGrammar,
-  type EvaluationResult,
-} from "./grammar-lab.ts";
+// The lab page's grammar runtime. This is a thin wrapper over the REAL Grammark
+// engine: `Grammark.Playground`, the filesystem-free PureScript core bundled to
+// browser ESM (ADR D13). The in-browser preview and the `grammark` CLI run the
+// same `Lr.parse`, the same scanner (built from the grammar's own `## Tokens`
+// block), and the same LR tables — so they cannot disagree. Regenerate the
+// bundle with `npm run build:engine`.
+import { evaluate } from "../generated/grammark-engine.mjs";
 
 export interface GrammarkParseResult {
   success: boolean;
@@ -17,42 +17,62 @@ export async function parseGrammarkDocument(
   source: string,
   inputOverride?: string,
 ): Promise<GrammarkParseResult> {
-  const { grammar, issues } = parseMarkdownGrammar(source);
   const input = inputOverride ?? getDefaultInput();
-  const evaluation = evaluateGrammar(grammar, input);
-
-  if (!grammar) {
-    return {
-      success: false,
-      message: "The grammar could not be parsed.",
-      diagnostics: issues.map((issue) => issue.message),
-    };
-  }
+  const result = evaluate({ source, input });
 
   return {
-    success: evaluation.success,
-    message: evaluation.message,
-    diagnostics: [...issues.map((issue) => issue.message), ...evaluation.diagnostics],
-    raw: formatEvaluationReport(evaluation),
+    // A run succeeds only when the grammar parsed AND the input was accepted.
+    success: result.ok && result.accepted,
+    message: result.message,
+    diagnostics: result.diagnostics,
+    raw: formatReport(result),
   };
 }
 
-function formatEvaluationReport(result: EvaluationResult): string {
+function formatReport(result: {
+  message: string;
+  diagnostics: string[];
+  rules: string[];
+  tokens: string[];
+}): string {
   const parts = [result.message];
 
-  if (result.inputTokens.length > 0) {
-    parts.push(`Tokens: ${result.inputTokens.join(", ")}`);
+  if (result.rules.length > 0) {
+    parts.push(`Rules: ${result.rules.join(", ")}`);
   }
-
-  if (result.trace.length > 0) {
-    parts.push("Trace:");
-    parts.push(...result.trace.map((entry) => `- ${entry}`));
+  if (result.tokens.length > 0) {
+    parts.push(`Tokens: ${result.tokens.join(" ")}`);
   }
-
   if (result.diagnostics.length > 0) {
     parts.push("Diagnostics:");
     parts.push(...result.diagnostics.map((entry) => `- ${entry}`));
   }
 
   return parts.join("\n");
+}
+
+// The lab's sample grammar — balanced parentheses, every terminal a backtick
+// literal, so it lexes with no `## Tokens` block.
+const DEFAULT_GRAMMAR = `# Brackets
+
+A grammar over balanced parentheses. Every terminal is a backtick literal,
+so the preview lexes input straight from the grammar.
+
+## S
+
+\`\`\`lr
+S
+  : \`(\` \`)\`
+  | \`(\` S \`)\`
+\`\`\`
+`;
+
+const DEFAULT_INPUT = "(())";
+
+export function getDefaultGrammar(): string {
+  return DEFAULT_GRAMMAR;
+}
+
+export function getDefaultInput(): string {
+  return DEFAULT_INPUT;
 }
