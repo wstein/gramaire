@@ -70,8 +70,9 @@ decodeClass j = do
   terminal <- field o "terminal" >>= int
   pattern <- field o "pattern" >>= decodePattern
   skipM <- optBool o "skip"
+  caselessM <- optBool o "caseless"
   prec <- optInt o "prec"
-  pure { terminal, pattern, skip: fromMaybe false skipM, prec }
+  pure { terminal, pattern, skip: fromMaybe false skipM, prec, caseless: fromMaybe false caselessM }
 
 decodePattern :: Json -> Either String IRPattern
 decodePattern j = do

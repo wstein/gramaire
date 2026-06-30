@@ -37,6 +37,7 @@ type TokenDef =
   , skip :: Boolean -- `%skip`: matched but not a grammar symbol (extras)
   , prec :: Maybe Int -- `%prec N`: explicit tie-break priority
   , external :: Maybe String -- `%external(pass)`: a host post-lex pass name
+  , caseless :: Boolean -- `/…/i` flag or `%caseless`: ASCII case-insensitive (D35)
   }
 
 -- | A token's pattern: an exact string (a literal class) or a regular
@@ -66,9 +67,16 @@ parseLine line = case splitFirstColon line of
   Nothing -> Left ("token line has no `:` separator: " <> line)
   Just (Tuple rawName rawRest) -> do
     name <- validateName (String.trim rawName)
-    Tuple pattern modsText <- parseDefinition (String.trim rawRest)
-    mods <- parseModifiers (words modsText)
-    pure { name, pattern, skip: mods.skip, prec: mods.prec, external: mods.external }
+    def <- parseDefinition (String.trim rawRest)
+    mods <- parseModifiers (words def.rest)
+    pure
+      { name
+      , pattern: def.pattern
+      , skip: mods.skip
+      , prec: mods.prec
+      , external: mods.external
+      , caseless: def.iflag || mods.caseless
+      }
 
 -- The name part ends at the first `:`; a `:` inside the definition cannot be
 -- reached because an ALL-CAPS name never contains one.
@@ -90,18 +98,23 @@ validateName name =
   isUpper c = c >= 'A' && c <= 'Z'
   isClassChar c = (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'
 
--- A definition is `"exact"` or `/regex/`; returns it plus the trailing modifier
--- text.
-parseDefinition :: String -> Either String (Tuple TokenPattern String)
+-- A definition is `"exact"` or `/regex/`, the latter with an optional glued `i`
+-- case-insensitivity flag (D35); returns the pattern, the flag, and the trailing
+-- modifier text.
+parseDefinition
+  :: String -> Either String { pattern :: TokenPattern, iflag :: Boolean, rest :: String }
 parseDefinition s = case Array.head (toCharArray s) of
   Just '"' -> do
     Tuple body rest <- readDelimited '"' true (String.drop 1 s)
-    Right (Tuple (Exact body) rest)
+    Right { pattern: Exact body, iflag: false, rest: String.trim rest }
   Just '/' -> do
     Tuple src rest <- readDelimited '/' false (String.drop 1 s)
+    -- A glued `i` immediately after the closing `/` is the case-insensitive flag.
+    let iflag = String.take 1 rest == "i"
+    let rest' = String.trim (if iflag then String.drop 1 rest else rest)
     case parseRegex src of
       Left e -> Left ("invalid pattern /" <> src <> "/: " <> e)
-      Right rx -> Right (Tuple (Regex src rx) rest)
+      Right rx -> Right { pattern: Regex src rx, iflag, rest: rest' }
   _ -> Left ("token definition must be a \"string\" or /regex/: " <> s)
 
 -- Read up to the next unescaped `delim`. With `unescape`, resolve `\x` to its
@@ -115,8 +128,8 @@ readDelimited delim unescape s = go 0 []
     Nothing -> Left ("unterminated " <> show delim <> " in token definition")
     Just c
       | c == delim ->
-          Right
-            (Tuple (fromCharArray acc) (String.trim (fromCharArray (Array.drop (i + 1) chars))))
+          -- Rest is returned untrimmed so a glued `/…/i` flag stays detectable.
+          Right (Tuple (fromCharArray acc) (fromCharArray (Array.drop (i + 1) chars)))
       | c == '\\' -> case Array.index chars (i + 1) of
           Nothing -> Left "trailing backslash in token definition"
           Just next ->
@@ -131,15 +144,17 @@ unescapeChar = case _ of
   't' -> '\t'
   c -> c
 
-type Mods = { skip :: Boolean, prec :: Maybe Int, external :: Maybe String }
+type Mods =
+  { skip :: Boolean, prec :: Maybe Int, external :: Maybe String, caseless :: Boolean }
 
 parseModifiers :: Array String -> Either String Mods
-parseModifiers = go { skip: false, prec: Nothing, external: Nothing }
+parseModifiers = go { skip: false, prec: Nothing, external: Nothing, caseless: false }
   where
   go acc ws = case Array.uncons ws of
     Nothing -> Right acc
     Just { head, tail }
       | head == "%skip" -> go acc { skip = true } tail
+      | head == "%caseless" -> go acc { caseless = true } tail
       | head == "%prec" -> case Array.uncons tail of
           Just { head: n, tail: rest } -> case parseIntStr n of
             Just p -> go acc { prec = Just p } rest

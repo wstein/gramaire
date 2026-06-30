@@ -90,6 +90,7 @@ type IRTokenClass =
   , pattern :: IRPattern
   , skip :: Boolean
   , prec :: Maybe Int
+  , caseless :: Boolean
   }
 
 -- | A token pattern: a regular expression (its source) or an exact literal.
@@ -434,6 +435,7 @@ toJson ir =
       , Tuple "pattern" (patternJson c.pattern)
       ]
         <> (if c.skip then [ Tuple "skip" (JBool true) ] else [])
+        <> (if c.caseless then [ Tuple "caseless" (JBool true) ] else [])
         <>
           ( case c.prec of
               Nothing -> []
@@ -586,7 +588,7 @@ attachLexer defs ir =
       (Map.fromFoldable (Array.mapWithIndex (\i d -> Tuple d.name (maxId + 1 + i)) newDefs))
 
   classes = Array.mapMaybe classFor defs
-  classFor d = map (\tid -> { terminal: tid, pattern: patternOf d.pattern, skip: d.skip, prec: d.prec })
+  classFor d = map (\tid -> { terminal: tid, pattern: patternOf d.pattern, skip: d.skip, prec: d.prec, caseless: d.caseless })
     (Map.lookup d.name nameId)
 
   order = Array.mapMaybe (\d -> Map.lookup d.name nameId) defs

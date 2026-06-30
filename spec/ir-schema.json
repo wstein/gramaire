@@ -50,6 +50,7 @@
           ]
         },
         "skip": { "type": "boolean" },
+        "caseless": { "type": "boolean" },
         "prec": { "type": "integer" }
       }
     },

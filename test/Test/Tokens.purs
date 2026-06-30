@@ -74,6 +74,14 @@ tests = do
       assert' "STRING is a regex" (maybe' (byName "STRING" defs) (isRegex <<< _.pattern))
       assert' "WS is %skip" (maybe' (byName "WS" defs) _.skip)
 
+  log "  tokens: the /…/i flag and %caseless both set caseless (D35)"
+  case parseTokens "KW : /select/i\nBG : \"begin\" %caseless\nID : /[a-z]+/" of
+    Left e -> assert' ("caseless tokens should parse: " <> e) false
+    Right defs -> do
+      assert' "the i flag sets caseless" (maybe' (byName "KW" defs) _.caseless)
+      assert' "%caseless sets caseless" (maybe' (byName "BG" defs) _.caseless)
+      assert' "a plain class is case-sensitive" (maybe' (byName "ID" defs) (not <<< _.caseless))
+
   log "  tokens: malformed lines are rejected"
   reject "a lowercase name" "ident : /a/"
   reject "a missing colon" "X /a/"
