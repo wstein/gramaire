@@ -29,6 +29,8 @@ import Data.Foldable (foldl)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
+import Data.Set (Set)
+import Data.Set as Set
 import Data.String (Pattern(..), joinWith)
 import Data.String as String
 import Data.Traversable (traverse)
@@ -39,7 +41,61 @@ import Gramark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 -- | use sites (D28), hoist each parenthesised `( … )` group to a fresh rule,
 -- | then lower the remaining EBNF/macro/field sugar.
 desugar :: Grammar -> Either String Grammar
-desugar g = inlineExpand g <#> groupHoist >>= sugarDesugar
+desugar g = inlineExpand g <#> wildcardLower <#> groupHoist >>= sugarDesugar
+
+-- | Lower `.` (any terminal) and `~set` (any terminal not in the set) to a
+-- | `Group` over the grammar's **closed terminal alphabet** — the literals and
+-- | token classes the productions mention (D-token-ops). Runs before
+-- | `groupHoist`, which lifts the generated groups to fresh rules; so `~';'`
+-- | becomes a group of every terminal but `';'`, and the rest of desugaring is
+-- | unchanged. (`.` ranges over the terminals the grammar uses, not over token
+-- | classes it never references.)
+wildcardLower :: Grammar -> Grammar
+wildcardLower (Grammar rules) = Grammar (map lowerRule rules)
+  where
+  nonterms :: Set String
+  nonterms = Set.fromFoldable (map (\(Rule n _ _) -> n) rules)
+
+  alphabet :: Array Sym
+  alphabet =
+    Array.nubByEq (\a b -> termName a == termName b)
+      (Array.mapMaybe terminalOf (Array.concatMap subSyms allSyms))
+
+  allSyms = Array.concatMap (\(Rule _ _ alts) -> Array.concatMap (\(Alt syms _ _) -> syms) alts) rules
+
+  subSyms s = Array.cons s case s of
+    Rep x -> subSyms x
+    Star x -> subSyms x
+    Opt x -> subSyms x
+    Field _ x -> subSyms x
+    Macro _ args -> Array.concatMap subSyms args
+    Group alts -> Array.concatMap (Array.concatMap subSyms) alts
+    Not set -> Array.concatMap subSyms set
+    _ -> []
+
+  terminalOf = case _ of
+    Lit s -> Just (Lit s)
+    Ref n -> if Set.member n nonterms then Nothing else Just (Ref n)
+    _ -> Nothing
+
+  termName = case _ of
+    Lit s -> s
+    Ref n -> n
+    _ -> ""
+
+  lowerRule (Rule lhs attrs alts) = Rule lhs attrs (map lowerAlt alts)
+  lowerAlt (Alt syms l a) = Alt (map lowerSym syms) l a
+  lowerSym = case _ of
+    Any -> Group (map (\t -> [ t ]) alphabet)
+    Not set -> Group (map (\t -> [ t ]) (Array.filter (notInSet set) alphabet))
+    Rep s -> Rep (lowerSym s)
+    Star s -> Star (lowerSym s)
+    Opt s -> Opt (lowerSym s)
+    Field f s -> Field f (lowerSym s)
+    Group alts -> Group (map (map lowerSym) alts)
+    other -> other
+
+  notInSet set t = not (Array.elem (termName t) (map termName set))
 
 -- | Replace every `Group [ a | b | … ]` with a reference to a fresh nonterminal
 -- | whose alternatives are `a`, `b`, … — so `( A B )* C` becomes `__group_0* C`
@@ -259,6 +315,8 @@ baseName = case _ of
   Macro name _ -> name
   Field _ s -> baseName s
   Group _ -> "group"
+  Any -> "any"
+  Not _ -> "not"
 
 -- | Normalize an action: a `\…->` lambda is left as is; a bare body becomes a
 -- | lambda whose parameter per right-hand symbol is its `name:` field (D28) or
@@ -389,3 +447,5 @@ deepRefs = case _ of
   Field _ s -> deepRefs s
   Macro _ args -> Array.concatMap deepRefs args
   Group alts -> Array.concatMap (Array.concatMap deepRefs) alts
+  Any -> []
+  Not set -> Array.concatMap deepRefs set

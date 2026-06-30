@@ -170,6 +170,8 @@ resolve nts (Opt s) = resolve nts s -- unreachable
 resolve nts (Macro name _) = resolve nts (Ref name) -- unreachable
 resolve nts (Field _ s) = resolve nts s -- the field name is metadata; resolve the inner symbol
 resolve _ (Group _) = Term "(group)" -- unreachable: groups are hoisted to fresh rules before table construction
+resolve _ Any = Term "(any)" -- unreachable: `.` is lowered before table construction
+resolve _ (Not _) = Term "(not)" -- unreachable: `~` is lowered before table construction
 
 productions :: Grammar -> Array Prod
 productions g@(Grammar rules) = Array.concatMap ruleProds rules

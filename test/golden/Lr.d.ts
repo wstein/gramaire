@@ -45,6 +45,18 @@ export interface Visitor<T> {
   rule30(children: T[]): T;
   rule31(children: T[]): T;
   rule32(children: T[]): T;
+  rule33(children: T[]): T;
+  rule34(children: T[]): T;
+  rule35(children: T[]): T;
+  rule36(children: T[]): T;
+  rule37(children: T[]): T;
+  rule38(children: T[]): T;
+  rule39(children: T[]): T;
+  rule40(children: T[]): T;
+  rule41(children: T[]): T;
+  rule42(children: T[]): T;
+  rule43(children: T[]): T;
+  rule44(children: T[]): T;
 }
 
 export declare function fold<T>(node: CstNode, v: Visitor<T>): T;

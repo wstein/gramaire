@@ -1210,6 +1210,9 @@ var $lazy_applyST = /* @__PURE__ */ $runtime_lazy("applyST", "Control.Monad.ST.I
 });
 
 // ../output/Data.Array.ST/foreign.js
+function newSTArray() {
+  return [];
+}
 function unsafeFreezeThawImpl(xs) {
   return xs;
 }
@@ -1959,6 +1962,27 @@ var mapMaybe = function(f) {
 };
 var catMaybes = /* @__PURE__ */ mapMaybe(/* @__PURE__ */ identity(categoryFn));
 var any2 = /* @__PURE__ */ runFn2(anyImpl);
+var nubByEq = function(eq22) {
+  return function(xs) {
+    return (function __do() {
+      var arr = newSTArray();
+      foreach(xs)(function(x) {
+        return function __do2() {
+          var e = map22((function() {
+            var $194 = any2(function(v) {
+              return eq22(v)(x);
+            });
+            return function($195) {
+              return !$194($195);
+            };
+          })())(unsafeFreeze(arr))();
+          return when2(e)($$void2(push(x)(arr)))();
+        };
+      })();
+      return unsafeFreeze(arr)();
+    })();
+  };
+};
 var all2 = /* @__PURE__ */ runFn2(allImpl);
 
 // ../output/Data.String.Common/foreign.js
@@ -2066,6 +2090,23 @@ var Group = /* @__PURE__ */ (function() {
   };
   return Group2;
 })();
+var Any = /* @__PURE__ */ (function() {
+  function Any2() {
+  }
+  ;
+  Any2.value = new Any2();
+  return Any2;
+})();
+var Not = /* @__PURE__ */ (function() {
+  function Not2(value0) {
+    this.value0 = value0;
+  }
+  ;
+  Not2.create = function(value0) {
+    return new Not2(value0);
+  };
+  return Not2;
+})();
 var Alt = /* @__PURE__ */ (function() {
   function Alt3(value0, value1, value2) {
     this.value0 = value0;
@@ -2102,7 +2143,7 @@ var Rule = /* @__PURE__ */ (function() {
 // ../output/Gramark.Bootstrap/index.js
 var lrTokensSource = /* @__PURE__ */ joinWith("\n")(["WS       : /[ \\t]+/                       %skip", "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/      %external(layout)", "ATTR     : /#\\[([A-Za-z_][A-Za-z0-9_]*)\\]/", "IDENT    : /[A-Za-z_][A-Za-z0-9_]*/", `TERM_LIT : /'(?:[^'\\\\]|\\\\.)*'|"(?:[^"\\\\]|\\\\.)*"/`, "ACTION   : /\\{%((?:[^%]|%[^}])*)%\\}/", "LABEL    : /#[ \\t]*([A-Za-z_][A-Za-z0-9_]*)/", 'PLUS     : "+"', 'STAR     : "*"', 'QUESTION : "?"', 'LANGLE   : "<"', 'RANGLE   : ">"', 'COMMA    : ","']);
 var bootstrapGrammar = /* @__PURE__ */ (function() {
-  return [new Rule("Grammar", [], [new Alt([new Ref("RuleList")], Nothing.value, new Just("\\rs -> Grammar rs"))]), new Rule("RuleList", [], [new Alt([new Ref("Rule")], Nothing.value, new Just("\\r -> [r]")), new Alt([new Ref("RuleList"), new Ref("NL"), new Ref("Rule")], Nothing.value, new Just("\\rs _ r -> snoc rs r"))]), new Rule("Rule", [], [new Alt([new Ref("ATTR"), new Ref("IDENT"), new Ref("NL"), new Lit(":"), new Ref("Body")], Nothing.value, new Just("\\attr lhs _ _ alts -> Rule lhs [ attr ] alts")), new Alt([new Ref("IDENT"), new Ref("NL"), new Lit(":"), new Ref("Body")], Nothing.value, new Just("\\lhs _ _ alts -> Rule lhs [] alts"))]), new Rule("Body", [], [new Alt([new Ref("Alt")], Nothing.value, new Just("\\a -> [a]")), new Alt([new Ref("Body"), new Lit("|"), new Ref("Alt")], Nothing.value, new Just("\\bs _ a -> snoc bs a"))]), new Rule("Alt", [], [new Alt([new Ref("SymList"), new Ref("Label"), new Ref("Action")], Nothing.value, new Just("\\syms lbl act -> Alt syms lbl act")), new Alt([new Ref("SymList"), new Ref("Label")], Nothing.value, new Just("\\syms lbl -> Alt syms lbl Nothing")), new Alt([new Ref("SymList"), new Ref("Action")], Nothing.value, new Just("\\syms act -> Alt syms Nothing act")), new Alt([new Ref("SymList")], Nothing.value, new Just("\\syms -> Alt syms Nothing Nothing"))]), new Rule("SymList", [], [new Alt([new Ref("Sym")], Nothing.value, new Just("\\s -> [s]")), new Alt([new Ref("SymList"), new Ref("Sym")], Nothing.value, new Just("\\ss s -> snoc ss s"))]), new Rule("Sym", [], [new Alt([new Ref("IDENT")], Nothing.value, new Just("\\i -> Ref i")), new Alt([new Ref("TERM_LIT")], Nothing.value, new Just("\\t -> Lit t")), new Alt([new Ref("IDENT"), new Ref("PLUS")], Nothing.value, new Just("\\i _ -> Rep (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("PLUS")], Nothing.value, new Just("\\t _ -> Rep (Lit t)")), new Alt([new Ref("IDENT"), new Ref("STAR")], Nothing.value, new Just("\\i _ -> Star (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("STAR")], Nothing.value, new Just("\\t _ -> Star (Lit t)")), new Alt([new Ref("IDENT"), new Ref("QUESTION")], Nothing.value, new Just("\\i _ -> Opt (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("QUESTION")], Nothing.value, new Just("\\t _ -> Opt (Lit t)")), new Alt([new Ref("IDENT"), new Ref("LANGLE"), new Ref("Args"), new Ref("RANGLE")], Nothing.value, new Just("\\name _ args _ -> Macro name args")), new Alt([new Ref("IDENT"), new Lit(":"), new Ref("Sym")], Nothing.value, new Just("\\name _ s -> Field name s")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")")], Nothing.value, new Just("\\_ g _ -> Group g")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")"), new Ref("PLUS")], Nothing.value, new Just("\\_ g _ _ -> Rep (Group g)")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")"), new Ref("STAR")], Nothing.value, new Just("\\_ g _ _ -> Star (Group g)")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")"), new Ref("QUESTION")], Nothing.value, new Just("\\_ g _ _ -> Opt (Group g)"))]), new Rule("Args", [], [new Alt([new Ref("Sym")], Nothing.value, new Just("\\s -> [s]")), new Alt([new Ref("Args"), new Ref("COMMA"), new Ref("Sym")], Nothing.value, new Just("\\as _ s -> snoc as s"))]), new Rule("Action", [], [new Alt([new Ref("ACTION")], Nothing.value, new Just("\\a -> Just a"))]), new Rule("Label", [], [new Alt([new Ref("LABEL")], Nothing.value, new Just("\\l -> Just l"))]), new Rule("GroupBody", [], [new Alt([new Ref("SymList")], Nothing.value, new Just("\\syms -> [syms]")), new Alt([new Ref("GroupBody"), new Lit("|"), new Ref("SymList")], Nothing.value, new Just("\\alts _ syms -> snoc alts syms"))])];
+  return [new Rule("Grammar", [], [new Alt([new Ref("RuleList")], Nothing.value, new Just("\\rs -> Grammar rs"))]), new Rule("RuleList", [], [new Alt([new Ref("Rule")], Nothing.value, new Just("\\r -> [r]")), new Alt([new Ref("RuleList"), new Ref("NL"), new Ref("Rule")], Nothing.value, new Just("\\rs _ r -> snoc rs r"))]), new Rule("Rule", [], [new Alt([new Ref("ATTR"), new Ref("IDENT"), new Ref("NL"), new Lit(":"), new Ref("Body")], Nothing.value, new Just("\\attr lhs _ _ alts -> Rule lhs [ attr ] alts")), new Alt([new Ref("IDENT"), new Ref("NL"), new Lit(":"), new Ref("Body")], Nothing.value, new Just("\\lhs _ _ alts -> Rule lhs [] alts"))]), new Rule("Body", [], [new Alt([new Ref("Alt")], Nothing.value, new Just("\\a -> [a]")), new Alt([new Ref("Body"), new Lit("|"), new Ref("Alt")], Nothing.value, new Just("\\bs _ a -> snoc bs a"))]), new Rule("Alt", [], [new Alt([new Ref("SymList"), new Ref("Label"), new Ref("Action")], Nothing.value, new Just("\\syms lbl act -> Alt syms lbl act")), new Alt([new Ref("SymList"), new Ref("Label")], Nothing.value, new Just("\\syms lbl -> Alt syms lbl Nothing")), new Alt([new Ref("SymList"), new Ref("Action")], Nothing.value, new Just("\\syms act -> Alt syms Nothing act")), new Alt([new Ref("SymList")], Nothing.value, new Just("\\syms -> Alt syms Nothing Nothing"))]), new Rule("SymList", [], [new Alt([new Ref("Sym")], Nothing.value, new Just("\\s -> [s]")), new Alt([new Ref("SymList"), new Ref("Sym")], Nothing.value, new Just("\\ss s -> snoc ss s"))]), new Rule("Sym", [], [new Alt([new Ref("IDENT")], Nothing.value, new Just("\\i -> Ref i")), new Alt([new Ref("TERM_LIT")], Nothing.value, new Just("\\t -> Lit t")), new Alt([new Ref("IDENT"), new Ref("PLUS")], Nothing.value, new Just("\\i _ -> Rep (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("PLUS")], Nothing.value, new Just("\\t _ -> Rep (Lit t)")), new Alt([new Ref("IDENT"), new Ref("STAR")], Nothing.value, new Just("\\i _ -> Star (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("STAR")], Nothing.value, new Just("\\t _ -> Star (Lit t)")), new Alt([new Ref("IDENT"), new Ref("QUESTION")], Nothing.value, new Just("\\i _ -> Opt (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("QUESTION")], Nothing.value, new Just("\\t _ -> Opt (Lit t)")), new Alt([new Ref("IDENT"), new Ref("LANGLE"), new Ref("Args"), new Ref("RANGLE")], Nothing.value, new Just("\\name _ args _ -> Macro name args")), new Alt([new Ref("IDENT"), new Lit(":"), new Ref("Sym")], Nothing.value, new Just("\\name _ s -> Field name s")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")")], Nothing.value, new Just("\\_ g _ -> Group g")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")"), new Ref("PLUS")], Nothing.value, new Just("\\_ g _ _ -> Rep (Group g)")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")"), new Ref("STAR")], Nothing.value, new Just("\\_ g _ _ -> Star (Group g)")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")"), new Ref("QUESTION")], Nothing.value, new Just("\\_ g _ _ -> Opt (Group g)")), new Alt([new Ref("Atom")], Nothing.value, new Just("\\a -> a")), new Alt([new Ref("Atom"), new Ref("PLUS")], Nothing.value, new Just("\\a _ -> Rep a")), new Alt([new Ref("Atom"), new Ref("STAR")], Nothing.value, new Just("\\a _ -> Star a")), new Alt([new Ref("Atom"), new Ref("QUESTION")], Nothing.value, new Just("\\a _ -> Opt a"))]), new Rule("Args", [], [new Alt([new Ref("Sym")], Nothing.value, new Just("\\s -> [s]")), new Alt([new Ref("Args"), new Ref("COMMA"), new Ref("Sym")], Nothing.value, new Just("\\as _ s -> snoc as s"))]), new Rule("Action", [], [new Alt([new Ref("ACTION")], Nothing.value, new Just("\\a -> Just a"))]), new Rule("Label", [], [new Alt([new Ref("LABEL")], Nothing.value, new Just("\\l -> Just l"))]), new Rule("GroupBody", [], [new Alt([new Ref("SymList")], Nothing.value, new Just("\\syms -> [syms]")), new Alt([new Ref("GroupBody"), new Lit("|"), new Ref("SymList")], Nothing.value, new Just("\\alts _ syms -> snoc alts syms"))]), new Rule("Atom", [], [new Alt([new Lit(".")], Nothing.value, new Just("\\_ -> Any")), new Alt([new Lit("~"), new Ref("NotArg")], Nothing.value, new Just("\\_ s -> Not s"))]), new Rule("NotArg", [], [new Alt([new Ref("SetItem")], Nothing.value, new Just("\\i -> [i]")), new Alt([new Lit("("), new Ref("SetBody"), new Lit(")")], Nothing.value, new Just("\\_ s _ -> s"))]), new Rule("SetBody", [], [new Alt([new Ref("SetItem")], Nothing.value, new Just("\\i -> [i]")), new Alt([new Ref("SetBody"), new Lit("|"), new Ref("SetItem")], Nothing.value, new Just("\\s _ i -> snoc s i"))]), new Rule("SetItem", [], [new Alt([new Ref("IDENT")], Nothing.value, new Just("\\i -> Ref i")), new Alt([new Ref("TERM_LIT")], Nothing.value, new Just("\\t -> Lit t"))])];
 })();
 
 // ../output/Data.String.CodeUnits/foreign.js
@@ -3806,32 +3847,156 @@ var keys2 = /* @__PURE__ */ (function() {
 })();
 
 // ../output/Gramark.Desugar/index.js
-var lookup2 = /* @__PURE__ */ lookup(ordString);
+var elem3 = /* @__PURE__ */ elem2(eqString);
 var map9 = /* @__PURE__ */ map(functorArray);
+var fromFoldable4 = /* @__PURE__ */ fromFoldable3(foldableArray)(ordString);
+var member3 = /* @__PURE__ */ member2(ordString);
+var lookup2 = /* @__PURE__ */ lookup(ordString);
 var foldl4 = /* @__PURE__ */ foldl(foldableArray);
-var member3 = /* @__PURE__ */ member(ordString);
+var member1 = /* @__PURE__ */ member(ordString);
 var show2 = /* @__PURE__ */ show(showInt);
 var append1 = /* @__PURE__ */ append(semigroupArray);
 var bind2 = /* @__PURE__ */ bind(bindEither);
 var map12 = /* @__PURE__ */ map(functorEither);
 var traverse2 = /* @__PURE__ */ traverse(traversableArray)(applicativeEither);
-var elem3 = /* @__PURE__ */ elem2(eqString);
 var insert3 = /* @__PURE__ */ insert(ordString);
-var fromFoldable4 = /* @__PURE__ */ fromFoldable(foldableSet);
+var fromFoldable1 = /* @__PURE__ */ fromFoldable(foldableSet);
 var pure2 = /* @__PURE__ */ pure(applicativeEither);
-var fromFoldable1 = /* @__PURE__ */ fromFoldable2(ordString)(foldableArray);
+var fromFoldable22 = /* @__PURE__ */ fromFoldable2(ordString)(foldableArray);
 var map23 = /* @__PURE__ */ map(functorMaybe);
-var fromFoldable22 = /* @__PURE__ */ fromFoldable(foldableList);
+var fromFoldable32 = /* @__PURE__ */ fromFoldable(foldableList);
 var mapFlipped2 = /* @__PURE__ */ mapFlipped(functorEither);
+var wildcardLower = function(v) {
+  var termName = function(v1) {
+    if (v1 instanceof Lit) {
+      return v1.value0;
+    }
+    ;
+    if (v1 instanceof Ref) {
+      return v1.value0;
+    }
+    ;
+    return "";
+  };
+  var subSyms = function(s) {
+    return cons(s)((function() {
+      if (s instanceof Rep) {
+        return subSyms(s.value0);
+      }
+      ;
+      if (s instanceof Star) {
+        return subSyms(s.value0);
+      }
+      ;
+      if (s instanceof Opt) {
+        return subSyms(s.value0);
+      }
+      ;
+      if (s instanceof Field) {
+        return subSyms(s.value1);
+      }
+      ;
+      if (s instanceof Macro) {
+        return concatMap(subSyms)(s.value1);
+      }
+      ;
+      if (s instanceof Group) {
+        return concatMap(concatMap(subSyms))(s.value0);
+      }
+      ;
+      if (s instanceof Not) {
+        return concatMap(subSyms)(s.value0);
+      }
+      ;
+      return [];
+    })());
+  };
+  var notInSet = function(set) {
+    return function(t) {
+      return !elem3(termName(t))(map9(termName)(set));
+    };
+  };
+  var nonterms = fromFoldable4(map9(function(v1) {
+    return v1.value0;
+  })(v));
+  var terminalOf = function(v1) {
+    if (v1 instanceof Lit) {
+      return new Just(new Lit(v1.value0));
+    }
+    ;
+    if (v1 instanceof Ref) {
+      var $108 = member3(v1.value0)(nonterms);
+      if ($108) {
+        return Nothing.value;
+      }
+      ;
+      return new Just(new Ref(v1.value0));
+    }
+    ;
+    return Nothing.value;
+  };
+  var allSyms = concatMap(function(v1) {
+    return concatMap(function(v2) {
+      return v2.value0;
+    })(v1.value2);
+  })(v);
+  var alphabet = nubByEq(function(a) {
+    return function(b) {
+      return termName(a) === termName(b);
+    };
+  })(mapMaybe(terminalOf)(concatMap(subSyms)(allSyms)));
+  var lowerSym = function(v1) {
+    if (v1 instanceof Any) {
+      return new Group(map9(function(t) {
+        return [t];
+      })(alphabet));
+    }
+    ;
+    if (v1 instanceof Not) {
+      return new Group(map9(function(t) {
+        return [t];
+      })(filter(notInSet(v1.value0))(alphabet)));
+    }
+    ;
+    if (v1 instanceof Rep) {
+      return new Rep(lowerSym(v1.value0));
+    }
+    ;
+    if (v1 instanceof Star) {
+      return new Star(lowerSym(v1.value0));
+    }
+    ;
+    if (v1 instanceof Opt) {
+      return new Opt(lowerSym(v1.value0));
+    }
+    ;
+    if (v1 instanceof Field) {
+      return new Field(v1.value0, lowerSym(v1.value1));
+    }
+    ;
+    if (v1 instanceof Group) {
+      return new Group(map9(map9(lowerSym))(v1.value0));
+    }
+    ;
+    return v1;
+  };
+  var lowerAlt = function(v1) {
+    return new Alt(map9(lowerSym)(v1.value0), v1.value1, v1.value2);
+  };
+  var lowerRule = function(v1) {
+    return new Rule(v1.value0, v1.value1, map9(lowerAlt)(v1.value2));
+  };
+  return map9(lowerRule)(v);
+};
 var spliceCst = function(im) {
   return function(sym2) {
     var v = function(v1) {
       return [sym2];
     };
     if (sym2 instanceof Ref) {
-      var $76 = lookup2(sym2.value0)(im);
-      if ($76 instanceof Just) {
-        return $76.value0.value0;
+      var $135 = lookup2(sym2.value0)(im);
+      if ($135 instanceof Just) {
+        return $135.value0.value0;
       }
       ;
       return v(true);
@@ -3858,7 +4023,7 @@ var normalizeAction = function(syms) {
       return "\\" + (joinWith(" ")(map9(paramOf)(syms)) + (" -> " + body));
     }
     ;
-    throw new Error("Failed pattern match at Gramark.Desugar (line 267, column 29 - line 269, column 71): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramark.Desugar (line 325, column 29 - line 327, column 71): " + [v.constructor.name]);
   };
 };
 var mapAccum = function(st0) {
@@ -3880,7 +4045,7 @@ var mapAccum = function(st0) {
 var isInlineRef = function(im) {
   return function(v) {
     if (v instanceof Ref) {
-      return member3(v.value0)(im);
+      return member1(v.value0)(im);
     }
     ;
     return false;
@@ -4052,7 +4217,15 @@ var deepRefs = function(v) {
     return concatMap(concatMap(deepRefs))(v.value0);
   }
   ;
-  throw new Error("Failed pattern match at Gramark.Desugar (line 383, column 12 - line 391, column 64): " + [v.constructor.name]);
+  if (v instanceof Any) {
+    return [];
+  }
+  ;
+  if (v instanceof Not) {
+    return concatMap(deepRefs)(v.value0);
+  }
+  ;
+  throw new Error("Failed pattern match at Gramark.Desugar (line 441, column 12 - line 451, column 42): " + [v.constructor.name]);
 };
 var buildWrapped = function(im) {
   return function(syms) {
@@ -4074,24 +4247,24 @@ var buildWrapped = function(im) {
               });
             };
             if (v1 instanceof Ref) {
-              var $130 = lookup2(v1.value0)(im);
-              if ($130 instanceof Just) {
-                if ($130.value0.value2 instanceof Nothing) {
+              var $190 = lookup2(v1.value0)(im);
+              if ($190 instanceof Just) {
+                if ($190.value0.value2 instanceof Nothing) {
                   return new Left("#[inline] rule `" + (v1.value0 + "` is action-free but its value is used in an action"));
                 }
                 ;
-                if ($130.value0.value2 instanceof Just) {
-                  var ps = map9(inlineParam)(range2(v2.value0.k)((v2.value0.k + length($130.value0.value0) | 0) - 1 | 0));
-                  var arg = "((" + (normalizeAction($130.value0.value0)($130.value0.value2.value0) + (") " + (joinWith(" ")(ps) + ")")));
+                if ($190.value0.value2 instanceof Just) {
+                  var ps = map9(inlineParam)(range2(v2.value0.k)((v2.value0.k + length($190.value0.value0) | 0) - 1 | 0));
+                  var arg = "((" + (normalizeAction($190.value0.value0)($190.value0.value2.value0) + (") " + (joinWith(" ")(ps) + ")")));
                   return new Right({
-                    syms: append1(v2.value0.syms)($130.value0.value0),
+                    syms: append1(v2.value0.syms)($190.value0.value0),
                     params: append1(v2.value0.params)(ps),
                     args: snoc(v2.value0.args)(arg),
-                    k: v2.value0.k + length($130.value0.value0) | 0
+                    k: v2.value0.k + length($190.value0.value0) | 0
                   });
                 }
                 ;
-                throw new Error("Failed pattern match at Gramark.Desugar (line 346, column 62 - line 358, column 14): " + [$130.value0.value2.constructor.name]);
+                throw new Error("Failed pattern match at Gramark.Desugar (line 404, column 62 - line 416, column 14): " + [$190.value0.value2.constructor.name]);
               }
               ;
               return v22(true);
@@ -4100,7 +4273,7 @@ var buildWrapped = function(im) {
             return v22(true);
           }
           ;
-          throw new Error("Failed pattern match at Gramark.Desugar (line 344, column 3 - line 344, column 27): " + [v2.constructor.name, v1.constructor.name]);
+          throw new Error("Failed pattern match at Gramark.Desugar (line 402, column 3 - line 402, column 27): " + [v2.constructor.name, v1.constructor.name]);
         };
       };
       var v = foldl4(step)(new Right({
@@ -4120,7 +4293,7 @@ var buildWrapped = function(im) {
         });
       }
       ;
-      throw new Error("Failed pattern match at Gramark.Desugar (line 337, column 3 - line 342, column 8): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Gramark.Desugar (line 395, column 3 - line 400, column 8): " + [v.constructor.name]);
     };
   };
 };
@@ -4141,10 +4314,10 @@ var expandAlt = function(im) {
         });
       }
       ;
-      throw new Error("Failed pattern match at Gramark.Desugar (line 312, column 17 - line 316, column 57): " + [v.value2.constructor.name]);
+      throw new Error("Failed pattern match at Gramark.Desugar (line 370, column 17 - line 374, column 57): " + [v.value2.constructor.name]);
     }
     ;
-    throw new Error("Failed pattern match at Gramark.Desugar (line 309, column 1 - line 309, column 56): " + [im.constructor.name, v.constructor.name]);
+    throw new Error("Failed pattern match at Gramark.Desugar (line 367, column 1 - line 367, column 56): " + [im.constructor.name, v.constructor.name]);
   };
 };
 var expandRule = function(im) {
@@ -4185,16 +4358,16 @@ var inlineExpand = function(v) {
         return acc;
       }
       ;
-      throw new Error("Failed pattern match at Gramark.Desugar (line 293, column 3 - line 301, column 22): " + [acc.constructor.name, v1.constructor.name]);
+      throw new Error("Failed pattern match at Gramark.Desugar (line 351, column 3 - line 359, column 22): " + [acc.constructor.name, v1.constructor.name]);
     };
   };
   return bind2(foldl4(addInline)(new Right(empty2))(v))(function(inlineMap) {
-    return bind2(traverse2(expandRule(inlineMap))(filter(function($277) {
-      return !isInline($277);
+    return bind2(traverse2(expandRule(inlineMap))(filter(function($338) {
+      return !isInline($338);
     })(v)))(function(expanded) {
       var v1 = find2(function(n) {
         return any2(mentions(n))(expanded);
-      })(fromFoldable4(keys2(inlineMap)));
+      })(fromFoldable1(keys2(inlineMap)));
       if (v1 instanceof Just) {
         return new Left("#[inline] nonterminal `" + (v1.value0 + "` must be used as a plain reference"));
       }
@@ -4203,7 +4376,7 @@ var inlineExpand = function(v) {
         return new Right(expanded);
       }
       ;
-      throw new Error("Failed pattern match at Gramark.Desugar (line 287, column 3 - line 289, column 40): " + [v1.constructor.name]);
+      throw new Error("Failed pattern match at Gramark.Desugar (line 345, column 3 - line 347, column 40): " + [v1.constructor.name]);
     });
   });
 };
@@ -4218,7 +4391,7 @@ var bools = function(n) {
     })(bools(n - 1 | 0));
   }
   ;
-  throw new Error("Failed pattern match at Gramark.Desugar (line 247, column 1 - line 247, column 38): " + [n.constructor.name]);
+  throw new Error("Failed pattern match at Gramark.Desugar (line 303, column 1 - line 303, column 38): " + [n.constructor.name]);
 };
 var baseName = function(v) {
   if (v instanceof Ref) {
@@ -4253,7 +4426,15 @@ var baseName = function(v) {
     return "group";
   }
   ;
-  throw new Error("Failed pattern match at Gramark.Desugar (line 253, column 12 - line 261, column 21): " + [v.constructor.name]);
+  if (v instanceof Any) {
+    return "any";
+  }
+  ;
+  if (v instanceof Not) {
+    return "not";
+  }
+  ;
+  throw new Error("Failed pattern match at Gramark.Desugar (line 309, column 12 - line 319, column 17): " + [v.constructor.name]);
 };
 var sugarDesugar = function(v) {
   var subSyms = function(s) {
@@ -4503,7 +4684,7 @@ var sugarDesugar = function(v) {
               };
             }
             ;
-            throw new Error("Failed pattern match at Gramark.Desugar (line 159, column 23 - line 161, column 72): " + [v1.constructor.name]);
+            throw new Error("Failed pattern match at Gramark.Desugar (line 215, column 23 - line 217, column 72): " + [v1.constructor.name]);
           }
           ;
           if (otherwise) {
@@ -4513,7 +4694,7 @@ var sugarDesugar = function(v) {
             };
           }
           ;
-          throw new Error("Failed pattern match at Gramark.Desugar (line 158, column 5 - line 162, column 70): " + [acc.constructor.name, sym2.constructor.name]);
+          throw new Error("Failed pattern match at Gramark.Desugar (line 214, column 5 - line 218, column 70): " + [acc.constructor.name, sym2.constructor.name]);
         };
       };
       return foldl4(step)({
@@ -4534,21 +4715,21 @@ var sugarDesugar = function(v) {
   };
   var everySym = concatMap(subSyms)(concatMap(altSyms)(concatMap(ruleAlts)(v)));
   var collectFresh = bind2(traverse2(macroRule)(mapMaybe(asMacro)(everySym)))(function(macroEntries) {
-    return pure2(fromFoldable1(append1(mapMaybe(listEntry)(everySym))(macroEntries)));
+    return pure2(fromFoldable22(append1(mapMaybe(listEntry)(everySym))(macroEntries)));
   });
   var enumerateAlt = function(v1) {
     var action = map23(normalizeAction(v1.value0))(v1.value2);
     var build = function(presences) {
       var rhs = concatMap(rhsOf2)(presences);
-      var $268 = $$null(rhs);
-      if ($268) {
+      var $329 = $$null(rhs);
+      if ($329) {
         return new Left("an all-optional alternative would be empty; keep at least one required symbol or refactor");
       }
       ;
       return new Right(new Alt(rhs, v1.value1, map23(wrap(presences))(action)));
     };
-    var $269 = !any2(optStar)(v1.value0);
-    if ($269) {
+    var $330 = !any2(optStar)(v1.value0);
+    if ($330) {
       return new Right([new Alt(map9(lowerOne)(v1.value0), v1.value1, action)]);
     }
     ;
@@ -4556,20 +4737,20 @@ var sugarDesugar = function(v) {
   };
   var lowerRule = function(v1) {
     return map12((function() {
-      var $278 = Rule.create(v1.value0)(v1.value1);
-      return function($279) {
-        return $278(concat($279));
+      var $339 = Rule.create(v1.value0)(v1.value1);
+      return function($340) {
+        return $339(concat($340));
       };
     })())(traverse2(enumerateAlt)(v1.value2));
   };
   return bind2(collectFresh)(function(fresh) {
     return bind2(traverse2(lowerRule)(v))(function(lowered) {
-      return pure2(append1(lowered)(fromFoldable22(values(fresh))));
+      return pure2(append1(lowered)(fromFoldable32(values(fresh))));
     });
   });
 };
 var desugar = function(g) {
-  return bind2(mapFlipped2(inlineExpand(g))(groupHoist))(sugarDesugar);
+  return bind2(mapFlipped2(mapFlipped2(inlineExpand(g))(wildcardLower))(groupHoist))(sugarDesugar);
 };
 
 // ../output/Gramark.Table/index.js
@@ -4814,6 +4995,16 @@ var resolve = function($copy_v) {
         return new Term("(group)");
       }
       ;
+      if (v1 instanceof Any) {
+        $tco_done = true;
+        return new Term("(any)");
+      }
+      ;
+      if (v1 instanceof Not) {
+        $tco_done = true;
+        return new Term("(not)");
+      }
+      ;
       throw new Error("Failed pattern match at Gramark.Table (line 163, column 1 - line 163, column 37): " + [v.constructor.name, v1.constructor.name]);
     }
     ;
@@ -4828,8 +5019,8 @@ var parsePrecedence = function(content) {
   var unquoteTok = function(tok) {
     var t = trim(tok);
     var n = length2(t);
-    var $208 = n >= 2 && (eq4(charAt2(0)(t))(new Just("'")) || eq4(charAt2(0)(t))(new Just('"')));
-    if ($208) {
+    var $209 = n >= 2 && (eq4(charAt2(0)(t))(new Just("'")) || eq4(charAt2(0)(t))(new Just('"')));
+    if ($209) {
       return new Just(slice2(1)(n - 1 | 0)(t));
     }
     ;
@@ -4945,13 +5136,13 @@ var resolvePrec = function(ctx) {
           if (existing instanceof Shift && look instanceof Term) {
             return bind3(lookup3(look.value0)(ctx.prec.terms))(function(tp) {
               return bind3(prodPrecedence(ctx)(prodIdx))(function(pp) {
-                var $232 = pp.level > tp.level;
-                if ($232) {
+                var $233 = pp.level > tp.level;
+                if ($233) {
                   return new Just(newAct);
                 }
                 ;
-                var $233 = pp.level < tp.level;
-                if ($233) {
+                var $234 = pp.level < tp.level;
+                if ($234) {
                   return new Just(existing);
                 }
                 ;
@@ -4967,7 +5158,7 @@ var resolvePrec = function(ctx) {
                   return Nothing.value;
                 }
                 ;
-                throw new Error("Failed pattern match at Gramark.Table (line 448, column 10 - line 451, column 22): " + [pp.assoc.constructor.name]);
+                throw new Error("Failed pattern match at Gramark.Table (line 450, column 10 - line 453, column 22): " + [pp.assoc.constructor.name]);
               });
             });
           }
@@ -4983,8 +5174,8 @@ var fixpoint = function(dictEq) {
   return function(step) {
     return function(x) {
       var x$prime = step(x);
-      var $237 = eq62(x$prime)(x);
-      if ($237) {
+      var $238 = eq62(x$prime)(x);
+      if ($238) {
         return x;
       }
       ;
@@ -5006,7 +5197,7 @@ var firstOfSymbol = function(firsts) {
       return setOf(v.value0)(firsts);
     }
     ;
-    throw new Error("Failed pattern match at Gramark.Table (line 199, column 24 - line 202, column 30): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramark.Table (line 201, column 24 - line 204, column 30): " + [v.constructor.name]);
   };
 };
 var firstSeqThen = function(ctx) {
@@ -5021,7 +5212,7 @@ var firstSeqThen = function(ctx) {
         return singleton7(a);
       }
       ;
-      throw new Error("Failed pattern match at Gramark.Table (line 292, column 27 - line 294, column 29): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Gramark.Table (line 294, column 27 - line 296, column 29): " + [v.constructor.name]);
     };
   };
 };
@@ -5094,11 +5285,11 @@ var ordSet1 = /* @__PURE__ */ ordSet(ordRecord22);
 var insert6 = /* @__PURE__ */ insert(ordSet1);
 var fromFoldable23 = /* @__PURE__ */ fromFoldable5(ordSymbol);
 var insertWith22 = /* @__PURE__ */ insertWith(ordSymbol);
-var member1 = /* @__PURE__ */ member2(ordSymbol);
+var member12 = /* @__PURE__ */ member2(ordSymbol);
 var lookup4 = /* @__PURE__ */ lookup(ordTuple22);
 var alter2 = /* @__PURE__ */ alter(ordTuple22);
 var insert7 = /* @__PURE__ */ insert2(ordRecord22);
-var fromFoldable32 = /* @__PURE__ */ fromFoldable5(ordRecord22);
+var fromFoldable33 = /* @__PURE__ */ fromFoldable5(ordRecord22);
 var lookup5 = /* @__PURE__ */ lookup(ordSet1);
 var firstStep = function(prods) {
   return function(m0) {
@@ -5113,7 +5304,7 @@ var firstStep = function(prods) {
           return insertWith2(union1)(v.lhs)(firstOfSymbol(m)(v1.value0))(m);
         }
         ;
-        throw new Error("Failed pattern match at Gramark.Table (line 207, column 28 - line 209, column 65): " + [v1.constructor.name]);
+        throw new Error("Failed pattern match at Gramark.Table (line 209, column 28 - line 211, column 65): " + [v1.constructor.name]);
       };
     };
     return foldl5(addProd)(m0)(prods);
@@ -5142,7 +5333,7 @@ var followStep = function(firsts) {
                       return insertWith2(union1)(sym2.value0)(setOf(lhs)(m))(m);
                     }
                     ;
-                    throw new Error("Failed pattern match at Gramark.Table (line 227, column 18 - line 230, column 60): " + [v.constructor.name]);
+                    throw new Error("Failed pattern match at Gramark.Table (line 229, column 18 - line 232, column 60): " + [v.constructor.name]);
                   }
                   ;
                   return m;
@@ -5181,8 +5372,8 @@ var fromPartition = function(canonical) {
     var blockItems = function(b) {
       return foldl5(function(acc) {
         return function(c) {
-          var $273 = blk(c) === b;
-          if ($273) {
+          var $274 = blk(c) === b;
+          if ($274) {
             return union22(acc)(itemsOf(c));
           }
           ;
@@ -5232,7 +5423,7 @@ var inadequate = function(ctx) {
       return size2(s) > 1;
     })(values(reduceByLook));
     var shiftReduce = any1(function(it) {
-      return member1(it.look)(shiftLooks);
+      return member12(it.look)(shiftLooks);
     })(complete);
     return reduceReduce || shiftReduce;
   };
@@ -5261,7 +5452,7 @@ var refineOnce = function(ctx) {
                   };
                 }
                 ;
-                throw new Error("Failed pattern match at Gramark.Table (line 582, column 22 - line 584, column 98): " + [v.constructor.name]);
+                throw new Error("Failed pattern match at Gramark.Table (line 584, column 22 - line 586, column 98): " + [v.constructor.name]);
               };
             };
           };
@@ -5300,14 +5491,14 @@ var refineOnce = function(ctx) {
               return -1 | 0;
             }
             ;
-            throw new Error("Failed pattern match at Gramark.Table (line 569, column 17 - line 571, column 18): " + [v.constructor.name]);
+            throw new Error("Failed pattern match at Gramark.Table (line 571, column 17 - line 573, column 18): " + [v.constructor.name]);
           };
         };
         var sigOf = function(c) {
           var b = blk(c);
           var marker = (function() {
-            var $287 = fromMaybe(false)(lookup1(b)(inadeqOf));
-            if ($287) {
+            var $288 = fromMaybe(false)(lookup1(b)(inadeqOf));
+            if ($288) {
               return c;
             }
             ;
@@ -5331,8 +5522,8 @@ var refineToFix = function($copy_ctx) {
         var $tco_result;
         function $tco_loop(ctx, canonical, symbols, part) {
           var part$prime = refineOnce(ctx)(canonical)(symbols)(part);
-          var $288 = eq32(part$prime)(part);
-          if ($288) {
+          var $289 = eq32(part$prime)(part);
+          if ($289) {
             $tco_done = true;
             return part;
           }
@@ -5396,8 +5587,8 @@ var fillGlr = function(ctx) {
         return function(a) {
           return alter2(function(mb) {
             return new Just(maybe([a])(function(xs) {
-              var $304 = elem4(a)(xs);
-              if ($304) {
+              var $305 = elem4(a)(xs);
+              if ($305) {
                 return xs;
               }
               ;
@@ -5426,7 +5617,7 @@ var fillGlr = function(ctx) {
             return acc;
           }
           ;
-          throw new Error("Failed pattern match at Gramark.Table (line 698, column 42 - line 701, column 15): " + [v.value0.value1.constructor.name]);
+          throw new Error("Failed pattern match at Gramark.Table (line 700, column 42 - line 703, column 15): " + [v.value0.value1.constructor.name]);
         };
       };
       var base = foldl5(addTrans)({
@@ -5436,14 +5627,14 @@ var fillGlr = function(ctx) {
       var addReduce = function(i) {
         return function(act) {
           return function(it) {
-            var $314 = it.dot < length(rhsOf(ctx)(it.prod));
-            if ($314) {
+            var $315 = it.dot < length(rhsOf(ctx)(it.prod));
+            if ($315) {
               return act;
             }
             ;
             return push2(new Tuple(i, it.look))((function() {
-              var $315 = it.prod === 0;
-              if ($315) {
+              var $316 = it.prod === 0;
+              if ($316) {
                 return Accept.value;
               }
               ;
@@ -5500,7 +5691,7 @@ var fillTables = function(ctx) {
                 });
               }
               ;
-              throw new Error("Failed pattern match at Gramark.Table (line 431, column 43 - line 434, column 79): " + [existing.constructor.name]);
+              throw new Error("Failed pattern match at Gramark.Table (line 433, column 43 - line 436, column 79): " + [existing.constructor.name]);
             };
           };
         };
@@ -5527,7 +5718,7 @@ var fillTables = function(ctx) {
             return acc;
           }
           ;
-          throw new Error("Failed pattern match at Gramark.Table (line 399, column 42 - line 402, column 15): " + [v.value0.value1.constructor.name]);
+          throw new Error("Failed pattern match at Gramark.Table (line 401, column 42 - line 404, column 15): " + [v.value0.value1.constructor.name]);
         };
       };
       var shifted = foldl5(addTrans)({
@@ -5538,16 +5729,16 @@ var fillTables = function(ctx) {
       var addReduce = function(i) {
         return function(acc) {
           return function(it) {
-            var $328 = it.dot < length(rhsOf(ctx)(it.prod));
-            if ($328) {
+            var $329 = it.dot < length(rhsOf(ctx)(it.prod));
+            if ($329) {
               return acc;
             }
             ;
             var newProd = it.prod - 1 | 0;
             var key = new Tuple(i, it.look);
             var act = (function() {
-              var $329 = it.prod === 0;
-              if ($329) {
+              var $330 = it.prod === 0;
+              if ($330) {
                 return Accept.value;
               }
               ;
@@ -5563,8 +5754,8 @@ var fillTables = function(ctx) {
             }
             ;
             if (v instanceof Just) {
-              var $331 = eq5(v.value0)(act);
-              if ($331) {
+              var $332 = eq5(v.value0)(act);
+              if ($332) {
                 return acc;
               }
               ;
@@ -5585,10 +5776,10 @@ var fillTables = function(ctx) {
                 };
               }
               ;
-              throw new Error("Failed pattern match at Gramark.Table (line 421, column 18 - line 425, column 110): " + [v1.constructor.name]);
+              throw new Error("Failed pattern match at Gramark.Table (line 423, column 18 - line 427, column 110): " + [v1.constructor.name]);
             }
             ;
-            throw new Error("Failed pattern match at Gramark.Table (line 417, column 9 - line 425, column 110): " + [v.constructor.name]);
+            throw new Error("Failed pattern match at Gramark.Table (line 419, column 9 - line 427, column 110): " + [v.constructor.name]);
           };
         };
       };
@@ -5600,8 +5791,8 @@ var fillTables = function(ctx) {
         };
       };
       var filled = foldlWithIndex2(addReduces)(shifted)(st.states);
-      var $335 = $$null(filled.conflicts);
-      if ($335) {
+      var $336 = $$null(filled.conflicts);
+      if ($336) {
         return new Right({
           action: filled.action,
           "goto": filled["goto"],
@@ -5643,7 +5834,7 @@ var initialPartition = function(canonical) {
           };
         }
         ;
-        throw new Error("Failed pattern match at Gramark.Table (line 542, column 24 - line 544, column 107): " + [v.constructor.name]);
+        throw new Error("Failed pattern match at Gramark.Table (line 544, column 24 - line 546, column 107): " + [v.constructor.name]);
       };
     };
   };
@@ -5675,7 +5866,7 @@ var mergeLALR = function(st) {
           };
         }
         ;
-        throw new Error("Failed pattern match at Gramark.Table (line 495, column 24 - line 504, column 8): " + [v.constructor.name]);
+        throw new Error("Failed pattern match at Gramark.Table (line 497, column 24 - line 506, column 8): " + [v.constructor.name]);
       };
     };
   };
@@ -5751,7 +5942,7 @@ var $$goto = function(ctx) {
         return Nothing.value;
       };
       var moved = mapMaybe(shift)(toUnfoldable1(items));
-      return closure(ctx)(fromFoldable32(moved));
+      return closure(ctx)(fromFoldable33(moved));
     };
   };
 };
@@ -5782,7 +5973,7 @@ var buildStates = function(ctx) {
         }, j);
       }
       ;
-      throw new Error("Failed pattern match at Gramark.Table (line 366, column 23 - line 372, column 98): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Gramark.Table (line 368, column 23 - line 374, column 98): " + [v.constructor.name]);
     };
   };
   var stepSym = function(items) {
@@ -5790,8 +5981,8 @@ var buildStates = function(ctx) {
       return function(st) {
         return function(x) {
           var g = $$goto(ctx)(items)(x);
-          var $353 = isEmpty2(g);
-          if ($353) {
+          var $354 = isEmpty2(g);
+          if ($354) {
             return st;
           }
           ;
@@ -5811,8 +6002,8 @@ var buildStates = function(ctx) {
       var $tco_done = false;
       var $tco_result;
       function $tco_loop(st, i) {
-        var $357 = i >= length(st.states);
-        if ($357) {
+        var $358 = i >= length(st.states);
+        if ($358) {
           $tco_done = true;
           return st;
         }
@@ -5829,7 +6020,7 @@ var buildStates = function(ctx) {
           return;
         }
         ;
-        throw new Error("Failed pattern match at Gramark.Table (line 349, column 10 - line 351, column 93): " + [v.constructor.name]);
+        throw new Error("Failed pattern match at Gramark.Table (line 351, column 10 - line 353, column 93): " + [v.constructor.name]);
       }
       ;
       while (!$tco_done) {
@@ -5899,7 +6090,7 @@ var buildGlrTablesFor = function(method) {
         return buildIELR(ctx)(canonical);
       }
       ;
-      throw new Error("Failed pattern match at Gramark.Table (line 680, column 12 - line 683, column 36): " + [method.constructor.name]);
+      throw new Error("Failed pattern match at Gramark.Table (line 682, column 12 - line 685, column 36): " + [method.constructor.name]);
     })();
     return fillGlr(ctx)(states)(a.prods);
   };
@@ -5923,7 +6114,7 @@ var buildTablesForP = function(prec) {
           return buildIELR(ctx)(canonical);
         }
         ;
-        throw new Error("Failed pattern match at Gramark.Table (line 649, column 12 - line 652, column 36): " + [method.constructor.name]);
+        throw new Error("Failed pattern match at Gramark.Table (line 651, column 12 - line 654, column 36): " + [method.constructor.name]);
       })();
       return fillTables(ctx)(states)(a.prods);
     };
@@ -5949,7 +6140,7 @@ var sym = function(v) {
     return "$";
   }
   ;
-  throw new Error("Failed pattern match at Gramark.Diagnostics (line 122, column 7 - line 125, column 13): " + [v.constructor.name]);
+  throw new Error("Failed pattern match at Gramark.Diagnostics (line 124, column 7 - line 127, column 13): " + [v.constructor.name]);
 };
 var refsOf = function(v) {
   if (v instanceof Ref) {
@@ -5984,15 +6175,23 @@ var refsOf = function(v) {
     return concatMap(concatMap(refsOf))(v.value0);
   }
   ;
-  throw new Error("Failed pattern match at Gramark.Diagnostics (line 52, column 10 - line 60, column 62): " + [v.constructor.name]);
+  if (v instanceof Any) {
+    return [];
+  }
+  ;
+  if (v instanceof Not) {
+    return concatMap(refsOf)(v.value0);
+  }
+  ;
+  throw new Error("Failed pattern match at Gramark.Diagnostics (line 52, column 10 - line 62, column 40): " + [v.constructor.name]);
 };
 var prodName = function(prods) {
   return function(i) {
     var v = index(prods)(i);
     if (v instanceof Just) {
       return v.value0.lhs + (" -> " + (function() {
-        var $32 = $$null(v.value0.rhs);
-        if ($32) {
+        var $33 = $$null(v.value0.rhs);
+        if ($33) {
           return "\u03B5";
         }
         ;
@@ -6004,7 +6203,7 @@ var prodName = function(prods) {
       return "accept (the start production)";
     }
     ;
-    throw new Error("Failed pattern match at Gramark.Diagnostics (line 114, column 20 - line 117, column 45): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramark.Diagnostics (line 116, column 20 - line 119, column 45): " + [v.constructor.name]);
   };
 };
 var renderConflict = function(prods) {
@@ -6017,7 +6216,7 @@ var renderConflict = function(prods) {
       return "reduce/reduce conflict in state " + (show3(v.value0.state) + (" on " + (sym(v.value0.onSymbol) + (":\n" + ("  reduce " + (prodName(prods)(v.value0.prodA) + ("  vs  reduce " + (prodName(prods)(v.value0.prodB) + ("\n" + ("  fix: the rules are ambiguous on " + (sym(v.value0.onSymbol) + "; merge them into one rule, left-factor, or enable GLR.")))))))))));
     }
     ;
-    throw new Error("Failed pattern match at Gramark.Diagnostics (line 83, column 24 - line 109, column 67): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramark.Diagnostics (line 85, column 24 - line 111, column 67): " + [v.constructor.name]);
   };
 };
 var renderConflicts = function(g) {
@@ -6046,8 +6245,8 @@ var checkDefined = function(g) {
   }
   ;
   return new Left("undefined nonterminal" + ((function() {
-    var $47 = length(v) === 1;
-    if ($47) {
+    var $48 = length(v) === 1;
+    if ($48) {
       return " ";
     }
     ;
@@ -7832,8 +8031,8 @@ var $$unescape = /* @__PURE__ */ (function() {
     ;
     throw new Error("Failed pattern match at Gramark.Lr (line 79, column 11 - line 84, column 53): " + [v.constructor.name]);
   };
-  return function($244) {
-    return fromCharArray(go(toCharArray($244)));
+  return function($276) {
+    return fromCharArray(go(toCharArray($276)));
   };
 })();
 var unquoteLit = function(s) {
@@ -7853,8 +8052,8 @@ var trimBlankEnds = /* @__PURE__ */ (function() {
   var dropBlank = dropWhile(function(l) {
     return trim(l) === "";
   });
-  return function($245) {
-    return reverse(dropBlank(reverse(dropBlank($245))));
+  return function($277) {
+    return reverse(dropBlank(reverse(dropBlank($277))));
   };
 })();
 var tokenVal = function(tok) {
@@ -7991,39 +8190,87 @@ var reduce = function(p) {
     }
     ;
     if (p === 27 && (kids.length === 1 && kids[0] instanceof VSym)) {
+      return new VSym(kids[0].value0);
+    }
+    ;
+    if (p === 28 && (kids.length === 2 && kids[0] instanceof VSym)) {
+      return new VSym(new Rep(kids[0].value0));
+    }
+    ;
+    if (p === 29 && (kids.length === 2 && kids[0] instanceof VSym)) {
+      return new VSym(new Star(kids[0].value0));
+    }
+    ;
+    if (p === 30 && (kids.length === 2 && kids[0] instanceof VSym)) {
+      return new VSym(new Opt(kids[0].value0));
+    }
+    ;
+    if (p === 31 && (kids.length === 1 && kids[0] instanceof VSym)) {
       return new VSyms([kids[0].value0]);
     }
     ;
-    if (p === 28 && (kids.length === 3 && (kids[0] instanceof VSyms && kids[2] instanceof VSym))) {
+    if (p === 32 && (kids.length === 3 && (kids[0] instanceof VSyms && kids[2] instanceof VSym))) {
       return new VSyms(snoc(kids[0].value0)(kids[2].value0));
     }
     ;
-    if (p === 29 && (kids.length === 1 && kids[0] instanceof VStr)) {
+    if (p === 33 && (kids.length === 1 && kids[0] instanceof VStr)) {
       return new VMaybeStr(new Just(kids[0].value0));
     }
     ;
-    if (p === 30 && (kids.length === 1 && kids[0] instanceof VStr)) {
+    if (p === 34 && (kids.length === 1 && kids[0] instanceof VStr)) {
       return new VMaybeStr(new Just(kids[0].value0));
     }
     ;
-    if (p === 31 && (kids.length === 1 && kids[0] instanceof VSyms)) {
+    if (p === 35 && (kids.length === 1 && kids[0] instanceof VSyms)) {
       return new VGroupBody([kids[0].value0]);
     }
     ;
-    if (p === 32 && (kids.length === 3 && (kids[0] instanceof VGroupBody && kids[2] instanceof VSyms))) {
+    if (p === 36 && (kids.length === 3 && (kids[0] instanceof VGroupBody && kids[2] instanceof VSyms))) {
       return new VGroupBody(snoc(kids[0].value0)(kids[2].value0));
+    }
+    ;
+    if (p === 37 && kids.length === 1) {
+      return new VSym(Any.value);
+    }
+    ;
+    if (p === 38 && (kids.length === 2 && kids[1] instanceof VSyms)) {
+      return new VSym(new Not(kids[1].value0));
+    }
+    ;
+    if (p === 39 && (kids.length === 1 && kids[0] instanceof VSym)) {
+      return new VSyms([kids[0].value0]);
+    }
+    ;
+    if (p === 40 && (kids.length === 3 && kids[1] instanceof VSyms)) {
+      return new VSyms(kids[1].value0);
+    }
+    ;
+    if (p === 41 && (kids.length === 1 && kids[0] instanceof VSym)) {
+      return new VSyms([kids[0].value0]);
+    }
+    ;
+    if (p === 42 && (kids.length === 3 && (kids[0] instanceof VSyms && kids[2] instanceof VSym))) {
+      return new VSyms(snoc(kids[0].value0)(kids[2].value0));
+    }
+    ;
+    if (p === 43 && (kids.length === 1 && kids[0] instanceof VStr)) {
+      return new VSym(new Ref(kids[0].value0));
+    }
+    ;
+    if (p === 44 && (kids.length === 1 && kids[0] instanceof VStr)) {
+      return new VSym(new Lit(kids[0].value0));
     }
     ;
     return new VErr("unexpected reduce shape for production " + show5(p));
   };
 };
-var lrScanItems = /* @__PURE__ */ buildItems(/* @__PURE__ */ fromRight([])(/* @__PURE__ */ parseTokens(lrTokensSource)))([":", "|", "(", ")"]);
+var lrScanItems = /* @__PURE__ */ buildItems(/* @__PURE__ */ fromRight([])(/* @__PURE__ */ parseTokens(lrTokensSource)))([":", "|", "(", ")", ".", "~"]);
 var lrBlocks = function(md) {
   var scan2 = function(acc) {
     return function(line) {
       if (acc.inside) {
-        var $216 = trim(line) === "```";
-        if ($216) {
+        var $248 = trim(line) === "```";
+        if ($248) {
           return {
             inside: false,
             cur: [],
@@ -8038,8 +8285,8 @@ var lrBlocks = function(md) {
         };
       }
       ;
-      var $217 = trim(line) === "```gramark";
-      if ($217) {
+      var $249 = trim(line) === "```gramark";
+      if ($249) {
         return {
           blocks: acc.blocks,
           inside: true,
@@ -8070,7 +8317,7 @@ var isUpperName = function(name) {
       return false;
     }
     ;
-    throw new Error("Failed pattern match at Gramark.Lr (line 296, column 8 - line 298, column 23): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramark.Lr (line 308, column 8 - line 310, column 23): " + [v.constructor.name]);
   })());
 };
 var isTokenDef = function(l) {
@@ -8084,7 +8331,7 @@ var isTokenDef = function(l) {
       return isUpperName(trim(take3(v.value0)(l)));
     }
     ;
-    throw new Error("Failed pattern match at Gramark.Lr (line 288, column 8 - line 290, column 46): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramark.Lr (line 300, column 8 - line 302, column 46): " + [v.constructor.name]);
   })());
 };
 var isPrecDecl = function(l) {
@@ -8097,8 +8344,8 @@ var gramarkBlocks = function(md) {
   var step = function(acc) {
     return function(line) {
       if (acc.inside) {
-        var $223 = trim(line) === "```";
-        if ($223) {
+        var $255 = trim(line) === "```";
+        if ($255) {
           return {
             info: acc.info,
             cur: acc.cur,
@@ -8132,7 +8379,7 @@ var gramarkBlocks = function(md) {
         return acc;
       }
       ;
-      throw new Error("Failed pattern match at Gramark.Lr (line 153, column 10 - line 155, column 21): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Gramark.Lr (line 165, column 10 - line 167, column 21): " + [v.constructor.name]);
     };
   };
   return foldl7(step)({
@@ -8154,15 +8401,15 @@ var precedenceOf = function(md) {
     return emptyPrec;
   }
   ;
-  throw new Error("Failed pattern match at Gramark.Lr (line 361, column 19 - line 363, column 23): " + [v.constructor.name]);
+  throw new Error("Failed pattern match at Gramark.Lr (line 373, column 19 - line 375, column 23): " + [v.constructor.name]);
 };
 var decomment = function(ls) {
   var step = function(acc) {
     return function(line) {
       var t = trim(line);
       if (acc.inBlock) {
-        var $229 = contains("*/")(t);
-        if ($229) {
+        var $261 = contains("*/")(t);
+        if ($261) {
           return {
             out: acc.out,
             inBlock: false
@@ -8172,15 +8419,15 @@ var decomment = function(ls) {
         return acc;
       }
       ;
-      var $230 = isJust(stripPrefix("//")(t));
-      if ($230) {
+      var $262 = isJust(stripPrefix("//")(t));
+      if ($262) {
         return acc;
       }
       ;
-      var $231 = isJust(stripPrefix("/*")(t));
-      if ($231) {
-        var $232 = contains("*/")(t);
-        if ($232) {
+      var $263 = isJust(stripPrefix("/*")(t));
+      if ($263) {
+        var $264 = contains("*/")(t);
+        if ($264) {
           return acc;
         }
         ;
@@ -8202,8 +8449,8 @@ var decomment = function(ls) {
   })(ls).out);
 };
 var toFenced = function(src) {
-  var $233 = contains("```gramark")(src);
-  if ($233) {
+  var $265 = contains("```gramark")(src);
+  if ($265) {
     return src;
   }
   ;
@@ -8215,8 +8462,8 @@ var toFenced = function(src) {
   var block = function(info) {
     return function(body) {
       var trimmed = trimBlankEnds(body);
-      var $234 = $$null(trimmed);
-      if ($234) {
+      var $266 = $$null(trimmed);
+      if ($266) {
         return [];
       }
       ;
@@ -8229,8 +8476,8 @@ var parseWith = function(method) {
   return function(md) {
     var src = joinWith("\n")(lrBlocks(toFenced(md))) + "\n";
     var raw = scan(lrScanItems)(src);
-    var $235 = hasError(raw);
-    if ($235) {
+    var $267 = hasError(raw);
+    if ($267) {
       return new Left("lexical error in grammar source");
     }
     ;
@@ -8253,10 +8500,10 @@ var parseWith = function(method) {
         return new Left("parse did not yield a Grammar");
       }
       ;
-      throw new Error("Failed pattern match at Gramark.Lr (line 347, column 22 - line 350, column 56): " + [v1.constructor.name]);
+      throw new Error("Failed pattern match at Gramark.Lr (line 359, column 22 - line 362, column 56): " + [v1.constructor.name]);
     }
     ;
-    throw new Error("Failed pattern match at Gramark.Lr (line 345, column 10 - line 350, column 56): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramark.Lr (line 357, column 10 - line 362, column 56): " + [v.constructor.name]);
   };
 };
 var parse = /* @__PURE__ */ (function() {

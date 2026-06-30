@@ -35,6 +35,8 @@ data Sym
   | Macro String (Array Sym) -- ^ a macro call `Name<args>` (e.g. `Comma<X>`)
   | Field String Sym -- ^ a named child position `name:X`; the name reaches the IR
   | Group (Array (Array Sym)) -- ^ a parenthesised group `( a | b )`; hoisted to a fresh rule by `Gramark.Desugar`
+  | Any -- ^ the `.` wildcard: any one terminal; lowered to a closed-alphabet group
+  | Not (Array Sym) -- ^ negation `~X` / `~( a | b )`: any terminal not in the set; lowered to a closed-alphabet group
 
 -- Structural equality lets the self-hosting test assert that the parser,
 -- once generated, reads `lr.grmk.md` back to a value equal to the literal.
@@ -54,6 +56,8 @@ instance showSym :: Show Sym where
   show (Macro n args) = "Macro " <> show n <> " " <> show args
   show (Field n s) = "Field " <> show n <> " (" <> show s <> ")"
   show (Group alts) = "Group " <> show alts
+  show Any = "Any"
+  show (Not set) = "Not " <> show set
 
 instance showAlt :: Show Alt where
   show (Alt syms label act) =

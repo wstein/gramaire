@@ -1,7 +1,7 @@
 {
   "version": 1,
   "mode": "sidecar",
-  "grammarSha256": "da37bd2dd7613582e6b6b7907ebcf899093b826fb22c50434e10574b49a11d8d",
+  "grammarSha256": "b80540281e2941361d0d8088fbf5872048820310bfe62093270e12519870fa49",
   "artifacts": [
     {
       "kind": "railroad",
@@ -43,7 +43,7 @@
       "kind": "railroad",
       "nonterminal": "Sym",
       "path": "diagrams/lr/sym.svg",
-      "sourceSha256": "8f396da5a8b07d98fddd8bc3dbaf828f04927dbe3fd918f3ce12afebb0312c0d"
+      "sourceSha256": "4370e960f33f47ef4fa51f1856b117bad054665806b8a1a744a73507ba23772d"
     },
     {
       "kind": "railroad",
@@ -70,9 +70,33 @@
       "sourceSha256": "acd90e0a624ed99ded9940bf32732738870bd4abaea764a9b2e92dc78be40537"
     },
     {
+      "kind": "railroad",
+      "nonterminal": "Atom",
+      "path": "diagrams/lr/atom.svg",
+      "sourceSha256": "03b09ee962a4ce93e79491295df4e63d52e4a7dac2687a033808c24b6eed8d41"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "NotArg",
+      "path": "diagrams/lr/notarg.svg",
+      "sourceSha256": "c565868577cda7bcc70dff8a842b0cc0f8479edf20257ef63908d97fa58872ce"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SetBody",
+      "path": "diagrams/lr/setbody.svg",
+      "sourceSha256": "daf65595daaed1d37579dda3128d227098cd477ab1dab46bb4e928f3238d8e9e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SetItem",
+      "path": "diagrams/lr/setitem.svg",
+      "sourceSha256": "8d8a7f0210d3b41090e5e317b269be77561a1238db6c22e2c2833fe83ac8adf8"
+    },
+    {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "da37bd2dd7613582e6b6b7907ebcf899093b826fb22c50434e10574b49a11d8d"
+      "sourceSha256": "b80540281e2941361d0d8088fbf5872048820310bfe62093270e12519870fa49"
     }
   ]
 }
