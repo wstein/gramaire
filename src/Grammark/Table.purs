@@ -24,6 +24,8 @@ module Grammark.Table
   , analyze
   , buildTables
   , buildTablesFor
+  , GlrTable
+  , buildGlrTablesFor
   ) where
 
 import Prelude
@@ -548,3 +550,54 @@ buildTablesFor method g = fillTables ctx states a.prods
 -- | LALR/IELR constructions are differentially tested against.
 buildTables :: Grammar -> Either (Array Conflict) ParseTable
 buildTables = buildTablesFor Canonical
+
+-- | A *multi-action* table: each cell holds every action available there, so a
+-- | conflict is kept as several actions rather than failing the build. One
+-- | action is a deterministic cell; several is exactly a shift/reduce or
+-- | reduce/reduce conflict — the points a GLR driver forks on.
+type GlrTable =
+  { action :: Map (Tuple Int GSym) (Array Action)
+  , goto :: Map (Tuple Int String) Int
+  , prods :: Array Prod
+  }
+
+-- | Build the multi-action table for a method. Same automaton as
+-- | `buildTablesFor`, but `fillGlr` keeps conflicts instead of reporting them,
+-- | so this never fails — an ambiguous or non-LR(1) grammar yields a usable
+-- | table for `Grammark.Glr`.
+buildGlrTablesFor :: Method -> Grammar -> GlrTable
+buildGlrTablesFor method g = fillGlr ctx states a.prods
+  where
+  a = analyze g
+  ctx = mkCtx a
+  canonical = buildStates ctx
+  states = case method of
+    Canonical -> canonical
+    LALR -> mergeLALR canonical
+    IELR -> buildIELR ctx canonical
+
+-- | Fill multi-action tables: shifts/goto from transitions, then every
+-- | completed item adds its reduce (or accept) to the cell, de-duplicated.
+fillGlr :: Ctx -> States -> Array Prod -> GlrTable
+fillGlr ctx st realProds =
+  { action: foldlWithIndex addReduces base.action st.states
+  , goto: base.goto
+  , prods: realProds
+  }
+  where
+  base =
+    foldl addTrans { action: Map.empty, goto: Map.empty }
+      (Map.toUnfoldable st.trans :: Array (Tuple (Tuple Int GSym) Int))
+
+  addTrans acc (Tuple (Tuple i sym) j) = case sym of
+    Term _ -> acc { action = push (Tuple i sym) (Shift j) acc.action }
+    NonTerm n -> acc { goto = Map.insert (Tuple i n) j acc.goto }
+    EOF -> acc
+
+  addReduces i act items = foldl (addReduce i) act (Set.toUnfoldable items :: Array Item)
+  addReduce i act it =
+    if it.dot < Array.length (rhsOf ctx it.prod) then act
+    else push (Tuple i it.look) (if it.prod == 0 then Accept else Reduce (it.prod - 1)) act
+
+  push key a =
+    Map.alter (\mb -> Just (maybe [ a ] (\xs -> if Array.elem a xs then xs else Array.snoc xs a) mb)) key

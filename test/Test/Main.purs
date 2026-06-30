@@ -17,6 +17,7 @@ import Test.Cst as Cst
 import Test.Desugar as Desugar
 import Test.Diagnostics as Diagnostics
 import Test.FirstFollow as FirstFollow
+import Test.Glr as Glr
 import Test.IR as IR
 import Test.IRDecode as IRDecode
 import Test.Json as Json
@@ -38,6 +39,8 @@ main = do
   SelfHost.tests
   log "Test.FirstFollow"
   FirstFollow.tests
+  log "Test.Glr"
+  Glr.tests
   log "Test.IR"
   IR.tests
   log "Test.Json"
