@@ -78,9 +78,9 @@ conflicts = do
 tests :: Effect Unit
 tests = do
   for_
-    [ Tuple "grammar/lr.gram.md" "Lr"
-    , Tuple "examples/json.gram.md" "Json"
-    , Tuple "examples/calc.gram.md" "Calc"
+    [ Tuple "grammar/lr.grmk.md" "Lr"
+    , Tuple "examples/json.grmk.md" "Json"
+    , Tuple "examples/calc.grmk.md" "Calc"
     ]
     check
   conflicts

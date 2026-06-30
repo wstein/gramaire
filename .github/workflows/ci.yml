@@ -91,24 +91,21 @@ jobs:
       - name: Lint Markdown (markdownlint-cli2)
         run: npm run lint:md
 
-      - name: Cross-check FIRST/FOLLOW against the documented table
-        run: npm run validate
-
       - name: grammark --check grammar and examples
         working-directory: ${{ github.workspace }}
         run: |
-          node bootstrap/grammark-check.ts grammar/lr.gram.md
-          node bootstrap/grammark-check.ts examples/calc.gram.md
-          node bootstrap/grammark-check.ts examples/json.gram.md
-          node bootstrap/grammark-check.ts examples/readme.gram.md
+          node bootstrap/grammark-check.ts grammar/lr.grmk.md
+          node bootstrap/grammark-check.ts examples/calc.grmk.md
+          node bootstrap/grammark-check.ts examples/json.grmk.md
+          node bootstrap/grammark-check.ts examples/readme.grmk.md
 
       - name: Derived artifacts are up to date (no drift)
         working-directory: ${{ github.workspace }}
         run: |
-          node bootstrap/grammark-check.ts --write-lock grammar/lr.gram.md
-          node bootstrap/grammark-check.ts --write-lock examples/calc.gram.md
-          node bootstrap/grammark-check.ts --write-lock examples/json.gram.md
-          node bootstrap/grammark-check.ts --write-lock examples/readme.gram.md
+          node bootstrap/grammark-check.ts --write-lock grammar/lr.grmk.md
+          node bootstrap/grammark-check.ts --write-lock examples/calc.grmk.md
+          node bootstrap/grammark-check.ts --write-lock examples/json.grmk.md
+          node bootstrap/grammark-check.ts --write-lock examples/readme.grmk.md
           git diff --exit-code
 
   site:

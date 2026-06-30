@@ -24,7 +24,7 @@ test("parseProduction classifies terminals, literals, and nonterminals", () => {
 });
 
 test("parseProduction treats raw : | as separators but a quoted '|' as a literal", () => {
-  // The self-describing case from grammar/lr.gram.md.
+  // The self-describing case from grammar/lr.grmk.md.
   const prod = parseProduction(
     "AltTail\n  : NL\n  | NL '|' Alt AltTail",
     new Set(["AltTail", "Alt"]),

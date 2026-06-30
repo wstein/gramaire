@@ -1,22 +1,22 @@
 -- | Iteration-0 bootstrap.
 -- |
--- | This is the `lr` grammar of `lr.gram.md`, encoded by hand as a `Grammar`
+-- | This is the `lr` grammar of `lr.grmk.md`, encoded by hand as a `Grammar`
 -- | value. The table builder is fed THIS directly — no bootstrap parser is
 -- | needed to get the toolchain off the ground. Once `buildTables` +
 -- | codegen produce an `lr` parser, and that generated parser reads
--- | `lr.gram.md` back to a value equal to `bootstrapGrammar` (the dogfood
--- | test), this literal is deleted and the `.gram.md` file becomes the
+-- | `lr.grmk.md` back to a value equal to `bootstrapGrammar` (the dogfood
+-- | test), this literal is deleted and the `.grmk.md` file becomes the
 -- | single source of truth.
 -- |
 -- | Each action string is the exact text between `{%` and `%}` in the
--- | corresponding rule of `lr.gram.md`, so the equality test is meaningful.
+-- | corresponding rule of `lr.grmk.md`, so the equality test is meaningful.
 module Grammark.Bootstrap (bootstrapGrammar, lrTokensSource) where
 
 import Data.Maybe (Maybe(..))
 import Data.String (joinWith)
 import Grammark.Syntax (Grammar(..), Rule(..), Alt(..), Sym(..))
 
--- | The `lr` notation's lexis — the `## Tokens` block of `lr.gram.md`, encoded
+-- | The `lr` notation's lexis — the `## Tokens` block of `lr.grmk.md`, encoded
 -- | here so the parse path can build its scanner without reading the file. Like
 -- | `bootstrapGrammar`, this is the bootstrapped twin of the source: a sync
 -- | guard (Test.LexerSelfHost) checks it still parses to the same token classes

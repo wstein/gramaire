@@ -1,8 +1,8 @@
 -- | Lexer self-host oracle (lexer-spec §8). The scanner built from the `lr`
--- | notation's own `## Tokens` block (read from `grammar/lr.gram.md`) reproduces
+-- | notation's own `## Tokens` block (read from `grammar/lr.grmk.md`) reproduces
 -- | the bootstrap `Grammark.Lexer` **token-for-token** — terminals and, thanks
 -- | to capture groups (M5), text — both on a representative snippet and on the
--- | whole of `lr.gram.md`.
+-- | whole of `lr.grmk.md`.
 -- |
 -- | One documented caveat (lexer-spec §5/M5): trimming an action body's
 -- | surrounding whitespace is the consumer's job, not the lexer's, so the
@@ -54,20 +54,20 @@ checkLexer items label content = case tokenize content of
 
 tests :: Effect Unit
 tests = do
-  md <- readTextFile UTF8 "grammar/lr.gram.md"
+  md <- readTextFile UTF8 "grammar/lr.grmk.md"
   case tokensBlock md of
-    Nothing -> assert' "lr.gram.md should carry an lr tokens block" false
+    Nothing -> assert' "lr.grmk.md should carry an lr tokens block" false
     Just block -> case parseTokens block of
       Left e -> assert' ("lr tokens should parse: " <> e) false
       Right defs -> do
         -- Sync guard: the parse path scans with `lrTokensSource` (Bootstrap),
         -- which must stay equal to the file's `## Tokens` block.
-        log "  lexer self-host: lrTokensSource (Bootstrap) matches lr.gram.md's Tokens block"
-        assert' "bootstrapped lr tokens drifted from lr.gram.md"
+        log "  lexer self-host: lrTokensSource (Bootstrap) matches lr.grmk.md's Tokens block"
+        assert' "bootstrapped lr tokens drifted from lr.grmk.md"
           (parseTokens lrTokensSource == Right defs)
         -- `:` and `|` are the lr notation's implicit literals
         let items = buildItems defs [ ":", "|" ]
         log "  lexer self-host: the scanner reproduces the bootstrap on a snippet (§8)"
         checkLexer items "snippet" sample
-        log "  lexer self-host: the scanner reproduces the bootstrap on all of lr.gram.md (§8)"
-        checkLexer items "lr.gram.md" (joinWith "\n" (lrBlocks md) <> "\n")
+        log "  lexer self-host: the scanner reproduces the bootstrap on all of lr.grmk.md (§8)"
+        checkLexer items "lr.grmk.md" (joinWith "\n" (lrBlocks md) <> "\n")

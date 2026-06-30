@@ -2,7 +2,7 @@
 
 You are reading a grammar. You are also reading a pitch for Grammark, and
 those are not two files — they are this one. Grammark is an LR parser
-generator whose source format _is_ Markdown: a `.gram.md` renders on
+generator whose source format _is_ Markdown: a `.grmk.md` renders on
 GitHub as ordinary prose and railroad diagrams while being, byte for byte,
 the input its generator reads. The productions live in the fenced `grammark`
 blocks below; everything around them — including this paragraph — is
@@ -13,7 +13,7 @@ This particular grammar describes its own teaser. Its language is the set
 of period-terminated sentences — which is exactly the shape of the text
 you have been reading. So the claim "the documentation is the grammar" is
 not a slogan here; it is the start symbol. This file checks green: run
-`node bootstrap/grammark-check.ts examples/readme.gram.md` and watch the
+`node bootstrap/grammark-check.ts examples/readme.grmk.md` and watch the
 structure, drift, and lint gates pass.
 
 Semantic actions build this AST (the target PureScript shapes):

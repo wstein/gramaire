@@ -3,7 +3,7 @@
 -- | Two checks. First a drift lock — the committed generated module equals a
 -- | fresh generation, so a codegen/profile change that was not regenerated
 -- | fails CI. Then the oracle — the parser driven by the *generated* reduce
--- | reads `grammar/lr.gram.md` back to `bootstrapGrammar`, exactly as the
+-- | reads `grammar/lr.grmk.md` back to `bootstrapGrammar`, exactly as the
 -- | hand-written reduce does. That is self-hosting through generated code.
 module Test.Codegen (tests) where
 
@@ -35,7 +35,7 @@ tests = do
       assertEqual { actual: generateLrReduce ir, expected: committed }
 
   log "  codegen: self-host holds with the generated reduce"
-  md <- readTextFile UTF8 "grammar/lr.gram.md"
+  md <- readTextFile UTF8 "grammar/lr.grmk.md"
   let src = joinWith "\n" (lrBlocks md) <> "\n"
   case tokenize src of
     Left e -> assert' ("tokenize failed: " <> show e) false

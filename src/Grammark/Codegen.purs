@@ -5,7 +5,7 @@
 -- | `lr` typed-AST profile (the per-symbol `SemVal` constructor map). The
 -- | generated module is committed at `src/Grammark/Generated/LrReduce.purs`
 -- | and proven by the self-host oracle in `Test.Codegen`: the parser driven by
--- | the generated reduce reads `grammar/lr.gram.md` back to `bootstrapGrammar`.
+-- | the generated reduce reads `grammar/lr.grmk.md` back to `bootstrapGrammar`.
 -- |
 -- | The profile is the legitimate extra input a typed-AST backend needs: the
 -- | grammar alone says nothing about which `SemVal` carries which symbol. Given

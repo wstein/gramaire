@@ -97,9 +97,9 @@ test("longestBacktickRun counts the longest run", () => {
   assert.equal(longestBacktickRun("```triple```"), 3);
 });
 
-test("lockPathFor swaps the .gram.md extension for .gram.lock", () => {
-  assert.equal(lockPathFor("grammar/lr.gram.md"), "grammar/lr.gram.lock");
-  assert.equal(lockPathFor("a/b/calc.gram.md"), "a/b/calc.gram.lock");
+test("lockPathFor swaps the .grmk.md extension for .grmk.lock", () => {
+  assert.equal(lockPathFor("grammar/lr.grmk.md"), "grammar/lr.grmk.lock");
+  assert.equal(lockPathFor("a/b/calc.grmk.md"), "a/b/calc.grmk.lock");
 });
 
 test("checkStructure accepts a canonical document", () => {
@@ -184,7 +184,7 @@ test("grammarHashes is deterministic and keyed by nonterminal", () => {
 test("fmt then checkDrift: clean for the formatted grammar, stale after an edit", () => {
   const dir = mkdtempSync(join(tmpdir(), "grammark-test-"));
   try {
-    const file = join(dir, "mini.gram.md");
+    const file = join(dir, "mini.grmk.md");
     const src = miniDoc();
     writeFileSync(file, src);
 

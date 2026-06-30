@@ -24,7 +24,7 @@ import Test.Assert (assert', assertEqual)
 tests :: Effect Unit
 tests = do
   log "  conformance: lr + calc corpora pass under canonical, LALR, and IELR"
-  calcMd <- readTextFile UTF8 "examples/calc.gram.md"
+  calcMd <- readTextFile UTF8 "examples/calc.grmk.md"
   case parse calcMd of
     Left e -> assert' ("could not parse the calc grammar: " <> e) false
     Right calcG -> do

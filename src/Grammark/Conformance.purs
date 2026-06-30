@@ -123,7 +123,7 @@ lrDescriptor =
   { language: "lr", grammar: bootstrapGrammar, lexer: lrLexer, vectors: lrVectors }
 
 -- | The `calc` corpus entry, given its grammar (parsed from
--- | `examples/calc.gram.md` by the caller, which has filesystem access).
+-- | `examples/calc.grmk.md` by the caller, which has filesystem access).
 calcDescriptor :: Grammar -> Descriptor
 calcDescriptor g =
   { language: "calc", grammar: g, lexer: calcLexer, vectors: calcVectors }

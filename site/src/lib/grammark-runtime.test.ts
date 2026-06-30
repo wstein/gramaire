@@ -14,7 +14,7 @@ import {
 } from "./grammark-runtime.ts";
 
 const jsonGrammar = readFileSync(
-  fileURLToPath(new URL("../../../examples/json.gram.md", import.meta.url)),
+  fileURLToPath(new URL("../../../examples/json.grmk.md", import.meta.url)),
   "utf8",
 );
 
@@ -48,7 +48,7 @@ test("a malformed grammar reports a grammar error", async () => {
   assert.match(result.message, /could not be parsed/i);
 });
 
-test("json.gram.md accepts JSON via its own Tokens block (real engine)", async () => {
+test("json.grmk.md accepts JSON via its own Tokens block (real engine)", async () => {
   const result = await parseGrammarkDocument(
     jsonGrammar,
     '{"a": [1, true], "b": null}',
@@ -56,7 +56,7 @@ test("json.gram.md accepts JSON via its own Tokens block (real engine)", async (
   assert.equal(result.success, true);
 });
 
-test("json.gram.md rejects malformed JSON", async () => {
+test("json.grmk.md rejects malformed JSON", async () => {
   const missingComma = await parseGrammarkDocument(jsonGrammar, "[1 2]");
   assert.equal(missingComma.success, false);
   const typoKeyword = await parseGrammarkDocument(jsonGrammar, "tru");

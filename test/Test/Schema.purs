@@ -1,6 +1,6 @@
 -- | Every grammar's IR honors the `grammark-ir` contract (`spec/ir-schema.json`).
 -- |
--- | Parses each `.gram.md`, builds the IR, and asserts `validate` reports no
+-- | Parses each `.grmk.md`, builds the IR, and asserts `validate` reports no
 -- | violations — so an emitter change that breaks an id space or a table
 -- | reference is caught across the whole corpus, not just where a golden
 -- | happens to cover.
@@ -37,9 +37,9 @@ check path = do
 tests :: Effect Unit
 tests =
   for_
-    [ "grammar/lr.gram.md"
-    , "examples/calc.gram.md"
-    , "examples/json.gram.md"
-    , "examples/readme.gram.md"
+    [ "grammar/lr.grmk.md"
+    , "examples/calc.grmk.md"
+    , "examples/json.grmk.md"
+    , "examples/readme.grmk.md"
     ]
     check

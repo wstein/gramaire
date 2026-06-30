@@ -93,8 +93,8 @@ grammarLiterals (Grammar rules) = Array.nub (Array.concatMap ruleLits rules)
     Field _ s -> symLits s
     _ -> []
 
--- | Extract the content of the first ```` ```lr tokens ```` block from a
--- | `.gram.md` document, or `Nothing` if it has none.
+-- | Extract the content of the first ```` ```grammark tokens ```` block from a
+-- | `.grmk.md` document, or `Nothing` if it has none.
 tokensBlock :: String -> Maybe String
 tokensBlock md =
   (foldl step { inside: false, cur: [], found: Nothing } (split (Pattern "\n") md)).found

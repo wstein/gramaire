@@ -22,7 +22,7 @@
  *   3. LINT      - markdownlint-cli2 reports zero issues.
  *
  * Usage:
- *   node grammark-check.ts <file.gram.md>                          # check
+ *   node grammark-check.ts <file.grmk.md>                          # check
  *   node grammark-check.ts fmt [--diagrams=sidecar|mermaid] <file>  # format
  */
 
@@ -110,9 +110,9 @@ export function longestBacktickRun(s: string): number {
   return max;
 }
 
-// Derive the sidecar lock path from a `.gram.md` grammar file path.
+// Derive the sidecar lock path from a `.grmk.md` grammar file path.
 export function lockPathFor(file: string): string {
-  return file.replace(/\.gram\.md$/, ".gram.lock");
+  return file.replace(/\.grmk\.md$/, ".grmk.lock");
 }
 
 // ---- Parsing (only what the contract needs) -------------------------------
@@ -488,8 +488,8 @@ export function fmt(file: string, doc: Doc, mode: DiagramMode): void {
 // ---- main -----------------------------------------------------------------
 
 const USAGE =
-  "usage: grammark-check.ts <file.gram.md>            # check\n" +
-  "       grammark-check.ts fmt [--diagrams=sidecar|mermaid] <file.gram.md>";
+  "usage: grammark-check.ts <file.grmk.md>            # check\n" +
+  "       grammark-check.ts fmt [--diagrams=sidecar|mermaid] <file.grmk.md>";
 
 export async function main(argv: readonly string[]): Promise<number> {
   // `fmt` (or the legacy `--write-lock` alias) formats; otherwise check.

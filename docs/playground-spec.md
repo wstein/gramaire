@@ -1,6 +1,6 @@
 # Product Specification — Grammark Lab
 
-> A browser-native grammar laboratory. Edit a `.gram.md` grammar, watch it
+> A browser-native grammar laboratory. Edit a `.grmk.md` grammar, watch it
 > build, parse input live, and see _why_ — conflicts, parse trees, ambiguity,
 > generated parsers — with no server and sub-frame feedback.
 
@@ -140,7 +140,7 @@ can be built without new engine work unless noted.
 
 ### Tier 0 — the loop (MVP; shipping today as a preview)
 
-- **T0.1 Dual editor.** Left: the `.gram.md` grammar. Right: a raw input
+- **T0.1 Dual editor.** Left: the `.grmk.md` grammar. Right: a raw input
   payload. (Today: textareas; Tier 1 upgrades to Monaco.)
 - **T0.2 Evaluate (preview).** Today: a client-side recognizer lexes input from
   the grammar's literal terminals and reports **accept / reject**; grammars that
@@ -160,7 +160,7 @@ can be built without new engine work unless noted.
   no `node:fs`, so it bundles for the browser unchanged. (Input lexing for token
   classes still needs a per-language lexer — ship a small built-in set and/or let
   the grammar declare one.)
-- **T1.1 Monaco dual-pane** with `.gram.md` highlighting (Markdown + an `grammark`
+- **T1.1 Monaco dual-pane** with `.grmk.md` highlighting (Markdown + an `grammark`
   fenced-block grammar mode), a diagnostics gutter in both panes, and debounced
   re-evaluation on every keystroke (target < 16 ms for small grammars).
 - **T1.2 Interactive CST explorer.** Render the `grammark-cst` tree
@@ -217,7 +217,7 @@ so table construction never blocks the UI.
 ```mermaid
 flowchart LR
   subgraph Main thread
-    GE["Grammar editor (Monaco, .gram.md)"]
+    GE["Grammar editor (Monaco, .grmk.md)"]
     IE["Input editor (Monaco)"]
     CST["CST explorer + hover-link"]
     DIAG["Diagnostics gutter"]
@@ -268,7 +268,7 @@ respected, monospace for all grammar / CLI text (branding).
 
 - **No server compilation, ever** (the anti-ANTLR-Lab stance).
 - **No host-code grammars** (the anti-Chevrotain stance): grammars stay
-  declarative `.gram.md`.
+  declarative `.grmk.md`.
 - **No account / cloud storage.** Sharing is by URL; persistence is the user's
   repo.
 - **Not a general IDE.** LSP / incremental editing is the IDE-extension track

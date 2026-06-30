@@ -67,7 +67,7 @@ golden = do
         Golden.check tsPath (emit ir)
         Golden.check dtsPath (emitDts ir)
   where
-  path = "grammar/lr.gram.md"
+  path = "grammar/lr.grmk.md"
   tsPath = "test/golden/Lr.ts"
   dtsPath = "test/golden/Lr.d.ts"
 

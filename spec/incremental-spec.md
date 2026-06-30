@@ -8,7 +8,7 @@ This document governs the **generated parser at runtime** — the concrete synta
 tree (CST) it builds, how it reparses after an edit, how it recovers from
 errors, and the Tier-1 language-server surface over it. It is a sibling to the
 [fmt output contract](../docs/fmt-output-contract.md) (which governs the
-`.gram.md` *document*) and to [`ir-schema.json`](ir-schema.json) (which governs
+`.grmk.md` *document*) and to [`ir-schema.json`](ir-schema.json) (which governs
 the artifact the runtime consumes). Where this spec needs fields the IR does
 not yet carry, those are listed in "IR requirements" as change requests against
 the schema.
@@ -237,7 +237,7 @@ absence is meaningful.
   the states where forking may occur (Section 7).
 - Stable `rules[].id` and symbol `id`s — REQUIRED so reused subtrees keep
   identity across IR revisions within a major (R3). The IR's canonical hash
-  (the `*.gram.lock` digest, `[S12]`) covers these.
+  (the `*.grmk.lock` digest, `[S12]`) covers these.
 
 ## 11. Conformance
 

@@ -1,9 +1,9 @@
 -- | The self-hosting (dogfood) test: the parser generated from the `lr`
--- | grammar, run over `grammar/lr.gram.md` — the `lr` grammar's own
+-- | grammar, run over `grammar/lr.grmk.md` — the `lr` grammar's own
 -- | definition — reconstructs `Grammark.Bootstrap.bootstrapGrammar`.
 -- |
 -- | When this passes, the literal, the lexer, the LR(1) tables, and the
--- | runtime all agree, and `grammar/lr.gram.md` is the single source of truth.
+-- | runtime all agree, and `grammar/lr.grmk.md` is the single source of truth.
 module Test.SelfHost (tests) where
 
 import Prelude
@@ -20,9 +20,9 @@ import Test.Assert (assertEqual)
 
 tests :: Effect Unit
 tests = do
-  md <- readTextFile UTF8 "grammar/lr.gram.md"
+  md <- readTextFile UTF8 "grammar/lr.grmk.md"
 
-  log "  self-host: canonical parse(grammar/lr.gram.md) == bootstrapGrammar"
+  log "  self-host: canonical parse(grammar/lr.grmk.md) == bootstrapGrammar"
   assertEqual { actual: parseWith Canonical md, expected: Right bootstrapGrammar }
 
   log "  self-host: LALR parse agrees with canonical (same reconstructed grammar)"

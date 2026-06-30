@@ -1,7 +1,7 @@
 # Json
 
 The complete grammar for [JSON](https://www.json.org) (RFC 8259), written
-as a Grammark `.gram.md`. It is a single document that is two things at
+as a Grammark `.grmk.md`. It is a single document that is two things at
 once: the page you are reading on GitHub — prose, railroad diagrams, a
 FIRST/FOLLOW table — and the exact input Grammark's generator consumes.
 Everything outside the fenced `grammark` blocks is documentation that travels
@@ -12,7 +12,7 @@ fits on one screen, and its value-union branch and two bracketed,
 comma-separated lists render into satisfying railroad diagrams. The
 notation is LR(1) by construction and carries no operator precedence, so
 this file deliberately omits the optional `## Precedence` section that the
-[`calc`](calc.gram.md) example shows.
+[`calc`](calc.grmk.md) example shows.
 
 Semantic actions build this AST (the target PureScript shapes):
 

@@ -26,7 +26,7 @@ system.
 ## Shape
 
 ```grammark
-import ./json.gram.md
+import ./json.grmk.md
 ```
 
 A directive that includes another grammar's productions into the current
@@ -48,7 +48,7 @@ open; the semantics below are not.
    network fetch — a grammar from a registry must never drag in unreviewed
    productions or actions. (Marcus's supply-chain surface; cf. the registry
    threat model [S10].)
-4. **Transitive lock hashing.** The `.gram.lock` hashes the transitive closure
+4. **Transitive lock hashing.** The `.grmk.lock` hashes the transitive closure
    of imports, so drift detection fails when any imported dependency changes —
    an import is part of the grammar's identity, not an invisible side input.
 5. **No cycles.** Import graphs are acyclic; a cycle is a build error.

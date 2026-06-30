@@ -42,7 +42,7 @@ golden = do
       Left _ -> assert' "could not build IR for json" false
       Right ir -> Golden.check goldenPath (emit ir)
   where
-  path = "examples/json.gram.md"
+  path = "examples/json.grmk.md"
   goldenPath = "test/golden/json.ebnf"
 
 tests :: Effect Unit

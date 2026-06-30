@@ -2,7 +2,7 @@
 -- | resolution and FIRST/FOLLOW over `bootstrapGrammar`.
 -- |
 -- | The expected sets are exactly the table documented in
--- | `grammar/lr.gram.md`. Asserting them here closes the loop the
+-- | `grammar/lr.grmk.md`. Asserting them here closes the loop the
 -- | `bootstrap/validate-firstfollow.mjs` cross-check opens without a
 -- | PureScript toolchain: the literal, the algorithm, and the docs must all
 -- | agree.
@@ -63,7 +63,7 @@ t = Term
 set :: Array GSym -> Set GSym
 set = Set.fromFoldable
 
--- | FIRST sets documented in `grammar/lr.gram.md`.
+-- | FIRST sets documented in `grammar/lr.grmk.md`.
 expectedFirst :: Map String (Set GSym)
 expectedFirst = Map.fromFoldable
   [ Tuple "Grammar" (set [ t "ATTR", t "IDENT" ])
@@ -78,7 +78,7 @@ expectedFirst = Map.fromFoldable
   , Tuple "Label" (set [ t "LABEL" ])
   ]
 
--- | FOLLOW sets documented in `grammar/lr.gram.md` (`$` is `EOF`).
+-- | FOLLOW sets documented in `grammar/lr.grmk.md` (`$` is `EOF`).
 expectedFollow :: Map String (Set GSym)
 expectedFollow = Map.fromFoldable
   [ Tuple "Grammar" (set [ EOF ])
@@ -103,10 +103,10 @@ tests = do
   log "  table: start symbol is Grammar"
   assertEqual { actual: a.start, expected: "Grammar" }
 
-  log "  table: FIRST sets match grammar/lr.gram.md"
+  log "  table: FIRST sets match grammar/lr.grmk.md"
   assertEqual { actual: a.firsts, expected: expectedFirst }
 
-  log "  table: FOLLOW sets match grammar/lr.gram.md"
+  log "  table: FOLLOW sets match grammar/lr.grmk.md"
   assertEqual { actual: a.follows, expected: expectedFollow }
 
   log "  table: canonical LR(1) tables build with no conflicts (lr is LR(1))"

@@ -1,11 +1,11 @@
 -- | The parser for the `lr` notation itself: the generic runtime instantiated
--- | with the semantics of `grammar/lr.gram.md`.
+-- | with the semantics of `grammar/lr.grmk.md`.
 -- |
 -- | `reduce` is the hand-written stand-in for codegen output — one branch per
 -- | production of `bootstrapGrammar`, each mirroring that rule's `{% %}` body
--- | verbatim. `parse` extracts the `lr` blocks from a `.gram.md` document,
+-- | verbatim. `parse` extracts the `lr` blocks from a `.grmk.md` document,
 -- | lexes them, and runs them through the tables generated from the `lr`
--- | grammar itself, yielding a `Grammar`. Feeding it `grammar/lr.gram.md`
+-- | grammar itself, yielding a `Grammar`. Feeding it `grammar/lr.grmk.md`
 -- | reconstructs `bootstrapGrammar` — the self-hosting loop (see Test.SelfHost).
 module Grammark.Lr
   ( SemVal(..)
@@ -79,7 +79,7 @@ unescape = fromCharArray <<< go <<< toCharArray
       Nothing -> [ '\\' ]
     Just { head: c, tail } -> Array.cons c (go tail)
 
--- | The semantic actions of `grammar/lr.gram.md`, keyed by production index
+-- | The semantic actions of `grammar/lr.grmk.md`, keyed by production index
 -- | (the order `Grammark.Table.productions` flattens `bootstrapGrammar` into).
 -- | This is the artifact `grammark fmt` codegen will emit; for now it is
 -- | written by hand to mirror the `{% %}` bodies verbatim.
@@ -114,8 +114,8 @@ reduce p kids = case p, kids of
   26, [ VStr l ] -> VMaybeStr (Just l) -- Label : LABEL
   _, _ -> VErr ("unexpected reduce shape for production " <> show p)
 
--- | Extract the contents of every ```lr fenced block — the rule blocks, not
--- | `lr precedence` / `lr errors` — from a `.gram.md` document, in order.
+-- | Extract the contents of every ```grammark fenced block — the rule blocks, not
+-- | `lr precedence` / `lr errors` — from a `.grmk.md` document, in order.
 lrBlocks :: String -> Array String
 lrBlocks md =
   (foldl scan { inside: false, cur: [], blocks: [] } (split (Pattern "\n") md)).blocks
@@ -132,11 +132,11 @@ lrBlocks md =
 -- | notation's own `## Tokens` block (`lrTokensSource`), with `:` and `|` as
 -- | the implicit literals. The hand-written `Grammark.Lexer` is now only the
 -- | self-host oracle's reference (Test.LexerSelfHost proves the two agree
--- | token-for-token on all of lr.gram.md).
+-- | token-for-token on all of lr.grmk.md).
 lrScanItems :: Array ScanItem
 lrScanItems = buildItems (fromRight [] (parseTokens lrTokensSource)) [ ":", "|" ]
 
--- | Parse a `.gram.md` document's `lr` blocks into a `Grammar`, using the
+-- | Parse a `.grmk.md` document's `lr` blocks into a `Grammar`, using the
 -- | tables generated from the `lr` grammar itself (`bootstrapGrammar`) by the
 -- | given method. The trailing newline lets the final rule's `AltTail` close
 -- | on its `NL`.

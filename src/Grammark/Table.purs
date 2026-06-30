@@ -2,7 +2,7 @@
 -- |
 -- | Pipeline: Grammar -> resolve symbols -> FIRST/FOLLOW -> canonical LR(1)
 -- | automaton -> action/goto tables. Every stage is implemented; FIRST/FOLLOW
--- | is the reference the documented table in `lr.gram.md` is checked against,
+-- | is the reference the documented table in `lr.grmk.md` is checked against,
 -- | and `buildTables` produces the parse tables `Grammark.Parser` runs.
 -- |
 -- | The grammar is assumed epsilon-free (Grammark grammars enumerate

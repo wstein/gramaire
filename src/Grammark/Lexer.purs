@@ -1,7 +1,7 @@
 -- | The lexer for the `lr` productions micro-language.
 -- |
 -- | It turns the raw text of an `lr` block into a flat token stream the
--- | generated parser consumes. Per `grammar/lr.gram.md`, it skips spaces and
+-- | generated parser consumes. Per `grammar/lr.grmk.md`, it skips spaces and
 -- | indentation, collapses runs of blank lines to a single `NL`, and emits:
 -- |
 -- |   * `IDENT`    — `[A-Za-z_][A-Za-z0-9_]*`

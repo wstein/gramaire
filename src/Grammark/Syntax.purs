@@ -36,7 +36,7 @@ data Sym
   | Field String Sym -- ^ a named child position `name:X`; the name reaches the IR
 
 -- Structural equality lets the self-hosting test assert that the parser,
--- once generated, reads `lr.gram.md` back to a value equal to the literal.
+-- once generated, reads `lr.grmk.md` back to a value equal to the literal.
 derive instance eqSym :: Eq Sym
 derive instance eqAlt :: Eq Alt
 derive instance eqRule :: Eq Rule

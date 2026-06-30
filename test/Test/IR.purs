@@ -77,8 +77,8 @@ golden path goldenPath = do
 -- them after their files.
 grammarName :: String -> String
 grammarName path = case path of
-  "grammar/lr.gram.md" -> "Lr"
-  "examples/json.gram.md" -> "Json"
+  "grammar/lr.grmk.md" -> "Lr"
+  "examples/json.grmk.md" -> "Json"
   _ -> "Grammar"
 
 -- A `name:X` field is carried onto the IR's rhs ref (D28), the substrate for
@@ -97,7 +97,7 @@ tests = do
   structural
   fields
   for_
-    [ Tuple "grammar/lr.gram.md" "test/golden/lr.ir.json"
-    , Tuple "examples/json.gram.md" "test/golden/json.ir.json"
+    [ Tuple "grammar/lr.grmk.md" "test/golden/lr.ir.json"
+    , Tuple "examples/json.grmk.md" "test/golden/json.ir.json"
     ]
     (\(Tuple path goldenPath) -> golden path goldenPath)

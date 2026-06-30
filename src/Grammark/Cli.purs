@@ -1,11 +1,11 @@
 -- | The native PureScript command line: `grammark`.
 -- |
 -- | This is the front end as a runnable tool, with no dependency on the
--- | TypeScript bridge. Today it offers `emit`: read a `.gram.md`, parse it,
+-- | TypeScript bridge. Today it offers `emit`: read a `.grmk.md`, parse it,
 -- | lower it to `grammark-ir`, and run a backend over the IR — writing the
 -- | result to stdout or to a `--out` directory.
 -- |
--- |   grammark emit <file.gram.md> [--backend <name>] [--out <dir>]
+-- |   grammark emit <file.grmk.md> [--backend <name>] [--out <dir>]
 -- |
 -- | The pure argument parser and grammar-name resolver are exported so the
 -- | test suite can exercise them without spawning a process.
@@ -74,7 +74,7 @@ parseEmit = go defaultEmit
     Nothing -> Left (name <> " requires a value")
 
 -- | The grammar name: the document's H1 if present, else the file's base name
--- | with the `.gram.md` suffix stripped.
+-- | with the `.grmk.md` suffix stripped.
 grammarName :: String -> String -> String
 grammarName md file = fromMaybe (basename file) (h1 md)
   where
@@ -84,7 +84,7 @@ grammarName md file = fromMaybe (basename file) (h1 md)
 basename :: String -> String
 basename path = stripGram (fromMaybe path (Array.last (String.split (Pattern "/") path)))
   where
-  stripGram n = fromMaybe n (String.stripSuffix (Pattern ".gram.md") n)
+  stripGram n = fromMaybe n (String.stripSuffix (Pattern ".grmk.md") n)
 
 main :: Effect Unit
 main = do
@@ -136,7 +136,7 @@ deliver out outputs = case out of
 
 runConformance :: Effect Unit
 runConformance = do
-  calc <- loadDescriptor "examples/calc.gram.md" calcDescriptor
+  calc <- loadDescriptor "examples/calc.grmk.md" calcDescriptor
   let
     descriptors = Array.cons lrDescriptor (Array.fromFoldable calc)
     summary = summarize (runSuites descriptors)
@@ -182,12 +182,12 @@ usage :: Effect Unit
 usage = for_ lines log
   where
   lines =
-    [ "grammark — generate parsers and artifacts from .gram.md grammars"
+    [ "grammark — generate parsers and artifacts from .grmk.md grammars"
     , ""
     , "Usage:"
-    , "  grammark emit <file.gram.md> [--backend <name>] [--out <dir>]"
+    , "  grammark emit <file.grmk.md> [--backend <name>] [--out <dir>]"
     , "  grammark conformance"
-    , "  grammark explain-conflict <file.gram.md>"
+    , "  grammark explain-conflict <file.grmk.md>"
     , ""
     , "Backends: " <> backendNames
     , ""

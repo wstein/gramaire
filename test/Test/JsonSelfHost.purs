@@ -1,4 +1,4 @@
--- | L5 (lexer-spec §12): `json.gram.md` is self-contained. Its lexer comes from
+-- | L5 (lexer-spec §12): `json.grmk.md` is self-contained. Its lexer comes from
 -- | its own `## Tokens` block — no hand-written scanner — and recognizes a JSON
 -- | corpus under all three table methods.
 module Test.JsonSelfHost (tests) where
@@ -37,12 +37,12 @@ jsonVectors =
 
 tests :: Effect Unit
 tests = do
-  log "  json self-host: json.gram.md parses a JSON corpus via its own lr tokens block (L5)"
-  md <- readTextFile UTF8 "examples/json.gram.md"
+  log "  json self-host: json.grmk.md parses a JSON corpus via its own lr tokens block (L5)"
+  md <- readTextFile UTF8 "examples/json.grmk.md"
   case parse md of
     Left e -> assert' ("json grammar should parse: " <> e) false
     Right grammar -> case tokensBlock md of
-      Nothing -> assert' "json.gram.md should carry an lr tokens block" false
+      Nothing -> assert' "json.grmk.md should carry an lr tokens block" false
       Just block -> case parseTokens block of
         Left e -> assert' ("json tokens should parse: " <> e) false
         Right defs -> do

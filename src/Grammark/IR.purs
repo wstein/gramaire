@@ -1,6 +1,6 @@
 -- | `grammark-ir`: the narrow waist between the front end and every backend.
 -- |
--- | The front end (`.gram.md` -> `Grammar` -> parse tables) lowers into this
+-- | The front end (`.grmk.md` -> `Grammar` -> parse tables) lowers into this
 -- | one versioned artifact; a backend only ever sees the IR and never parses
 -- | Markdown. This module builds the in-memory IR from a `Grammar` plus the
 -- | tables a chosen `Method` produces, and serializes it to canonical JSON.

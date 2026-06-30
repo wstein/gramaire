@@ -12,7 +12,7 @@ import {
 } from "@astrojs/starlight/components";
 
 Grammark's whole idea is in its name — _gram + mark_, grammar plus Markdown. A
-`.gram.md` file is a normal Markdown document that renders on GitHub — prose,
+`.grmk.md` file is a normal Markdown document that renders on GitHub — prose,
 railroad diagrams, FIRST/FOLLOW tables — and is **at the same time** the exact
 input the parser generator reads. Your grammar _is_ your documentation.
 
@@ -29,7 +29,7 @@ limited (see the note below).
   [Lab roadmap](../../../../../docs/playground-spec.md).
 </Aside>
 
-## 1. The shape of a `.gram.md` file
+## 1. The shape of a `.grmk.md` file
 
 A grammar file is a canonical Markdown document with a fixed structure:
 
@@ -54,7 +54,7 @@ documentation that travels with the grammar.
 
 ## 2. Your first rule
 
-Create `calc.gram.md` and give it a title and a first nonterminal:
+Create `calc.grmk.md` and give it a title and a first nonterminal:
 
 ````md
 # Calc
@@ -199,7 +199,7 @@ can tell you _what kind_ of conflict it is:
   needs a refactor, a precedence rule, or the GLR engine.
 
 ```sh
-grammark explain-conflict calc.gram.md
+grammark explain-conflict calc.grmk.md
 ```
 
 ## 6. Run it
@@ -213,12 +213,12 @@ Two feedback loops:
 
    ```sh
    # verify the file (structure, formatting, no conflicts)
-   grammark fmt calc.gram.md
+   grammark fmt calc.grmk.md
 
    # emit artifacts from the same grammar
-   grammark emit --backend ebnf calc.gram.md   # W3C-style EBNF
-   grammark emit --backend ts   calc.gram.md   # a runnable TS parser + Visitor
-   grammark emit --backend ir   calc.gram.md   # the grammark-ir JSON
+   grammark emit --backend ebnf calc.grmk.md   # W3C-style EBNF
+   grammark emit --backend ts   calc.grmk.md   # a runnable TS parser + Visitor
+   grammark emit --backend ir   calc.grmk.md   # the grammark-ir JSON
    ```
 
 2. **In the browser (preview).** The [Lab](/grammark/lab) gives an instant

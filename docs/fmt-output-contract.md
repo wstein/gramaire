@@ -185,7 +185,7 @@ Two artifact classes are derived, not authored: railroad diagrams and the
 generated-tables section. `fmt` records the diagram mode and each derived
 artifact — for sidecar diagrams, the path plus a SHA-256 of the rule it was
 built from; for the tables, a SHA-256 of the whole grammar — in a sidecar
-**`<file>.gram.lock`**. In mermaid mode there are no sidecar files: the
+**`<file>.grmk.lock`**. In mermaid mode there are no sidecar files: the
 diagrams live in the document and their freshness is guaranteed by `fmt`
 idempotence (re-running makes no change), while grammar edits are still caught
 by the whole-grammar digest. The digest is kept out of the Markdown on
@@ -217,9 +217,9 @@ the section, and the remedy (`run grammark fmt`).
 
 ## Worked example
 
-The flagship reference is [`examples/json.gram.md`](../examples/json.gram.md):
+The flagship reference is [`examples/json.grmk.md`](../examples/json.grmk.md):
 the complete JSON grammar (RFC 8259) formatted to this contract — a full,
 instantly recognisable language on one screen, with a value-union and two
 bracketed lists that render into clear railroad diagrams. For the optional
-`## Precedence` section, see [`examples/calc.gram.md`](../examples/calc.gram.md).
+`## Precedence` section, see [`examples/calc.grmk.md`](../examples/calc.grmk.md).
 Both pass `markdownlint-cli2` with the default ruleset and no configuration.

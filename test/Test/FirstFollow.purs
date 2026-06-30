@@ -1,6 +1,6 @@
 -- | Machine-check every grammar's documented FIRST/FOLLOW table.
 -- |
--- | For each `.gram.md`, parse it into a `Grammar` with the self-hosting
+-- | For each `.grmk.md`, parse it into a `Grammar` with the self-hosting
 -- | parser, compute FIRST/FOLLOW with `Grammark.Table.analyze`, and diff the
 -- | result against the `## Generated tables` section read straight out of the
 -- | document. This closes the gap the lr-only `validate-firstfollow.mjs`
@@ -37,7 +37,7 @@ codeSpans cell =
   Array.catMaybes
     (Array.mapWithIndex (\i s -> if i `mod` 2 == 1 then Just s else Nothing) (split (Pattern "`") cell))
 
--- Read the documented FIRST/FOLLOW table out of a `.gram.md` document. A body
+-- Read the documented FIRST/FOLLOW table out of a `.grmk.md` document. A body
 -- row is a GFM table row whose first cell holds a code span (the nonterminal);
 -- the header and separator rows have none and are skipped.
 documentedTable :: String -> Map String Sets
@@ -73,9 +73,9 @@ checkGrammar path = do
 tests :: Effect Unit
 tests =
   for_
-    [ "grammar/lr.gram.md"
-    , "examples/calc.gram.md"
-    , "examples/json.gram.md"
-    , "examples/readme.gram.md"
+    [ "grammar/lr.grmk.md"
+    , "examples/calc.grmk.md"
+    , "examples/json.grmk.md"
+    , "examples/readme.grmk.md"
     ]
     checkGrammar

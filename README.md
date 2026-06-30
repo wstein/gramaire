@@ -5,7 +5,7 @@
 [![CI](https://github.com/wstein/grammark/actions/workflows/ci.yml/badge.svg)](https://github.com/wstein/grammark/actions/workflows/ci.yml)
 
 **Grammars that render themselves.** Grammark is an LR parser generator whose
-source format _is_ Markdown: a `.gram.md` file is a normal document that
+source format _is_ Markdown: a `.grmk.md` file is a normal document that
 renders on GitHub — prose, railroad diagrams, FIRST/FOLLOW tables — and is at
 the same time the exact input the generator reads. The productions live in
 fenced `lr` blocks; everything around them is documentation that travels with
@@ -29,11 +29,11 @@ FIRST/FOLLOW table below it are all the same document.
 
 The real implementation is PureScript (under [`src/`](src/)). It is
 self-hosting by design: Grammark's own notation is described, in itself, in
-[`grammar/lr.gram.md`](grammar/lr.gram.md), and the generated parser must read
+[`grammar/lr.grmk.md`](grammar/lr.grmk.md), and the generated parser must read
 that file back to a value equal to the hand-written
 [`Grammark.Bootstrap`](src/Grammark/Bootstrap.purs) literal.
 
-## The `.gram.md` format
+## The `.grmk.md` format
 
 A grammar file is a canonical Markdown document (see the
 [fmt output contract](docs/fmt-output-contract.md)):
@@ -56,12 +56,12 @@ Every grammar in this repository is a working demonstration of the format:
 each renders on GitHub as the page you would have written by hand, and each
 passes `grammark --check`. See for yourself —
 
-- [`examples/json.gram.md`](examples/json.gram.md) — the complete JSON
+- [`examples/json.grmk.md`](examples/json.grmk.md) — the complete JSON
   grammar (RFC 8259). A full, instantly recognisable language on one
   screen: the flagship showcase.
-- [`examples/calc.gram.md`](examples/calc.gram.md) — a small arithmetic
+- [`examples/calc.grmk.md`](examples/calc.grmk.md) — a small arithmetic
   grammar that also shows the optional `## Precedence` section.
-- [`examples/readme.gram.md`](examples/readme.gram.md) — a grammar whose
+- [`examples/readme.grmk.md`](examples/readme.grmk.md) — a grammar whose
   intro prose is this very pitch: documentation and grammar in one file,
   checking green.
 
@@ -73,18 +73,18 @@ not a grammar. This file is a window onto those grammars, not itself one.
 The PureScript generator is still being bootstrapped, so today the runnable
 tool is the small TypeScript bridge in [`bootstrap/`](bootstrap/) — it
 implements `grammark --check` (structure, drift, and lint gates) and `grammark
-fmt` (railroad diagrams + lock) over any `.gram.md` file. Node 22+ runs it
+fmt` (railroad diagrams + lock) over any `.grmk.md` file. Node 22+ runs it
 directly:
 
 ```sh
 # check a grammar file against the fmt output contract
-node bootstrap/grammark-check.ts examples/json.gram.md
+node bootstrap/grammark-check.ts examples/json.grmk.md
 
-# format: emit real railroad diagrams and the sidecar *.gram.lock
-node bootstrap/grammark-check.ts fmt grammar/lr.gram.md
+# format: emit real railroad diagrams and the sidecar *.grmk.lock
+node bootstrap/grammark-check.ts fmt grammar/lr.grmk.md
 
 # ...or embed the diagrams as GitHub-native mermaid instead of sidecar SVGs
-node bootstrap/grammark-check.ts fmt --diagrams=mermaid grammar/lr.gram.md
+node bootstrap/grammark-check.ts fmt --diagrams=mermaid grammar/lr.grmk.md
 ```
 
 To work on the bridge itself (typecheck + unit tests):
@@ -98,7 +98,7 @@ npm test
 
 The PureScript core builds with [Spago](https://github.com/purescript/spago).
 Its test suite includes the self-hosting check — the parser generated from the
-`lr` grammar reads `grammar/lr.gram.md` back to the hand-written
+`lr` grammar reads `grammar/lr.grmk.md` back to the hand-written
 `bootstrapGrammar` literal:
 
 ```sh
@@ -108,18 +108,18 @@ spago test
 ```
 
 The core also ships a **native PureScript CLI**, `grammark emit`, which reads a
-`.gram.md`, lowers it to `grammark-ir`, and runs a backend over the IR — with no
+`.grmk.md`, lowers it to `grammark-ir`, and runs a backend over the IR — with no
 TypeScript bridge involved. After `spago build`:
 
 ```sh
 # print the canonical grammark-ir JSON (the default `ir` backend)
-node bin/grammark.mjs emit examples/json.gram.md
+node bin/grammark.mjs emit examples/json.grmk.md
 
 # render the grammar as EBNF via the `ebnf` format backend
-node bin/grammark.mjs emit examples/calc.gram.md --backend ebnf
+node bin/grammark.mjs emit examples/calc.grmk.md --backend ebnf
 
 # write the artifact into a directory instead of stdout
-node bin/grammark.mjs emit examples/json.gram.md --backend ebnf --out gen/
+node bin/grammark.mjs emit examples/json.grmk.md --backend ebnf --out gen/
 
 # run the differential-oracle conformance suite over the built-in lr corpus
 node bin/grammark.mjs conformance
@@ -132,7 +132,7 @@ node bin/grammark.mjs conformance
 | `src/Grammark/` | Core: lexer, tables, parser, `grammark-ir`, codegen, backends, CLI. |
 | `bin/`          | `grammark.mjs` — entry shim for the native PureScript CLI.          |
 | `spec/`         | `ir-schema.json` (IR contract) and `incremental-spec.md` (CST/LSP). |
-| `grammar/`      | `lr.gram.md` — the `lr` notation described in itself.               |
+| `grammar/`      | `lr.grmk.md` — the `lr` notation described in itself.               |
 | `examples/`     | Worked grammars: `json`, `calc`, and the `readme` meta demo.        |
 | `bootstrap/`    | Disposable TypeScript `grammark --check` bridge (its README).       |
 | `brand/`        | Logo and wordmark SVGs.                                             |
@@ -144,7 +144,7 @@ node bin/grammark.mjs conformance
 The PureScript core lexes an `lr` block, builds parse tables by three methods —
 canonical LR(1), LALR(1), and IELR(1) (inadequacy-driven state splitting) — and
 runs them through a table-driven parser. The **self-hosting loop is closed**:
-the parser generated from the `lr` grammar reads `grammar/lr.gram.md` back to
+the parser generated from the `lr` grammar reads `grammar/lr.grmk.md` back to
 `bootstrapGrammar`, under all three methods. A differential oracle pins the
 methods against each other (an LR(1)-but-not-LALR(1) grammar is accepted by
 canonical, rejected by LALR, and recovered by IELR).
