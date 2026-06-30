@@ -10,6 +10,7 @@ import {
   CardGrid,
   LinkCard,
 } from "@astrojs/starlight/components";
+import Term from "../../../components/Term.astro";
 
 Grammark's whole idea is in its name — _gram + mark_, grammar plus Markdown. A
 `.gram.md` file is a normal Markdown document that renders on GitHub — prose,
@@ -17,8 +18,8 @@ railroad diagrams, FIRST/FOLLOW tables — and is **at the same time** the exact
 input the parser generator reads. Your grammar _is_ your documentation.
 
 This tutorial builds a small calculator grammar in two passes: **Part 1** writes
-a _recognizer_ that decides whether input is valid, and **Part 2** attaches
-_actions_ that turn a valid parse into a value. The `grammark` CLI and the
+a <Term name="recognizer">recognizer</Term> that decides whether input is valid,
+and **Part 2** attaches _actions_ that turn a valid parse into a value. The `grammark` CLI and the
 [Lab](/grammark/lab) run the **same** PureScript core — the Lab is that core
 compiled to WebAssembly-class browser ESM — so a verdict in the browser matches
 the CLI.
@@ -160,9 +161,9 @@ Block
 
 ## 4. Precedence and conflicts
 
-Recursive operators make a grammar ambiguous, which surfaces as shift/reduce
-conflicts. Declare operator precedence in a reserved section — earlier
-declarations bind more loosely:
+A <Term name="shift-reduce">shift/reduce conflict</Term> is what a recursive,
+ambiguous operator grammar produces. Declare operator precedence in a reserved
+section to resolve it — earlier declarations bind more loosely:
 
 ````md
 ## Precedence
@@ -177,8 +178,8 @@ When a build _does_ conflict, Grammark never tells you "conflict in state 7." It
 names the competing rules — "shift `+` vs reduce `Expr -> Expr + Expr`" — and it
 can tell you _what kind_ of conflict it is:
 
-- an **LALR artifact** — canonical LR(1) or IELR(1) resolves it, so just build
-  with a stronger method;
+- an **<Term name="lalr-artifact">LALR artifact</Term>** — canonical LR(1) or
+  IELR(1) resolves it, so just build with a stronger method;
 - **resolved by declaration** — your `%left`/`%right` lines already clear it, so
   the grammar compiles as written; or
 - a **genuine** conflict — the grammar really is ambiguous or not LR(1) _even
@@ -226,11 +227,12 @@ In `Expr '+' Term` the three parameters are the left value, the `+` token (which
 we discard with `_`), and the right value.
 
 <Aside title="From CST to AST">
-  The parser first builds a **concrete** syntax tree — every token it matched,
-  the `+` and the parentheses included. Your actions project that onto the
-  **abstract** tree you actually want: `\l _ r -> Add l r` keeps the two operands
-  and drops the `+`; `'(' Expr ')'` returns the inner `Expr` and drops both
-  brackets. Same recognized language, smaller tree.
+  The parser first builds a <Term name="cst">concrete syntax tree</Term> — every
+  token it matched, the `+` and the parentheses included. Your actions project
+  that onto the <Term name="ast">abstract syntax tree</Term> you actually want:
+  `\l _ r -> Add l r` keeps the two operands and drops the `+`; `'(' Expr ')'`
+  returns the inner `Expr` and drops both brackets. Same recognized language,
+  smaller tree.
 </Aside>
 
 If you name your fields, you can skip the lambda entirely — a **bare body** binds
