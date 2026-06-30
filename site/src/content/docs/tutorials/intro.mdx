@@ -1,18 +1,252 @@
 ---
 title: Getting Started
-description: Beginner tutorial for Grammark grammar authoring.
+description: Write your first self-rendering grammar — from Markdown structure to a live parse — in about ten minutes.
 ---
 
-This tutorial walks through the basic grammar authoring flow in Grammark, from Markdown structure to generated diagrams and tables. The live site now uses the repository's real PureScript parser for the examples and the lab, so the browser experience reflects the same parser path as the CLI.
+import {
+  Aside,
+  Steps,
+  Card,
+  CardGrid,
+  LinkCard,
+} from "@astrojs/starlight/components";
 
-## Create a grammar file
+Grammark's whole idea is in its name — _gram + mark_, grammar plus Markdown. A
+`.gram.md` file is a normal Markdown document that renders on GitHub — prose,
+railroad diagrams, FIRST/FOLLOW tables — and is **at the same time** the exact
+input the parser generator reads. Your grammar _is_ your documentation.
 
-Use a Markdown file with a single H1 and one H2 per nonterminal. A good starting point is the calculator example in [examples/calc.gram.md](../../../examples/calc.gram.md).
+This tutorial builds a small calculator grammar from scratch, then parses input
+against it. Nothing here is a mock: the [Lab](/grammark/lab) runs the same
+PureScript core as the `grammark` CLI.
 
-## Add an lr block
+<Aside type="tip" title="Follow along live">
+  Open the [**Lab**](/grammark/lab) in a second tab and paste each snippet as
+  you go — you'll see the parse, the diagnostics, and the result update as you
+  type.
+</Aside>
 
-Place productions inside a fenced block beginning with `lr`. The parser understands the full Grammark envelope, including precedence blocks, error-message blocks, and action annotations.
+## 1. The shape of a `.gram.md` file
 
-## Verify and format
+A grammar file is a canonical Markdown document with a fixed structure:
 
-Run the available Grammark tools to validate the file and emit the generated artifacts. In the browser, the lab sends the current grammar to the real parser endpoint and reports the parser output and any diagnostics.
+<Steps>
+
+1. **One `# H1`** — the grammar's name.
+
+2. **One `## H2` per nonterminal** — the heading names the rule; an `lr` fenced
+   block under it holds its productions.
+
+3. **Reserved `## H2` sections** — `Precedence`, `Error messages`, and
+   `Generated tables`, in that order, when present.
+
+4. **Everything else is prose** — paragraphs, images, and `###`+ headings are
+   free presentational grouping the compiler ignores.
+
+</Steps>
+
+One file is exactly one grammar: one start symbol, one namespace. Productions
+live in fenced blocks whose info string is `lr`; everything outside them is
+documentation that travels with the grammar.
+
+## 2. Your first rule
+
+Create `calc.gram.md` and give it a title and a first nonterminal:
+
+````md
+# Calc
+
+A small arithmetic grammar.
+
+## Expr
+
+An expression is a sum or difference of terms.
+
+```lr
+Expr
+  : Expr `+` Term
+  | Expr `-` Term
+  | Term
+```
+````
+
+Reading the `lr` block:
+
+- `Expr` on its own line names the nonterminal; the `:` on the next line begins
+  its alternatives.
+- `|` separates alternatives — and it is the **only** separator. A line break
+  inside an alternative is insignificant, so a long alternative may wrap freely.
+- Backtick spellings like `` `+` `` are **literal terminals**.
+- A **mixed-case** name (`Expr`, `Term`) is a nonterminal; an **ALL-CAPS** name
+  (`NUMBER`) is a lexer token class. A mixed-case name you never define is a
+  missing rule — Grammark rejects it by name rather than treating it as a phantom
+  terminal.
+
+<Aside type="caution" title="Heads vs. fields">
+  A rule head is `Name` on its own line, then `:` on the next — the line break
+  is load-bearing. It is the one thing that distinguishes a head from a
+  `name:Sym` **field** (written `IDENT : Sym` with no break, see §4). So never
+  write a head inline as `Name : …`.
+</Aside>
+
+Add the remaining rules — `Term`, then `Factor` for numbers and parentheses:
+
+```lr
+Term
+  : Term `*` Factor
+  | Term `/` Factor
+  | Factor
+
+Factor
+  : `(` Expr `)`
+  | NUMBER
+```
+
+## 3. Surface sugar
+
+Writing pure, left-recursive, epsilon-free productions by hand is wordy.
+Grammark gives you sugar that compiles down to that clean core automatically
+(`Grammark.Desugar`), so the table generator never sees a nullable rule.
+
+<CardGrid>
+  <Card title="Repetition">
+    `X+` one-or-more, `X*` zero-or-more, `X?` optional. `X+` becomes a fresh
+    left-recursive list; `X*` and `X?` enumerate present/absent at the use site,
+    so the core stays epsilon-free.
+  </Card>
+  <Card title="Separated lists">
+    `Comma<X>` and `Sep<X, S>` expand to one-or-more lists separated by `,` or by
+    any symbol `S` — e.g. `` `{` Comma<Member> `}` ``.
+  </Card>
+  <Card title="Named fields">
+    `left:Expr` names a right-hand position. The name rides onto the IR
+    (`rhs[].field`) and drives generated CST accessors and visitors — without
+    changing the recognized language.
+  </Card>
+  <Card title="Inline folding">
+    `#[inline]` on a rule folds its single production into every use site, then
+    drops it — a DRY tool, and a way to hand-fit a grammar into LR(1).
+  </Card>
+</CardGrid>
+
+For example, a statement block is just:
+
+```lr
+Block
+  : `{` Sep<Stmt, `;`> `}`
+```
+
+## 4. Attaching actions
+
+A recognizer only says yes or no. To build a value or an AST, put a host-language
+action between `{%` and `%}`. The default action language is **PureScript** (the
+core's own language):
+
+```lr
+Expr
+  : Expr `+` Term   {% \l _ r -> Add l r %}
+  | Expr `-` Term   {% \l _ r -> Sub l r %}
+  | Term            {% \t -> t %}
+```
+
+Actions are **positional**: one parameter per right-hand symbol, left to right.
+In `Expr `+` Term` the three parameters are the left value, the `+` token (which
+we discard with `_`), and the right value.
+
+If you name your fields, you can skip the lambda entirely — a **bare body** binds
+the field names for you:
+
+```lr
+Expr
+  : left:Expr `+` right:Term   {% Add left right %}
+```
+
+Grammark rewrites that to `\left _ right -> Add left right`, so the action reads
+in terms of your grammar, not positions.
+
+<Aside title="Actions are data, backends are consumers">
+  Actions are carried verbatim into the [IR](../../specs/ir-schema/); each
+  backend reads only the IR. The TypeScript backend, for instance, emits a
+  runnable parser and a typed Visitor over the CST without ever seeing your
+  Markdown.
+</Aside>
+
+## 5. Precedence and conflicts
+
+Recursive operators make a grammar ambiguous, which surfaces as shift/reduce
+conflicts. Declare operator precedence in a reserved section — earlier
+declarations bind more loosely:
+
+````md
+## Precedence
+
+```lr precedence
+%left `+` `-`
+%left `*` `/`
+```
+````
+
+When a build _does_ conflict, Grammark never tells you "conflict in state 7." It
+names the competing rules — "shift `+` vs reduce `Expr -> Expr + Expr`" — and it
+can tell you _what kind_ of conflict it is:
+
+- an **LALR artifact** — canonical LR(1) or IELR(1) resolves it, so just build
+  with a stronger method; or
+- a **genuine** conflict — the grammar really is ambiguous or not LR(1), and
+  needs a refactor, a precedence rule, or the GLR engine.
+
+```sh
+grammark explain-conflict calc.gram.md
+```
+
+## 6. Run it
+
+Two feedback loops, same core:
+
+<Steps>
+
+1. **In the browser.** Paste the grammar into the [Lab](/grammark/lab), type
+   `1 + 2 * 3` as input, and Evaluate — you get accept/reject and the parse,
+   live.
+
+2. **At the CLI.** Check structure, formatting, and conflicts; then emit:
+
+   ```sh
+   # verify the file (structure, formatting, no conflicts)
+   grammark fmt calc.gram.md
+
+   # emit artifacts from the same grammar
+   grammark emit --backend ebnf calc.gram.md   # W3C-style EBNF
+   grammark emit --backend ts   calc.gram.md   # a runnable TS parser + Visitor
+   grammark emit --backend ir   calc.gram.md   # the grammark-ir JSON
+   ```
+
+</Steps>
+
+`grammark fmt` also writes the railroad diagrams and the FIRST/FOLLOW table back
+into the document, so the file you commit renders as complete documentation.
+
+## Where next
+
+<CardGrid>
+  <LinkCard
+    title="Language specification"
+    href="../../specs/grammar-format/"
+    description="The formal envelope, lexical rules, desugaring, and the IR contract."
+  />
+  <LinkCard
+    title="The IR schema"
+    href="../../specs/ir-schema/"
+    description="grammark-ir — the one artifact every backend reads."
+  />
+  <LinkCard
+    title="Open the Lab"
+    href="/grammark/lab"
+    description="Edit, parse, and inspect grammars live in the browser."
+  />
+  <LinkCard
+    title="Schema overview"
+    href="../../specs/schema-overview/"
+    description="The published schema and contract artifacts."
+  />
+</CardGrid>

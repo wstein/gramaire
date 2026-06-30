@@ -8,6 +8,9 @@ export default defineConfig({
     starlight({
       title: "Grammark",
       description: "Grammars that render themselves.",
+      // `lr` (Grammark's production blocks) has no Shiki grammar; render it as
+      // plain monospace text — matching how GitHub shows the same fences.
+      expressiveCode: { shiki: { langAlias: { lr: "text" } } },
       sidebar: [
         { label: "Home", link: "/" },
         {
