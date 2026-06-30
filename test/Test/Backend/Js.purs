@@ -1,9 +1,10 @@
--- | Cover the JS evaluator backend (the structure-only action-binding model): it
--- | bakes per-production metadata + a label→fields shape into an ES module whose
--- | `evaluate` folds a `gramark-cst` tree against an external handler object. The
--- | structural checks pin the public surface; the golden pins the whole module.
--- | The end-to-end value proof (handlers compute `1+2*3 = 7`) lives in
--- | `Test.Transform` (PureScript handlers) and the Lab (JavaScript handlers).
+-- | Cover the JS evaluator backend (the inline-action model): with
+-- | `%lang javascript` declared, it bakes each production's inline `{% … %}`
+-- | action into one self-contained ES module whose `evaluate(cst)` folds a
+-- | `gramark-cst` tree, applying the actions positionally. The structural checks
+-- | pin the public surface; the golden pins the whole module. The end-to-end
+-- | value proof (the baked evaluator computes `1+2*3 = 7`) lives in the Lab and
+-- | the engine round-trip check.
 module Test.Backend.Js (tests) where
 
 import Prelude
@@ -13,8 +14,8 @@ import Data.String (Pattern(..), contains)
 import Effect (Effect)
 import Effect.Console (log)
 import Gramark.Backend.Js (emit)
-import Gramark.IR (buildIR)
-import Gramark.Lr (parse)
+import Gramark.IR (buildIR, withActionLang)
+import Gramark.Lr (actionLangOf, parse)
 import Gramark.Table (Method(..))
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
@@ -23,20 +24,23 @@ import Test.Golden as Golden
 
 tests :: Effect Unit
 tests = do
-  log "  js: calc-eval emits a label-keyed evaluator module"
+  log "  js: calc-js bakes its inline actions into one evaluate(cst)"
   md <- readTextFile UTF8 path
   case parse md of
     Left e -> assert' ("could not parse " <> path <> ": " <> e) false
-    Right g -> case buildIR Canonical "Calc-eval" g of
-      Left _ -> assert' "could not build IR for calc-eval" false
+    Right g -> case buildIR Canonical "Calc-js" g of
+      Left _ -> assert' "could not build IR for calc-js" false
       Right ir -> do
-        let js = emit ir
-        assert' "exports the label shape" (contains (Pattern "export const labels") js)
-        assert' "bakes a label with its fields" (contains (Pattern "\"Add\": [\"left\", \"right\"]") js)
-        assert' "bakes the per-production meta" (contains (Pattern "const meta = [") js)
-        assert' "exports an evaluate driver" (contains (Pattern "export function evaluate(") js)
-        assert' "leaves no host code in the grammar surface" (not (contains (Pattern "{%") js))
+        -- Tag the inline actions with the document's `%lang` so the backend
+        -- recognizes them as JS (mirrors the CLI / Playground pipeline).
+        let js = emit (withActionLang (actionLangOf md) ir)
+        assert' "bakes the per-production action table" (contains (Pattern "const actions = [") js)
+        assert' "recovers the inline arrow, positionally" (contains (Pattern "(l, _, r) => l + r") js)
+        assert' "leaves a passthrough slot for an action-less production" (contains (Pattern "null") js)
+        assert' "exports the evaluate driver" (contains (Pattern "export function evaluate(cst)") js)
+        assert' "carries no PureScript binder or {% %} delimiters into the host module"
+          (not (contains (Pattern "{%") js) && not (contains (Pattern "\\_") js))
         Golden.check goldenPath js
   where
-  path = "examples/calc-eval.grmk.md"
-  goldenPath = "test/golden/calc-eval.js"
+  path = "examples/calc-js.grmk.md"
+  goldenPath = "test/golden/calc-js.js"

@@ -35,8 +35,8 @@ import Gramark.Conformance.Lexers (tokensBlock)
 import Gramark.Tokens (parseTokens)
 import Gramark.Diagnostics (renderConflicts)
 import Gramark.Glr (explainP)
-import Gramark.IR (IR, attachLexer, buildIRP, withStrategy)
-import Gramark.Lr (parse, precedenceOf, strip)
+import Gramark.IR (IR, attachLexer, buildIRP, withActionLang, withStrategy)
+import Gramark.Lr (actionLangOf, parse, precedenceOf, strip)
 import Gramark.Syntax (Grammar)
 import Gramark.Table (Method(Canonical))
 import Node.Encoding (Encoding(UTF8))
@@ -132,7 +132,7 @@ runEmit args = case parseEmit args of
               Right ir
                 | not (Array.elem opts.strategy b.strategies) ->
                     die ("emit: backend '" <> b.name <> "' does not support strategy '" <> opts.strategy <> "'")
-                | otherwise -> deliver opts.out (b.emit (withStrategy opts.strategy g (withLexis md ir)))
+                | otherwise -> deliver opts.out (b.emit (withStrategy opts.strategy g (withActionLang (actionLangOf md) (withLexis md ir))))
 
 -- Attach the grammar's `## Tokens` lexis to the IR, if any, so lexer-aware
 -- backends (e.g. ANTLR) can emit token rules. Malformed or absent tokens leave
