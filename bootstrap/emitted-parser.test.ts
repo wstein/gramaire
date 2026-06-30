@@ -38,7 +38,7 @@ const sample = [
   tok("NL", "\n"),
   tok(":", ":"),
   tok("IDENT", "Sum"),
-  tok("TERM_LIT", "+"),
+  tok("TERM_LIT", "`+`"), // whole quoted lexeme (ADR D34); the consumer unquotes
   tok("IDENT", "NUM"),
   tok("ACTION", "\\a _ b -> a"),
   tok("|", "|"),
