@@ -12,6 +12,7 @@ import {
   getDefaultGrammar,
   getDefaultInput,
 } from "./grammark-runtime.ts";
+import { renderDiagrams } from "./diagrams.ts";
 
 const jsonGrammar = readFileSync(
   fileURLToPath(new URL("../../../examples/json.grmk.md", import.meta.url)),
@@ -92,4 +93,14 @@ test("json.grmk.md rejects malformed JSON", async () => {
 
 test("getDefaultInput is a single sample expression", () => {
   assert.equal(getDefaultInput(), "(4 - 1) * 3 + 2");
+});
+
+test("renderDiagrams draws one railroad SVG per rule of the default grammar", () => {
+  const diags = renderDiagrams(getDefaultGrammar(), ["Expr", "Term", "Factor"]);
+  assert.deepEqual(
+    diags.map((d) => d.name),
+    ["Expr", "Term", "Factor"],
+  );
+  assert.match(diags[0]!.svg, /^<svg/);
+  assert.match(diags[0]!.svg, /Railroad diagram for the Expr rule/);
 });

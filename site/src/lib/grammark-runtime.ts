@@ -10,6 +10,7 @@ export interface GrammarkParseResult {
   success: boolean;
   message: string;
   diagnostics: string[];
+  rules: string[];
   tree: string;
   trace: string;
   conflicts: string;
@@ -28,6 +29,7 @@ export async function parseGrammarkDocument(
     success: result.ok && result.accepted,
     message: result.message,
     diagnostics: result.diagnostics,
+    rules: result.rules,
     tree: result.tree,
     trace: result.trace,
     conflicts: result.conflicts,
