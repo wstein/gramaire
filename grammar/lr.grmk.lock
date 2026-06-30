@@ -6,61 +6,61 @@
     {
       "kind": "railroad",
       "nonterminal": "Grammar",
-      "path": "diagrams/grammar.svg",
+      "path": "diagrams/lr/grammar.svg",
       "sourceSha256": "fad84c800a242b99070b41afc61ed7c941716f0332d8e60a372f1ae1c8c1e275"
     },
     {
       "kind": "railroad",
       "nonterminal": "RuleList",
-      "path": "diagrams/rulelist.svg",
+      "path": "diagrams/lr/rulelist.svg",
       "sourceSha256": "00eb4d19c11aecdfc7126a54bef84cf12161b9e7bc7585a7f58683d32bae7678"
     },
     {
       "kind": "railroad",
       "nonterminal": "Rule",
-      "path": "diagrams/rule.svg",
+      "path": "diagrams/lr/rule.svg",
       "sourceSha256": "b3bab2991c8a6b7c2f353c1b3460fb26c42d66b76ff0590bb2df083394ba2fbd"
     },
     {
       "kind": "railroad",
       "nonterminal": "Body",
-      "path": "diagrams/body.svg",
+      "path": "diagrams/lr/body.svg",
       "sourceSha256": "bdfd6afe166a76e31275917a08703e0bdb3b7d95d738f7bd72736aff3670130b"
     },
     {
       "kind": "railroad",
       "nonterminal": "Alt",
-      "path": "diagrams/alt.svg",
+      "path": "diagrams/lr/alt.svg",
       "sourceSha256": "a06b55e194826082a3a00678aa6b1b3dcd44244151c41dfa258b2cb3f4c460b3"
     },
     {
       "kind": "railroad",
       "nonterminal": "SymList",
-      "path": "diagrams/symlist.svg",
+      "path": "diagrams/lr/symlist.svg",
       "sourceSha256": "8f0113426376f11ecc8bd0dc0eedd013833b668d0579d4cedca6460a1e2aa96e"
     },
     {
       "kind": "railroad",
       "nonterminal": "Sym",
-      "path": "diagrams/sym.svg",
+      "path": "diagrams/lr/sym.svg",
       "sourceSha256": "0e31d5bf4c565f5eaeb96d9ed38bccd3daecbda45e9558524fc6abfb81938f2c"
     },
     {
       "kind": "railroad",
       "nonterminal": "Args",
-      "path": "diagrams/args.svg",
+      "path": "diagrams/lr/args.svg",
       "sourceSha256": "6526b323c0ab195028dca89ecc1309f7d977d72d1435654a78002affedda6455"
     },
     {
       "kind": "railroad",
       "nonterminal": "Action",
-      "path": "diagrams/action.svg",
+      "path": "diagrams/lr/action.svg",
       "sourceSha256": "28ac4c4d384ab77675e9a534d631915e06f058639cc016594d20f9720c481acf"
     },
     {
       "kind": "railroad",
       "nonterminal": "Label",
-      "path": "diagrams/label.svg",
+      "path": "diagrams/lr/label.svg",
       "sourceSha256": "e62110c62c6d603787e0ff754b924daf8b595826579c5951b1c2a2f0d7b9705d"
     },
     {

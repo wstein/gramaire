@@ -6,25 +6,25 @@
     {
       "kind": "railroad",
       "nonterminal": "Readme",
-      "path": "diagrams/readme.svg",
+      "path": "diagrams/readme/readme.svg",
       "sourceSha256": "d60fd6f351355f6e0a7e6bc2229d1fc4cea7d67a89543c2ff77d74196e46ceb4"
     },
     {
       "kind": "railroad",
       "nonterminal": "SentenceList",
-      "path": "diagrams/sentencelist.svg",
+      "path": "diagrams/readme/sentencelist.svg",
       "sourceSha256": "c406306efdb41b94c841acdb076910ea9c566b58f549a5e7128f9ca0f0d394f1"
     },
     {
       "kind": "railroad",
       "nonterminal": "Sentence",
-      "path": "diagrams/sentence.svg",
+      "path": "diagrams/readme/sentence.svg",
       "sourceSha256": "a8816bf3e4c4fb6835aa96f29fb2732b755b354e92c62c61110079acf0765001"
     },
     {
       "kind": "railroad",
       "nonterminal": "Words",
-      "path": "diagrams/words.svg",
+      "path": "diagrams/readme/words.svg",
       "sourceSha256": "be5f7eef314e94ab0767ea0bd3f5ce7d8175a0d4a4a12d93635cc368f078fe18"
     },
     {

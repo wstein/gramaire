@@ -35,7 +35,7 @@ Readme
   : SentenceList    {% \ss -> Readme ss %}
 ```
 
-![Railroad diagram for the Readme rule](diagrams/readme.svg)
+![Railroad diagram for the Readme rule](diagrams/readme/readme.svg)
 
 ## SentenceList
 
@@ -47,7 +47,7 @@ SentenceList
   | SentenceList Sentence     {% \ss s -> snoc ss s %}
 ```
 
-![Railroad diagram for the SentenceList rule](diagrams/sentencelist.svg)
+![Railroad diagram for the SentenceList rule](diagrams/readme/sentencelist.svg)
 
 ## Sentence
 
@@ -60,7 +60,7 @@ Sentence
   : Words '.'    {% \ws _ -> Sentence ws %}
 ```
 
-![Railroad diagram for the Sentence rule](diagrams/sentence.svg)
+![Railroad diagram for the Sentence rule](diagrams/readme/sentence.svg)
 
 ## Words
 
@@ -70,7 +70,7 @@ Words
   | Words WORD    {% \ws w -> snoc ws w %}
 ```
 
-![Railroad diagram for the Words rule](diagrams/words.svg)
+![Railroad diagram for the Words rule](diagrams/readme/words.svg)
 
 ## Error messages
 

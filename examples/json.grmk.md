@@ -58,7 +58,7 @@ Value
   | 'null'    {% \_ -> Null %}
 ```
 
-![Railroad diagram for the Value rule](diagrams/value.svg)
+![Railroad diagram for the Value rule](diagrams/json/value.svg)
 
 ## Object
 
@@ -72,7 +72,7 @@ Object
   | '{' Members '}'    {% \_ ms _ -> Obj ms %}
 ```
 
-![Railroad diagram for the Object rule](diagrams/object.svg)
+![Railroad diagram for the Object rule](diagrams/json/object.svg)
 
 ## Members
 
@@ -84,7 +84,7 @@ Members
   | Members ',' Member    {% \ms _ m -> snoc ms m %}
 ```
 
-![Railroad diagram for the Members rule](diagrams/members.svg)
+![Railroad diagram for the Members rule](diagrams/json/members.svg)
 
 ## Member
 
@@ -95,7 +95,7 @@ Member
   : STRING ':' Value    {% \k _ v -> Pair k v %}
 ```
 
-![Railroad diagram for the Member rule](diagrams/member.svg)
+![Railroad diagram for the Member rule](diagrams/json/member.svg)
 
 ## Array
 
@@ -108,7 +108,7 @@ Array
   | '[' Elements ']'    {% \_ es _ -> Arr es %}
 ```
 
-![Railroad diagram for the Array rule](diagrams/array.svg)
+![Railroad diagram for the Array rule](diagrams/json/array.svg)
 
 ## Elements
 
@@ -120,7 +120,7 @@ Elements
   | Elements ',' Value    {% \es _ v -> snoc es v %}
 ```
 
-![Railroad diagram for the Elements rule](diagrams/elements.svg)
+![Railroad diagram for the Elements rule](diagrams/json/elements.svg)
 
 ## Error messages
 

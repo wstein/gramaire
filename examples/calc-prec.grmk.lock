@@ -6,7 +6,7 @@
     {
       "kind": "railroad",
       "nonterminal": "expr",
-      "path": "diagrams/expr.svg",
+      "path": "diagrams/calc-prec/expr.svg",
       "sourceSha256": "e0f325794f57de8847c7277167bc24f4b3b3ae4cbce9e0e65d82113b71b0c16c"
     },
     {
