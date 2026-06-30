@@ -31,21 +31,20 @@ import { parseProduction } from "./railroad.ts";
 // A canonical, contract-clean grammar document, built line-by-line so the
 // nested ```lr fences can use backticks freely (double-quoted strings, unlike
 // template literals, treat the backtick as an ordinary character).
-function miniDoc(opts: { precedence?: boolean; rule?: string } = {}): string {
+function miniDoc(
+  opts: { precedence?: boolean; tokens?: boolean; rule?: string } = {},
+): string {
   const rule = opts.rule ?? "  : `x`   {% \\_ -> 1 %}";
   const lines = [
     "# Mini",
     "",
     "A one-rule grammar used as a test fixture.",
     "",
-    "## A",
-    "",
-    "```lr",
-    "A",
-    rule,
-    "```",
-    "",
   ];
+  if (opts.tokens) {
+    lines.push("## Tokens", "", "```lr tokens", "X : /x/", "```", "");
+  }
+  lines.push("## A", "", "```lr", "A", rule, "```", "");
   if (opts.precedence) {
     lines.push("## Precedence", "", "```lr precedence", "%left `x`", "```", "");
   }
@@ -102,6 +101,31 @@ test("checkStructure accepts a canonical document", () => {
 
 test("checkStructure accepts an optional Precedence section", () => {
   assert.deepEqual(checkStructure(parse(miniDoc({ precedence: true }))), []);
+});
+
+test("checkStructure accepts a Tokens section before the nonterminals (lexer-spec §9)", () => {
+  assert.deepEqual(checkStructure(parse(miniDoc({ tokens: true }))), []);
+});
+
+test("checkStructure rejects a Tokens section out of place (after the nonterminal)", () => {
+  // `## Tokens` must precede the first nonterminal; here it follows `## A`.
+  const misplaced = miniDoc().replace(
+    "## Error messages",
+    "## Tokens\n\n```lr tokens\nX : /x/\n```\n\n## Error messages",
+  );
+  const fails = checkStructure(parse(misplaced));
+  assert.ok(
+    fails.some((f) => /out of canonical order/.test(f)),
+    `expected an ordering failure, got: ${JSON.stringify(fails)}`,
+  );
+});
+
+test("grammarHashes covers the lr tokens block (a token change is drift-visible)", () => {
+  const withTokens = grammarHashes(
+    parse(miniDoc({ tokens: true })),
+  ).grammarSha256;
+  const without = grammarHashes(parse(miniDoc())).grammarSha256;
+  assert.notEqual(withTokens, without);
 });
 
 test("checkStructure ignores ###+ presentational grouping headings (D29)", () => {
