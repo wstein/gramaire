@@ -12,6 +12,7 @@ import Test.Backend.Registry as BackendRegistry
 import Test.Backend.Ts as BackendTs
 import Test.Cli as Cli
 import Test.Codegen as Codegen
+import Test.Atn as Atn
 import Test.Conflict as Conflict
 import Test.Precedence as Precedence
 import Test.Conformance as Conformance
@@ -92,6 +93,8 @@ main = do
   Conflict.tests
   log "Test.Precedence"
   Precedence.tests
+  log "Test.Atn"
+  Atn.tests
   log "Test.Conformance"
   Conformance.tests
   log "Test.Continuation"
