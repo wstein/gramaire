@@ -1,9 +1,9 @@
--- | The raw `.grmk` projection (ADR D36): `strip` turns a `.grmk.md`'s prose and
--- | headings into `//` comments and keeps the grammar, fence-free. It is a
--- | derived, non-authoritative export — the safety property is that it carries
--- | exactly the grammar the parser sees: `parse (strip md) == parse md` for
--- | every grammar (the comments are skipped on parse), so `.grmk` can never be a
--- | second source of truth.
+-- | The raw `.grmk` projection (ADR D36): `strip` carries a `.grmk.md`'s docs as
+-- | comments — a `/** */` banner for the title/intro and `//` lines per section —
+-- | alongside the fence-free grammar. It is a derived, non-authoritative export;
+-- | the safety property is that it carries exactly the grammar the parser sees:
+-- | `parse (strip md) == parse md` for every grammar (the comments are skipped on
+-- | parse), so `.grmk` can never be a second source of truth.
 module Test.Strip (tests) where
 
 import Prelude
@@ -40,11 +40,11 @@ check path = do
   log ("  strip: parse(strip(x)) == parse(x) for " <> path)
   md <- readTextFile UTF8 path
   let stripped = strip md
-  -- Prose/headings become `//` comments (not dropped): no bare `## ` heading,
-  -- but the projection does carry `// ` comment lines.
-  assert' (path <> ": no bare ## headings (they become // comments)")
-    (not (contains (Pattern "\n## ") stripped))
-  assert' (path <> ": prose survives as // comments") (contains (Pattern "// ") stripped)
+  -- Docs travel as comments: a `/** */` banner for the title/intro and `//`
+  -- lines per section. Headings are dropped (no bare `## `).
+  assert' (path <> ": carries a /** */ banner") (contains (Pattern "/**") stripped)
+  assert' (path <> ": section prose survives as // comments") (contains (Pattern "// ") stripped)
+  assert' (path <> ": no bare ## headings") (not (contains (Pattern "\n## ") stripped))
   -- … and the grammar still parses to the same value (toFenced skips comments).
   assert' (path <> ": stripped form should still parse") (isRight (parse stripped))
   assert' (path <> ": parse(strip(x)) must equal parse(x)") (parse stripped == parse md)

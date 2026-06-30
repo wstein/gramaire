@@ -23,7 +23,7 @@ import Prelude
 import Data.Array as Array
 import Data.Either (Either(..), fromRight)
 import Data.Foldable (all, any, foldl)
-import Data.Maybe (Maybe(..), isJust)
+import Data.Maybe (Maybe(..), fromMaybe, isJust, maybe)
 import Data.String (Pattern(..), contains, indexOf, joinWith, split, stripPrefix, take, trim)
 import Data.String.CodeUnits (charAt, fromCharArray, length, slice, toCharArray)
 import Grammark.Bootstrap (bootstrapGrammar, lrTokensSource)
@@ -152,33 +152,95 @@ grammarkBlocks md =
 -- | one-liners; parser rules are Mixed-case `Name`-on-its-own-line productions;
 -- | the two are intermixed and told apart **by case** — exactly how Grammark
 -- | already reads them. `%left` / `%right` precedence declarations are kept (they
--- | self-identify). The Markdown **prose and headings become `//` comments** (so
--- | the documentation travels with the projection, not lost), `## errors` blocks
--- | and railroad-diagram images are dropped, and `## purescript` AST sketches are
--- | dropped. It is DERIVED and non-authoritative — `.grmk.md` stays the source of
--- | truth — and `parse (strip md) == parse md` (Test.Strip), since `toFenced`
--- | reads it back (skipping the comments).
+-- | self-identify).
+-- |
+-- | The documentation travels with the grammar as **comments**, the way a real
+-- | source file carries them: the leading `# Title` + intro paragraph become a
+-- | `/** … */` banner, and each section's prose becomes a `//` line above its
+-- | rule. `## ` headings, railroad-diagram images, `## errors` blocks, `##
+-- | purescript` sketches, and the derived `## Generated tables` are dropped —
+-- | only sections that carry a `grammark` / `grammark tokens` / `grammark
+-- | precedence` block survive. It is DERIVED and non-authoritative — `.grmk.md`
+-- | stays the source of truth — and `parse (strip md) == parse md` (Test.Strip),
+-- | since `toFenced` reads it back (skipping the comments).
 strip :: String -> String
 strip md =
-  joinWith "\n" (Array.reverse (foldl step { fence: Nothing, out: [] } (split (Pattern "\n") md)).out) <> "\n"
+  let
+    parts = Array.filter (_ /= "")
+      (Array.cons (banner preamble) (Array.mapMaybe section sections))
+  in
+    joinWith "\n\n" parts <> "\n"
   where
-  step acc line =
+  ls = split (Pattern "\n") md
+  { preamble, sections } = sectionize ls
+
+  -- The leading `# Title` + intro paragraph → a `/** … */` banner comment.
+  -- Internal blank lines are kept (as ` *`) so the title stays set off from the
+  -- description; only diagram images and the blank ends are dropped.
+  banner :: Array String -> String
+  banner pre =
+    let
+      body = trimBlankEnds (map unHead (Array.filter notImage pre))
+    in
+      if Array.null body then ""
+      else "/**\n" <> joinWith "\n" (map star body) <> "\n */"
+    where
+    notImage l = not (isJust (stripPrefix (Pattern "![") (trim l)))
+    unHead l = fromMaybe l (stripPrefix (Pattern "# ") l)
+    star l = if trim l == "" then " *" else " * " <> l
+
+  -- A `## ` section survives only if it carries a keepable grammark block; its
+  -- prose becomes `//` comments, its block becomes fence-free content.
+  section :: Array String -> Maybe String
+  section sec =
+    if Array.any keepableOpen sec then
+      let
+        rendered = trimBlankEnds (Array.reverse (foldl walk { keep: Nothing, out: [] } (Array.drop 1 sec)).out)
+      in
+        if Array.null rendered then Nothing else Just (joinWith "\n" rendered)
+    else Nothing
+
+  walk acc line =
     let
       t = trim line
     in
-      case acc.fence of
-        Just info ->
-          if t == "```" then acc { fence = Nothing }
-          else if isGrammarkInfo info && info /= "grammark errors" then acc { out = Array.cons line acc.out }
-          else acc -- non-grammar fence (errors / purescript): dropped
-        Nothing -> case stripPrefix (Pattern "```") t of
-          Just rest -> acc { fence = Just (trim rest) }
-          Nothing
-            | isJust (stripPrefix (Pattern "![") t) -> acc -- drop diagram image links
-            | t == "" -> acc { out = Array.cons "" acc.out }
-            | otherwise -> acc { out = Array.cons ("// " <> line) acc.out } -- prose -> comment
+      case acc.keep of
+        Just k ->
+          if t == "```" then acc { keep = Nothing }
+          else if k then acc { out = Array.cons line acc.out }
+          else acc -- inside a dropped fence (errors / purescript)
+        Nothing -> case stripPrefix (Pattern "```grammark") t of
+          Just rest -> acc { keep = Just (keepInfo (trim rest)) }
+          Nothing -> case stripPrefix (Pattern "```") t of
+            Just _ -> acc { keep = Just false } -- some other fence: skip its body
+            Nothing
+              | not (keepProse line) -> acc -- diagram image / blank: dropped
+              | otherwise -> acc { out = Array.cons ("// " <> line) acc.out }
 
-  isGrammarkInfo info = info == "grammark" || isJust (stripPrefix (Pattern "grammark ") info)
+  keepableOpen line = case stripPrefix (Pattern "```grammark") (trim line) of
+    Just rest -> keepInfo (trim rest)
+    Nothing -> false
+
+  -- Productions, tokens, and precedence carry grammar; errors do not.
+  keepInfo info = info == "" || info == "tokens" || info == "precedence"
+  keepProse line =
+    let
+      t = trim line
+    in
+      t /= "" && not (isJust (stripPrefix (Pattern "![") t))
+
+-- Split lines into the leading preamble (before the first `## ` heading) and the
+-- `## ` sections (each section keeps its own heading line as element 0).
+sectionize :: Array String -> { preamble :: Array String, sections :: Array (Array String) }
+sectionize ls = finish (foldl step { pre: [], cur: Nothing, secs: [] } ls)
+  where
+  step acc line
+    | isJust (stripPrefix (Pattern "## ") line) =
+        acc { cur = Just [ line ], secs = maybe acc.secs (Array.snoc acc.secs) acc.cur }
+    | otherwise = case acc.cur of
+        Just c -> acc { cur = Just (Array.snoc c line) }
+        Nothing -> acc { pre = Array.snoc acc.pre line }
+  finish acc = { preamble: acc.pre, sections: maybe acc.secs (Array.snoc acc.secs) acc.cur }
 
 -- | Read a fence-free `.grmk` projection back to the fenced form the parser
 -- | expects (a no-op on already-fenced `.grmk.md`). `//` and `/* … */` comments
