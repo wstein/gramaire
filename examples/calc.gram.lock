@@ -6,19 +6,19 @@
     {
       "kind": "railroad",
       "nonterminal": "Expr",
-      "path": "diagrams/expr.svg",
+      "path": "diagrams/calc/expr.svg",
       "sourceSha256": "60e2cd55ae82b39d1c395d8f1d03a64fd3809b655ee3b31177dcc169eb809369"
     },
     {
       "kind": "railroad",
       "nonterminal": "Term",
-      "path": "diagrams/term.svg",
+      "path": "diagrams/calc/term.svg",
       "sourceSha256": "2883268f7a5be8a8e531068e94d405c86d4b96050697a03537127a7b6fd43fbd"
     },
     {
       "kind": "railroad",
       "nonterminal": "Factor",
-      "path": "diagrams/factor.svg",
+      "path": "diagrams/calc/factor.svg",
       "sourceSha256": "7c360f486a75bdfa405c2a5c72afe1f6cbacc13d57a30a4adec4346b58ef3a9f"
     },
     {

@@ -21,7 +21,7 @@ Expr
   | Term            {% \t -> t %}
 ```
 
-![Railroad diagram for the Expr rule](examples/diagrams/expr.svg)
+![Railroad diagram for the Expr rule](examples/diagrams/calc/expr.svg)
 
 On GitHub that fence renders as a code block; to Grammark it is the `Expr`
 rule. The prose around it, the railroad diagram beside it, and the

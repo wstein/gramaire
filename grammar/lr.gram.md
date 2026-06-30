@@ -94,7 +94,7 @@ Grammar
   : RuleList   {% \rs -> Grammar rs %}
 ```
 
-![Railroad diagram for the Grammar rule](diagrams/grammar.svg)
+![Railroad diagram for the Grammar rule](diagrams/lr/grammar.svg)
 
 ## RuleList
 
@@ -107,7 +107,7 @@ RuleList
   | RuleList NL Rule   {% \rs _ r -> snoc rs r %}
 ```
 
-![Railroad diagram for the RuleList rule](diagrams/rulelist.svg)
+![Railroad diagram for the RuleList rule](diagrams/lr/rulelist.svg)
 
 ## Rule
 
@@ -125,7 +125,7 @@ Rule
   | IDENT NL ':' Body        {% \lhs _ _ alts -> Rule lhs [] alts %}
 ```
 
-![Railroad diagram for the Rule rule](diagrams/rule.svg)
+![Railroad diagram for the Rule rule](diagrams/lr/rule.svg)
 
 ## Body
 
@@ -139,7 +139,7 @@ Body
   | Body '|' Alt   {% \bs _ a -> snoc bs a %}
 ```
 
-![Railroad diagram for the Body rule](diagrams/body.svg)
+![Railroad diagram for the Body rule](diagrams/lr/body.svg)
 
 ## Alt
 
@@ -154,7 +154,7 @@ Alt
   | SymList                {% \syms -> Alt syms Nothing Nothing %}
 ```
 
-![Railroad diagram for the Alt rule](diagrams/alt.svg)
+![Railroad diagram for the Alt rule](diagrams/lr/alt.svg)
 
 ## SymList
 
@@ -164,7 +164,7 @@ SymList
   | SymList Sym   {% \ss s -> snoc ss s %}
 ```
 
-![Railroad diagram for the SymList rule](diagrams/symlist.svg)
+![Railroad diagram for the SymList rule](diagrams/lr/symlist.svg)
 
 ## Sym
 
@@ -192,7 +192,7 @@ Sym
   | IDENT ':' Sym             {% \name _ s -> Field name s %}
 ```
 
-![Railroad diagram for the Sym rule](diagrams/sym.svg)
+![Railroad diagram for the Sym rule](diagrams/lr/sym.svg)
 
 ## Args
 
@@ -204,7 +204,7 @@ Args
   | Args COMMA Sym    {% \as _ s -> snoc as s %}
 ```
 
-![Railroad diagram for the Args rule](diagrams/args.svg)
+![Railroad diagram for the Args rule](diagrams/lr/args.svg)
 
 ## Action
 
@@ -213,7 +213,7 @@ Action
   : ACTION   {% \a -> Just a %}
 ```
 
-![Railroad diagram for the Action rule](diagrams/action.svg)
+![Railroad diagram for the Action rule](diagrams/lr/action.svg)
 
 ## Label
 
@@ -225,7 +225,7 @@ Label
   : LABEL   {% \l -> Just l %}
 ```
 
-![Railroad diagram for the Label rule](diagrams/label.svg)
+![Railroad diagram for the Label rule](diagrams/lr/label.svg)
 
 ## Error messages
 

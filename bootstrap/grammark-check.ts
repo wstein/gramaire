@@ -313,10 +313,12 @@ function diagramFor(
   content: string,
   nonterminals: ReadonlySet<string>,
   mode: DiagramMode,
+  stem = "",
 ): string[] {
   if (mode === "sidecar") {
+    const dir = stem ? `diagrams/${stem}` : "diagrams";
     return [
-      `![Railroad diagram for the ${name} rule](diagrams/${name.toLowerCase()}.svg)`,
+      `![Railroad diagram for the ${name} rule](${dir}/${name.toLowerCase()}.svg)`,
     ];
   }
   const body = renderMermaid(parseProduction(content, nonterminals))
@@ -337,6 +339,7 @@ export function convertDiagrams(
   contentByRule: ReadonlyMap<string, string>,
   nonterminals: ReadonlySet<string>,
   mode: DiagramMode,
+  stem = "",
 ): string {
   const lines = src.split("\n");
   const out: string[] = [];
@@ -351,6 +354,7 @@ export function convertDiagrams(
           contentByRule.get(img[1]!) ?? "",
           nonterminals,
           mode,
+          stem,
         ),
       );
       i++;
@@ -365,7 +369,13 @@ export function convertDiagrams(
       const close = new RegExp(`^\`{${fence[1]!.length},}\\s*$`);
       while (j < lines.length && !close.test(lines[j]!)) j++;
       out.push(
-        ...diagramFor(name, contentByRule.get(name) ?? "", nonterminals, mode),
+        ...diagramFor(
+          name,
+          contentByRule.get(name) ?? "",
+          nonterminals,
+          mode,
+          stem,
+        ),
       );
       i = j + 1;
       continue;
@@ -442,12 +452,15 @@ export function fmt(file: string, doc: Doc, mode: DiagramMode): void {
       contentByRule.set(b.nonterminal, b.content);
   }
 
+  // Diagrams live in a per-grammar subdirectory (`diagrams/<stem>/`) so two
+  // grammars sharing a dir can't clobber each other's same-named rule SVGs.
+  const stem = basename(file).replace(/\.gram\.md$/, "");
   const artifacts: Artifact[] = [];
   if (mode === "sidecar") {
-    const dir = join(dirname(file), "diagrams");
+    const dir = join(dirname(file), "diagrams", stem);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     for (const nt of Object.keys(ruleHashes)) {
-      const path = `diagrams/${nt.toLowerCase()}.svg`;
+      const path = `diagrams/${stem}/${nt.toLowerCase()}.svg`;
       writeFileSync(
         join(dirname(file), path),
         renderSvg(parseProduction(contentByRule.get(nt) ?? "", nonterminals)),
@@ -472,7 +485,7 @@ export function fmt(file: string, doc: Doc, mode: DiagramMode): void {
     parseProduction(c, nonterminals),
   );
   let text = regenerateTables(doc.src, prods);
-  text = convertDiagrams(text, contentByRule, nonterminals, mode);
+  text = convertDiagrams(text, contentByRule, nonterminals, mode, stem);
   if (text !== doc.src) writeFileSync(file, text);
 
   const lock: Lock = { version: 1, mode, grammarSha256, artifacts };
