@@ -7,11 +7,18 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "test": "tsx --test src/lib/grammar-lab.test.ts",
+    "format": "prettier --write \"src/**/*.{ts,astro,md,mdx}\" \"*.{json,md,mjs}\"",
+    "lint": "prettier --check \"src/**/*.{ts,astro,md,mdx}\" \"*.{json,md,mjs}\""
   },
   "dependencies": {
     "@astrojs/starlight": "^0.30.6",
     "astro": "^5.0.0",
     "gh-pages": "^6.0.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.0",
+    "tsx": "^4.19.2"
   }
 }

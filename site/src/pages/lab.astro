@@ -1,4 +1,5 @@
 ---
+import { getDefaultGrammar, getDefaultInput } from '../lib/grammar-lab.ts';
 ---
 
 <html lang="en">
@@ -11,8 +12,64 @@
     <main style="max-width: 1200px; margin: 0 auto; padding: 2rem; font-family: Inter, sans-serif;">
       <h1>Grammark Lab</h1>
       <p>Live grammar development playground for Grammark.</p>
-      <p>This page is the landing surface for the future browser-native lab. The initial public build includes the documentation shell and will be extended with a live evaluator in a subsequent iteration.</p>
-      <pre style="background:#f5f6f3;padding:1rem;border-radius:0.5rem;overflow:auto;">Coming soon: live grammar editing, parse evaluation, and CST diagnostics.</pre>
+      <div style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap:1rem; margin-top:1.5rem;">
+        <section style="border:1px solid #e5e7eb; border-radius:0.75rem; padding:1rem;">
+          <h2>Grammar editor</h2>
+          <textarea id="grammar-input" style="width:100%; min-height:260px; font-family: ui-monospace, monospace; padding:0.75rem; border-radius:0.5rem; border:1px solid #d1d5db;">{getDefaultGrammar()}</textarea>
+          <div style="margin-top:0.75rem; display:flex; gap:0.5rem; align-items:center;">
+            <button id="run-grammar" style="padding:0.55rem 0.9rem; border:none; border-radius:999px; background:#15b879; color:white; cursor:pointer;">Evaluate</button>
+            <span id="status-pill" style="font-size:0.95rem; color:#6b7280;">Ready</span>
+          </div>
+        </section>
+        <section style="border:1px solid #e5e7eb; border-radius:0.75rem; padding:1rem;">
+          <h2>Input</h2>
+          <textarea id="input-test" style="width:100%; min-height:120px; font-family: ui-monospace, monospace; padding:0.75rem; border-radius:0.5rem; border:1px solid #d1d5db;">{getDefaultInput()}</textarea>
+          <h3 style="margin-top:1rem;">Result</h3>
+          <pre id="result-output" style="background:#f5f6f3; padding:0.75rem; border-radius:0.5rem; min-height:120px; overflow:auto;">Waiting for evaluation…</pre>
+        </section>
+      </div>
+      <section style="margin-top:1rem; border:1px solid #e5e7eb; border-radius:0.75rem; padding:1rem;">
+        <h2>Diagnostics</h2>
+        <div id="diagnostics-list" style="display:grid; gap:0.5rem;"></div>
+      </section>
     </main>
+
+    <script type="module">
+      import { parseMarkdownGrammar, evaluateGrammar } from '/src/lib/grammar-lab.ts';
+
+      const grammarInput = document.getElementById('grammar-input');
+      const inputTest = document.getElementById('input-test');
+      const resultOutput = document.getElementById('result-output');
+      const diagnosticsList = document.getElementById('diagnostics-list');
+      const statusPill = document.getElementById('status-pill');
+      const runButton = document.getElementById('run-grammar');
+
+      function evaluate() {
+        const grammarSource = grammarInput.value;
+        const input = inputTest.value;
+        const { grammar, issues } = parseMarkdownGrammar(grammarSource);
+        const result = evaluateGrammar(grammar, input);
+
+        statusPill.textContent = result.success ? 'Accepted' : 'Rejected';
+        resultOutput.textContent = [result.message, '', ...result.diagnostics].join('\n');
+
+        diagnosticsList.innerHTML = '';
+        const items = [
+          ...issues.map((issue) => ({ message: issue.message, severity: issue.severity })),
+          ...result.diagnostics.map((message) => ({ message, severity: result.success ? 'warning' : 'error' }))
+        ];
+
+        for (const item of items) {
+          const row = document.createElement('div');
+          row.innerHTML = `<strong>${item.severity.toUpperCase()}</strong>: ${item.message}`;
+          diagnosticsList.appendChild(row);
+        }
+      }
+
+      runButton.addEventListener('click', evaluate);
+      grammarInput.addEventListener('input', evaluate);
+      inputTest.addEventListener('input', evaluate);
+      evaluate();
+    </script>
   </body>
 </html>

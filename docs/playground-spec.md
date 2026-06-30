@@ -72,6 +72,7 @@ The playground maps all virtual workspace files inside a virtual memory filesyst
 ### 4.2. Visual Token-to-Production Mapping & Hover Inspect
 *   In the CST Tree view, hovering over any internal rule node highlights the corresponding production in the source grammar editor.
 *   Hovering over any terminal leaf in the AST view highlights the character range or substring in the input payload editor. This is enabled by the spanned tokenizer introduced in [src/Grammark/Lexer.purs](src/Grammark/Lexer.purs).
+*   The initial public lab implementation now supports a live editor-and-evaluator loop with inline diagnostics and an accept/reject result surface for quick iteration.
 
 ### 4.3. Interactive State Walk and "Why Did This Fail?" Diagnostic Gutter
 *   Upon compilation failure (e.g. Shift/Reduce conflict), the playground does not print "State 45 has conflict". Instead, it walks the core's conflict pipeline ([src/Grammark/Diagnostics.purs](src/Grammark/Diagnostics.purs)) and highlights the exact competing tokens directly inside the Markdown `lr` block.

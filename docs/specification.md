@@ -85,7 +85,7 @@ This populates the `rhs[].field` property in the intermediate model, automatical
 
 ## 4. The Intermediate Representation Contract
 
-The compiler represents the analyzed grammar and its parsing engine inside a versioned JSON schema described in [spec/ir-schema.json](spec/ir-schema.json).
+The compiler represents the analyzed grammar and its parsing engine inside a versioned JSON schema described in [spec/ir-schema.json](spec/ir-schema.json). The browser-based lab consumes the same grammar structure to power live evaluation and diagnostics, keeping the docs site aligned with the runtime implementation.
 
 ```json
 {
