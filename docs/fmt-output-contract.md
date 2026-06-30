@@ -30,13 +30,13 @@ A formatted file is exactly this sequence, in order:
 3. **One section per nonterminal**, each consisting of:
    - an H2 heading `## <Nonterminal>`, unique across the file (MD024);
    - optional prose describing the rule;
-   - exactly one `lr` payload fence holding that rule's productions;
+   - exactly one `grammark` payload fence holding that rule's productions;
    - an optional linked railroad image.
-4. An **optional `## Precedence`** section containing one `lr precedence`
+4. An **optional `## Precedence`** section containing one `grammark precedence`
    fence. It is present only when the grammar declares operator precedence;
    a grammar with no `%left` / `%right` / `%nonassoc` declarations omits the
    section entirely rather than emitting an empty fence.
-5. An **`## Error messages`** section containing one `lr errors` fence.
+5. An **`## Error messages`** section containing one `grammark errors` fence.
 6. A **`## Generated tables`** section: a short caption line, then the
    FIRST/FOLLOW pipe table and the conflict summary.
 7. A single trailing newline (MD047).
@@ -63,20 +63,20 @@ namespace; reuse across grammars is a future cross-file `import` (see
 ### Payload fences
 
 Productions, precedence, and curated errors live in fenced blocks whose
-info string begins with `lr`:
+info string begins with `grammark`:
 
-- ` ```lr ` — productions, including `{% ... %}` semantic actions.
-- ` ```lr precedence ` — `%left` / `%right` / `%nonassoc` declarations.
-- ` ```lr errors ` — Menhir-style state-keyed messages.
+- ` ```grammark ` — productions, including `{% ... %}` semantic actions.
+- ` ```grammark precedence ` — `%left` / `%right` / `%nonassoc` declarations.
+- ` ```grammark errors ` — Menhir-style state-keyed messages.
 
 Every fence carries a non-empty info string, which satisfies MD040 and is
 _why_ Grammark fences pass a rule that bare ` ``` ` fences fail. GFM treats
 fence contents as opaque literal text, so `{%`, `%}`, `\`, `|`, and `+`
 inside a payload have no Markdown meaning and present no lint surface.
 
-### Line continuation inside `lr` blocks (Option A)
+### Line continuation inside `grammark` blocks (Option A)
 
-Within an `lr` productions block a **line break inside an alternative is
+Within an `grammark` productions block a **line break inside an alternative is
 insignificant** — `|` is the only alternative separator, so a long alternative
 may wrap across physical lines with no continuation marker. The two grammars
 below parse identically:

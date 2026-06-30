@@ -14,7 +14,7 @@ the grammar.
 Here is what a rule looks like — productions on the left, an optional
 semantic action between `{%` and `%}` carried verbatim to codegen:
 
-```lr
+```grammark
 Expr
   : Expr `+` Term   {% \l _ r -> Add l r %}
   | Expr `-` Term   {% \l _ r -> Sub l r %}

@@ -1,4 +1,4 @@
-# Lexer specification — `lr tokens`
+# Lexer specification — `grammark tokens`
 
 Status: **draft**, tracks `irVersion: 0`. Defines how a `.gram.md` grammar
 specifies its own lexis, so a grammar is self-contained and every backend can
@@ -22,13 +22,13 @@ self-contained, the "tables-only" backend and generic interpreter can't produce
 a working parser from the IR, and `Grammark.Lexer` sits _outside_ the self-host
 loop. Defining the lexer in the grammar fixes all three.
 
-## 2. The `lr tokens` block
+## 2. The `grammark tokens` block
 
-Lexis is declared in a fenced block whose info string is `lr tokens`. Each line
+Lexis is declared in a fenced block whose info string is `grammark tokens`. Each line
 defines one **named token class**:
 
 ```text
-lr tokens
+grammark tokens
 NAME : <definition> [ modifiers ]
 ```
 
@@ -40,11 +40,11 @@ NAME : <definition> [ modifiers ]
   (§6); a `/regex/` may also carry a glued `i` case-insensitivity flag (`/…/i`).
 
 A grammar MUST place all its named classes here; an ALL-CAPS symbol used in a
-production but absent from `lr tokens` is an error ("token class `X` used but
+production but absent from `grammark tokens` is an error ("token class `X` used but
 never defined") unless the block is in `%external` mode (§6).
 
-Like `lr precedence` and `lr errors`, the `lr tokens` block is a hand-parsed
-sidecar notation, not itself an `lr` grammar.
+Like `grammark precedence` and `grammark errors`, the `grammark tokens` block is a
+hand-parsed sidecar notation, not itself a `grammark` grammar.
 
 ## 3. The regular sublanguage
 
@@ -83,10 +83,10 @@ not match differently), so it does not weaken this guarantee.
 
 The effective token set a grammar lexes is the union of:
 
-1. **Named classes** — defined in `lr tokens` (§2).
+1. **Named classes** — defined in `grammark tokens` (§2).
 2. **Implicit literals** — every terminal literal that appears in a production
-   (`'{'`, `','`, `'true'`, and in `lr` itself `':'` / `'|'`) is a token defined
-   by its exact spelling. These need **no** `lr tokens` entry; the productions
+   (`'{'`, `','`, `'true'`, and in `grammark` itself `':'` / `'|'`) is a token defined
+   by its exact spelling. These need **no** `grammark tokens` entry; the productions
    define them. A literal may be written in either of two interchangeable
    delimiters — `'x'` or `"x"` — all identical (ADR D34); the author picks
    whichever needs no escaping (`'"'`, `"'"`). The chosen delimiter is escaped
@@ -95,7 +95,7 @@ The effective token set a grammar lexes is the union of:
    the whole quoted lexeme; the consumer unquotes and unescapes to the spelling.
 
 All of these are merged into **one** scanner DFA. A grammar therefore never needs
-to repeat its punctuation/keyword literals in `lr tokens`; it declares only the
+to repeat its punctuation/keyword literals in `grammark tokens`; it declares only the
 open-ended classes.
 
 ## 5. Matching semantics
@@ -107,8 +107,8 @@ open-ended classes.
   `/regex/` classes in **declaration order** (earlier wins). An explicit `%prec N`
   (higher N = higher priority) overrides the default order.
 - **M3 (keyword reservation).** Because implicit literals outrank classes (M2), a
-  backtick keyword beats an overlapping class: with `IDENT : /[A-Za-z_]\w*/` and a
-  production using `` `true` ``, the input `true` lexes as the keyword, while
+  quoted keyword beats an overlapping class: with `IDENT : /[A-Za-z_]\w*/` and a
+  production using `'true'`, the input `true` lexes as the keyword, while
   `trueish` lexes as one `IDENT` (M1). This is standard keyword reservation and
   needs no extra declaration.
 - **M4 (no match).** If no token matches at a position, the scanner emits a
@@ -147,7 +147,7 @@ open-ended classes.
 - **`%external(pass)`** — after the regular scan, a named, host-supplied **post-lex
   pass** may reclassify or transform the token stream. It is the escape hatch for
   the genuinely non-regular fraction of lexing (indentation/offside, semicolon
-  insertion, the `lr` continuation keep/drop). **Interface (D33):** a pass is a
+  insertion, the `grammark` continuation keep/drop). **Interface (D33):** a pass is a
   pure `Array Token -> Array Token`, registered host-side by name, run after the
   scan; it is **scalar-only** (it cannot be vectorized; cf. D31). It does **not**
   do payload extraction — that is capture's job (M5) — so the canonical `NL` pass
@@ -188,8 +188,8 @@ reference token stream byte-for-byte.
 
 ## 8. Self-host
 
-`grammar/lr.gram.md` carries its own `lr tokens` block (§10), and the scanner
-built from it is the **production** lexer for `lr` grammar source: `Grammark.Lr`
+`grammar/lr.gram.md` carries its own `grammark tokens` block (§10), and the scanner
+built from it is the **production** lexer for `grammark` grammar source: `Grammark.Lr`
 scans with `lrScanItems` (that block plus the implicit `` `:` `` / `` `|` ``
 literals), trimming each `ACTION` body in the consumer (M5). `Grammark.Lexer` is
 now iteration-0 **bootstrap** — kept only as the self-host oracle's reference.
@@ -205,7 +205,7 @@ and the whole grammar corpus are themselves an end-to-end check on it.
 ## 9. fmt and structure
 
 - A grammar's lexis lives in a single reserved `## Tokens` H2 section holding the
-  `lr tokens` block. It SHOULD appear **before the first nonterminal section**
+  `grammark tokens` block. It SHOULD appear **before the first nonterminal section**
   (alphabet before grammar); the structure gate treats `Tokens` as a reserved
   section like `Precedence` (fmt-output-contract amendment).
 - fmt MUST align the `:` column within the block and preserve declaration order
@@ -214,7 +214,7 @@ and the whole grammar corpus are themselves an end-to-end check on it.
 
 ## 10. Worked example — `lr.gram.md`
 
-The `lr` notation, defining its own tokens, with capture groups (M5) for the
+The `grammark` notation, defining its own tokens, with capture groups (M5) for the
 payload-bearing classes and `ATTR` ordered before `IDENT` / `LABEL` so `#[name]`
 out-matches a `# Name` label. `NL` is significant (the continuation pass refines
 its keep/drop via `%external`, while capture gives it a `\n` text); `WS` is
@@ -265,10 +265,10 @@ tie-breaks needed.
   (M1/M3); longest-match and priority cases from a token-level corpus.
 - **L3 (extras populate the IR).** `%skip` tokens appear in `grammar.extras` and
   as CST trivia (incremental-spec §3).
-- **L4 (self-host lexer).** The generated `lr` lexer reproduces the bootstrap
+- **L4 (self-host lexer).** The generated `grammark` lexer reproduces the bootstrap
   lexer's token stream on `grammar/lr.gram.md` (§8) — terminals now, text once
   capture lands.
-- **L5 (json self-contained).** `json.gram.md` plus its `lr tokens` block parses a
+- **L5 (json self-contained).** `json.gram.md` plus its `grammark tokens` block parses a
   JSON corpus with no hand-written scanner.
 
 ## 13. Resolved questions

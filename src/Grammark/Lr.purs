@@ -125,7 +125,7 @@ lrBlocks md =
       if trim line == "```" then
         acc { inside = false, cur = [], blocks = Array.snoc acc.blocks (joinWith "\n" acc.cur) }
       else acc { cur = Array.snoc acc.cur line }
-    else if trim line == "```lr" then acc { inside = true, cur = [] }
+    else if trim line == "```grammark" then acc { inside = true, cur = [] }
     else acc
 
 -- | The production lexer for `lr` grammar source: the scanner built from the

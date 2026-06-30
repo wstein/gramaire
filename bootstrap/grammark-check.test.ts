@@ -29,7 +29,7 @@ import {
 import { parseProduction } from "./railroad.ts";
 
 // A canonical, contract-clean grammar document, built line-by-line so the
-// nested ```lr fences can use backticks freely (double-quoted strings, unlike
+// nested ```grammark fences can use backticks freely (double-quoted strings, unlike
 // template literals, treat the backtick as an ordinary character).
 function miniDoc(
   opts: { precedence?: boolean; tokens?: boolean; rule?: string } = {},
@@ -42,16 +42,23 @@ function miniDoc(
     "",
   ];
   if (opts.tokens) {
-    lines.push("## Tokens", "", "```lr tokens", "X : /x/", "```", "");
+    lines.push("## Tokens", "", "```grammark tokens", "X : /x/", "```", "");
   }
-  lines.push("## A", "", "```lr", "A", rule, "```", "");
+  lines.push("## A", "", "```grammark", "A", rule, "```", "");
   if (opts.precedence) {
-    lines.push("## Precedence", "", "```lr precedence", "%left 'x'", "```", "");
+    lines.push(
+      "## Precedence",
+      "",
+      "```grammark precedence",
+      "%left 'x'",
+      "```",
+      "",
+    );
   }
   lines.push(
     "## Error messages",
     "",
-    "```lr errors",
+    "```grammark errors",
     "state 0:",
     "  Expected an `x` here.",
     "```",
@@ -72,14 +79,14 @@ test("parse extracts headings, blocks, and the lr nonterminal", () => {
   assert.equal(doc.headings[0]?.level, 1);
   assert.equal(doc.headings[0]?.text, "Mini");
 
-  const lrBlock = doc.blocks.find((b) => b.info === "lr");
+  const lrBlock = doc.blocks.find((b) => b.info === "grammark");
   assert.ok(lrBlock, "expected an lr block");
   assert.equal(lrBlock.nonterminal, "A");
   assert.equal(lrBlock.fenceLen, 3);
 
   // The precedence/errors fences are parsed but are not lr-nonterminal rules.
   assert.equal(
-    doc.blocks.filter((b) => b.info === "lr" && b.nonterminal).length,
+    doc.blocks.filter((b) => b.info === "grammark" && b.nonterminal).length,
     1,
   );
 });
@@ -111,7 +118,7 @@ test("checkStructure rejects a Tokens section out of place (after the nontermina
   // `## Tokens` must precede the first nonterminal; here it follows `## A`.
   const misplaced = miniDoc().replace(
     "## Error messages",
-    "## Tokens\n\n```lr tokens\nX : /x/\n```\n\n## Error messages",
+    "## Tokens\n\n```grammark tokens\nX : /x/\n```\n\n## Error messages",
   );
   const fails = checkStructure(parse(misplaced));
   assert.ok(
@@ -143,7 +150,7 @@ test("checkStructure ignores ###+ presentational grouping headings (D29)", () =>
 test("checkStructure flags a fence that is too wide", () => {
   // A 4-backtick fence around content with no backtick runs is wrong.
   const broken = miniDoc()
-    .replace("```lr\nA", "````lr\nA")
+    .replace("```grammark\nA", "````grammark\nA")
     .replace("\n```\n\n## Error", "\n````\n\n## Error");
   const fails = checkStructure(parse(broken));
   assert.ok(
@@ -205,7 +212,7 @@ const sidecarDoc = [
   "",
   "## A",
   "",
-  "```lr",
+  "```grammark",
   "A",
   "  : 'x' B",
   "```",
@@ -246,7 +253,7 @@ test("regenerateTables rewrites the FIRST/FOLLOW table from the grammar", () => 
     "",
     "## S",
     "",
-    "```lr",
+    "```grammark",
     "S",
     "  : 'a' S",
     "  | 'a'",

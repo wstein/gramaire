@@ -112,7 +112,7 @@ keeps the Lab honest:
 
 - **Conflicts in your rules.** `Grammark.Diagnostics.renderConflict` turns
   `shift/reduce in state 7` into "shift `+` vs reduce `Expr -> Expr + Expr`",
-  ready to underline the competing productions in the `lr` block.
+  ready to underline the competing productions in the `grammark` block.
 - **"Artifact or genuine?"** `Grammark.Glr.explain` builds the grammar under all
   three methods and reports whether a conflict is an **LALR artifact** (canonical
   / IELR resolve it — "switch to IELR") or **genuine** (the grammar is not LR(1))
@@ -160,7 +160,7 @@ can be built without new engine work unless noted.
   no `node:fs`, so it bundles for the browser unchanged. (Input lexing for token
   classes still needs a per-language lexer — ship a small built-in set and/or let
   the grammar declare one.)
-- **T1.1 Monaco dual-pane** with `.gram.md` highlighting (Markdown + an `lr`
+- **T1.1 Monaco dual-pane** with `.gram.md` highlighting (Markdown + an `grammark`
   fenced-block grammar mode), a diagnostics gutter in both panes, and debounced
   re-evaluation on every keystroke (target < 16 ms for small grammars).
 - **T1.2 Interactive CST explorer.** Render the `grammark-cst` tree
@@ -172,7 +172,7 @@ can be built without new engine work unless noted.
   and list the **expected terminals**; offer one-click insertion of a valid next
   token into the input.
 - **T1.5 Conflict underlining.** On a non-LR(1) build, underline the competing
-  productions in the `lr` block (from `renderConflict`) instead of printing a
+  productions in the `grammark` block (from `renderConflict`) instead of printing a
   state number.
 
 ### Tier 2 — the oracle
@@ -203,7 +203,7 @@ can be built without new engine work unless noted.
 - **T3.3 Recovery preview.** With panic-mode recovery, show how an erroneous
   input resynchronizes (depends on `tables.recovery`; partial in the Core today).
 - **T3.4 Gallery + examples.** One-click load of `calc`, `json`, and the
-  self-describing `lr` grammar; a "fork this" flow.
+  self-describing `grammark` grammar; a "fork this" flow.
 - **T3.5 Embeddable lab.** An `<iframe>` / web-component build so a grammar can be
   embedded, live, in any docs page (including this site's tutorials).
 

@@ -39,7 +39,7 @@ wordmark — don't spread it across UI; it should always read as "valid."
 - **Wordmark / headings:** a geometric sans — Inter (700, tight tracking) is
   the reference. Outline the text to paths for production logo files.
 - **Code, grammars, CLI:** a monospace — JetBrains Mono or the system mono.
-  Grammar payloads, `lr` blocks, and `grammark --check` output are always
+  Grammar payloads, `grammark` blocks, and `grammark --check` output are always
   monospace.
 
 ## Voice

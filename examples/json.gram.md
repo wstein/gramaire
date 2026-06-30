@@ -4,7 +4,7 @@ The complete grammar for [JSON](https://www.json.org) (RFC 8259), written
 as a Grammark `.gram.md`. It is a single document that is two things at
 once: the page you are reading on GitHub — prose, railroad diagrams, a
 FIRST/FOLLOW table — and the exact input Grammark's generator consumes.
-Everything outside the fenced `lr` blocks is documentation that travels
+Everything outside the fenced `grammark` blocks is documentation that travels
 with the grammar.
 
 JSON is the canonical small-but-real grammar: everyone recognises it, it
@@ -37,7 +37,7 @@ whitespace; the structural punctuation and the `true` / `false` / `null`
 keywords are implicit literals from the productions, so they are not repeated
 here. With this block the grammar is self-contained — no hand-written scanner.
 
-```lr tokens
+```grammark tokens
 STRING : /"(?:[^"\\]|\\.)*"/
 NUMBER : /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/
 WS     : /[ \t\r\n]+/    %skip
@@ -47,7 +47,7 @@ WS     : /[ \t\r\n]+/    %skip
 
 A JSON value is an object, an array, or one of the five primitive forms.
 
-```lr
+```grammark
 Value
   : Object    {% \o -> o %}
   | Array     {% \a -> a %}
@@ -66,7 +66,7 @@ An object is brace-delimited and either empty or a list of members. The
 empty case is its own alternative so that a `}` immediately after `{`
 needs no member to reduce — one token of lookahead settles it.
 
-```lr
+```grammark
 Object
   : '{' '}'            {% \_ _ -> Obj [] %}
   | '{' Members '}'    {% \_ ms _ -> Obj ms %}
@@ -78,7 +78,7 @@ Object
 
 Left recursion accumulates members in source order.
 
-```lr
+```grammark
 Members
   : Member                {% \m -> [m] %}
   | Members ',' Member    {% \ms _ m -> snoc ms m %}
@@ -90,7 +90,7 @@ Members
 
 A member is a string key, a colon, and a value.
 
-```lr
+```grammark
 Member
   : STRING ':' Value    {% \k _ v -> Pair k v %}
 ```
@@ -102,7 +102,7 @@ Member
 An array mirrors an object: bracket-delimited, empty or a list of
 elements, with the empty case split out for the same lookahead reason.
 
-```lr
+```grammark
 Array
   : '[' ']'             {% \_ _ -> Arr [] %}
   | '[' Elements ']'    {% \_ es _ -> Arr es %}
@@ -114,7 +114,7 @@ Array
 
 Left recursion accumulates elements in source order.
 
-```lr
+```grammark
 Elements
   : Value                 {% \v -> [v] %}
   | Elements ',' Value    {% \es _ v -> snoc es v %}
@@ -126,7 +126,7 @@ Elements
 
 Curated messages keyed by the parser state they are reported from.
 
-```lr errors
+```grammark errors
 after `{`, lookahead is `,`:
   An object starts with a member or an immediate `}`.
   Write `{ "key": value }`, or `{}` for the empty object.

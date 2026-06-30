@@ -19,7 +19,7 @@ PureScript (Spago) project.
   under the repo's `.markdownlint-cli2.jsonc`). **fmt** emits the derived
   artifacts deterministically — sidecar railroad SVGs by default, or embedded
   mermaid with `--diagrams=mermaid` — and writes the lock.
-- `railroad.ts` — parses an `lr` block into a Production and renders it as a
+- `railroad.ts` — parses an `grammark` block into a Production and renders it as a
   self-contained SVG or a mermaid `flowchart`.
 - `grammark-check.test.ts` / `railroad.test.ts` — `node:test` unit coverage for
   the gates, hashing model, diagram-mode round-trip, and the renderer.
@@ -50,7 +50,7 @@ npm run format                                      # prettier --write
 Remove this directory once **both** hold:
 
 1. `Grammark.Check` (PureScript) reproduces all three gates, and
-2. ✅ _met_ — the generated `lr` parser reads `grammar/lr.gram.md` back to a
+2. ✅ _met_ — the generated `grammark` parser reads `grammar/lr.gram.md` back to a
    value equal to `Grammark.Bootstrap.bootstrapGrammar` (the self-host test in
    `test/`, `Test.SelfHost`).
 

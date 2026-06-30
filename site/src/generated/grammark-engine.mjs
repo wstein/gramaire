@@ -4680,7 +4680,7 @@ var parseLine = function(line) {
 };
 var parseTokens = function(content) {
   var meaningful = function(line) {
-    return line !== "" && line !== "lr tokens";
+    return line !== "" && line !== "grammark tokens";
   };
   return traverse2(parseLine)(filter(meaningful)(map8(trim)(split("\n")(content))));
 };
@@ -4925,7 +4925,7 @@ var tokensBlock = function(md) {
         };
       }
       ;
-      if (trim(line) === "```lr tokens") {
+      if (trim(line) === "```grammark tokens") {
         return {
           found: acc.found,
           inside: true,
@@ -7537,7 +7537,7 @@ var lrBlocks = function(md) {
         };
       }
       ;
-      var $131 = trim(line) === "```lr";
+      var $131 = trim(line) === "```grammark";
       if ($131) {
         return {
           blocks: acc.blocks,

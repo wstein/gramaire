@@ -104,7 +104,7 @@ tokensBlock md =
         if trim line == "```" then
           acc { inside = false, found = orFirst acc.found (joinWith "\n" acc.cur) }
         else acc { cur = Array.snoc acc.cur line }
-    | trim line == "```lr tokens" = acc { inside = true, cur = [] }
+    | trim line == "```grammark tokens" = acc { inside = true, cur = [] }
     | otherwise = acc
   orFirst found content = case found of
     Just _ -> found

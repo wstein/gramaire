@@ -60,7 +60,7 @@ parseTokens content =
   traverse parseLine
     (Array.filter meaningful (map String.trim (String.split (Pattern "\n") content)))
   where
-  meaningful line = line /= "" && line /= "lr tokens"
+  meaningful line = line /= "" && line /= "grammark tokens"
 
 parseLine :: String -> Either String TokenDef
 parseLine line = case splitFirstColon line of

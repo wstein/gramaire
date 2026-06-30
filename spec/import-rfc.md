@@ -25,7 +25,7 @@ system.
 
 ## Shape
 
-```lr
+```grammark
 import ./json.gram.md
 ```
 
@@ -61,7 +61,7 @@ open; the semantics below are not.
 - Surface syntax (directive line vs. fenced block vs. front-matter list).
 - Selective import (whole grammar only, or a named subset of nonterminals?).
 - How an imported grammar's reserved sections (`Precedence`, `Error messages`)
-  merge, or whether only its `lr` productions are pulled.
+  merge, or whether only its `grammark` productions are pulled.
 - Interaction with the start symbol: an imported grammar's start is demoted to
   an ordinary nonterminal in the importer.
 

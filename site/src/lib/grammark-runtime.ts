@@ -65,7 +65,7 @@ than by precedence declarations, so the grammar stays LR(1) by construction.
 
 ## Tokens
 
-\`\`\`lr tokens
+\`\`\`grammark tokens
 INT     : /[0-9]+/
 NEWLINE : /[\\r\\n]+/
 WS      : /[ \\t]+/   %skip
@@ -73,7 +73,7 @@ WS      : /[ \\t]+/   %skip
 
 ## prog
 
-\`\`\`lr
+\`\`\`grammark
 prog
   : expr NEWLINE
   | prog expr NEWLINE
@@ -81,7 +81,7 @@ prog
 
 ## expr
 
-\`\`\`lr
+\`\`\`grammark
 expr
   : expr '+' term
   | expr '-' term
@@ -90,7 +90,7 @@ expr
 
 ## term
 
-\`\`\`lr
+\`\`\`grammark
 term
   : term '*' factor
   | term '/' factor
@@ -99,7 +99,7 @@ term
 
 ## factor
 
-\`\`\`lr
+\`\`\`grammark
 factor
   : INT
   | '(' expr ')'
