@@ -128,7 +128,7 @@ a build error.
 A `name:X` prefix names that right-hand position. The name is carried onto the
 IR's `rhs[].field` and feeds CST accessors and generated visitors; it does not
 change the recognized language. A bare-body action then binds the field names: a
-production `left:NUM `+` right:NUM {% Add left right %}` rewrites to
+production `left:NUM '+' right:NUM {% Add left right %}` rewrites to
 `\left _ right -> Add left right`.
 
 ### 4.5 Inline folding — `#[inline]`
@@ -142,6 +142,23 @@ through a wrapper so values still flow.
 
 A `# Name` label names an alternative. It surfaces in the IR as an optional
 `rules[].label` and drives per-alternative visitor method names and CST accessors.
+
+For a structured AST, **prefer labels over inline `{% … %}` actions** (ADR
+D37). A label like `# MulDiv` generates a typed `MulDiv(children)` method on the
+emitted `Visitor<T>` — exactly ANTLR's `visitMulDiv` pattern, and
+host-language-agnostic. Inline lambdas, by contrast, pin the grammar to one host
+(PureScript). So:
+
+```grammark
+expr
+  : expr '*' term   # MulDiv
+  | expr '+' term   # AddSub
+  | NUM             # Int
+```
+
+emits `interface Visitor<T> { MulDiv(c): T; AddSub(c): T; Int(c): T; … }` — you
+fill in the methods in your host language, no inline lambda required. Inline
+`{% … %}` stays available for one-liners where a visitor class is overkill.
 
 ## 5. The IR contract — `grammark-ir`
 

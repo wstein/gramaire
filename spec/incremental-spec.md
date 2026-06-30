@@ -106,6 +106,30 @@ keystrokes, so recovery is mandatory, not optional.
   the point of failure (for diagnostics) and the skipped tokens (for R1).
 - **R12 (determinism).** Recovery MUST be deterministic: identical input MUST
   yield an identical error tree, so error placement is conformance-testable.
+- **R13 (`error`-token recovery, spec-first — not yet implemented).** A
+  production MAY use the reserved `error` pseudo-token to declare a
+  **grammar-directed** sync point (yacc/Bison style), the explicit complement to
+  R10's automatic panic-mode. On an error inside such a rule the runtime resyncs
+  to the token that follows `error` in the production and reduces that
+  alternative — instead of panic-popping to a global `syncToken`. This lets the
+  grammar author place recovery where it makes sense (e.g. at a statement
+  terminator). The conformance vector below specifies the target behavior
+  **before** the engine implements it (the debate's spec-first rule); it joins
+  the corpus when R13 ships, and until then is documented here, not asserted.
+
+  ```grammark
+  Stmts : Stmt | Stmts Stmt
+  Stmt  : Expr ';'        # Ok
+        | error ';'       # Recovered   {% \_ _ -> Recovered %}
+  ```
+
+  Vector — input `1 + ; 2 ;` → outcome **Recover**, tree (sketch)
+  `Stmts[ Stmt#Recovered(Error "1 +"), Stmt#Ok 2 ]`.
+
+  The first statement is malformed; `error ';'` consumes through the `;`,
+  emits one `Error` node (R11) over the skipped `1 +`, and parsing **continues**
+  so the well-formed `2 ;` still parses. Per R12 the placement is deterministic,
+  so this is a conformance vector, not a hand-check.
 
 ## 5. The `edit()` contract
 
