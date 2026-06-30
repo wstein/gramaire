@@ -28,6 +28,7 @@ import Test.Regex as Regex
 import Test.Schema as Schema
 import Test.SelfHost as SelfHost
 import Test.Table as Table
+import Test.Tokens as Tokens
 
 main :: Effect Unit
 main = do
@@ -39,6 +40,8 @@ main = do
   Parser.tests
   log "Test.Regex"
   Regex.tests
+  log "Test.Tokens"
+  Tokens.tests
   log "Test.SelfHost"
   SelfHost.tests
   log "Test.FirstFollow"
