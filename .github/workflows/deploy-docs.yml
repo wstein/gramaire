@@ -10,6 +10,15 @@ permissions:
   pages: write
   id-token: write
 
+# Serialize Pages deployments: rapid pushes queue rather than collide.
+# `actions/deploy-pages` rejects a deployment while another is in progress
+# ("cancel … first or wait"), which is what failed earlier; this group makes a
+# later run wait for the in-flight one instead of erroring. Not cancel-in-progress
+# — a production deploy should finish (GitHub's recommended Pages setting).
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
