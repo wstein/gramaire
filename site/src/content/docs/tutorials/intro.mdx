@@ -3,16 +3,16 @@ title: Getting Started
 description: Beginner tutorial for Grammark grammar authoring.
 ---
 
-This tutorial walks through the basic grammar authoring flow in Grammark, from Markdown structure to generated diagrams and tables.
+This tutorial walks through the basic grammar authoring flow in Grammark, from Markdown structure to generated diagrams and tables. The live site now uses the repository's real PureScript parser for the examples and the lab, so the browser experience reflects the same parser path as the CLI.
 
 ## Create a grammar file
 
-Use a Markdown file with a single H1 and one H2 per nonterminal.
+Use a Markdown file with a single H1 and one H2 per nonterminal. A good starting point is the calculator example in [examples/calc.gram.md](../../../examples/calc.gram.md).
 
 ## Add an lr block
 
-Place productions inside a fenced block beginning with `lr`.
+Place productions inside a fenced block beginning with `lr`. The parser understands the full Grammark envelope, including precedence blocks, error-message blocks, and action annotations.
 
 ## Verify and format
 
-Run the available Grammark tools to validate the file and emit the generated artifacts.
+Run the available Grammark tools to validate the file and emit the generated artifacts. In the browser, the lab sends the current grammar to the real parser endpoint and reports the parser output and any diagnostics.
