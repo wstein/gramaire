@@ -121,17 +121,27 @@ surfaces (spago, the bridge, conformance). Phases 0–2 are the parsing core;
   transitions, plus the construction invariants (`wellFormed`, one decision per
   rule, a start+stop per rule) over the real `calc` and `json` grammars.
 
-### Phase 1 — SLL adaptive prediction `Gramaire.Atn.Simulator`
+### Phase 1 — SLL adaptive prediction `Gramaire.Atn.Sim` ✅ partial
 
-- Port `closure` / `computeReachSet` / `adaptivePredict` (SLL mode) and the
-  lazy DFA cache, using an `ST`/`Effect` region for the mutable cache (§7).
-- A top-down **interpreter** `Gramaire.Ll.parse` that drives the ATN with the
-  predictor and the existing scanner, producing the same `Gramaire.Cst` the LR
-  path produces — so the CST view, conformance oracle, and IR decoder are
-  reused unchanged.
-- **Test:** differential oracle — for every LR(1) grammar in the corpus,
-  `Gramaire.Ll.parse` and `Gramaire.Lr.parse` accept/reject identically
-  (`Test.Conformance` gains an `ll-star` column).
+- ✅ `Gramaire.Atn.Sim.predict` ports the two ALL(\*) primitives — `closure`
+  (the ε-closure of a configuration set, descending into `RuleCall`s and popping
+  on `RuleStop`) and `move` (advance over one terminal) — and alternates them as
+  `adaptivePredict` does, looking ahead exactly as far as the alternatives need
+  to be told apart. **SLL** mode: an empty-stack return is a lookahead leaf, not
+  resolved against the full calling context.
+- ✅ A top-down recognizer `Gramaire.Ll.recognize` drives the ATN with the
+  predictor and the token stream, accepting iff the start rule consumes the whole
+  input.
+- ✅ **Test (`Test.Ll`):** differential oracle — `Gramaire.Ll.recognize` agrees
+  with the LR oracle (`Gramaire.Conformance.recognize`) on every vector of four
+  non-left-recursive grammars, including an LL(3) decision that only resolves
+  three tokens deep.
+- ⏳ **Deferred:** the lazy DFA cache (an `ST`/`Effect` mutable region, §7), full
+  **LL** (full-context) fallback, and a `Cst`-producing `Gramaire.Ll.parse`. The
+  corpus-wide gate (`calc`, `json`, `lr`) is **blocked on Phase 2**: those
+  grammars are left-recursive after desugaring (`X+`/`X*` → left-recursive list
+  rules; the bootstrap throughout), which top-down parsing cannot handle until
+  the rewrite. Prediction stays total there via `Sim`'s depth cap.
 
 ### Phase 2 — Left-recursion elimination
 

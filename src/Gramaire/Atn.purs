@@ -16,6 +16,7 @@ module Gramaire.Atn
   , StateKind(..)
   , Transition(..)
   , numStates
+  , stateAt
   , wellFormed
   , render
   ) where
@@ -25,7 +26,7 @@ import Prelude
 import Data.Array as Array
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), isJust)
+import Data.Maybe (Maybe(..), fromMaybe, isJust)
 import Data.String (joinWith)
 
 -- | A transition out of a state, referencing its target by state id.
@@ -79,6 +80,12 @@ type Atn =
 
 numStates :: Atn -> Int
 numStates atn = Array.length atn.states
+
+-- | The state with the given id (its index into `Atn.states`). Ids are dense and
+-- | every transition target is in range (`wellFormed`), so the fallback — an
+-- | inert `Basic` state with no transitions — is never reached for a real id.
+stateAt :: Atn -> Int -> ATNState
+stateAt atn i = fromMaybe { id: i, rule: "", kind: Basic, transitions: [] } (Array.index atn.states i)
 
 -- | A structural sanity check: every transition target is a real state id,
 -- | every rule has both a start and a stop state, and every `RuleCall` names a

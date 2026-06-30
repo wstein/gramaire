@@ -12,6 +12,7 @@
             "exceptions",
             "foldable-traversable",
             "integers",
+            "lists",
             "maybe",
             "node-buffer",
             "node-fs",

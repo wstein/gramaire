@@ -29,6 +29,7 @@ import Test.Json as Json
 import Test.JsonSelfHost as JsonSelfHost
 import Test.Lexer as Lexer
 import Test.Literals as Literals
+import Test.Ll as Ll
 import Test.LexerSelfHost as LexerSelfHost
 import Test.Parser as Parser
 import Test.Regex as Regex
@@ -105,4 +106,6 @@ main = do
   Diagnostics.tests
   log "Test.Desugar"
   Desugar.tests
+  log "Test.Ll"
+  Ll.tests
   log "all suites passed"

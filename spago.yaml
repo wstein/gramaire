@@ -22,6 +22,7 @@ package:
     - exceptions # Effect.Exception (CLI: graceful file-read failure)
     - foldable-traversable # Data.Foldable / Data.FoldableWithIndex
     - integers
+    - lists
     - maybe
     - node-buffer # Node.Encoding (CLI)
     - node-fs # Node.FS.Sync / Node.FS.Perms (CLI reads/writes files)
