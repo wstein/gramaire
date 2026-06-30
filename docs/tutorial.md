@@ -161,6 +161,8 @@ This specifies that `*` and `/` resolve conflicts by shifting, while `+` and `-`
 
 ## 6. Verifying Your Grammar via the CLI
 
+The browser-based Grammark Lab now gives you a second, immediate feedback loop: edit a grammar, paste sample input, and evaluate it directly in the browser without leaving the docs site.
+
 Our grammar is ready! To verify that it satisfies structure, formatting, layout, and doesn't contain grammar conflicts, run the check tool:
 
 ```sh
