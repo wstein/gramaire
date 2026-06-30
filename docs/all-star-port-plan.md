@@ -34,7 +34,10 @@ with `ST`/`Ref`, not a free lunch (§7).
 **Framing decision (ADR-to-be):** LR stays the default and the self-hosting
 engine. ALL(\*) is opt-in per grammar. The narrow waist holds: both engines emit
 into / read from `gramaire-ir`; a backend that can't run a given strategy says so
-via the SPI rather than failing late.
+via the SPI rather than failing late. **Gramaire's `.gram.md` syntax does not
+grow** to absorb ANTLR's surface (predicates, modes, `~`/`.`) — including its
+`{% … %}` actions, it stays as-is; ANTLR interop is a **converter** (§4), so the
+format never becomes a second ANTLR.
 
 ## 2. The machinery to port
 
@@ -100,16 +103,21 @@ Each phase is independently testable and lands behind the existing test
 surfaces (spago, the bridge, conformance). Phases 0–2 are the parsing core;
 3–6 are the language and product surface.
 
-### Phase 0 — ATN data model + construction `Gramaire.Atn`
+### Phase 0 — ATN data model + construction `Gramaire.Atn` ✅ done
 
-- New module `Gramaire.Atn` (types from §2.1) and `Gramaire.Atn.Build`:
-  lower a desugared `Grammar` (`Gramaire.Syntax`, post-`Gramaire.Desugar`) into an
-  ATN, one submachine per rule, EBNF blocks → block/loop states.
-- Reuse the existing terminal/nonterminal classification and the `## Tokens`
-  lexis. **No new grammar syntax yet** — prove ATN construction on today's
-  grammars.
-- **Test:** ATN round-trips (state/edge counts, every rule has start/stop);
-  golden ATN for `calc`/`json`. ATN stays filesystem-free (ADR D13).
+- `Gramaire.Atn` (the model from §2.1: states by dense id, ε/Atom/RuleCall
+  transitions, rule start/stop maps, decision count) and
+  `Gramaire.Atn.Build.buildAtn` lower a desugared `Grammar`
+  (post-`Gramaire.Desugar`) into an ATN — one submachine per rule,
+  `RuleStart → BlockStart → per-alt symbol chains → BlockEnd → RuleStop`. The
+  input is epsilon-free BNF, so no loop states are needed yet; EBNF loop states
+  would only arrive if a later phase built from the surface grammar.
+- Reuses the existing terminal/nonterminal classification (a name is a
+  nonterminal iff it is some rule's LHS); `Field` unwrapped. No grammar-syntax
+  change. Filesystem-free (ADR D13).
+- **Test (`Test.Atn`):** a tiny grammar pinned to exact states / decisions / key
+  transitions, plus the construction invariants (`wellFormed`, one decision per
+  rule, a start+stop per rule) over the real `calc` and `json` grammars.
 
 ### Phase 1 — SLL adaptive prediction `Gramaire.Atn.Simulator`
 
@@ -134,15 +142,22 @@ surfaces (spago, the bridge, conformance). Phases 0–2 are the parsing core;
 - **Test:** `examples/calc-prec` parses under `ll-star` with the same tree
   shape LR produces with precedence; a left-recursion unit-test grammar.
 
-### Phase 3 — Semantic predicates & actions (grammar extension; see §4)
+### Phase 3 — ANTLR ↔ Gramaire converter (instead of growing Gramaire's syntax)
 
-- Grammar: accept `{ … }?` predicates and `{ … }` actions on the RHS;
-  `Gramaire.Atn.Build` emits `PredicateTransition`/`ActionTransition`;
-  `SemanticContext` evaluation wired into `closure`/prediction.
-- Predicate _bodies_ are carried verbatim like existing `{% … %}` actions
-  (host-language opaque, narrow-waist; the backend supplies the evaluator).
-- **Test:** the classic predicate cases — `enum`-as-keyword-or-identifier;
-  a versioned-dialect toggle.
+Gramaire's `.gram.md` syntax **stays exactly as it is** — productions, `{% … %}`
+actions, labels, sugar — and is _not_ grown to absorb ANTLR's predicates, modes,
+channels, or actions. ALL(\*) over a Gramaire grammar already buys
+ordered-alternative + left-recursive parsing (Phases 1–2); the rest of ANTLR's
+surface is reached by **conversion**, not syntax expansion (§4).
+
+- `gramaire import <g.g4>` → `.gram.md`, and `gramaire emit --backend antlr` →
+  `.g4`, both through the IR. ANTLR features Gramaire has no native home for
+  (semantic predicates, rule actions, lexer modes) ride the IR as predicate /
+  action nodes and surface in the converted `.gram.md` as `{% … %}`-style opaque
+  blocks — never by adding new core syntax — or are flagged when they can't
+  round-trip.
+- **Test:** round-trip a small ANTLR grammar (incl. a semantic predicate)
+  through `import` then `emit --backend antlr`; diff the re-exported `.g4`.
 
 ### Phase 4 — Adaptive lexer (optional, gated)
 
@@ -171,32 +186,45 @@ surfaces (spago, the bridge, conformance). Phases 0–2 are the parsing core;
   reporting, reusing this session's infrastructure.
 - Optional profiling (lookahead depth, DFA cache hits) behind `--profile`.
 
-## 4. Grammar syntax & semantic extensions
+## 4. ANTLR ↔ Gramaire converter (not syntax extensions)
 
-ALL(\*) needs surface syntax LR never did. All of it is **opt-in** and parsed by
-the same `gramaire` fence lexer; none changes an existing grammar's meaning.
+The original plan grew Gramaire's grammar with ANTLR's surface (predicates,
+modes, `~`/`.`, rule args). **That is dropped.** Gramaire keeps its existing,
+Markdown-clean syntax — including `{% … %}` actions — and ANTLR compatibility is
+a **converter**, so the two ecosystems interoperate without Gramaire's format
+becoming a second ANTLR.
 
-| Feature                      | Syntax                                    | ATN lowering            | Notes                                                      |
-| ---------------------------- | ----------------------------------------- | ----------------------- | ---------------------------------------------------------- |
-| Semantic predicate           | `{ expr }?`                               | `PredicateTransition`   | gating prediction; body verbatim, host-evaluated           |
-| Action                       | `{ stmt }`                                | `ActionTransition`      | side-effecting; distinct from the value-building `{% … %}` |
-| Not-set                      | `~ X` / `~[…]`                            | `NotSetTransition`      | complement of a token set                                  |
-| Wildcard                     | `.`                                       | `WildcardTransition`    | any token                                                  |
-| Non-greedy                   | `X*?`, `X+?`, `X??`                       | loop-state flag         | greedy by default, as ANTLR                                |
-| Rule args / returns / locals | `Rule[args] returns [r] locals [l]`       | rule-start metadata     | carried to codegen; opaque bodies                          |
-| Rule actions                 | `@init { … }`, `@after { … }`             | rule-start/stop actions |                                                            |
-| Lexer modes / channels       | `%mode`, `%channel`, `-> skip/channel(…)` | lexer ATN (Phase 4)     | reserved-section sugar, like `## Tokens`                   |
-| Fragment rules               | `fragment NAME`                           | lexer-only rule         |                                                            |
+The converter is two backends over the shared IR (the narrow waist makes this
+the natural shape):
 
-Design constraints kept from Gramaire:
+| Direction       | Entry point                                  | Reuses                                      |
+| --------------- | -------------------------------------------- | ------------------------------------------- |
+| Gramaire → ANTLR | `gramaire emit --backend antlr` (a `Backend`) | the IR + the EBNF backend's traversal       |
+| ANTLR → Gramaire | `gramaire import <g.g4>` (a new front end)    | a `.g4` parser → IR → the `.gram.md` writer |
 
-- **Markdown-clean.** Predicates/actions live inside `gramaire` fences, whose
-  contents are opaque to GFM — `{`, `}`, `?`, `|` never trip the renderer or
-  linter (the same property that makes `{% … %}` safe).
-- **Narrow waist.** Predicate/action bodies are strings on the IR; the backend
-  supplies semantics. The IR gains predicate/action nodes, not host code.
-- **No grammar-as-input drift.** These are all `.gram.md` surface; the `.gram`
-  projection (`strip`) carries them as before.
+How each ANTLR feature maps:
+
+| ANTLR feature                           | Gramaire representation                                                            |
+| --------------------------------------- | --------------------------------------------------------------------------------- |
+| rules, alternatives, EBNF (`*`,`+`,`?`) | productions + Gramaire sugar (`X*`/`X+`/`X?`, `Comma`/`Sep`)                       |
+| `#Label` alternative labels             | Gramaire `# Label` (already shared)                                                |
+| `{ action }` / `{% %}`-equivalent       | Gramaire `{% … %}` action block                                                    |
+| semantic predicate `{ … }?`             | an IR predicate node, rendered as a flagged `{% … %}` block; not core syntax      |
+| `~set`, `.` wildcard                    | desugared to explicit token-set alternatives where finite; flagged otherwise      |
+| lexer modes / channels / `fragment`     | `## Tokens` entries + IR lexer metadata (or flagged as unsupported)               |
+| rule args / returns / locals            | carried as opaque IR rule metadata for `emit`, dropped on `import` with a warning |
+
+Principles kept:
+
+- **No core-syntax growth.** Anything ANTLR can express that Gramaire cannot is
+  carried on the **IR** (predicate / action / lexer-metadata nodes) and rendered
+  into the existing `{% … %}` / `## Tokens` surface — or flagged. The `.gram.md`
+  grammar the author edits never gains a new construct.
+- **Lossy is loud.** A feature that can't round-trip (a side-effecting action, an
+  unbounded `~`, a mode Gramaire's scanner can't model) is reported by the
+  converter, not silently dropped.
+- **Narrow waist.** Both directions go through `gramaire-ir`; neither backend
+  parses the other's format twice.
 
 ## 5. What is _not_ in scope
 
@@ -205,8 +233,8 @@ Design constraints kept from Gramaire:
 - Full ANTLR runtime parity (visitors/listeners beyond Gramaire's existing
   label-driven codegen, tree-rewriting, token-stream rewriting). Gramaire's
   CST + label visitors (ADR D24/D25) already cover the common case.
-- ANTLR's `.g4` import. Migration is a separate `g4 → .gram.md` front end, not
-  part of this plan (though the shared ATN model makes it tractable later).
+- Growing Gramaire's `.gram.md` syntax to match ANTLR's. Interop is the converter
+  (§4), not a bigger core grammar.
 
 ## 6. Risks & open questions
 
@@ -237,13 +265,17 @@ Design constraints kept from Gramaire:
 
 ## 8. Suggested sequencing
 
-1. Phase 0 + 1 behind a hidden `%strategy ll-star` flag; prove accept/reject
-   parity with LR on the whole corpus (no new syntax). **This is the keystone —
-   if SLL prediction matches LR on the corpus, the engine is real.**
-2. Phase 2 (left recursion) — unlock the "write it the obvious way" demo.
-3. Phase 3 (predicates) — the feature LR structurally cannot offer; the reason
-   to want ALL(\*) at all.
-4. Phases 4–6 as demand warrants (lexer modes, full codegen, profiling).
+1. **Phase 0 ✅** — the ATN model + `buildAtn`, proven on `calc`/`json`
+   (`Gramaire.Atn`, `Test.Atn`).
+2. Phase 1 — SLL prediction behind a hidden `%strategy ll-star` flag; prove
+   accept/reject parity with LR on the whole corpus. **This is the keystone — if
+   SLL prediction matches LR on the corpus, the engine is real.**
+3. Phase 2 (left recursion) — unlock the "write it the obvious way" demo.
+4. Phase 3 — the **ANTLR ↔ Gramaire converter** (Gramaire's syntax stays put);
+   ALL(\*)'s native value (ordered alts + left recursion) is already in by here,
+   and the converter brings ANTLR's predicate-using grammars in without growing
+   the core.
+5. Phases 4–6 as demand warrants (lexer modes, full codegen, profiling).
 
 Land each phase green across spago / bridge / site, with a conformance column
 proving the new engine agrees with the old where their languages overlap.
