@@ -29,6 +29,7 @@ import Effect.Console (error, log)
 import Effect.Exception (message, try)
 import Gramaire.Backend (Output)
 import Gramaire.Backend.Registry (backends, findBackend)
+import Gramaire.Convert.Antlr (importAntlr)
 import Gramaire.Conformance (Descriptor, calcDescriptor, lrDescriptor, runSuites, summarize)
 import Gramaire.Conformance.Lexers (tokensBlock)
 import Gramaire.Tokens (parseTokens)
@@ -95,6 +96,7 @@ main = do
     Nothing -> usage *> setExitCode 1
     Just { head: cmd, tail } -> case cmd of
       "emit" -> runEmit tail
+      "import" -> runImport tail
       "strip" -> runStrip tail
       "conformance" -> runConformance
       "explain-conflict" -> runExplain tail
@@ -146,6 +148,31 @@ deliver out outputs = case out of
       let path = dir <> "/" <> o.path
       writeTextFile UTF8 path o.contents
       log ("wrote " <> path)
+
+-- | `gramaire import <file.g4> [--out <dir>]` converts an ANTLR4 grammar to a
+-- | Gramaire `.gram.md` (ALL(*) port, Phase 3 import half). The document goes to
+-- | stdout, or to `<dir>/<Name>.gram.md` with `--out`; features with no Core
+-- | home (predicates, actions, modes) are dropped and reported on stderr.
+runImport :: Array String -> Effect Unit
+runImport args = case parseEmit args of
+  Left e -> die e
+  Right opts -> case opts.file of
+    Nothing -> die "import: no .g4 file given"
+    Just file -> do
+      read <- try (readTextFile UTF8 file)
+      case read of
+        Left err -> die ("import: cannot read " <> file <> ": " <> message err)
+        Right g4 -> case importAntlr g4 of
+          Left e -> die ("import: " <> file <> ": " <> e)
+          Right result -> do
+            for_ result.warnings \w -> error ("  note: " <> w)
+            case opts.out of
+              Nothing -> log result.markdown
+              Just dir -> do
+                mkdir' dir { recursive: true, mode: permsAll }
+                let path = dir <> "/" <> grammarName result.markdown file <> ".gram.md"
+                writeTextFile UTF8 path result.markdown
+                log ("wrote " <> path)
 
 -- | `gramaire strip <file.gram.md>` writes the raw `.gram` projection (ADR D36):
 -- | the fenced `gramaire`* blocks with the prose dropped. It is a derived,

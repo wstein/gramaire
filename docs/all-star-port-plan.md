@@ -159,7 +159,7 @@ surfaces (spago, the bridge, conformance). Phases 0–2 are the parsing core;
   When that lands, `examples/calc-prec` should parse under `ll-star` with the
   same tree LR produces from `## Precedence` (ADR D37 reused, different mechanism).
 
-### Phase 3 — ANTLR ↔ Gramaire converter (instead of growing Gramaire's syntax) ✅ export half
+### Phase 3 — ANTLR ↔ Gramaire converter (instead of growing Gramaire's syntax) ✅
 
 Gramaire's `.gram.md` syntax **stays exactly as it is** — productions, `{% … %}`
 actions, labels, sugar — and is _not_ grown to absorb ANTLR's predicates, modes,
@@ -175,14 +175,17 @@ surface is reached by **conversion**, not syntax expansion (§4).
   appear (`Test.Backend.Antlr`; `calc`/`json` produce valid combined grammars,
   ANTLR4 eating the left recursion natively). This is the tractable half:
   Gramaire's Core is a subset of what ANTLR expresses.
-- ⏳ **Import** (`gramaire import <g.g4>` → `.gram.md`): the hard half. ANTLR
-  features Gramaire has no native home for (semantic predicates, rule actions,
-  lexer modes) would ride the IR as predicate / action nodes and surface as
-  `{% … %}`-style opaque blocks — never by adding new core syntax — or be flagged
-  when they can't round-trip.
-- **Test (import):** round-trip a small ANTLR grammar (incl. a semantic
-  predicate) through `import` then `emit --backend antlr`; diff the re-exported
-  `.g4`.
+- ✅ **Import** (`gramaire import <g.g4>` → `.gram.md`, `Gramaire.Convert.Antlr`):
+  a hand-written recursive-descent parser over a `.g4` token stream keeps what
+  has a Core home — parser rules, alternatives, groups, `?`/`*`/`+`, `.`/`~`,
+  literals, token-class refs, and lexer rules (ANTLR bodies translated back to
+  Gramaire's regex sublanguage) — and **flags** what does not (predicates,
+  actions, lexer commands beyond `-> skip`, modes, non-greedy ops), dropping it
+  with a warning rather than inventing syntax. `prequel`s (`options`/`tokens`/
+  `@header`/`import`/`mode`) are skipped.
+- ✅ **Test (`Test.Convert.Antlr`):** a small ANTLR grammar imports to a parsing
+  `.gram.md`; the round trip `import → parse → IR → emit antlr → import` reaches
+  a **fixed point**; predicates/actions are flagged and never leak into output.
 
 ### Phase 4 — Adaptive lexer (optional, gated)
 
