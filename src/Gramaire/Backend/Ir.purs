@@ -10,7 +10,7 @@ module Gramaire.Backend.Ir
 
 import Prelude
 
-import Gramaire.Backend (Backend, Capability(..))
+import Gramaire.Backend (Backend, Capability(..), allStrategies)
 import Gramaire.IR (toJson)
 import Gramaire.Json (stringify)
 
@@ -18,5 +18,6 @@ backend :: Backend
 backend =
   { name: "ir"
   , capabilities: [ Data ]
+  , strategies: allStrategies
   , emit: \ir -> [ { path: ir.grammar.name <> ".ir.json", contents: stringify (toJson ir) } ]
   }

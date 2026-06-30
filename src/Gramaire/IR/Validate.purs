@@ -17,7 +17,7 @@ import Data.Foldable (foldMap)
 import Data.Maybe (Maybe(..))
 import Data.Set as Set
 import Data.Tuple (Tuple(..))
-import Gramaire.IR (IR, IRAct(..), IROn(..), IRRef(..), IRTerminal(..))
+import Gramaire.IR (IR, IRAct(..), IRAtn, IRAtnTrans(..), IROn(..), IRRef(..), IRTerminal(..))
 
 validate :: IR -> Array String
 validate ir =
@@ -32,6 +32,7 @@ validate ir =
     <> foldMap (\r -> foldMap checkSync r.syncTokens) ir.tables.recovery
     <> foldMap (\gl -> foldMap checkConflictState gl.conflictStates) ir.tables.glr
     <> foldMap checkLexer ir.lexer
+    <> foldMap checkAtn ir.atn
   where
   termIds = map terminalId ir.grammar.terminals
   termSet = Set.fromFoldable termIds
@@ -96,6 +97,24 @@ validate ir =
   checkClass c =
     if Set.member c.terminal classTermSet then []
     else [ "lexer.classes: terminal " <> show c.terminal <> " is not a token-class terminal" ]
+
+  checkAtn :: IRAtn -> Array String
+  checkAtn a =
+    let
+      n = Array.length a.states
+      inRange what i = if i >= 0 && i < n then [] else [ "atn " <> what <> " out of range: " <> show i ]
+      decisionStates = Array.length (Array.filter (\s -> s.kind == "blockStart") a.states)
+    in
+      inRange "start" a.start
+        <> (if decisionStates == a.decisions then [] else [ "atn decisions " <> show a.decisions <> " ≠ blockStart count " <> show decisionStates ])
+        <> foldMap (\s -> foldMap (checkTrans n) s.transitions) a.states
+
+  checkTrans n = case _ of
+    IRAtnEps t -> bounded n "epsilon target" t
+    IRAtnAtom _ t -> bounded n "atom target" t
+    IRAtnRule _ t f -> bounded n "rule target" t <> bounded n "rule follow" f
+
+  bounded n what i = if i >= 0 && i < n then [] else [ "atn " <> what <> " out of range: " <> show i ]
 
   classId = case _ of
     IRClass i _ -> Just i

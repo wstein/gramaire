@@ -34,7 +34,7 @@ import Data.String (drop, joinWith, take, trim)
 import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Data.String.Common (toLower)
 import Data.Tuple (Tuple(..))
-import Gramaire.Backend (Backend, Capability(..))
+import Gramaire.Backend (Backend, Capability(..), allStrategies)
 import Gramaire.IR (IR, IRLexer, IRPattern(..), IRRef(..), IRRule, IRTerminal(..), IRTokenClass)
 
 -- | The ANTLR backend as a first-party `format` backend: one `.g4` file named
@@ -43,6 +43,7 @@ backend :: Backend
 backend =
   { name: "antlr"
   , capabilities: [ Format ]
+  , strategies: allStrategies
   , emit: \ir -> [ { path: ir.grammar.name <> ".g4", contents: emit ir } ]
   }
 

@@ -24,6 +24,9 @@ import Gramaire.IR
   ( IR
   , IRAct(..)
   , IRActionEntry
+  , IRAtn
+  , IRAtnState
+  , IRAtnTrans(..)
   , IRConflict
   , IRGotoEntry
   , IRGrammar
@@ -49,7 +52,42 @@ decode j = do
   tables <- field o "tables" >>= decodeTables
   conflicts <- field o "conflicts" >>= arr >>= traverse decodeConflict
   lexer <- optLexer o
-  pure { irVersion, grammar, tables, conflicts, lexer }
+  strategy <- optStr o "strategy"
+  atn <- optAtn o
+  pure { irVersion, strategy: fromMaybe "lr" strategy, grammar, tables, conflicts, lexer, atn }
+
+optAtn :: Array (Tuple String Json) -> Either String (Maybe IRAtn)
+optAtn kvs = case map snd (find (\(Tuple k _) -> k == "atn") kvs) of
+  Nothing -> Right Nothing
+  Just v -> Just <$> decodeAtn v
+
+decodeAtn :: Json -> Either String IRAtn
+decodeAtn j = do
+  o <- obj j
+  start <- field o "start" >>= int
+  decisions <- field o "decisions" >>= int
+  states <- field o "states" >>= arr >>= traverse decodeAtnState
+  pure { start, decisions, states }
+
+decodeAtnState :: Json -> Either String IRAtnState
+decodeAtnState j = do
+  o <- obj j
+  id <- field o "id" >>= int
+  rule <- field o "rule" >>= str
+  kind <- field o "kind" >>= str
+  decision <- optInt o "decision"
+  transitions <- field o "transitions" >>= arr >>= traverse decodeAtnTrans
+  pure { id, rule, kind, decision, transitions }
+
+decodeAtnTrans :: Json -> Either String IRAtnTrans
+decodeAtnTrans j = do
+  o <- obj j
+  kind <- field o "kind" >>= str
+  case kind of
+    "epsilon" -> IRAtnEps <$> (field o "target" >>= int)
+    "atom" -> IRAtnAtom <$> (field o "label" >>= str) <*> (field o "target" >>= int)
+    "rule" -> IRAtnRule <$> (field o "name" >>= str) <*> (field o "target" >>= int) <*> (field o "follow" >>= int)
+    other -> Left ("unknown ATN transition kind: " <> other)
 
 optLexer :: Array (Tuple String Json) -> Either String (Maybe IRLexer)
 optLexer kvs = case map snd (find (\(Tuple k _) -> k == "lexer") kvs) of

@@ -11,6 +11,7 @@ module Gramaire.Backend
   ( Backend
   , Capability(..)
   , Output
+  , allStrategies
   ) where
 
 import Prelude
@@ -39,9 +40,16 @@ instance showCapability :: Show Capability where
   show (Actions lang) = "actions:" <> lang
 
 -- | A backend: its name (the `--backend` selector), the capabilities it
--- | declares, and the pure `IR -> files` emit function.
+-- | declares, the parse strategies it can consume (D-strategy — `"lr"` and/or
+-- | `"ll-star"`), and the pure `IR -> files` emit function.
 type Backend =
   { name :: String
   , capabilities :: Array Capability
+  , strategies :: Array String
   , emit :: IR -> Array Output
   }
+
+-- | The default for a structure-reading backend: it consumes the IR's grammar
+-- | and is agnostic to whether the tables are `lr` or the ATN is `ll-star`.
+allStrategies :: Array String
+allStrategies = [ "lr", "ll-star" ]

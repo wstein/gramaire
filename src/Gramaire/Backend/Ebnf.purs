@@ -25,7 +25,7 @@ import Data.String.CodeUnits (length)
 import Data.String.Common (replaceAll)
 import Data.String.Pattern (Pattern(..), Replacement(..))
 import Data.Tuple (Tuple(..))
-import Gramaire.Backend (Backend, Capability(..))
+import Gramaire.Backend (Backend, Capability(..), allStrategies)
 import Gramaire.IR (IR, IRRef(..), IRRule, IRTerminal(..))
 
 -- | The EBNF backend as a first-party `format` backend: one `.ebnf` file
@@ -34,6 +34,7 @@ backend :: Backend
 backend =
   { name: "ebnf"
   , capabilities: [ Format ]
+  , strategies: allStrategies
   , emit: \ir -> [ { path: ir.grammar.name <> ".ebnf", contents: emit ir } ]
   }
 

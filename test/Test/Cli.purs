@@ -14,14 +14,14 @@ import Test.Assert (assertEqual)
 
 tests :: Effect Unit
 tests = do
-  log "  cli: parseEmit reads the file, --backend, and --out"
+  log "  cli: parseEmit reads the file, --backend, --out, and --strategy"
   assertEqual
     { actual: parseEmit [ "foo.gram.md" ]
-    , expected: Right { file: Just "foo.gram.md", backend: "ir", out: Nothing }
+    , expected: Right { file: Just "foo.gram.md", backend: "ir", out: Nothing, strategy: "lr" }
     }
   assertEqual
-    { actual: parseEmit [ "f.gram.md", "--backend", "ebnf", "--out", "gen" ]
-    , expected: Right { file: Just "f.gram.md", backend: "ebnf", out: Just "gen" }
+    { actual: parseEmit [ "f.gram.md", "--backend", "ebnf", "--out", "gen", "--strategy", "ll-star" ]
+    , expected: Right { file: Just "f.gram.md", backend: "ebnf", out: Just "gen", strategy: "ll-star" }
     }
 
   log "  cli: parseEmit rejects bad input"

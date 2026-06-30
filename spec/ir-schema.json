@@ -4,71 +4,182 @@
   "title": "gramaire-ir",
   "description": "The versioned narrow-waist artifact between the Gramaire front end and every backend. irVersion 0 is draft/unstable and carries no compatibility promise.",
   "type": "object",
-  "required": ["irVersion", "grammar", "tables", "conflicts"],
+  "required": [
+    "irVersion",
+    "grammar",
+    "tables",
+    "conflicts"
+  ],
   "additionalProperties": false,
   "properties": {
-    "irVersion": { "type": "integer", "minimum": 0 },
-    "grammar": { "$ref": "#/$defs/grammar" },
-    "tables": { "$ref": "#/$defs/tables" },
-    "conflicts": { "type": "array", "items": { "$ref": "#/$defs/conflict" } },
-    "diagnostics": { "$ref": "#/$defs/diagnostics" },
-    "lexer": { "$ref": "#/$defs/lexer" }
+    "irVersion": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "strategy": {
+      "type": "string",
+      "enum": [
+        "lr",
+        "ll-star"
+      ],
+      "description": "The parse strategy (D-strategy); omitted when 'lr' (the default)."
+    },
+    "grammar": {
+      "$ref": "#/$defs/grammar"
+    },
+    "tables": {
+      "$ref": "#/$defs/tables"
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/conflict"
+      }
+    },
+    "diagnostics": {
+      "$ref": "#/$defs/diagnostics"
+    },
+    "lexer": {
+      "$ref": "#/$defs/lexer"
+    },
+    "atn": {
+      "$ref": "#/$defs/atn",
+      "description": "The serialized ATN; present under the 'll-star' strategy."
+    }
   },
   "$defs": {
     "lexer": {
-      "description": "The grammar's lexis (lexer-spec §7). Absent when the grammar brings its own lexer. `order` lists class terminal ids in declaration order, which resolves maximal-munch priority ties.",
+      "description": "The grammar's lexis (lexer-spec \u00a77). Absent when the grammar brings its own lexer. `order` lists class terminal ids in declaration order, which resolves maximal-munch priority ties.",
       "type": "object",
-      "required": ["mode", "order", "classes"],
+      "required": [
+        "mode",
+        "order",
+        "classes"
+      ],
       "additionalProperties": false,
       "properties": {
-        "mode": { "enum": ["regular", "external"] },
-        "order": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
-        "classes": { "type": "array", "items": { "$ref": "#/$defs/tokenClass" } }
+        "mode": {
+          "enum": [
+            "regular",
+            "external"
+          ]
+        },
+        "order": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tokenClass"
+          }
+        }
       }
     },
     "tokenClass": {
       "description": "One token class's lexis: the terminal id it defines, its pattern, whether it is skipped (extras), and an optional explicit priority.",
       "type": "object",
-      "required": ["terminal", "pattern"],
+      "required": [
+        "terminal",
+        "pattern"
+      ],
       "additionalProperties": false,
       "properties": {
-        "terminal": { "type": "integer", "minimum": 0 },
+        "terminal": {
+          "type": "integer",
+          "minimum": 0
+        },
         "pattern": {
           "oneOf": [
             {
               "type": "object",
-              "required": ["regex"],
+              "required": [
+                "regex"
+              ],
               "additionalProperties": false,
-              "properties": { "regex": { "type": "string" } }
+              "properties": {
+                "regex": {
+                  "type": "string"
+                }
+              }
             },
             {
               "type": "object",
-              "required": ["literal"],
+              "required": [
+                "literal"
+              ],
               "additionalProperties": false,
-              "properties": { "literal": { "type": "string" } }
+              "properties": {
+                "literal": {
+                  "type": "string"
+                }
+              }
             }
           ]
         },
-        "skip": { "type": "boolean" },
-        "caseless": { "type": "boolean" },
-        "prec": { "type": "integer" }
+        "skip": {
+          "type": "boolean"
+        },
+        "caseless": {
+          "type": "boolean"
+        },
+        "prec": {
+          "type": "integer"
+        }
       }
     },
     "grammar": {
       "type": "object",
-      "required": ["name", "start", "terminals", "nonterminals", "rules", "precedence"],
+      "required": [
+        "name",
+        "start",
+        "terminals",
+        "nonterminals",
+        "rules",
+        "precedence"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string" },
-        "start": { "type": "string" },
-        "terminals": { "type": "array", "items": { "$ref": "#/$defs/terminal" } },
-        "nonterminals": { "type": "array", "items": { "$ref": "#/$defs/nonterminal" } },
-        "rules": { "type": "array", "items": { "$ref": "#/$defs/rule" } },
-        "precedence": { "type": "array", "items": { "$ref": "#/$defs/precedence" } },
-        "extras": {
-          "description": "Terminal ids permitted between any two grammar tokens (whitespace, comments). Optional; absence means the grammar has no extras. Required for editor/CST use (incremental-spec.md §3).",
+        "name": {
+          "type": "string"
+        },
+        "start": {
+          "type": "string"
+        },
+        "terminals": {
           "type": "array",
-          "items": { "type": "integer", "minimum": 0 }
+          "items": {
+            "$ref": "#/$defs/terminal"
+          }
+        },
+        "nonterminals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonterminal"
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rule"
+          }
+        },
+        "precedence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/precedence"
+          }
+        },
+        "extras": {
+          "description": "Terminal ids permitted between any two grammar tokens (whitespace, comments). Optional; absence means the grammar has no extras. Required for editor/CST use (incremental-spec.md \u00a73).",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       }
     },
@@ -77,61 +188,120 @@
       "oneOf": [
         {
           "type": "object",
-          "required": ["id", "kind", "spelling"],
+          "required": [
+            "id",
+            "kind",
+            "spelling"
+          ],
           "additionalProperties": false,
           "properties": {
-            "id": { "type": "integer", "minimum": 0 },
-            "kind": { "const": "literal" },
-            "spelling": { "type": "string" }
+            "id": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "kind": {
+              "const": "literal"
+            },
+            "spelling": {
+              "type": "string"
+            }
           }
         },
         {
           "type": "object",
-          "required": ["id", "kind", "name"],
+          "required": [
+            "id",
+            "kind",
+            "name"
+          ],
           "additionalProperties": false,
           "properties": {
-            "id": { "type": "integer", "minimum": 0 },
-            "kind": { "const": "class" },
-            "name": { "type": "string" }
+            "id": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "kind": {
+              "const": "class"
+            },
+            "name": {
+              "type": "string"
+            }
           }
         }
       ]
     },
     "nonterminal": {
       "type": "object",
-      "required": ["id", "name"],
+      "required": [
+        "id",
+        "name"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "type": "integer", "minimum": 0 },
-        "name": { "type": "string" }
+        "id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "name": {
+          "type": "string"
+        }
       }
     },
     "rule": {
       "description": "A flattened production. rules[n] is the target of a table Reduce n. actions maps a profile name to opaque, untrusted host-language text.",
       "type": "object",
-      "required": ["id", "lhs", "rhs", "actions"],
+      "required": [
+        "id",
+        "lhs",
+        "rhs",
+        "actions"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "type": "integer", "minimum": 0 },
-        "lhs": { "type": "integer", "minimum": 0 },
-        "rhs": { "type": "array", "items": { "$ref": "#/$defs/ref" } },
+        "id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lhs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rhs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ref"
+          }
+        },
         "label": {
           "description": "Optional `# Name` label naming this alternative, for per-alternative visitor methods and CST accessors (ADR D26). Absent when the alternative is unlabelled.",
           "type": "string"
         },
         "actions": {
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
     "ref": {
       "type": "object",
-      "required": ["ref", "id"],
+      "required": [
+        "ref",
+        "id"
+      ],
       "additionalProperties": false,
       "properties": {
-        "ref": { "enum": ["nt", "t"] },
-        "id": { "type": "integer", "minimum": 0 },
+        "ref": {
+          "enum": [
+            "nt",
+            "t"
+          ]
+        },
+        "id": {
+          "type": "integer",
+          "minimum": 0
+        },
         "field": {
           "description": "Optional `name:` field naming this right-hand-side position (ADR D28), for CST accessors and generated visitors. Absent when the position is unnamed.",
           "type": "string"
@@ -140,69 +310,142 @@
     },
     "precedence": {
       "type": "object",
-      "required": ["level", "assoc", "terminals"],
+      "required": [
+        "level",
+        "assoc",
+        "terminals"
+      ],
       "additionalProperties": false,
       "properties": {
-        "level": { "type": "integer", "minimum": 0 },
-        "assoc": { "enum": ["left", "right", "nonassoc"] },
-        "terminals": { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+        "level": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "assoc": {
+          "enum": [
+            "left",
+            "right",
+            "nonassoc"
+          ]
+        },
+        "terminals": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
       }
     },
     "tables": {
       "type": "object",
-      "required": ["algorithm", "stateCount", "action", "goto"],
+      "required": [
+        "algorithm",
+        "stateCount",
+        "action",
+        "goto"
+      ],
       "additionalProperties": false,
       "properties": {
-        "algorithm": { "enum": ["canonical-lr1", "lalr1", "ielr1"] },
-        "stateCount": { "type": "integer", "minimum": 0 },
-        "action": { "type": "array", "items": { "$ref": "#/$defs/actionRow" } },
-        "goto": { "type": "array", "items": { "$ref": "#/$defs/gotoRow" } },
-        "recovery": { "$ref": "#/$defs/recovery" },
-        "glr": { "$ref": "#/$defs/glr" }
+        "algorithm": {
+          "enum": [
+            "canonical-lr1",
+            "lalr1",
+            "ielr1"
+          ]
+        },
+        "stateCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "action": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/actionRow"
+          }
+        },
+        "goto": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gotoRow"
+          }
+        },
+        "recovery": {
+          "$ref": "#/$defs/recovery"
+        },
+        "glr": {
+          "$ref": "#/$defs/glr"
+        }
       }
     },
     "recovery": {
-      "description": "Error-recovery metadata. Optional; absence falls back to FOLLOW-set resync (incremental-spec.md §4).",
+      "description": "Error-recovery metadata. Optional; absence falls back to FOLLOW-set resync (incremental-spec.md \u00a74).",
       "type": "object",
-      "required": ["syncTokens"],
+      "required": [
+        "syncTokens"
+      ],
       "additionalProperties": false,
       "properties": {
         "syncTokens": {
           "description": "Panic-mode resync terminal ids.",
           "type": "array",
-          "items": { "type": "integer", "minimum": 0 }
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       }
     },
     "glr": {
-      "description": "GLR opt-in. Optional; absence means deterministic-only (incremental-spec.md §7). The deterministic driver MUST ignore this object.",
+      "description": "GLR opt-in. Optional; absence means deterministic-only (incremental-spec.md \u00a77). The deterministic driver MUST ignore this object.",
       "type": "object",
-      "required": ["enabled", "conflictStates"],
+      "required": [
+        "enabled",
+        "conflictStates"
+      ],
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
+        "enabled": {
+          "type": "boolean"
+        },
         "conflictStates": {
           "description": "States where multi-action forking may occur.",
           "type": "array",
-          "items": { "type": "integer", "minimum": 0 }
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       }
     },
     "actionRow": {
       "type": "object",
-      "required": ["state", "entries"],
+      "required": [
+        "state",
+        "entries"
+      ],
       "additionalProperties": false,
       "properties": {
-        "state": { "type": "integer", "minimum": 0 },
+        "state": {
+          "type": "integer",
+          "minimum": 0
+        },
         "entries": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["on", "action"],
+            "required": [
+              "on",
+              "action"
+            ],
             "additionalProperties": false,
             "properties": {
-              "on": { "$ref": "#/$defs/on" },
-              "action": { "$ref": "#/$defs/action" }
+              "on": {
+                "$ref": "#/$defs/on"
+              },
+              "action": {
+                "$ref": "#/$defs/action"
+              }
             }
           }
         }
@@ -212,18 +455,32 @@
       "oneOf": [
         {
           "type": "object",
-          "required": ["ref", "id"],
+          "required": [
+            "ref",
+            "id"
+          ],
           "additionalProperties": false,
           "properties": {
-            "ref": { "const": "t" },
-            "id": { "type": "integer", "minimum": 0 }
+            "ref": {
+              "const": "t"
+            },
+            "id": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         },
         {
           "type": "object",
-          "required": ["ref"],
+          "required": [
+            "ref"
+          ],
           "additionalProperties": false,
-          "properties": { "ref": { "const": "eof" } }
+          "properties": {
+            "ref": {
+              "const": "eof"
+            }
+          }
         }
       ]
     },
@@ -231,39 +488,74 @@
       "oneOf": [
         {
           "type": "object",
-          "required": ["shift"],
+          "required": [
+            "shift"
+          ],
           "additionalProperties": false,
-          "properties": { "shift": { "type": "integer", "minimum": 0 } }
+          "properties": {
+            "shift": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
         },
         {
           "type": "object",
-          "required": ["reduce"],
+          "required": [
+            "reduce"
+          ],
           "additionalProperties": false,
-          "properties": { "reduce": { "type": "integer", "minimum": 0 } }
+          "properties": {
+            "reduce": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
         },
         {
           "type": "object",
-          "required": ["accept"],
+          "required": [
+            "accept"
+          ],
           "additionalProperties": false,
-          "properties": { "accept": { "const": true } }
+          "properties": {
+            "accept": {
+              "const": true
+            }
+          }
         }
       ]
     },
     "gotoRow": {
       "type": "object",
-      "required": ["state", "entries"],
+      "required": [
+        "state",
+        "entries"
+      ],
       "additionalProperties": false,
       "properties": {
-        "state": { "type": "integer", "minimum": 0 },
+        "state": {
+          "type": "integer",
+          "minimum": 0
+        },
         "entries": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["nonterminal", "to"],
+            "required": [
+              "nonterminal",
+              "to"
+            ],
             "additionalProperties": false,
             "properties": {
-              "nonterminal": { "type": "integer", "minimum": 0 },
-              "to": { "type": "integer", "minimum": 0 }
+              "nonterminal": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "to": {
+                "type": "integer",
+                "minimum": 0
+              }
             }
           }
         }
@@ -272,16 +564,34 @@
     "conflict": {
       "description": "A construction conflict. onSymbol is the lookahead as a terminal ref (consistent with table action keys); rules names the competing production ids. Empty on a successful build; populated by the GLR/precedence path.",
       "type": "object",
-      "required": ["kind", "state", "onSymbol", "rules"],
+      "required": [
+        "kind",
+        "state",
+        "onSymbol",
+        "rules"
+      ],
       "additionalProperties": false,
       "properties": {
-        "kind": { "enum": ["shift-reduce", "reduce-reduce"] },
-        "state": { "type": "integer", "minimum": 0 },
-        "onSymbol": { "$ref": "#/$defs/on" },
+        "kind": {
+          "enum": [
+            "shift-reduce",
+            "reduce-reduce"
+          ]
+        },
+        "state": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "onSymbol": {
+          "$ref": "#/$defs/on"
+        },
         "rules": {
           "description": "Competing production ids (the reduce(s) in the clash).",
           "type": "array",
-          "items": { "type": "integer", "minimum": 0 }
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       }
     },
@@ -293,16 +603,156 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["itemSet", "message"],
+            "required": [
+              "itemSet",
+              "message"
+            ],
             "additionalProperties": false,
             "properties": {
-              "itemSet": { "type": "string" },
-              "state": { "type": "integer", "minimum": 0 },
-              "message": { "type": "string" }
+              "itemSet": {
+                "type": "string"
+              },
+              "state": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "message": {
+                "type": "string"
+              }
             }
           }
         }
       }
+    },
+    "atn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "decisions",
+        "states"
+      ],
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "decisions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/atnState"
+          }
+        }
+      }
+    },
+    "atnState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "rule",
+        "kind",
+        "transitions"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rule": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "ruleStart",
+            "ruleStop",
+            "basic",
+            "blockStart",
+            "blockEnd"
+          ]
+        },
+        "decision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/atnTransition"
+          }
+        }
+      }
+    },
+    "atnTransition": {
+      "type": "object",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "target"
+          ],
+          "properties": {
+            "kind": {
+              "const": "epsilon"
+            },
+            "target": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "label",
+            "target"
+          ],
+          "properties": {
+            "kind": {
+              "const": "atom"
+            },
+            "label": {
+              "type": "string"
+            },
+            "target": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name",
+            "target",
+            "follow"
+          ],
+          "properties": {
+            "kind": {
+              "const": "rule"
+            },
+            "name": {
+              "type": "string"
+            },
+            "target": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "follow": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      ]
     }
   }
 }

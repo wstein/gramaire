@@ -37,11 +37,16 @@ module Gramaire.IR
   , IRLexer
   , IRTokenClass
   , IRPattern(..)
+  , IRAtn
+  , IRAtnState
+  , IRAtnTrans(..)
   , irVersion
   , buildIR
   , buildIRWithTokens
   , buildIRP
   , attachLexer
+  , withStrategy
+  , irAtnOf
   , toJson
   , serialize
   ) where
@@ -57,7 +62,12 @@ import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Tuple (Tuple(..))
+import Gramaire.Atn (StateKind(..), Transition(..)) as Atn
+import Gramaire.Atn (Atn)
+import Gramaire.Atn.Build (buildAtn)
+import Gramaire.Desugar (desugar)
 import Gramaire.Json (Json(..), stringify)
+import Gramaire.LeftRec (eliminate)
 import Gramaire.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 import Gramaire.Tokens (TokenDef, TokenPattern(..))
 import Gramaire.Table (Action(..), Assoc(..), Conflict(..), GSym(..), Method(..), ParseTable, Prec, Precedence, buildTablesForP, emptyPrec)
@@ -70,11 +80,41 @@ irVersion = 0
 -- | The whole artifact.
 type IR =
   { irVersion :: Int
+  , strategy :: String -- "lr" (default) | "ll-star" — the parse strategy (D-strategy)
   , grammar :: IRGrammar
   , tables :: IRTables
   , conflicts :: Array IRConflict
   , lexer :: Maybe IRLexer
+  , atn :: Maybe IRAtn -- the serialized ATN, present under `ll-star`
   }
+
+-- | The serialized ATN (the ALL(\*) port, Phase 5): a strategy-agnostic mirror of
+-- | `Gramaire.Atn`, so a backend can ship the network instead of LR tables. Only
+-- | populated when the strategy is `ll-star`.
+type IRAtn =
+  { start :: Int
+  , decisions :: Int
+  , states :: Array IRAtnState
+  }
+
+-- | One ATN state: its dense id, owning rule, kind, the decision number (for a
+-- | block start), and its out-transitions.
+type IRAtnState =
+  { id :: Int
+  , rule :: String
+  , kind :: String -- "ruleStart" | "ruleStop" | "basic" | "blockStart" | "blockEnd"
+  , decision :: Maybe Int
+  , transitions :: Array IRAtnTrans
+  }
+
+-- | An ATN transition: an ε-move, a terminal match, or a rule call (with the
+-- | return state).
+data IRAtnTrans
+  = IRAtnEps Int
+  | IRAtnAtom String Int
+  | IRAtnRule String Int Int
+
+derive instance eqIRAtnTrans :: Eq IRAtnTrans
 
 -- | A grammar's lexis (lexer-spec §7): the scan mode, the class terminal ids in
 -- | declaration order (which resolves M2 priority ties), and a per-class
@@ -250,6 +290,7 @@ buildIRP prec method name g@(Grammar rules) =
     Right table ->
       Right
         { irVersion
+        , strategy: "lr"
         , grammar:
             { name
             , start: startSymbol
@@ -262,6 +303,7 @@ buildIRP prec method name g@(Grammar rules) =
         , tables: assembleTables (algorithmName method) termId ntId table
         , conflicts: []
         , lexer: Nothing
+        , atn: Nothing
         }
   where
   ntNames :: Array String
@@ -449,15 +491,49 @@ assembleTables algorithm termId ntId table =
 toJson :: IR -> Json
 toJson ir =
   JObject $
-    [ Tuple "irVersion" (JInt ir.irVersion)
-    , Tuple "grammar" (grammarJson ir.grammar)
-    , Tuple "tables" (tablesJson ir.tables)
-    , Tuple "conflicts" (JArray (map conflictJson ir.conflicts))
-    ]
-      <> case ir.lexer of
-        Nothing -> []
-        Just lx -> [ Tuple "lexer" (lexerJson lx) ]
+    [ Tuple "irVersion" (JInt ir.irVersion) ]
+      <> (if ir.strategy == "lr" then [] else [ Tuple "strategy" (JString ir.strategy) ])
+      <>
+        [ Tuple "grammar" (grammarJson ir.grammar)
+        , Tuple "tables" (tablesJson ir.tables)
+        , Tuple "conflicts" (JArray (map conflictJson ir.conflicts))
+        ]
+      <>
+        ( case ir.lexer of
+            Nothing -> []
+            Just lx -> [ Tuple "lexer" (lexerJson lx) ]
+        )
+      <>
+        ( case ir.atn of
+            Nothing -> []
+            Just a -> [ Tuple "atn" (atnJson a) ]
+        )
   where
+  atnJson a =
+    JObject
+      [ Tuple "start" (JInt a.start)
+      , Tuple "decisions" (JInt a.decisions)
+      , Tuple "states" (JArray (map atnStateJson a.states))
+      ]
+
+  atnStateJson s =
+    JObject $
+      [ Tuple "id" (JInt s.id)
+      , Tuple "rule" (JString s.rule)
+      , Tuple "kind" (JString s.kind)
+      ]
+        <>
+          ( case s.decision of
+              Nothing -> []
+              Just d -> [ Tuple "decision" (JInt d) ]
+          )
+        <> [ Tuple "transitions" (JArray (map atnTransJson s.transitions)) ]
+
+  atnTransJson = case _ of
+    IRAtnEps t -> JObject [ Tuple "kind" (JString "epsilon"), Tuple "target" (JInt t) ]
+    IRAtnAtom label t -> JObject [ Tuple "kind" (JString "atom"), Tuple "label" (JString label), Tuple "target" (JInt t) ]
+    IRAtnRule nm t f -> JObject [ Tuple "kind" (JString "rule"), Tuple "name" (JString nm), Tuple "target" (JInt t), Tuple "follow" (JInt f) ]
+
   lexerJson lx =
     JObject
       [ Tuple "mode" (JString lx.mode)
@@ -600,6 +676,48 @@ buildIRWithTokens defs method name g = case buildIR method name g of
   Right ir
     | Array.null defs -> Right ir
     | otherwise -> Right (attachLexer defs ir)
+
+-- | Set the IR's parse strategy (D-strategy). Under `ll-star` the grammar's ATN
+-- | — built from its desugared, left-recursion-eliminated form, exactly as
+-- | `Gramaire.Ll` does — is serialized into the IR so a backend can ship it
+-- | instead of the LR tables. Any other strategy just records the name; `lr`
+-- | (the default) leaves the IR byte-unchanged.
+withStrategy :: String -> Grammar -> IR -> IR
+withStrategy strat g ir = case strat of
+  "lr" -> ir
+  "ll-star" -> case desugar g of
+    Right dg -> ir { strategy = "ll-star", atn = Just (irAtnOf (buildAtn (eliminate dg))) }
+    Left _ -> ir { strategy = "ll-star" }
+  other -> ir { strategy = other }
+
+-- | Project a `Gramaire.Atn` onto its serializable IR mirror.
+irAtnOf :: Atn -> IRAtn
+irAtnOf atn =
+  { start: atn.start
+  , decisions: atn.decisions
+  , states: map stateOf atn.states
+  }
+  where
+  stateOf s =
+    { id: s.id
+    , rule: s.rule
+    , kind: kindOf s.kind
+    , decision: decisionOf s.kind
+    , transitions: map transOf s.transitions
+    }
+  kindOf = case _ of
+    Atn.RuleStart -> "ruleStart"
+    Atn.RuleStop -> "ruleStop"
+    Atn.Basic -> "basic"
+    Atn.BlockStart _ -> "blockStart"
+    Atn.BlockEnd -> "blockEnd"
+  decisionOf = case _ of
+    Atn.BlockStart d -> Just d
+    _ -> Nothing
+  transOf = case _ of
+    Atn.Epsilon t -> IRAtnEps t
+    Atn.Atom label t -> IRAtnAtom label t
+    Atn.RuleCall nm t f -> IRAtnRule nm t f
 
 attachLexer :: Array TokenDef -> IR -> IR
 attachLexer defs ir =
