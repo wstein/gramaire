@@ -125,6 +125,14 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
         <h2>Diagnostics</h2>
         <div id="diagnostics-list" style="display: grid; gap: 0.5rem;"></div>
       </section>
+      <footer
+        style="margin-top: 1.5rem; padding: 0.75rem 1rem; border: 1px solid #cdeee0; background: #f0fbf6; border-radius: 0.75rem; font-size: 0.85rem; color: #166534;"
+      >
+        🔒 <strong>Private by construction.</strong> Everything on this page — lexing,
+        parsing, the tree, the trace — runs in your browser via the bundled engine.
+        Your grammar and input are never uploaded; there is no backend to send them
+        to, unlike web labs that execute your grammar on a shared server.
+      </footer>
     </main>
 
     <script type="module">
