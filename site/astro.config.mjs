@@ -4,6 +4,10 @@ import starlight from "@astrojs/starlight";
 export default defineConfig({
   site: "https://wstein.github.io/grammark/",
   base: process.env.CI ? "/grammark/" : "/",
+  // The Lab imports the bridge's dependency-free railroad renderer
+  // (`../../bootstrap/railroad.ts`); allow the dev server to serve it from the
+  // repo root (the production build bundles it regardless).
+  vite: { server: { fs: { allow: [".."] } } },
   integrations: [
     starlight({
       title: "Grammark",
