@@ -17,11 +17,12 @@ import Gramark.Backend.Antlr as Antlr
 import Gramark.Backend.Dot as Dot
 import Gramark.Backend.Ebnf as Ebnf
 import Gramark.Backend.Ir as Ir
+import Gramark.Backend.Js as Js
 import Gramark.Backend.Ts as Ts
 
 -- | Every first-party backend, in display order.
 backends :: Array Backend
-backends = [ Ir.backend, Ebnf.backend, Dot.backend, Ts.backend, Antlr.backend ]
+backends = [ Ir.backend, Ebnf.backend, Dot.backend, Ts.backend, Antlr.backend, Js.backend ]
 
 -- | Find a backend by its `--backend` name.
 findBackend :: String -> Maybe Backend

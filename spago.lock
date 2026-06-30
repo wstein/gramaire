@@ -24,7 +24,8 @@
         },
         "test": {
           "dependencies": [
-            "assert"
+            "assert",
+            "numbers"
           ]
         }
       }

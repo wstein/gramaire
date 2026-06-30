@@ -34,6 +34,7 @@ package:
     main: Test.Main
     dependencies:
       - assert # Test.Assert
+      - numbers
 workspace:
   packageSet:
     registry: 66.0.0
