@@ -59,6 +59,30 @@ data Sym     = Ref String | Lit String     -- nonterminal ref | terminal
 
 The helpers `cons` and `snoc` prepend and append to an `Array`.
 
+## Tokens
+
+The `lr` notation's own lexis (lexer-spec §10), capturing each payload-bearing
+class's text: `TERM_LIT` keeps its content, `ACTION` its body, `LABEL` / `ATTR`
+the bare name, `NL` a single `\n`. `ATTR` precedes `IDENT` / `LABEL` so a
+`#[name]` attribute out-matches a `# Name` label; `WS` is skipped; `` `:` `` and
+`` `|` `` stay implicit literals from the productions.
+
+```lr tokens
+WS       : /[ \t]+/                       %skip
+NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      %external(layout)
+ATTR     : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/
+IDENT    : /[A-Za-z_][A-Za-z0-9_]*/
+TERM_LIT : /`([^`]+)`/
+ACTION   : /\{%((?:[^%]|%[^}])*)%\}/
+LABEL    : /#[ \t]*([A-Za-z_][A-Za-z0-9_]*)/
+PLUS     : "+"
+STAR     : "*"
+QUESTION : "?"
+LANGLE   : "<"
+RANGLE   : ">"
+COMMA    : ","
+```
+
 ## Grammar
 
 A grammar is a non-empty list of rules.
