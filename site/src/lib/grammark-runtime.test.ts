@@ -21,11 +21,26 @@ const jsonGrammar = readFileSync(
 test("the default grammar accepts its sample input", async () => {
   const result = await parseGrammarkDocument(getDefaultGrammar());
   assert.equal(result.success, true);
-  assert.match(result.raw ?? "", /Rules: prog/);
+  assert.match(result.raw ?? "", /Rules: Expr, Term, Factor/);
+});
+
+test("the default grammar returns a parse tree labelled with rule names", async () => {
+  const result = await parseGrammarkDocument(getDefaultGrammar(), "1 + 2 * 3");
+  assert.equal(result.success, true);
+  // The CST shows precedence in its shape: 2 * 3 is one Term under the +.
+  assert.match(result.tree, /Expr/);
+  assert.match(result.tree, /Factor/);
+  assert.match(result.tree, /NUMBER "2"/);
+});
+
+test("a rejected input yields no parse tree", async () => {
+  const result = await parseGrammarkDocument(getDefaultGrammar(), "1 +");
+  assert.equal(result.success, false);
+  assert.equal(result.tree, "");
 });
 
 test("the default grammar rejects an incomplete expression", async () => {
-  const result = await parseGrammarkDocument(getDefaultGrammar(), "1 +\n");
+  const result = await parseGrammarkDocument(getDefaultGrammar(), "1 +");
   assert.equal(result.success, false);
 });
 
@@ -63,6 +78,6 @@ test("json.gram.md rejects malformed JSON", async () => {
   assert.equal(typoKeyword.success, false);
 });
 
-test("getDefaultInput is the sample expression program", () => {
-  assert.equal(getDefaultInput(), "1 + 2 * 3\n(4 - 1) / 3\n");
+test("getDefaultInput is a single sample expression", () => {
+  assert.equal(getDefaultInput(), "(4 - 1) * 3 + 2");
 });

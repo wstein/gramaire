@@ -72,6 +72,21 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
       <section
         style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
       >
+        <h2>Parse tree</h2>
+        <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
+          The concrete syntax tree the engine built — every rule it reduced and
+          token it matched. Watch precedence in the shape: in <code
+            >1 + 2 * 3</code
+          >, the <code>2 * 3</code> sits in one <code>Term</code> below the
+          <code>+</code>.
+        </p>
+        <pre
+          id="tree-output"
+          style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 80px; overflow: auto; font-size: 0.85rem;">—</pre>
+      </section>
+      <section
+        style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
+      >
         <h2>Diagnostics</h2>
         <div id="diagnostics-list" style="display: grid; gap: 0.5rem;"></div>
       </section>
@@ -85,6 +100,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
       const resultOutput = document.getElementById("result-output");
       const diagnosticsList = document.getElementById("diagnostics-list");
       const statusPill = document.getElementById("status-pill");
+      const treeOutput = document.getElementById("tree-output");
 
       async function evaluate() {
         const grammarSource = grammarInput.value;
@@ -98,6 +114,10 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
 
         statusPill.textContent = result.success ? "Accepted" : "Rejected";
         statusPill.style.color = result.success ? "#15b879" : "#dc2626";
+        treeOutput.textContent =
+          result.tree && result.tree.length > 0
+            ? result.tree
+            : "— (no parse tree: the input was rejected)";
         resultOutput.textContent = [
           result.message,
           "",
