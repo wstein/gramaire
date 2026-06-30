@@ -39,6 +39,11 @@ test("a rejected input yields no parse tree", async () => {
   assert.equal(result.tree, "");
 });
 
+test("the grammar analysis reports the stratified default as conflict-free", async () => {
+  const result = await parseGrammarkDocument(getDefaultGrammar(), "1 + 2");
+  assert.match(result.conflicts, /conflict-free/);
+});
+
 test("the default grammar rejects an incomplete expression", async () => {
   const result = await parseGrammarkDocument(getDefaultGrammar(), "1 +");
   assert.equal(result.success, false);

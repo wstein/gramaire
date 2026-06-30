@@ -72,6 +72,23 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
       <section
         style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
       >
+        <h2>Grammar analysis</h2>
+        <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
+          Conflict report for the grammar itself (independent of the input):
+          whether it is conflict-free, an <em>LALR artifact</em>, <em
+            >resolved by declaration</em
+          > (your <code>%left</code>/<code>%right</code> lines clear it), or a
+          <em>genuine</em> conflict. The same as <code
+            >grammark explain-conflict</code
+          >.
+        </p>
+        <pre
+          id="conflicts-output"
+          style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 60px; overflow: auto; font-size: 0.85rem;">—</pre>
+      </section>
+      <section
+        style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
+      >
         <h2>Parse tree</h2>
         <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
           The concrete syntax tree the engine built — every rule it reduced and
@@ -101,6 +118,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
       const diagnosticsList = document.getElementById("diagnostics-list");
       const statusPill = document.getElementById("status-pill");
       const treeOutput = document.getElementById("tree-output");
+      const conflictsOutput = document.getElementById("conflicts-output");
 
       async function evaluate() {
         const grammarSource = grammarInput.value;
@@ -118,6 +136,10 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
           result.tree && result.tree.length > 0
             ? result.tree
             : "— (no parse tree: the input was rejected)";
+        conflictsOutput.textContent =
+          result.conflicts && result.conflicts.length > 0
+            ? result.conflicts
+            : "— (grammar did not parse)";
         resultOutput.textContent = [
           result.message,
           "",
