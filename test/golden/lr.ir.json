@@ -21,30 +21,26 @@
       },
       {
         "id": 4,
-        "name": "AltTail"
-      },
-      {
-        "id": 5,
         "name": "Alt"
       },
       {
-        "id": 6,
+        "id": 5,
         "name": "SymList"
       },
       {
-        "id": 7,
+        "id": 6,
         "name": "Sym"
       },
       {
-        "id": 8,
+        "id": 7,
         "name": "Args"
       },
       {
-        "id": 9,
+        "id": 8,
         "name": "Action"
       },
       {
-        "id": 10,
+        "id": 9,
         "name": "Label"
       }
     ],
@@ -78,7 +74,7 @@
       },
       {
         "actions": {
-          "purescript": "\\rs r -> snoc rs r"
+          "purescript": "\\rs _ r -> snoc rs r"
         },
         "id": 2,
         "lhs": 1,
@@ -88,6 +84,10 @@
             "ref": "nt"
           },
           {
+            "id": 7,
+            "ref": "t"
+          },
+          {
             "id": 2,
             "ref": "nt"
           }
@@ -95,7 +95,7 @@
       },
       {
         "actions": {
-          "purescript": "\\attr lhs _ alts -> Rule lhs [ attr ] alts"
+          "purescript": "\\attr lhs _ _ alts -> Rule lhs [ attr ] alts"
         },
         "id": 3,
         "lhs": 2,
@@ -113,6 +113,10 @@
             "ref": "t"
           },
           {
+            "id": 0,
+            "ref": "t"
+          },
+          {
             "id": 3,
             "ref": "nt"
           }
@@ -120,7 +124,7 @@
       },
       {
         "actions": {
-          "purescript": "\\lhs _ alts -> Rule lhs [] alts"
+          "purescript": "\\lhs _ _ alts -> Rule lhs [] alts"
         },
         "id": 4,
         "lhs": 2,
@@ -134,6 +138,10 @@
             "ref": "t"
           },
           {
+            "id": 0,
+            "ref": "t"
+          },
+          {
             "id": 3,
             "ref": "nt"
           }
@@ -141,19 +149,11 @@
       },
       {
         "actions": {
-          "purescript": "\\_ a as -> cons a as"
+          "purescript": "\\a -> [a]"
         },
         "id": 5,
         "lhs": 3,
         "rhs": [
-          {
-            "id": 0,
-            "ref": "t"
-          },
-          {
-            "id": 5,
-            "ref": "nt"
-          },
           {
             "id": 4,
             "ref": "nt"
@@ -162,35 +162,18 @@
       },
       {
         "actions": {
-          "purescript": "\\_ -> []"
+          "purescript": "\\bs _ a -> snoc bs a"
         },
         "id": 6,
-        "lhs": 4,
+        "lhs": 3,
         "rhs": [
           {
-            "id": 7,
-            "ref": "t"
-          }
-        ]
-      },
-      {
-        "actions": {
-          "purescript": "\\_ _ a as -> cons a as"
-        },
-        "id": 7,
-        "lhs": 4,
-        "rhs": [
-          {
-            "id": 7,
-            "ref": "t"
+            "id": 3,
+            "ref": "nt"
           },
           {
             "id": 13,
             "ref": "t"
-          },
-          {
-            "id": 5,
-            "ref": "nt"
           },
           {
             "id": 4,
@@ -202,19 +185,19 @@
         "actions": {
           "purescript": "\\syms lbl act -> Alt syms lbl act"
         },
-        "id": 8,
-        "lhs": 5,
+        "id": 7,
+        "lhs": 4,
         "rhs": [
           {
-            "id": 6,
-            "ref": "nt"
-          },
-          {
-            "id": 10,
+            "id": 5,
             "ref": "nt"
           },
           {
             "id": 9,
+            "ref": "nt"
+          },
+          {
+            "id": 8,
             "ref": "nt"
           }
         ]
@@ -223,28 +206,11 @@
         "actions": {
           "purescript": "\\syms lbl -> Alt syms lbl Nothing"
         },
-        "id": 9,
-        "lhs": 5,
+        "id": 8,
+        "lhs": 4,
         "rhs": [
           {
-            "id": 6,
-            "ref": "nt"
-          },
-          {
-            "id": 10,
-            "ref": "nt"
-          }
-        ]
-      },
-      {
-        "actions": {
-          "purescript": "\\syms act -> Alt syms Nothing act"
-        },
-        "id": 10,
-        "lhs": 5,
-        "rhs": [
-          {
-            "id": 6,
+            "id": 5,
             "ref": "nt"
           },
           {
@@ -255,7 +221,37 @@
       },
       {
         "actions": {
+          "purescript": "\\syms act -> Alt syms Nothing act"
+        },
+        "id": 9,
+        "lhs": 4,
+        "rhs": [
+          {
+            "id": 5,
+            "ref": "nt"
+          },
+          {
+            "id": 8,
+            "ref": "nt"
+          }
+        ]
+      },
+      {
+        "actions": {
           "purescript": "\\syms -> Alt syms Nothing Nothing"
+        },
+        "id": 10,
+        "lhs": 4,
+        "rhs": [
+          {
+            "id": 5,
+            "ref": "nt"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\s -> [s]"
         },
         "id": 11,
         "lhs": 5,
@@ -268,30 +264,17 @@
       },
       {
         "actions": {
-          "purescript": "\\s -> [s]"
-        },
-        "id": 12,
-        "lhs": 6,
-        "rhs": [
-          {
-            "id": 7,
-            "ref": "nt"
-          }
-        ]
-      },
-      {
-        "actions": {
           "purescript": "\\ss s -> snoc ss s"
         },
-        "id": 13,
-        "lhs": 6,
+        "id": 12,
+        "lhs": 5,
         "rhs": [
           {
-            "id": 6,
+            "id": 5,
             "ref": "nt"
           },
           {
-            "id": 7,
+            "id": 6,
             "ref": "nt"
           }
         ]
@@ -300,8 +283,8 @@
         "actions": {
           "purescript": "\\i -> Ref i"
         },
-        "id": 14,
-        "lhs": 7,
+        "id": 13,
+        "lhs": 6,
         "rhs": [
           {
             "id": 4,
@@ -313,8 +296,8 @@
         "actions": {
           "purescript": "\\t -> Lit t"
         },
-        "id": 15,
-        "lhs": 7,
+        "id": 14,
+        "lhs": 6,
         "rhs": [
           {
             "id": 12,
@@ -326,8 +309,8 @@
         "actions": {
           "purescript": "\\i _ -> Rep (Ref i)"
         },
-        "id": 16,
-        "lhs": 7,
+        "id": 15,
+        "lhs": 6,
         "rhs": [
           {
             "id": 4,
@@ -343,8 +326,8 @@
         "actions": {
           "purescript": "\\t _ -> Rep (Lit t)"
         },
-        "id": 17,
-        "lhs": 7,
+        "id": 16,
+        "lhs": 6,
         "rhs": [
           {
             "id": 12,
@@ -360,8 +343,8 @@
         "actions": {
           "purescript": "\\i _ -> Star (Ref i)"
         },
-        "id": 18,
-        "lhs": 7,
+        "id": 17,
+        "lhs": 6,
         "rhs": [
           {
             "id": 4,
@@ -377,8 +360,8 @@
         "actions": {
           "purescript": "\\t _ -> Star (Lit t)"
         },
-        "id": 19,
-        "lhs": 7,
+        "id": 18,
+        "lhs": 6,
         "rhs": [
           {
             "id": 12,
@@ -394,8 +377,8 @@
         "actions": {
           "purescript": "\\i _ -> Opt (Ref i)"
         },
-        "id": 20,
-        "lhs": 7,
+        "id": 19,
+        "lhs": 6,
         "rhs": [
           {
             "id": 4,
@@ -411,8 +394,8 @@
         "actions": {
           "purescript": "\\t _ -> Opt (Lit t)"
         },
-        "id": 21,
-        "lhs": 7,
+        "id": 20,
+        "lhs": 6,
         "rhs": [
           {
             "id": 12,
@@ -428,8 +411,8 @@
         "actions": {
           "purescript": "\\name _ args _ -> Macro name args"
         },
-        "id": 22,
-        "lhs": 7,
+        "id": 21,
+        "lhs": 6,
         "rhs": [
           {
             "id": 4,
@@ -440,7 +423,7 @@
             "ref": "t"
           },
           {
-            "id": 8,
+            "id": 7,
             "ref": "nt"
           },
           {
@@ -453,8 +436,8 @@
         "actions": {
           "purescript": "\\name _ s -> Field name s"
         },
-        "id": 23,
-        "lhs": 7,
+        "id": 22,
+        "lhs": 6,
         "rhs": [
           {
             "id": 4,
@@ -465,7 +448,7 @@
             "ref": "t"
           },
           {
-            "id": 7,
+            "id": 6,
             "ref": "nt"
           }
         ]
@@ -474,11 +457,11 @@
         "actions": {
           "purescript": "\\s -> [s]"
         },
-        "id": 24,
-        "lhs": 8,
+        "id": 23,
+        "lhs": 7,
         "rhs": [
           {
-            "id": 7,
+            "id": 6,
             "ref": "nt"
           }
         ]
@@ -487,11 +470,11 @@
         "actions": {
           "purescript": "\\as _ s -> snoc as s"
         },
-        "id": 25,
-        "lhs": 8,
+        "id": 24,
+        "lhs": 7,
         "rhs": [
           {
-            "id": 8,
+            "id": 7,
             "ref": "nt"
           },
           {
@@ -499,7 +482,7 @@
             "ref": "t"
           },
           {
-            "id": 7,
+            "id": 6,
             "ref": "nt"
           }
         ]
@@ -508,8 +491,8 @@
         "actions": {
           "purescript": "\\a -> Just a"
         },
-        "id": 26,
-        "lhs": 9,
+        "id": 25,
+        "lhs": 8,
         "rhs": [
           {
             "id": 1,
@@ -521,8 +504,8 @@
         "actions": {
           "purescript": "\\l -> Just l"
         },
-        "id": 27,
-        "lhs": 10,
+        "id": 26,
+        "lhs": 9,
         "rhs": [
           {
             "id": 5,
@@ -651,16 +634,7 @@
               "reduce": 1
             },
             "on": {
-              "id": 2,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 1
-            },
-            "on": {
-              "id": 4,
+              "id": 7,
               "ref": "t"
             }
           },
@@ -679,19 +653,10 @@
         "entries": [
           {
             "action": {
-              "shift": 4
+              "shift": 6
             },
             "on": {
-              "id": 2,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 5
-            },
-            "on": {
-              "id": 4,
+              "id": 7,
               "ref": "t"
             }
           },
@@ -738,7 +703,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 2
+              "shift": 4
             },
             "on": {
               "id": 2,
@@ -747,19 +712,11 @@
           },
           {
             "action": {
-              "reduce": 2
+              "shift": 5
             },
             "on": {
               "id": 4,
               "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 2
-            },
-            "on": {
-              "ref": "eof"
             }
           }
         ],
@@ -769,7 +726,7 @@
         "entries": [
           {
             "action": {
-              "shift": 9
+              "shift": 10
             },
             "on": {
               "id": 7,
@@ -797,11 +754,19 @@
         "entries": [
           {
             "action": {
-              "shift": 11
+              "reduce": 2
             },
             "on": {
-              "id": 0,
+              "id": 7,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 2
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -811,28 +776,11 @@
         "entries": [
           {
             "action": {
-              "reduce": 4
+              "shift": 12
             },
             "on": {
-              "id": 2,
+              "id": 0,
               "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 4
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 4
-            },
-            "on": {
-              "ref": "eof"
             }
           }
         ],
@@ -842,7 +790,7 @@
         "entries": [
           {
             "action": {
-              "shift": 16
+              "shift": 17
             },
             "on": {
               "id": 4,
@@ -851,7 +799,7 @@
           },
           {
             "action": {
-              "shift": 17
+              "shift": 18
             },
             "on": {
               "id": 12,
@@ -865,16 +813,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 3
-            },
-            "on": {
-              "id": 2,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 3
+              "shift": 17
             },
             "on": {
               "id": 4,
@@ -883,10 +822,11 @@
           },
           {
             "action": {
-              "reduce": 3
+              "shift": 18
             },
             "on": {
-              "ref": "eof"
+              "id": 12,
+              "ref": "t"
             }
           }
         ],
@@ -896,11 +836,28 @@
         "entries": [
           {
             "action": {
-              "shift": 19
+              "reduce": 5
             },
             "on": {
               "id": 7,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 5
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 5
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -910,34 +867,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 12
-            },
-            "on": {
-              "id": 1,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 12
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 12
-            },
-            "on": {
-              "id": 5,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 12
+              "reduce": 4
             },
             "on": {
               "id": 7,
@@ -946,11 +876,19 @@
           },
           {
             "action": {
-              "reduce": 12
+              "shift": 20
             },
             "on": {
-              "id": 12,
+              "id": 13,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 4
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -960,7 +898,7 @@
         "entries": [
           {
             "action": {
-              "shift": 23
+              "reduce": 11
             },
             "on": {
               "id": 1,
@@ -969,7 +907,7 @@
           },
           {
             "action": {
-              "shift": 16
+              "reduce": 11
             },
             "on": {
               "id": 4,
@@ -978,7 +916,7 @@
           },
           {
             "action": {
-              "shift": 24
+              "reduce": 11
             },
             "on": {
               "id": 5,
@@ -996,11 +934,28 @@
           },
           {
             "action": {
-              "shift": 17
+              "reduce": 11
             },
             "on": {
               "id": 12,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 11
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 11
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1010,16 +965,7 @@
         "entries": [
           {
             "action": {
-              "shift": 25
-            },
-            "on": {
-              "id": 0,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 14
+              "shift": 24
             },
             "on": {
               "id": 1,
@@ -1028,7 +974,7 @@
           },
           {
             "action": {
-              "reduce": 14
+              "shift": 17
             },
             "on": {
               "id": 4,
@@ -1037,7 +983,7 @@
           },
           {
             "action": {
-              "reduce": 14
+              "shift": 25
             },
             "on": {
               "id": 5,
@@ -1046,16 +992,7 @@
           },
           {
             "action": {
-              "shift": 26
-            },
-            "on": {
-              "id": 6,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 14
+              "reduce": 10
             },
             "on": {
               "id": 7,
@@ -1064,38 +1001,28 @@
           },
           {
             "action": {
-              "shift": 27
-            },
-            "on": {
-              "id": 8,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 28
-            },
-            "on": {
-              "id": 9,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 29
-            },
-            "on": {
-              "id": 11,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 14
+              "shift": 18
             },
             "on": {
               "id": 12,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 10
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 10
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1105,7 +1032,16 @@
         "entries": [
           {
             "action": {
-              "reduce": 15
+              "shift": 26
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 13
             },
             "on": {
               "id": 1,
@@ -1114,7 +1050,7 @@
           },
           {
             "action": {
-              "reduce": 15
+              "reduce": 13
             },
             "on": {
               "id": 4,
@@ -1123,7 +1059,7 @@
           },
           {
             "action": {
-              "reduce": 15
+              "reduce": 13
             },
             "on": {
               "id": 5,
@@ -1132,7 +1068,16 @@
           },
           {
             "action": {
-              "reduce": 15
+              "shift": 27
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 13
             },
             "on": {
               "id": 7,
@@ -1141,7 +1086,7 @@
           },
           {
             "action": {
-              "shift": 30
+              "shift": 28
             },
             "on": {
               "id": 8,
@@ -1150,7 +1095,7 @@
           },
           {
             "action": {
-              "shift": 31
+              "shift": 29
             },
             "on": {
               "id": 9,
@@ -1159,7 +1104,7 @@
           },
           {
             "action": {
-              "shift": 32
+              "shift": 30
             },
             "on": {
               "id": 11,
@@ -1168,11 +1113,28 @@
           },
           {
             "action": {
-              "reduce": 15
+              "reduce": 13
             },
             "on": {
               "id": 12,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 13
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 13
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1182,16 +1144,16 @@
         "entries": [
           {
             "action": {
-              "reduce": 5
+              "reduce": 14
             },
             "on": {
-              "id": 2,
+              "id": 1,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 5
+              "reduce": 14
             },
             "on": {
               "id": 4,
@@ -1200,7 +1162,70 @@
           },
           {
             "action": {
-              "reduce": 5
+              "reduce": 14
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 31
+            },
+            "on": {
+              "id": 8,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 32
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 33
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
             },
             "on": {
               "ref": "eof"
@@ -1213,25 +1238,16 @@
         "entries": [
           {
             "action": {
-              "reduce": 6
+              "reduce": 3
             },
             "on": {
-              "id": 2,
+              "id": 7,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 6
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 33
+              "shift": 20
             },
             "on": {
               "id": 13,
@@ -1240,7 +1256,7 @@
           },
           {
             "action": {
-              "reduce": 6
+              "reduce": 3
             },
             "on": {
               "ref": "eof"
@@ -1253,10 +1269,19 @@
         "entries": [
           {
             "action": {
-              "reduce": 10
+              "shift": 17
             },
             "on": {
-              "id": 7,
+              "id": 4,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 18
+            },
+            "on": {
+              "id": 12,
               "ref": "t"
             }
           }
@@ -1267,10 +1292,10 @@
         "entries": [
           {
             "action": {
-              "shift": 23
+              "reduce": 9
             },
             "on": {
-              "id": 1,
+              "id": 7,
               "ref": "t"
             }
           },
@@ -1279,8 +1304,16 @@
               "reduce": 9
             },
             "on": {
-              "id": 7,
+              "id": 13,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 9
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1290,7 +1323,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 13
+              "shift": 24
             },
             "on": {
               "id": 1,
@@ -1299,25 +1332,7 @@
           },
           {
             "action": {
-              "reduce": 13
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 13
-            },
-            "on": {
-              "id": 5,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 13
+              "reduce": 8
             },
             "on": {
               "id": 7,
@@ -1326,11 +1341,19 @@
           },
           {
             "action": {
-              "reduce": 13
+              "reduce": 8
             },
             "on": {
-              "id": 12,
+              "id": 13,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 8
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1340,11 +1363,64 @@
         "entries": [
           {
             "action": {
-              "reduce": 26
+              "reduce": 12
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
             },
             "on": {
               "id": 7,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1354,20 +1430,28 @@
         "entries": [
           {
             "action": {
-              "reduce": 27
+              "reduce": 25
             },
             "on": {
-              "id": 1,
+              "id": 7,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 27
+              "reduce": 25
             },
             "on": {
-              "id": 7,
+              "id": 13,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1377,20 +1461,37 @@
         "entries": [
           {
             "action": {
-              "shift": 16
+              "reduce": 26
             },
             "on": {
-              "id": 4,
+              "id": 1,
               "ref": "t"
             }
           },
           {
             "action": {
-              "shift": 17
+              "reduce": 26
             },
             "on": {
-              "id": 12,
+              "id": 7,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1400,7 +1501,7 @@
         "entries": [
           {
             "action": {
-              "shift": 38
+              "shift": 17
             },
             "on": {
               "id": 4,
@@ -1409,7 +1510,7 @@
           },
           {
             "action": {
-              "shift": 39
+              "shift": 18
             },
             "on": {
               "id": 12,
@@ -1423,16 +1524,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 16
-            },
-            "on": {
-              "id": 1,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 16
+              "shift": 39
             },
             "on": {
               "id": 4,
@@ -1441,25 +1533,7 @@
           },
           {
             "action": {
-              "reduce": 16
-            },
-            "on": {
-              "id": 5,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 16
-            },
-            "on": {
-              "id": 7,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 16
+              "shift": 40
             },
             "on": {
               "id": 12,
@@ -1473,7 +1547,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 20
+              "reduce": 15
             },
             "on": {
               "id": 1,
@@ -1482,7 +1556,7 @@
           },
           {
             "action": {
-              "reduce": 20
+              "reduce": 15
             },
             "on": {
               "id": 4,
@@ -1491,7 +1565,7 @@
           },
           {
             "action": {
-              "reduce": 20
+              "reduce": 15
             },
             "on": {
               "id": 5,
@@ -1500,7 +1574,7 @@
           },
           {
             "action": {
-              "reduce": 20
+              "reduce": 15
             },
             "on": {
               "id": 7,
@@ -1509,11 +1583,28 @@
           },
           {
             "action": {
-              "reduce": 20
+              "reduce": 15
             },
             "on": {
               "id": 12,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1523,7 +1614,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 18
+              "reduce": 19
             },
             "on": {
               "id": 1,
@@ -1532,7 +1623,7 @@
           },
           {
             "action": {
-              "reduce": 18
+              "reduce": 19
             },
             "on": {
               "id": 4,
@@ -1541,7 +1632,7 @@
           },
           {
             "action": {
-              "reduce": 18
+              "reduce": 19
             },
             "on": {
               "id": 5,
@@ -1550,7 +1641,7 @@
           },
           {
             "action": {
-              "reduce": 18
+              "reduce": 19
             },
             "on": {
               "id": 7,
@@ -1559,11 +1650,28 @@
           },
           {
             "action": {
-              "reduce": 18
+              "reduce": 19
             },
             "on": {
               "id": 12,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1615,6 +1723,23 @@
               "id": 12,
               "ref": "t"
             }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "ref": "eof"
+            }
           }
         ],
         "state": 30
@@ -1623,7 +1748,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 21
+              "reduce": 16
             },
             "on": {
               "id": 1,
@@ -1632,7 +1757,7 @@
           },
           {
             "action": {
-              "reduce": 21
+              "reduce": 16
             },
             "on": {
               "id": 4,
@@ -1641,7 +1766,7 @@
           },
           {
             "action": {
-              "reduce": 21
+              "reduce": 16
             },
             "on": {
               "id": 5,
@@ -1650,7 +1775,7 @@
           },
           {
             "action": {
-              "reduce": 21
+              "reduce": 16
             },
             "on": {
               "id": 7,
@@ -1659,11 +1784,28 @@
           },
           {
             "action": {
-              "reduce": 21
+              "reduce": 16
             },
             "on": {
               "id": 12,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1673,7 +1815,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 19
+              "reduce": 20
             },
             "on": {
               "id": 1,
@@ -1682,7 +1824,7 @@
           },
           {
             "action": {
-              "reduce": 19
+              "reduce": 20
             },
             "on": {
               "id": 4,
@@ -1691,7 +1833,7 @@
           },
           {
             "action": {
-              "reduce": 19
+              "reduce": 20
             },
             "on": {
               "id": 5,
@@ -1700,7 +1842,7 @@
           },
           {
             "action": {
-              "reduce": 19
+              "reduce": 20
             },
             "on": {
               "id": 7,
@@ -1709,11 +1851,28 @@
           },
           {
             "action": {
-              "reduce": 19
+              "reduce": 20
             },
             "on": {
               "id": 12,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1723,7 +1882,16 @@
         "entries": [
           {
             "action": {
-              "shift": 16
+              "reduce": 18
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
             },
             "on": {
               "id": 4,
@@ -1732,11 +1900,46 @@
           },
           {
             "action": {
-              "shift": 17
+              "reduce": 18
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
             },
             "on": {
               "id": 12,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1746,11 +1949,28 @@
         "entries": [
           {
             "action": {
-              "reduce": 8
+              "reduce": 6
             },
             "on": {
               "id": 7,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 6
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 6
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1760,34 +1980,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 23
-            },
-            "on": {
-              "id": 1,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 23
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 23
-            },
-            "on": {
-              "id": 5,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 23
+              "reduce": 7
             },
             "on": {
               "id": 7,
@@ -1796,15 +1989,90 @@
           },
           {
             "action": {
-              "reduce": 23
+              "reduce": 7
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 7
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 35
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 4,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
             },
             "on": {
               "id": 12,
               "ref": "t"
             }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "ref": "eof"
+            }
           }
         ],
-        "state": 35
+        "state": 36
       },
       {
         "entries": [
@@ -1827,13 +2095,13 @@
             }
           }
         ],
-        "state": 36
+        "state": 37
       },
       {
         "entries": [
           {
             "action": {
-              "reduce": 24
+              "reduce": 23
             },
             "on": {
               "id": 3,
@@ -1842,7 +2110,7 @@
           },
           {
             "action": {
-              "reduce": 24
+              "reduce": 23
             },
             "on": {
               "id": 10,
@@ -1850,7 +2118,7 @@
             }
           }
         ],
-        "state": 37
+        "state": 38
       },
       {
         "entries": [
@@ -1865,7 +2133,7 @@
           },
           {
             "action": {
-              "reduce": 14
+              "reduce": 13
             },
             "on": {
               "id": 3,
@@ -1901,7 +2169,7 @@
           },
           {
             "action": {
-              "reduce": 14
+              "reduce": 13
             },
             "on": {
               "id": 10,
@@ -1918,13 +2186,13 @@
             }
           }
         ],
-        "state": 38
+        "state": 39
       },
       {
         "entries": [
           {
             "action": {
-              "reduce": 15
+              "reduce": 14
             },
             "on": {
               "id": 3,
@@ -1951,7 +2219,7 @@
           },
           {
             "action": {
-              "reduce": 15
+              "reduce": 14
             },
             "on": {
               "id": 10,
@@ -1968,27 +2236,13 @@
             }
           }
         ],
-        "state": 39
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "shift": 19
-            },
-            "on": {
-              "id": 7,
-              "ref": "t"
-            }
-          }
-        ],
         "state": 40
       },
       {
         "entries": [
           {
             "action": {
-              "shift": 38
+              "shift": 39
             },
             "on": {
               "id": 4,
@@ -1997,7 +2251,7 @@
           },
           {
             "action": {
-              "shift": 39
+              "shift": 40
             },
             "on": {
               "id": 12,
@@ -2011,7 +2265,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 22
+              "reduce": 21
             },
             "on": {
               "id": 1,
@@ -2020,7 +2274,7 @@
           },
           {
             "action": {
-              "reduce": 22
+              "reduce": 21
             },
             "on": {
               "id": 4,
@@ -2029,7 +2283,7 @@
           },
           {
             "action": {
-              "reduce": 22
+              "reduce": 21
             },
             "on": {
               "id": 5,
@@ -2038,7 +2292,7 @@
           },
           {
             "action": {
-              "reduce": 22
+              "reduce": 21
             },
             "on": {
               "id": 7,
@@ -2047,11 +2301,28 @@
           },
           {
             "action": {
-              "reduce": 22
+              "reduce": 21
             },
             "on": {
               "id": 12,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 21
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 21
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -2061,7 +2332,7 @@
         "entries": [
           {
             "action": {
-              "shift": 38
+              "shift": 39
             },
             "on": {
               "id": 4,
@@ -2070,7 +2341,7 @@
           },
           {
             "action": {
-              "shift": 39
+              "shift": 40
             },
             "on": {
               "id": 12,
@@ -2084,7 +2355,7 @@
         "entries": [
           {
             "action": {
-              "shift": 38
+              "shift": 39
             },
             "on": {
               "id": 4,
@@ -2093,7 +2364,7 @@
           },
           {
             "action": {
-              "shift": 39
+              "shift": 40
             },
             "on": {
               "id": 12,
@@ -2107,7 +2378,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 16
+              "reduce": 15
             },
             "on": {
               "id": 3,
@@ -2116,7 +2387,7 @@
           },
           {
             "action": {
-              "reduce": 16
+              "reduce": 15
             },
             "on": {
               "id": 10,
@@ -2130,7 +2401,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 20
+              "reduce": 19
             },
             "on": {
               "id": 3,
@@ -2139,7 +2410,7 @@
           },
           {
             "action": {
-              "reduce": 20
+              "reduce": 19
             },
             "on": {
               "id": 10,
@@ -2153,7 +2424,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 18
+              "reduce": 17
             },
             "on": {
               "id": 3,
@@ -2162,7 +2433,7 @@
           },
           {
             "action": {
-              "reduce": 18
+              "reduce": 17
             },
             "on": {
               "id": 10,
@@ -2176,7 +2447,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 17
+              "reduce": 16
             },
             "on": {
               "id": 3,
@@ -2185,7 +2456,7 @@
           },
           {
             "action": {
-              "reduce": 17
+              "reduce": 16
             },
             "on": {
               "id": 10,
@@ -2199,7 +2470,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 21
+              "reduce": 20
             },
             "on": {
               "id": 3,
@@ -2208,7 +2479,7 @@
           },
           {
             "action": {
-              "reduce": 21
+              "reduce": 20
             },
             "on": {
               "id": 10,
@@ -2222,7 +2493,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 19
+              "reduce": 18
             },
             "on": {
               "id": 3,
@@ -2231,7 +2502,7 @@
           },
           {
             "action": {
-              "reduce": 19
+              "reduce": 18
             },
             "on": {
               "id": 10,
@@ -2245,28 +2516,20 @@
         "entries": [
           {
             "action": {
-              "reduce": 7
+              "reduce": 24
             },
             "on": {
-              "id": 2,
+              "id": 3,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 7
+              "reduce": 24
             },
             "on": {
-              "id": 4,
+              "id": 10,
               "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 7
-            },
-            "on": {
-              "ref": "eof"
             }
           }
         ],
@@ -2276,7 +2539,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 25
+              "reduce": 22
             },
             "on": {
               "id": 3,
@@ -2285,7 +2548,7 @@
           },
           {
             "action": {
-              "reduce": 25
+              "reduce": 22
             },
             "on": {
               "id": 10,
@@ -2294,29 +2557,6 @@
           }
         ],
         "state": 52
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 23
-            },
-            "on": {
-              "id": 3,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 23
-            },
-            "on": {
-              "id": 10,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 53
       },
       {
         "entries": [
@@ -2331,7 +2571,7 @@
           },
           {
             "action": {
-              "shift": 55
+              "shift": 54
             },
             "on": {
               "id": 10,
@@ -2339,13 +2579,13 @@
             }
           }
         ],
-        "state": 54
+        "state": 53
       },
       {
         "entries": [
           {
             "action": {
-              "reduce": 22
+              "reduce": 21
             },
             "on": {
               "id": 3,
@@ -2354,7 +2594,7 @@
           },
           {
             "action": {
-              "reduce": 22
+              "reduce": 21
             },
             "on": {
               "id": 10,
@@ -2362,7 +2602,7 @@
             }
           }
         ],
-        "state": 55
+        "state": 54
       }
     ],
     "algorithm": "canonical-lr1",
@@ -2388,42 +2628,28 @@
         "entries": [
           {
             "nonterminal": 2,
-            "to": 6
+            "to": 9
           }
         ],
-        "state": 3
+        "state": 6
       },
       {
         "entries": [
           {
-            "nonterminal": 3,
-            "to": 10
-          }
-        ],
-        "state": 8
-      },
-      {
-        "entries": [
-          {
-            "nonterminal": 3,
-            "to": 12
-          }
-        ],
-        "state": 9
-      },
-      {
-        "entries": [
-          {
-            "nonterminal": 5,
+            "nonterminal": 4,
             "to": 13
           },
           {
-            "nonterminal": 7,
+            "nonterminal": 3,
             "to": 14
           },
           {
             "nonterminal": 6,
             "to": 15
+          },
+          {
+            "nonterminal": 5,
+            "to": 16
           }
         ],
         "state": 11
@@ -2432,55 +2658,71 @@
         "entries": [
           {
             "nonterminal": 4,
-            "to": 18
-          }
-        ],
-        "state": 13
-      },
-      {
-        "entries": [
-          {
-            "nonterminal": 9,
-            "to": 20
+            "to": 13
           },
           {
-            "nonterminal": 10,
-            "to": 21
+            "nonterminal": 3,
+            "to": 19
           },
           {
-            "nonterminal": 7,
-            "to": 22
-          }
-        ],
-        "state": 15
-      },
-      {
-        "entries": [
+            "nonterminal": 6,
+            "to": 15
+          },
           {
-            "nonterminal": 9,
-            "to": 34
+            "nonterminal": 5,
+            "to": 16
           }
         ],
-        "state": 21
-      },
-      {
-        "entries": [
-          {
-            "nonterminal": 7,
-            "to": 35
-          }
-        ],
-        "state": 25
+        "state": 12
       },
       {
         "entries": [
           {
             "nonterminal": 8,
-            "to": 36
+            "to": 21
           },
           {
-            "nonterminal": 7,
-            "to": 37
+            "nonterminal": 9,
+            "to": 22
+          },
+          {
+            "nonterminal": 6,
+            "to": 23
+          }
+        ],
+        "state": 16
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 4,
+            "to": 34
+          },
+          {
+            "nonterminal": 6,
+            "to": 15
+          },
+          {
+            "nonterminal": 5,
+            "to": 16
+          }
+        ],
+        "state": 20
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 8,
+            "to": 35
+          }
+        ],
+        "state": 22
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 6,
+            "to": 36
           }
         ],
         "state": 26
@@ -2488,34 +2730,21 @@
       {
         "entries": [
           {
-            "nonterminal": 5,
-            "to": 40
-          },
-          {
             "nonterminal": 7,
-            "to": 14
+            "to": 37
           },
           {
             "nonterminal": 6,
-            "to": 15
+            "to": 38
           }
         ],
-        "state": 33
+        "state": 27
       },
       {
         "entries": [
           {
-            "nonterminal": 4,
+            "nonterminal": 6,
             "to": 51
-          }
-        ],
-        "state": 40
-      },
-      {
-        "entries": [
-          {
-            "nonterminal": 7,
-            "to": 52
           }
         ],
         "state": 41
@@ -2523,8 +2752,8 @@
       {
         "entries": [
           {
-            "nonterminal": 7,
-            "to": 53
+            "nonterminal": 6,
+            "to": 52
           }
         ],
         "state": 43
@@ -2532,17 +2761,17 @@
       {
         "entries": [
           {
-            "nonterminal": 8,
-            "to": 54
+            "nonterminal": 7,
+            "to": 53
           },
           {
-            "nonterminal": 7,
-            "to": 37
+            "nonterminal": 6,
+            "to": 38
           }
         ],
         "state": 44
       }
     ],
-    "stateCount": 56
+    "stateCount": 55
   }
 }

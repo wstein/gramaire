@@ -9,111 +9,106 @@ export type CstNode = CstBranch | CstToken;
 const ACTION: Record<number, Record<string, Act>> = {
   0: { "ATTR": { shift: 4 }, "IDENT": { shift: 5 } },
   1: { "": { accept: true } },
-  2: { "ATTR": { reduce: 1 }, "IDENT": { reduce: 1 }, "": { reduce: 1 } },
-  3: { "ATTR": { shift: 4 }, "IDENT": { shift: 5 }, "": { reduce: 0 } },
+  2: { "NL": { reduce: 1 }, "": { reduce: 1 } },
+  3: { "NL": { shift: 6 }, "": { reduce: 0 } },
   4: { "IDENT": { shift: 7 } },
   5: { "NL": { shift: 8 } },
-  6: { "ATTR": { reduce: 2 }, "IDENT": { reduce: 2 }, "": { reduce: 2 } },
-  7: { "NL": { shift: 9 } },
+  6: { "ATTR": { shift: 4 }, "IDENT": { shift: 5 } },
+  7: { "NL": { shift: 10 } },
   8: { ":": { shift: 11 } },
-  9: { ":": { shift: 11 } },
-  10: { "ATTR": { reduce: 4 }, "IDENT": { reduce: 4 }, "": { reduce: 4 } },
-  11: { "IDENT": { shift: 16 }, "TERM_LIT": { shift: 17 } },
-  12: { "ATTR": { reduce: 3 }, "IDENT": { reduce: 3 }, "": { reduce: 3 } },
-  13: { "NL": { shift: 19 } },
-  14: { "ACTION": { reduce: 12 }, "IDENT": { reduce: 12 }, "LABEL": { reduce: 12 }, "NL": { reduce: 12 }, "TERM_LIT": { reduce: 12 } },
-  15: { "ACTION": { shift: 23 }, "IDENT": { shift: 16 }, "LABEL": { shift: 24 }, "NL": { reduce: 11 }, "TERM_LIT": { shift: 17 } },
-  16: { ":": { shift: 25 }, "ACTION": { reduce: 14 }, "IDENT": { reduce: 14 }, "LABEL": { reduce: 14 }, "LANGLE": { shift: 26 }, "NL": { reduce: 14 }, "PLUS": { shift: 27 }, "QUESTION": { shift: 28 }, "STAR": { shift: 29 }, "TERM_LIT": { reduce: 14 } },
-  17: { "ACTION": { reduce: 15 }, "IDENT": { reduce: 15 }, "LABEL": { reduce: 15 }, "NL": { reduce: 15 }, "PLUS": { shift: 30 }, "QUESTION": { shift: 31 }, "STAR": { shift: 32 }, "TERM_LIT": { reduce: 15 } },
-  18: { "ATTR": { reduce: 5 }, "IDENT": { reduce: 5 }, "": { reduce: 5 } },
-  19: { "ATTR": { reduce: 6 }, "IDENT": { reduce: 6 }, "|": { shift: 33 }, "": { reduce: 6 } },
-  20: { "NL": { reduce: 10 } },
-  21: { "ACTION": { shift: 23 }, "NL": { reduce: 9 } },
-  22: { "ACTION": { reduce: 13 }, "IDENT": { reduce: 13 }, "LABEL": { reduce: 13 }, "NL": { reduce: 13 }, "TERM_LIT": { reduce: 13 } },
-  23: { "NL": { reduce: 26 } },
-  24: { "ACTION": { reduce: 27 }, "NL": { reduce: 27 } },
-  25: { "IDENT": { shift: 16 }, "TERM_LIT": { shift: 17 } },
-  26: { "IDENT": { shift: 38 }, "TERM_LIT": { shift: 39 } },
-  27: { "ACTION": { reduce: 16 }, "IDENT": { reduce: 16 }, "LABEL": { reduce: 16 }, "NL": { reduce: 16 }, "TERM_LIT": { reduce: 16 } },
-  28: { "ACTION": { reduce: 20 }, "IDENT": { reduce: 20 }, "LABEL": { reduce: 20 }, "NL": { reduce: 20 }, "TERM_LIT": { reduce: 20 } },
-  29: { "ACTION": { reduce: 18 }, "IDENT": { reduce: 18 }, "LABEL": { reduce: 18 }, "NL": { reduce: 18 }, "TERM_LIT": { reduce: 18 } },
-  30: { "ACTION": { reduce: 17 }, "IDENT": { reduce: 17 }, "LABEL": { reduce: 17 }, "NL": { reduce: 17 }, "TERM_LIT": { reduce: 17 } },
-  31: { "ACTION": { reduce: 21 }, "IDENT": { reduce: 21 }, "LABEL": { reduce: 21 }, "NL": { reduce: 21 }, "TERM_LIT": { reduce: 21 } },
-  32: { "ACTION": { reduce: 19 }, "IDENT": { reduce: 19 }, "LABEL": { reduce: 19 }, "NL": { reduce: 19 }, "TERM_LIT": { reduce: 19 } },
-  33: { "IDENT": { shift: 16 }, "TERM_LIT": { shift: 17 } },
-  34: { "NL": { reduce: 8 } },
-  35: { "ACTION": { reduce: 23 }, "IDENT": { reduce: 23 }, "LABEL": { reduce: 23 }, "NL": { reduce: 23 }, "TERM_LIT": { reduce: 23 } },
-  36: { "COMMA": { shift: 41 }, "RANGLE": { shift: 42 } },
-  37: { "COMMA": { reduce: 24 }, "RANGLE": { reduce: 24 } },
-  38: { ":": { shift: 43 }, "COMMA": { reduce: 14 }, "LANGLE": { shift: 44 }, "PLUS": { shift: 45 }, "QUESTION": { shift: 46 }, "RANGLE": { reduce: 14 }, "STAR": { shift: 47 } },
-  39: { "COMMA": { reduce: 15 }, "PLUS": { shift: 48 }, "QUESTION": { shift: 49 }, "RANGLE": { reduce: 15 }, "STAR": { shift: 50 } },
-  40: { "NL": { shift: 19 } },
-  41: { "IDENT": { shift: 38 }, "TERM_LIT": { shift: 39 } },
-  42: { "ACTION": { reduce: 22 }, "IDENT": { reduce: 22 }, "LABEL": { reduce: 22 }, "NL": { reduce: 22 }, "TERM_LIT": { reduce: 22 } },
-  43: { "IDENT": { shift: 38 }, "TERM_LIT": { shift: 39 } },
-  44: { "IDENT": { shift: 38 }, "TERM_LIT": { shift: 39 } },
-  45: { "COMMA": { reduce: 16 }, "RANGLE": { reduce: 16 } },
-  46: { "COMMA": { reduce: 20 }, "RANGLE": { reduce: 20 } },
-  47: { "COMMA": { reduce: 18 }, "RANGLE": { reduce: 18 } },
-  48: { "COMMA": { reduce: 17 }, "RANGLE": { reduce: 17 } },
-  49: { "COMMA": { reduce: 21 }, "RANGLE": { reduce: 21 } },
-  50: { "COMMA": { reduce: 19 }, "RANGLE": { reduce: 19 } },
-  51: { "ATTR": { reduce: 7 }, "IDENT": { reduce: 7 }, "": { reduce: 7 } },
-  52: { "COMMA": { reduce: 25 }, "RANGLE": { reduce: 25 } },
-  53: { "COMMA": { reduce: 23 }, "RANGLE": { reduce: 23 } },
-  54: { "COMMA": { shift: 41 }, "RANGLE": { shift: 55 } },
-  55: { "COMMA": { reduce: 22 }, "RANGLE": { reduce: 22 } },
+  9: { "NL": { reduce: 2 }, "": { reduce: 2 } },
+  10: { ":": { shift: 12 } },
+  11: { "IDENT": { shift: 17 }, "TERM_LIT": { shift: 18 } },
+  12: { "IDENT": { shift: 17 }, "TERM_LIT": { shift: 18 } },
+  13: { "NL": { reduce: 5 }, "|": { reduce: 5 }, "": { reduce: 5 } },
+  14: { "NL": { reduce: 4 }, "|": { shift: 20 }, "": { reduce: 4 } },
+  15: { "ACTION": { reduce: 11 }, "IDENT": { reduce: 11 }, "LABEL": { reduce: 11 }, "NL": { reduce: 11 }, "TERM_LIT": { reduce: 11 }, "|": { reduce: 11 }, "": { reduce: 11 } },
+  16: { "ACTION": { shift: 24 }, "IDENT": { shift: 17 }, "LABEL": { shift: 25 }, "NL": { reduce: 10 }, "TERM_LIT": { shift: 18 }, "|": { reduce: 10 }, "": { reduce: 10 } },
+  17: { ":": { shift: 26 }, "ACTION": { reduce: 13 }, "IDENT": { reduce: 13 }, "LABEL": { reduce: 13 }, "LANGLE": { shift: 27 }, "NL": { reduce: 13 }, "PLUS": { shift: 28 }, "QUESTION": { shift: 29 }, "STAR": { shift: 30 }, "TERM_LIT": { reduce: 13 }, "|": { reduce: 13 }, "": { reduce: 13 } },
+  18: { "ACTION": { reduce: 14 }, "IDENT": { reduce: 14 }, "LABEL": { reduce: 14 }, "NL": { reduce: 14 }, "PLUS": { shift: 31 }, "QUESTION": { shift: 32 }, "STAR": { shift: 33 }, "TERM_LIT": { reduce: 14 }, "|": { reduce: 14 }, "": { reduce: 14 } },
+  19: { "NL": { reduce: 3 }, "|": { shift: 20 }, "": { reduce: 3 } },
+  20: { "IDENT": { shift: 17 }, "TERM_LIT": { shift: 18 } },
+  21: { "NL": { reduce: 9 }, "|": { reduce: 9 }, "": { reduce: 9 } },
+  22: { "ACTION": { shift: 24 }, "NL": { reduce: 8 }, "|": { reduce: 8 }, "": { reduce: 8 } },
+  23: { "ACTION": { reduce: 12 }, "IDENT": { reduce: 12 }, "LABEL": { reduce: 12 }, "NL": { reduce: 12 }, "TERM_LIT": { reduce: 12 }, "|": { reduce: 12 }, "": { reduce: 12 } },
+  24: { "NL": { reduce: 25 }, "|": { reduce: 25 }, "": { reduce: 25 } },
+  25: { "ACTION": { reduce: 26 }, "NL": { reduce: 26 }, "|": { reduce: 26 }, "": { reduce: 26 } },
+  26: { "IDENT": { shift: 17 }, "TERM_LIT": { shift: 18 } },
+  27: { "IDENT": { shift: 39 }, "TERM_LIT": { shift: 40 } },
+  28: { "ACTION": { reduce: 15 }, "IDENT": { reduce: 15 }, "LABEL": { reduce: 15 }, "NL": { reduce: 15 }, "TERM_LIT": { reduce: 15 }, "|": { reduce: 15 }, "": { reduce: 15 } },
+  29: { "ACTION": { reduce: 19 }, "IDENT": { reduce: 19 }, "LABEL": { reduce: 19 }, "NL": { reduce: 19 }, "TERM_LIT": { reduce: 19 }, "|": { reduce: 19 }, "": { reduce: 19 } },
+  30: { "ACTION": { reduce: 17 }, "IDENT": { reduce: 17 }, "LABEL": { reduce: 17 }, "NL": { reduce: 17 }, "TERM_LIT": { reduce: 17 }, "|": { reduce: 17 }, "": { reduce: 17 } },
+  31: { "ACTION": { reduce: 16 }, "IDENT": { reduce: 16 }, "LABEL": { reduce: 16 }, "NL": { reduce: 16 }, "TERM_LIT": { reduce: 16 }, "|": { reduce: 16 }, "": { reduce: 16 } },
+  32: { "ACTION": { reduce: 20 }, "IDENT": { reduce: 20 }, "LABEL": { reduce: 20 }, "NL": { reduce: 20 }, "TERM_LIT": { reduce: 20 }, "|": { reduce: 20 }, "": { reduce: 20 } },
+  33: { "ACTION": { reduce: 18 }, "IDENT": { reduce: 18 }, "LABEL": { reduce: 18 }, "NL": { reduce: 18 }, "TERM_LIT": { reduce: 18 }, "|": { reduce: 18 }, "": { reduce: 18 } },
+  34: { "NL": { reduce: 6 }, "|": { reduce: 6 }, "": { reduce: 6 } },
+  35: { "NL": { reduce: 7 }, "|": { reduce: 7 }, "": { reduce: 7 } },
+  36: { "ACTION": { reduce: 22 }, "IDENT": { reduce: 22 }, "LABEL": { reduce: 22 }, "NL": { reduce: 22 }, "TERM_LIT": { reduce: 22 }, "|": { reduce: 22 }, "": { reduce: 22 } },
+  37: { "COMMA": { shift: 41 }, "RANGLE": { shift: 42 } },
+  38: { "COMMA": { reduce: 23 }, "RANGLE": { reduce: 23 } },
+  39: { ":": { shift: 43 }, "COMMA": { reduce: 13 }, "LANGLE": { shift: 44 }, "PLUS": { shift: 45 }, "QUESTION": { shift: 46 }, "RANGLE": { reduce: 13 }, "STAR": { shift: 47 } },
+  40: { "COMMA": { reduce: 14 }, "PLUS": { shift: 48 }, "QUESTION": { shift: 49 }, "RANGLE": { reduce: 14 }, "STAR": { shift: 50 } },
+  41: { "IDENT": { shift: 39 }, "TERM_LIT": { shift: 40 } },
+  42: { "ACTION": { reduce: 21 }, "IDENT": { reduce: 21 }, "LABEL": { reduce: 21 }, "NL": { reduce: 21 }, "TERM_LIT": { reduce: 21 }, "|": { reduce: 21 }, "": { reduce: 21 } },
+  43: { "IDENT": { shift: 39 }, "TERM_LIT": { shift: 40 } },
+  44: { "IDENT": { shift: 39 }, "TERM_LIT": { shift: 40 } },
+  45: { "COMMA": { reduce: 15 }, "RANGLE": { reduce: 15 } },
+  46: { "COMMA": { reduce: 19 }, "RANGLE": { reduce: 19 } },
+  47: { "COMMA": { reduce: 17 }, "RANGLE": { reduce: 17 } },
+  48: { "COMMA": { reduce: 16 }, "RANGLE": { reduce: 16 } },
+  49: { "COMMA": { reduce: 20 }, "RANGLE": { reduce: 20 } },
+  50: { "COMMA": { reduce: 18 }, "RANGLE": { reduce: 18 } },
+  51: { "COMMA": { reduce: 24 }, "RANGLE": { reduce: 24 } },
+  52: { "COMMA": { reduce: 22 }, "RANGLE": { reduce: 22 } },
+  53: { "COMMA": { shift: 41 }, "RANGLE": { shift: 54 } },
+  54: { "COMMA": { reduce: 21 }, "RANGLE": { reduce: 21 } },
 };
 
 
 const GOTO: Record<number, Record<number, number>> = {
   0: { 0: 1, 2: 2, 1: 3 },
-  3: { 2: 6 },
-  8: { 3: 10 },
-  9: { 3: 12 },
-  11: { 5: 13, 7: 14, 6: 15 },
-  13: { 4: 18 },
-  15: { 9: 20, 10: 21, 7: 22 },
-  21: { 9: 34 },
-  25: { 7: 35 },
-  26: { 8: 36, 7: 37 },
-  33: { 5: 40, 7: 14, 6: 15 },
-  40: { 4: 51 },
-  41: { 7: 52 },
-  43: { 7: 53 },
-  44: { 8: 54, 7: 37 },
+  6: { 2: 9 },
+  11: { 4: 13, 3: 14, 6: 15, 5: 16 },
+  12: { 4: 13, 3: 19, 6: 15, 5: 16 },
+  16: { 8: 21, 9: 22, 6: 23 },
+  20: { 4: 34, 6: 15, 5: 16 },
+  22: { 8: 35 },
+  26: { 6: 36 },
+  27: { 7: 37, 6: 38 },
+  41: { 6: 51 },
+  43: { 6: 52 },
+  44: { 7: 53, 6: 38 },
 };
 
 
 const PRODS: { lhs: number; len: number }[] = [
   { lhs: 0, len: 1 }, // 0
   { lhs: 1, len: 1 }, // 1
-  { lhs: 1, len: 2 }, // 2
-  { lhs: 2, len: 4 }, // 3
-  { lhs: 2, len: 3 }, // 4
-  { lhs: 3, len: 3 }, // 5
-  { lhs: 4, len: 1 }, // 6
-  { lhs: 4, len: 4 }, // 7
-  { lhs: 5, len: 3 }, // 8
-  { lhs: 5, len: 2 }, // 9
-  { lhs: 5, len: 2 }, // 10
+  { lhs: 1, len: 3 }, // 2
+  { lhs: 2, len: 5 }, // 3
+  { lhs: 2, len: 4 }, // 4
+  { lhs: 3, len: 1 }, // 5
+  { lhs: 3, len: 3 }, // 6
+  { lhs: 4, len: 3 }, // 7
+  { lhs: 4, len: 2 }, // 8
+  { lhs: 4, len: 2 }, // 9
+  { lhs: 4, len: 1 }, // 10
   { lhs: 5, len: 1 }, // 11
-  { lhs: 6, len: 1 }, // 12
-  { lhs: 6, len: 2 }, // 13
-  { lhs: 7, len: 1 }, // 14
-  { lhs: 7, len: 1 }, // 15
-  { lhs: 7, len: 2 }, // 16
-  { lhs: 7, len: 2 }, // 17
-  { lhs: 7, len: 2 }, // 18
-  { lhs: 7, len: 2 }, // 19
-  { lhs: 7, len: 2 }, // 20
-  { lhs: 7, len: 2 }, // 21
-  { lhs: 7, len: 4 }, // 22
-  { lhs: 7, len: 3 }, // 23
-  { lhs: 8, len: 1 }, // 24
-  { lhs: 8, len: 3 }, // 25
+  { lhs: 5, len: 2 }, // 12
+  { lhs: 6, len: 1 }, // 13
+  { lhs: 6, len: 1 }, // 14
+  { lhs: 6, len: 2 }, // 15
+  { lhs: 6, len: 2 }, // 16
+  { lhs: 6, len: 2 }, // 17
+  { lhs: 6, len: 2 }, // 18
+  { lhs: 6, len: 2 }, // 19
+  { lhs: 6, len: 2 }, // 20
+  { lhs: 6, len: 4 }, // 21
+  { lhs: 6, len: 3 }, // 22
+  { lhs: 7, len: 1 }, // 23
+  { lhs: 7, len: 3 }, // 24
+  { lhs: 8, len: 1 }, // 25
   { lhs: 9, len: 1 }, // 26
-  { lhs: 10, len: 1 }, // 27
 ];
 
 type Act = { shift: number } | { reduce: number } | { accept: true };
@@ -185,7 +180,6 @@ export interface Visitor<T> {
   rule24(children: T[]): T;
   rule25(children: T[]): T;
   rule26(children: T[]): T;
-  rule27(children: T[]): T;
 }
 
 export function fold<T>(node: CstNode, v: Visitor<T>): T {
@@ -219,7 +213,6 @@ export function fold<T>(node: CstNode, v: Visitor<T>): T {
     case 24: return v.rule24(kids);
     case 25: return v.rule25(kids);
     case 26: return v.rule26(kids);
-    case 27: return v.rule27(kids);
     default:
       throw new Error(`unknown rule ${node.rule}`);
   }

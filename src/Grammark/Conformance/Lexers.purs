@@ -19,7 +19,7 @@ import Data.Array as Array
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.String.CodeUnits (fromCharArray, toCharArray)
-import Grammark.Lexer (Token, tokenize)
+import Grammark.Lexer (Token, normalizeNewlines, tokenize)
 
 -- | A language's input lexer: source text to tokens, or a reason it cannot.
 type Lexer = String -> Either String (Array Token)
@@ -30,7 +30,7 @@ type Lexer = String -> Either String (Array Token)
 lrLexer :: Lexer
 lrLexer input = case tokenize (input <> "\n") of
   Left e -> Left (show e)
-  Right toks -> Right toks
+  Right toks -> Right (normalizeNewlines toks)
 
 -- | A hand lexer for the `calc` grammar: digit runs are `NUMBER`, the operators
 -- | and parentheses are their own one-character literals, and whitespace is

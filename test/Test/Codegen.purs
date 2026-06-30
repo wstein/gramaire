@@ -17,7 +17,7 @@ import Grammark.Bootstrap (bootstrapGrammar)
 import Grammark.Codegen (generateLrReduce, lrReduceModulePath)
 import Grammark.Generated.LrReduce (reduce) as Gen
 import Grammark.IR (buildIR)
-import Grammark.Lexer (tokenize)
+import Grammark.Lexer (normalizeNewlines, tokenize)
 import Grammark.Lr (SemVal(VGrammar), lrBlocks, tokenVal)
 import Grammark.Parser (run)
 import Grammark.Table (Method(Canonical), buildTablesFor)
@@ -41,7 +41,7 @@ tests = do
     Left e -> assert' ("tokenize failed: " <> show e) false
     Right toks -> case buildTablesFor Canonical bootstrapGrammar of
       Left _ -> assert' "lr tables should build" false
-      Right table -> case run table tokenVal Gen.reduce toks of
+      Right table -> case run table tokenVal Gen.reduce (normalizeNewlines toks) of
         Right (VGrammar g) -> assertEqual { actual: g, expected: bootstrapGrammar }
         Right _ -> assert' "parse should yield a Grammar" false
         Left e -> assert' ("parse failed: " <> show e) false

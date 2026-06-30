@@ -74,6 +74,29 @@ _why_ Grammark fences pass a rule that bare ` ``` ` fences fail. GFM treats
 fence contents as opaque literal text, so `{%`, `%}`, `\`, `|`, and `+`
 inside a payload have no Markdown meaning and present no lint surface.
 
+### Line continuation inside `lr` blocks (Option A)
+
+Within an `lr` productions block a **line break inside an alternative is
+insignificant** — `|` is the only alternative separator, so a long alternative
+may wrap across physical lines with no continuation marker. The two grammars
+below parse identically:
+
+```text
+Expr                          Expr
+  : Expr `+` Term `-` Term      : Expr `+` Term
+  | Term                            `-` Term
+                                | Term
+```
+
+Only two newlines are structural: the one inside a **rule head** `IDENT NL :`
+(which is exactly what distinguishes a head from a same-line `name:Sym` field,
+`IDENT : Sym`), and the **boundary** newline before the next head. The lexer's
+`normalizeNewlines` pass keeps those two and drops every other newline before
+the LR parser sees the stream, so the notation needs no `;` terminators and
+stays LR(1). A consequence: a `name:Sym` field must stay on one line — splitting
+it reads the name as a head. `fmt` keeps an alternative on one line when it fits
+and may wrap longer ones; wrapping is parse-invariant by construction.
+
 ### Railroad diagrams
 
 Diagrams are **never** inline `<svg>` (stripped by GitHub, and trips MD033).

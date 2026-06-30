@@ -10,7 +10,7 @@ import Data.Foldable (all, foldl)
 import Data.String.CodeUnits (fromCharArray, length, toCharArray)
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Lexer (Spanned, Token, tokenize, tokenizeSpanned)
+import Grammark.Lexer (Spanned, Token, normalizeNewlines, tokenize, tokenizeSpanned)
 import Test.Assert (assert, assert', assertEqual)
 
 tk :: String -> String -> Token
@@ -72,20 +72,31 @@ tests = do
         ]
     }
 
-  log "  lexer: a trailing backslash continues the line, swallowing the newline"
+  -- T3 (line-continuation spec §8): the newline normalization keeps only the
+  -- head `NL` (inside `IDENT NL :`) and the boundary `NL` before a head.
+  log "  lexer: normalizeNewlines drops a continuation NL between two symbols"
   assertEqual
-    { actual: tokenize "A\n  : x \\\n    y"
-    , expected: Right
-        [ tk "IDENT" "A"
-        , tk "NL" "\n"
-        , tk ":" ":"
-        , tk "IDENT" "x"
-        , tk "IDENT" "y"
-        ]
+    { actual: map _.terminal (normalizeNewlines [ tk "IDENT" "a", tk "NL" "\n", tk "IDENT" "b" ])
+    , expected: [ "IDENT", "IDENT" ]
     }
 
-  log "  lexer: a backslash that is not at the line end is a LexError"
-  assert (isLeft (tokenize "A\n  : x \\ y"))
+  log "  lexer: normalizeNewlines keeps the head NL inside IDENT NL :"
+  assertEqual
+    { actual: map _.terminal (normalizeNewlines [ tk "IDENT" "A", tk "NL" "\n", tk ":" ":", tk "TERM_LIT" "x" ])
+    , expected: [ "IDENT", "NL", ":", "TERM_LIT" ]
+    }
+
+  log "  lexer: normalizeNewlines keeps a boundary NL before a head (Sym NL IDENT NL :)"
+  assertEqual
+    { actual: map _.terminal (normalizeNewlines [ tk "TERM_LIT" "x", tk "NL" "\n", tk "IDENT" "B", tk "NL" "\n", tk ":" ":" ])
+    , expected: [ "TERM_LIT", "NL", "IDENT", "NL", ":" ]
+    }
+
+  log "  lexer: normalizeNewlines recognizes an ATTR-prefixed head as a boundary"
+  assertEqual
+    { actual: map _.terminal (normalizeNewlines [ tk "TERM_LIT" "x", tk "NL" "\n", tk "ATTR" "inline", tk "IDENT" "B", tk "NL" "\n", tk ":" ":" ])
+    , expected: [ "TERM_LIT", "NL", "ATTR", "IDENT", "NL", ":" ]
+    }
 
   log "  lexer: an unterminated action is a LexError"
   assert (isLeft (tokenize "X {% oops"))

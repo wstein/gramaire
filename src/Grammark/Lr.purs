@@ -25,7 +25,7 @@ import Data.String (Pattern(..), joinWith, split, trim)
 import Grammark.Bootstrap (bootstrapGrammar)
 import Grammark.Desugar (desugar)
 import Grammark.Diagnostics (checkDefined)
-import Grammark.Lexer (Token, tokenize)
+import Grammark.Lexer (Token, normalizeNewlines, tokenize)
 import Grammark.Parser (run)
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 import Grammark.Table (Method(..), buildTablesFor)
@@ -62,32 +62,31 @@ reduce :: Int -> Array SemVal -> SemVal
 reduce p kids = case p, kids of
   0, [ VRules rs ] -> VGrammar (Grammar rs) -- Grammar : RuleList
   1, [ VRule r ] -> VRules [ r ] -- RuleList : Rule
-  2, [ VRules rs, VRule r ] -> VRules (Array.snoc rs r) -- RuleList : RuleList Rule
-  3, [ VStr attr, VStr lhs, _, VAlts alts ] -> VRule (Rule lhs [ attr ] alts) -- Rule : ATTR IDENT NL Body
-  4, [ VStr lhs, _, VAlts alts ] -> VRule (Rule lhs [] alts) -- Rule : IDENT NL Body
-  5, [ _, VAlt a, VAlts as ] -> VAlts (Array.cons a as) -- Body : `:` Alt AltTail
-  6, _ -> VAlts [] -- AltTail : NL
-  7, [ _, _, VAlt a, VAlts as ] -> VAlts (Array.cons a as) -- AltTail : NL `|` Alt AltTail
-  8, [ VSyms syms, VMaybeStr lbl, VMaybeStr act ] -> VAlt (Alt syms lbl act) -- Alt : SymList Label Action
-  9, [ VSyms syms, VMaybeStr lbl ] -> VAlt (Alt syms lbl Nothing) -- Alt : SymList Label
-  10, [ VSyms syms, VMaybeStr act ] -> VAlt (Alt syms Nothing act) -- Alt : SymList Action
-  11, [ VSyms syms ] -> VAlt (Alt syms Nothing Nothing) -- Alt : SymList
-  12, [ VSym s ] -> VSyms [ s ] -- SymList : Sym
-  13, [ VSyms ss, VSym s ] -> VSyms (Array.snoc ss s) -- SymList : SymList Sym
-  14, [ VStr i ] -> VSym (Ref i) -- Sym : IDENT
-  15, [ VStr t ] -> VSym (Lit t) -- Sym : TERM_LIT
-  16, [ VStr i, _ ] -> VSym (Rep (Ref i)) -- Sym : IDENT PLUS
-  17, [ VStr t, _ ] -> VSym (Rep (Lit t)) -- Sym : TERM_LIT PLUS
-  18, [ VStr i, _ ] -> VSym (Star (Ref i)) -- Sym : IDENT STAR
-  19, [ VStr t, _ ] -> VSym (Star (Lit t)) -- Sym : TERM_LIT STAR
-  20, [ VStr i, _ ] -> VSym (Opt (Ref i)) -- Sym : IDENT QUESTION
-  21, [ VStr t, _ ] -> VSym (Opt (Lit t)) -- Sym : TERM_LIT QUESTION
-  22, [ VStr name, _, VSyms args, _ ] -> VSym (Macro name args) -- Sym : IDENT LANGLE Args RANGLE
-  23, [ VStr name, _, VSym s ] -> VSym (Field name s) -- Sym : IDENT `:` Sym
-  24, [ VSym s ] -> VSyms [ s ] -- Args : Sym
-  25, [ VSyms as, _, VSym s ] -> VSyms (Array.snoc as s) -- Args : Args COMMA Sym
-  26, [ VStr a ] -> VMaybeStr (Just a) -- Action : ACTION
-  27, [ VStr l ] -> VMaybeStr (Just l) -- Label : LABEL
+  2, [ VRules rs, _, VRule r ] -> VRules (Array.snoc rs r) -- RuleList : RuleList NL Rule
+  3, [ VStr attr, VStr lhs, _, _, VAlts alts ] -> VRule (Rule lhs [ attr ] alts) -- Rule : ATTR IDENT NL `:` Body
+  4, [ VStr lhs, _, _, VAlts alts ] -> VRule (Rule lhs [] alts) -- Rule : IDENT NL `:` Body
+  5, [ VAlt a ] -> VAlts [ a ] -- Body : Alt
+  6, [ VAlts bs, _, VAlt a ] -> VAlts (Array.snoc bs a) -- Body : Body `|` Alt
+  7, [ VSyms syms, VMaybeStr lbl, VMaybeStr act ] -> VAlt (Alt syms lbl act) -- Alt : SymList Label Action
+  8, [ VSyms syms, VMaybeStr lbl ] -> VAlt (Alt syms lbl Nothing) -- Alt : SymList Label
+  9, [ VSyms syms, VMaybeStr act ] -> VAlt (Alt syms Nothing act) -- Alt : SymList Action
+  10, [ VSyms syms ] -> VAlt (Alt syms Nothing Nothing) -- Alt : SymList
+  11, [ VSym s ] -> VSyms [ s ] -- SymList : Sym
+  12, [ VSyms ss, VSym s ] -> VSyms (Array.snoc ss s) -- SymList : SymList Sym
+  13, [ VStr i ] -> VSym (Ref i) -- Sym : IDENT
+  14, [ VStr t ] -> VSym (Lit t) -- Sym : TERM_LIT
+  15, [ VStr i, _ ] -> VSym (Rep (Ref i)) -- Sym : IDENT PLUS
+  16, [ VStr t, _ ] -> VSym (Rep (Lit t)) -- Sym : TERM_LIT PLUS
+  17, [ VStr i, _ ] -> VSym (Star (Ref i)) -- Sym : IDENT STAR
+  18, [ VStr t, _ ] -> VSym (Star (Lit t)) -- Sym : TERM_LIT STAR
+  19, [ VStr i, _ ] -> VSym (Opt (Ref i)) -- Sym : IDENT QUESTION
+  20, [ VStr t, _ ] -> VSym (Opt (Lit t)) -- Sym : TERM_LIT QUESTION
+  21, [ VStr name, _, VSyms args, _ ] -> VSym (Macro name args) -- Sym : IDENT LANGLE Args RANGLE
+  22, [ VStr name, _, VSym s ] -> VSym (Field name s) -- Sym : IDENT `:` Sym
+  23, [ VSym s ] -> VSyms [ s ] -- Args : Sym
+  24, [ VSyms as, _, VSym s ] -> VSyms (Array.snoc as s) -- Args : Args COMMA Sym
+  25, [ VStr a ] -> VMaybeStr (Just a) -- Action : ACTION
+  26, [ VStr l ] -> VMaybeStr (Just l) -- Label : LABEL
   _, _ -> VErr ("unexpected reduce shape for production " <> show p)
 
 -- | Extract the contents of every ```lr fenced block — the rule blocks, not
@@ -115,9 +114,9 @@ parseWith method md =
   in
     case tokenize src of
       Left e -> Left (show e)
-      Right toks -> case buildTablesFor method bootstrapGrammar of
+      Right raw -> case buildTablesFor method bootstrapGrammar of
         Left _ -> Left "internal: the lr grammar is not parseable by this method"
-        Right table -> case run table tokenVal reduce toks of
+        Right table -> case run table tokenVal reduce (normalizeNewlines raw) of
           Left e -> Left (show e)
           Right (VGrammar g) -> desugar g >>= checkDefined
           Right _ -> Left "parse did not yield a Grammar"
