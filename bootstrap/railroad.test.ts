@@ -10,23 +10,23 @@ import { parseProduction, renderSvg, renderMermaid } from "./railroad.ts";
 
 test("parseProduction classifies terminals, literals, and nonterminals", () => {
   const prod = parseProduction(
-    "Member\n  : STRING `:` Value",
+    "Member\n  : STRING ':' Value",
     new Set(["Member", "Value"]),
   );
   assert.equal(prod.name, "Member");
   assert.deepEqual(prod.alts, [
     [
       { label: "STRING", term: true }, // lexer class → terminal
-      { label: ":", term: true }, // backtick literal → terminal
+      { label: ":", term: true }, // quoted literal → terminal
       { label: "Value", term: false }, // names a rule → nonterminal
     ],
   ]);
 });
 
-test("parseProduction treats raw : | as separators but backtick `|` as a literal", () => {
+test("parseProduction treats raw : | as separators but a quoted '|' as a literal", () => {
   // The self-describing case from grammar/lr.gram.md.
   const prod = parseProduction(
-    "AltTail\n  : NL\n  | NL `|` Alt AltTail",
+    "AltTail\n  : NL\n  | NL '|' Alt AltTail",
     new Set(["AltTail", "Alt"]),
   );
   assert.equal(prod.name, "AltTail");
@@ -34,7 +34,7 @@ test("parseProduction treats raw : | as separators but backtick `|` as a literal
   assert.deepEqual(prod.alts[0], [{ label: "NL", term: true }]);
   assert.deepEqual(prod.alts[1], [
     { label: "NL", term: true },
-    { label: "|", term: true }, // the backtick literal, not a separator
+    { label: "|", term: true }, // the quoted literal, not a separator
     { label: "Alt", term: false },
     { label: "AltTail", term: false },
   ]);
@@ -42,7 +42,7 @@ test("parseProduction treats raw : | as separators but backtick `|` as a literal
 
 test("parseProduction drops semantic actions", () => {
   const prod = parseProduction(
-    "Expr\n  : Expr `+` Term   {% \\l _ r -> Add l r %}",
+    "Expr\n  : Expr '+' Term   {% \\l _ r -> Add l r %}",
     new Set(["Expr", "Term"]),
   );
   assert.deepEqual(prod.alts, [
@@ -57,7 +57,7 @@ test("parseProduction drops semantic actions", () => {
 test("renderSvg produces a self-contained, labelled SVG", () => {
   const svg = renderSvg(
     parseProduction(
-      "Member\n  : STRING `:` Value",
+      "Member\n  : STRING ':' Value",
       new Set(["Member", "Value"]),
     ),
   );

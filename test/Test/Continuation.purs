@@ -17,8 +17,8 @@ tests :: Effect Unit
 tests = do
   -- T1: a wrapped alternative and its single-line form parse to the same AST.
   log "  continuation: a line break inside an alternative is insignificant (T1)"
-  let single = parse "```lr\nE\n  : A `+` B `-` C\n```\n"
-  let wrapped = parse "```lr\nE\n  : A `+` B\n    `-` C\n```\n"
+  let single = parse "```lr\nE\n  : A '+' B '-' C\n```\n"
+  let wrapped = parse "```lr\nE\n  : A '+' B\n    '-' C\n```\n"
   assert' ("wrapped must equal single-line:\n" <> show single <> "\nvs\n" <> show wrapped)
     (single == wrapped)
   assert' "and both must parse" (isRight single)
@@ -26,7 +26,7 @@ tests = do
   -- T2: `IDENT NL :` is a head; `name:X` (no break) is a field; splitting a
   -- field across a line break reads the name as a head and is rejected.
   log "  continuation: head vs field, and a split field is rejected (T2)"
-  case parse "```lr\nName\n  : `x`\n```\n" of
+  case parse "```lr\nName\n  : 'x'\n```\n" of
     Right (Grammar [ Rule n _ _ ]) -> assert' "a head names the rule" (n == "Name")
     other -> assert' ("Name head should parse as one rule: " <> show other) false
   case parse "```lr\nE\n  : left:NUM\n```\n" of

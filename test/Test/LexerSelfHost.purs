@@ -31,7 +31,7 @@ import Test.Assert (assert')
 -- A representative snippet: ATTR, IDENT, NL, `:`, `|`, TERM_LIT, PLUS, LABEL,
 -- ACTION (no padding inside `{% … %}`), single newlines.
 sample :: String
-sample = "#[inline]\nE\n  : E `+` Num+   # Add  {%\\a -> a%}\n  | Num\n"
+sample = "#[inline]\nE\n  : E '+' Num+   # Add  {%\\a -> a%}\n  | Num\n"
 
 -- Two streams agree when their (terminal, text) pairs match, trimming ACTION
 -- text (the bootstrap lexer trims inline; the scanner captures it raw — M5).

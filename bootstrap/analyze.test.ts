@@ -10,9 +10,9 @@ import { parseProduction } from "./railroad.ts";
 
 const nts = new Set(["Expr", "Term", "Factor"]);
 const grammar = [
-  parseProduction("Expr\n  : Expr `+` Term\n  | Term", nts),
-  parseProduction("Term\n  : Term `*` Factor\n  | Factor", nts),
-  parseProduction("Factor\n  : `(` Expr `)`\n  | NUMBER", nts),
+  parseProduction("Expr\n  : Expr '+' Term\n  | Term", nts),
+  parseProduction("Term\n  : Term '*' Factor\n  | Factor", nts),
+  parseProduction("Factor\n  : '(' Expr ')'\n  | NUMBER", nts),
 ];
 
 test("analyzeGrammar computes FIRST and FOLLOW (epsilon-free)", () => {

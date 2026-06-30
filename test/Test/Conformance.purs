@@ -35,7 +35,7 @@ tests = do
       assertEqual { actual: summary.passed, expected: summary.total }
 
   log "  conformance: an lr accept vector yields a CST rooted at the start rule"
-  case parseCst lrLexer Canonical bootstrapGrammar "Foo\n: `x`" of
+  case parseCst lrLexer Canonical bootstrapGrammar "Foo\n: 'x'" of
     Left e -> assert' ("expected a CST: " <> e) false
     Right cst -> case cst of
       Branch p _ -> assertEqual { actual: p, expected: 0 }

@@ -34,7 +34,7 @@ import { parseProduction } from "./railroad.ts";
 function miniDoc(
   opts: { precedence?: boolean; tokens?: boolean; rule?: string } = {},
 ): string {
-  const rule = opts.rule ?? "  : `x`   {% \\_ -> 1 %}";
+  const rule = opts.rule ?? "  : 'x'   {% \\_ -> 1 %}";
   const lines = [
     "# Mini",
     "",
@@ -46,7 +46,7 @@ function miniDoc(
   }
   lines.push("## A", "", "```lr", "A", rule, "```", "");
   if (opts.precedence) {
-    lines.push("## Precedence", "", "```lr precedence", "%left `x`", "```", "");
+    lines.push("## Precedence", "", "```lr precedence", "%left 'x'", "```", "");
   }
   lines.push(
     "## Error messages",
@@ -168,7 +168,7 @@ test("grammarHashes is deterministic and keyed by nonterminal", () => {
   assert.ok(a.ruleHashes["A"], "expected a hash for rule A");
 
   const changed = grammarHashes(
-    parse(miniDoc({ rule: "  : `y`   {% \\_ -> 2 %}" })),
+    parse(miniDoc({ rule: "  : 'y'   {% \\_ -> 2 %}" })),
   );
   assert.notEqual(changed.grammarSha256, a.grammarSha256);
   assert.notEqual(changed.ruleHashes["A"], a.ruleHashes["A"]);
@@ -188,7 +188,7 @@ test("fmt then checkDrift: clean for the formatted grammar, stale after an edit"
       "freshly locked file should not drift",
     );
 
-    const edited = parse(miniDoc({ rule: "  : `y`   {% \\_ -> 2 %}" }));
+    const edited = parse(miniDoc({ rule: "  : 'y'   {% \\_ -> 2 %}" }));
     const fails = checkDrift(file, edited);
     assert.ok(
       fails.some((f) => /stale/.test(f)),
@@ -207,7 +207,7 @@ const sidecarDoc = [
   "",
   "```lr",
   "A",
-  "  : `x` B",
+  "  : 'x' B",
   "```",
   "",
   "![Railroad diagram for the A rule](diagrams/a.svg)",
@@ -217,7 +217,7 @@ const sidecarDoc = [
 ].join("\n");
 
 const nts = new Set(["A"]);
-const content = new Map([["A", "A\n  : `x` B"]]);
+const content = new Map([["A", "A\n  : 'x' B"]]);
 
 test("convertDiagrams: sidecar -> mermaid embeds a tagged fence, removing the image", () => {
   const mm = convertDiagrams(sidecarDoc, content, nts, "mermaid");
@@ -248,8 +248,8 @@ test("regenerateTables rewrites the FIRST/FOLLOW table from the grammar", () => 
     "",
     "```lr",
     "S",
-    "  : `a` S",
-    "  | `a`",
+    "  : 'a' S",
+    "  | 'a'",
     "```",
     "",
     "## Generated tables",
@@ -263,7 +263,7 @@ test("regenerateTables rewrites the FIRST/FOLLOW table from the grammar", () => 
     "No conflicts.",
     "",
   ].join("\n");
-  const prods = [parseProduction("S\n  : `a` S\n  | `a`", new Set(["S"]))];
+  const prods = [parseProduction("S\n  : 'a' S\n  | 'a'", new Set(["S"]))];
   const out = regenerateTables(doc, prods);
   // FIRST(S) = { a }; FOLLOW(S) = { $ } (the start symbol, nothing follows S).
   assert.match(out, /\| `S` +\| `a` +\| `\$` +\|/);

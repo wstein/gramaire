@@ -57,13 +57,11 @@ tokenVal tok = case tok.terminal of
   "ATTR" -> VStr tok.text
   _ -> VIgnore -- NL, `:`, `|`
 
--- | Unquote a `TERM_LIT` lexeme to the terminal's spelling (ADR D34). All three
--- | delimiters — `` `x` ``, `'x'`, `"x"` — are stripped; the quoted forms also
--- | unescape a backslash-escaped character (so `'\''` is the terminal `'`).
--- | Backtick literals take no escape.
+-- | Unquote a `TERM_LIT` lexeme to the terminal's spelling (ADR D34). Both
+-- | delimiters — `'x'`, `"x"` — are stripped and a backslash-escaped character
+-- | is unescaped (so `'\''` is the terminal `'`).
 unquoteLit :: String -> String
 unquoteLit s = case charAt 0 s of
-  Just '`' -> inner
   Just '\'' -> unescape inner
   Just '"' -> unescape inner
   _ -> s

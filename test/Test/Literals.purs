@@ -1,11 +1,12 @@
--- | Terminal-literal delimiters (ADR D34): `` `x` ``, `'x'`, and `"x"` are three
--- | spellings of one terminal — the author picks whichever avoids escaping — and
--- | the chosen delimiter is escapable with a backslash.
+-- | Terminal-literal delimiters (ADR D34): `'x'` and `"x"` are two spellings of
+-- | one terminal — the author picks whichever avoids escaping — and the chosen
+-- | delimiter is escapable with a backslash. Backtick is no longer a delimiter
+-- | (it collides with Markdown), so `` `x` `` is a lex error.
 module Test.Literals (tests) where
 
 import Prelude
 
-import Data.Either (Either(Right), isRight)
+import Data.Either (Either(Right), isLeft, isRight)
 import Effect (Effect)
 import Effect.Console (log)
 import Grammark.Lr (parse)
@@ -14,14 +15,16 @@ import Test.Assert (assert')
 
 tests :: Effect Unit
 tests = do
-  log "  literals: 'x', \"x\", and `x` parse to the same terminal (ADR D34)"
-  let bt = parse "```lr\nS\n  : `(` S `)`\n  | `x`\n```\n"
+  log "  literals: 'x' and \"x\" parse to the same terminal (ADR D34)"
   let sq = parse "```lr\nS\n  : '(' S ')'\n  | 'x'\n```\n"
   let dq = parse "```lr\nS\n  : \"(\" S \")\"\n  | \"x\"\n```\n"
-  assert' "all three delimiter styles parse" (isRight bt && isRight sq && isRight dq)
-  assert' ("backtick must equal single-quote:\n" <> show bt <> "\nvs\n" <> show sq)
-    (bt == sq)
-  assert' "backtick must equal double-quote" (bt == dq)
+  assert' "both delimiter styles parse" (isRight sq && isRight dq)
+  assert' ("single-quote must equal double-quote:\n" <> show sq <> "\nvs\n" <> show dq)
+    (sq == dq)
+
+  log "  literals: backtick is no longer a delimiter — `x` is rejected"
+  assert' "a backtick literal is a lex error"
+    (isLeft (parse "```lr\nS\n  : `x`\n```\n"))
 
   log "  literals: the delimiter is escapable, so '\\'' is the terminal '"
   case parse "```lr\nS\n  : '\\''\n```\n" of

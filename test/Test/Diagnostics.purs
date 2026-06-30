@@ -31,7 +31,7 @@ tests :: Effect Unit
 tests = do
   log "  diagnostics: an ambiguous grammar reports a grammar-relative conflict"
   case buildTablesFor Canonical ambiguous of
-    Right _ -> assert' "E -> E `+` E | NUM should not be LR(1)" false
+    Right _ -> assert' "E -> E '+' E | NUM should not be LR(1)" false
     Left conflicts -> do
       let
         msgs = renderConflicts ambiguous conflicts
@@ -58,7 +58,7 @@ tests = do
       (contains (Pattern "`Factor`") msg)
 
   log "  diagnostics: the undefined-nonterminal check is wired into parsing"
-  case Lr.parse "```lr\nA\n  : `x` Bogus\n```\n" of
-    Left msg -> assert' ("parse should reject undefined `Bogus`: " <> msg)
+  case Lr.parse "```lr\nA\n  : 'x' Bogus\n```\n" of
+    Left msg -> assert' ("parse should reject undefined 'Bogus': " <> msg)
       (contains (Pattern "Bogus") msg)
     Right _ -> assert' "parsing a grammar with an undefined nonterminal should fail" false

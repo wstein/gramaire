@@ -47,7 +47,7 @@ tests = do
       assert' "X+ grammar is LR(1)" (isRight (buildTablesFor Canonical g))
 
   log "  desugar: X? enumerates to two productions with Just/Nothing wrapper actions"
-  case Lr.parse "```lr\nA\n  : `x` NUM? `y`   {% \\_ n _ -> n %}\n```\n" of
+  case Lr.parse "```lr\nA\n  : 'x' NUM? 'y'   {% \\_ n _ -> n %}\n```\n" of
     Left e -> assert' ("X? parse failed: " <> e) false
     Right g -> case ruleNamed "A" g of
       Nothing -> assert' "A rule present" false
@@ -58,7 +58,7 @@ tests = do
         assert' "X? grammar is LR(1)" (isRight (buildTablesFor Canonical g))
 
   log "  desugar: X* enumerates (empty | list) and stays LR(1)"
-  case Lr.parse "```lr\nL\n  : `[` NUM* `]`   {% \\_ ns _ -> ns %}\n```\n" of
+  case Lr.parse "```lr\nL\n  : '[' NUM* ']'   {% \\_ ns _ -> ns %}\n```\n" of
     Left e -> assert' ("X* parse failed: " <> e) false
     Right g -> do
       assert' "X* introduces a NUM_plus list rule" (isJust (ruleNamed "NUM_plus" g))
@@ -73,7 +73,7 @@ tests = do
     Right _ -> assert' "an all-optional alternative should be a build error" false
 
   log "  desugar: Comma<X> lowers to a one-or-more comma-separated list rule"
-  case Lr.parse "```lr\nO\n  : `[` Comma<NUM> `]`\n```\n" of
+  case Lr.parse "```lr\nO\n  : '[' Comma<NUM> ']'\n```\n" of
     Left e -> assert' ("Comma macro failed: " <> e) false
     Right g -> do
       case ruleNamed "NUM_comma" g of
@@ -82,7 +82,7 @@ tests = do
       assert' "the Comma<X> grammar is LR(1)" (isRight (buildTablesFor Canonical g))
 
   log "  desugar: Sep<X, S> lowers to a list separated by the given symbol"
-  case Lr.parse "```lr\nL\n  : `(` Sep<NUM, `;`> `)`\n```\n" of
+  case Lr.parse "```lr\nL\n  : '(' Sep<NUM, ';'> ')'\n```\n" of
     Left e -> assert' ("Sep macro failed: " <> e) false
     Right g -> assert' "a NUM_sep_Lit_; rule should be introduced" (isJust (ruleNamed "NUM_sep_Lit_;" g))
 
@@ -92,7 +92,7 @@ tests = do
     Right _ -> assert' "an unknown macro should be a build error" false
 
   log "  desugar: a bare-body action binds the field names (named bindings)"
-  case Lr.parse "```lr\nE\n  : left:NUM `+` right:NUM   {% Add left right %}\n```\n" of
+  case Lr.parse "```lr\nE\n  : left:NUM '+' right:NUM   {% Add left right %}\n```\n" of
     Left e -> assert' ("named-binding parse failed: " <> e) false
     Right g -> case ruleNamed "E" g of
       Just (Rule _ _ [ Alt _ _ (Just act) ]) ->
@@ -100,7 +100,7 @@ tests = do
       _ -> assert' "E should have one alternative with an action" false
 
   log "  desugar: #[inline] folds a single-production nonterminal into its use sites"
-  case Lr.parse "```lr\nS\n  : Pair Pair\n\n#[inline] Pair\n  : `(` `)`\n```\n" of
+  case Lr.parse "```lr\nS\n  : Pair Pair\n\n#[inline] Pair\n  : '(' ')'\n```\n" of
     Left e -> assert' ("#[inline] parse failed: " <> e) false
     Right g -> do
       assert' "the inline rule is removed" (not (isJust (ruleNamed "Pair" g)))
@@ -110,7 +110,7 @@ tests = do
       assert' "#[inline] grammar is LR(1)" (isRight (buildTablesFor Canonical g))
 
   log "  desugar: #[inline] with an action threads the inlined value through a wrapper"
-  case Lr.parse "```lr\nN\n  : Sign NUM   {% \\s n -> mk s n %}\n\n#[inline] Sign\n  : `+`   {% \\_ -> Pos %}\n```\n" of
+  case Lr.parse "```lr\nN\n  : Sign NUM   {% \\s n -> mk s n %}\n\n#[inline] Sign\n  : '+'   {% \\_ -> Pos %}\n```\n" of
     Left e -> assert' ("#[inline] action parse failed: " <> e) false
     Right g -> case ruleNamed "N" g of
       Just (Rule _ _ [ Alt syms _ (Just act) ]) -> do
@@ -119,6 +119,6 @@ tests = do
       _ -> assert' "N should have one alternative with an action" false
 
   log "  desugar: a multi-production #[inline] rule is rejected"
-  case Lr.parse "```lr\nT\n  : Op NUM\n\n#[inline] Op\n  : `+`\n  | `-`\n```\n" of
+  case Lr.parse "```lr\nT\n  : Op NUM\n\n#[inline] Op\n  : '+'\n  | '-'\n```\n" of
     Left _ -> pure unit
     Right _ -> assert' "a multi-production #[inline] should be a build error" false

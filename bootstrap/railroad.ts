@@ -34,8 +34,9 @@ type Tok =
   | { readonly t: "sep" };
 
 // Tokenize a payload with `{% ... %}` actions already stripped. Raw `:`/`|`
-// are alternative separators; backtick spans are terminal literals (so the
-// `lr` grammar's own `` `:` `` / `` `|` `` are literals, not separators).
+// are alternative separators; `'…'` / `"…"` spans are terminal literals (ADR
+// D34), so the grammar's own `':'` / `'|'` are literals, not separators (and
+// the delimiter is backslash-escapable). Backtick is no longer a delimiter.
 function lexPayload(s: string): Tok[] {
   const toks: Tok[] = [];
   let i = 0;
@@ -46,14 +47,20 @@ function lexPayload(s: string): Tok[] {
     } else if (c === ":" || c === "|") {
       toks.push({ t: "sep" });
       i++;
-    } else if (c === "`") {
-      const end = s.indexOf("`", i + 1);
-      if (end < 0) {
-        toks.push({ t: "lit", v: s.slice(i + 1) });
-        break;
+    } else if (c === "'" || c === '"') {
+      let j = i + 1;
+      let v = "";
+      while (j < s.length && s[j] !== c) {
+        if (s[j] === "\\" && j + 1 < s.length) {
+          v += s[j + 1];
+          j += 2;
+        } else {
+          v += s[j];
+          j++;
+        }
       }
-      toks.push({ t: "lit", v: s.slice(i + 1, end) });
-      i = end + 1;
+      toks.push({ t: "lit", v });
+      i = j + 1; // skip the closing delimiter (or run to end if unterminated)
     } else {
       const m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
       if (m) {
@@ -68,7 +75,7 @@ function lexPayload(s: string): Tok[] {
 }
 
 // A word is a nonterminal exactly when it names a rule; every other word is a
-// lexer token class, and every backtick literal is a terminal.
+// lexer token class, and every quoted literal is a terminal.
 export function parseProduction(
   content: string,
   nonterminals: ReadonlySet<string>,

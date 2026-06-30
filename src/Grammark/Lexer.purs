@@ -114,14 +114,11 @@ tokenizeSpanned src = go 0 []
                 in
                   go j (Array.snoc acc (sp "LABEL" (slice s j) i j))
               _ -> Left (err i "expected an identifier after `#` alternative label")
-      -- A terminal literal in any of three interchangeable delimiters (ADR D34):
-      -- `` `x` ``, `'x'`, or `"x"`. The token `text` is the WHOLE lexeme,
-      -- delimiters included; the consumer (`Grammark.Lr.tokenVal`) unquotes and
-      -- unescapes. Backticks take no escape; the quoted forms escape their own
-      -- delimiter with a backslash (`'\''`, `"\""`).
-      | c == '`' -> case findChar '`' (i + 1) of
-          Nothing -> Left (err i "unterminated `...` terminal literal")
-          Just j -> go (j + 1) (Array.snoc acc (sp "TERM_LIT" (slice i (j + 1)) i (j + 1)))
+      -- A terminal literal in either of two interchangeable delimiters (ADR
+      -- D34): `'x'` or `"x"`. The token `text` is the WHOLE lexeme, delimiters
+      -- included; the consumer (`Grammark.Lr.tokenVal`) unquotes and unescapes.
+      -- Each quoted form escapes its own delimiter with a backslash (`'\''`,
+      -- `"\""`). (Backtick is no longer a delimiter — it collides with Markdown.)
       | c == '\'' -> case findDelim '\'' (i + 1) of
           Nothing -> Left (err i "unterminated '...' terminal literal")
           Just j -> go (j + 1) (Array.snoc acc (sp "TERM_LIT" (slice i (j + 1)) i (j + 1)))
