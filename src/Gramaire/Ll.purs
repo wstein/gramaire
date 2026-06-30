@@ -5,14 +5,15 @@
 -- | terminals against the token stream and recursing on `RuleCall`s — until the
 -- | rule's block end. Input is accepted iff the start rule consumes every token.
 -- |
--- | This is the LR-parity keystone: for every grammar **without left recursion**,
--- | `Gramaire.Ll.recognize` accepts exactly the inputs the LR path
--- | (`Gramaire.Conformance.recognize`) does. The desugared corpus *is* left
--- | recursive (`X+`/`X*` lower to left-recursive list rules, and the bootstrap is
--- | left recursive throughout), which top-down parsing cannot handle until
--- | Phase 2 rewrites it; prediction stays total there via `Sim`'s depth cap, but
--- | the parse itself would not terminate, so the conformance gate runs on
--- | non-left-recursive grammars for now.
+-- | This is the LR-parity keystone: `Gramaire.Ll.recognize` accepts exactly the
+-- | inputs the LR path (`Gramaire.Conformance.recognize`) does. The desugared
+-- | corpus *is* left recursive (`X+`/`X*` lower to left-recursive list rules, and
+-- | the bootstrap is left recursive throughout), which top-down parsing cannot
+-- | descend directly, so `Gramaire.LeftRec.eliminate` rewrites direct left
+-- | recursion to a right-recursive form (Phase 2) before the ATN is built. With
+-- | that, the whole `calc`/`lr` corpus parses top-down. Indirect (mutual) left
+-- | recursion is not yet rewritten; prediction stays total there via `Sim`'s
+-- | depth cap, though descent would not terminate.
 module Gramaire.Ll (recognize) where
 
 import Prelude
@@ -25,6 +26,7 @@ import Gramaire.Atn.Build (buildAtn)
 import Gramaire.Atn.Sim (predict)
 import Gramaire.Desugar (desugar)
 import Gramaire.Lexer (Token)
+import Gramaire.LeftRec (eliminate)
 import Gramaire.Syntax (Grammar)
 
 -- | Accept `toks` iff the grammar's start rule recognizes the whole stream.
@@ -33,7 +35,7 @@ recognize g toks = case desugar g of
   Left _ -> false
   Right dg ->
     let
-      atn = buildAtn dg
+      atn = buildAtn (eliminate dg)
     in
       case parseRule atn atn.start toks 0 of
         Just pos -> pos == Array.length toks
