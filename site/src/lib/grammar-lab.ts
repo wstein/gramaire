@@ -62,26 +62,26 @@ interface EarleyState {
 }
 
 interface Token {
-  kind: "number" | "identifier" | "punctuation" | "whitespace";
+  kind: "literal" | "unknown";
   value: string;
 }
 
-const DEFAULT_GRAMMAR = `# Arithmetic Lab
+const DEFAULT_GRAMMAR = `# Brackets
 
-This grammar demonstrates the live evaluator in a compact, Grammark-like form.
+A grammar over balanced parentheses. Every terminal is a backtick literal,
+so the in-browser preview lexes input straight from the grammar — there are
+no token classes that would need a separate lexer.
 
-## Expr
+## S
 
 \`\`\`lr
-Expr
-  : Term PLUS Expr
-  | Term
-Term
-  : NUM
+S
+  : \`(\` \`)\`
+  | \`(\` S \`)\`
 \`\`\`
 `;
 
-const DEFAULT_INPUT = "4 + 7";
+const DEFAULT_INPUT = "(())";
 
 export function getDefaultGrammar(): string {
   return DEFAULT_GRAMMAR;
@@ -147,6 +147,22 @@ export function parseMarkdownGrammar(source: string): {
   }
 
   const grammarRules = Array.from(rules.values());
+
+  // A name is a nonterminal exactly when it is some rule's left-hand side —
+  // regardless of case. The per-symbol classifier above guesses by case alone,
+  // so a single-letter rule like `S` is mis-tagged as a token class; reclassify
+  // any non-literal symbol that names a defined rule as a nonterminal.
+  const ruleNames = new Set(grammarRules.map((rule) => rule.name));
+  for (const rule of grammarRules) {
+    for (const production of rule.productions) {
+      production.rhs = production.rhs.map((symbol) =>
+        symbol.kind !== "terminal" && ruleNames.has(symbol.value)
+          ? { kind: "nonterminal", value: symbol.value }
+          : symbol,
+      );
+    }
+  }
+
   const startSymbol = grammarRules[0]?.name ?? "Start";
 
   return {
@@ -267,10 +283,6 @@ function parseProductionBody(body: string): GrammarSymbol[] {
       return { kind: "nonterminal", value: token };
     }
 
-    if (token === "PLUS") {
-      return { kind: "terminal", value: "+" };
-    }
-
     return { kind: "terminal", value: token };
   });
 }
@@ -290,28 +302,119 @@ export function evaluateGrammar(
     };
   }
 
-  const tokens = tokenize(input);
-  const inputTokens = tokens
-    .filter((token) => token.kind !== "whitespace")
-    .map((token) => token.value);
-  const result = runEarley(grammar, tokens);
-  const diagnostics = result.success
+  // The preview lexes input from the grammar's own literal terminals — a
+  // literal is its own lexer. Token classes (ALL-CAPS) carry no lexer here, so
+  // a grammar relying on them cannot be evaluated in the browser; we say so
+  // rather than guess what `NUM` or `PLUS` mean.
+  const tokenClasses = collectTokenClasses(grammar);
+  if (tokenClasses.length > 0) {
+    return {
+      success: false,
+      message: "The in-browser preview can't evaluate token classes.",
+      diagnostics: [
+        `This grammar relies on the token class(es): ${tokenClasses.join(", ")}.`,
+        "Token classes (ALL-CAPS names) need a per-language lexer the preview does not have — only literal terminals such as `(` can be lexed here.",
+        "Rewrite those terminals as literals, or run the grammark CLI for full evaluation.",
+      ],
+      trace: [],
+      inputTokens: [],
+      grammarRules: grammar.rules.map((rule) => rule.name),
+    };
+  }
+
+  const tokens = lexByLiterals(input, collectLiterals(grammar));
+  const inputTokens = tokens.map((token) => token.value);
+  const unknown = tokens.filter((token) => token.kind === "unknown");
+  const parsed = runEarley(grammar, tokens);
+  const success = parsed.success && unknown.length === 0;
+
+  const diagnostics = success
     ? [
-        "Accepted by the live evaluator.",
+        "Accepted by the in-browser preview.",
         `Parsed ${inputTokens.length} token(s).`,
       ]
-    : ["The input did not match the grammar.", ...result.trace.slice(0, 3)];
+    : [
+        "The input did not match the grammar.",
+        ...(unknown.length > 0
+          ? [
+              `Unrecognized input: ${unknown
+                .map((token) => JSON.stringify(token.value))
+                .join(", ")} — no literal terminal matches.`,
+            ]
+          : []),
+        ...parsed.trace.slice(0, 3),
+      ];
 
   return {
-    success: result.success,
-    message: result.success
+    success,
+    message: success
       ? "The input matched the grammar."
       : "The input did not match the grammar.",
     diagnostics,
-    trace: result.trace,
+    trace: parsed.trace,
     inputTokens,
     grammarRules: grammar.rules.map((rule) => rule.name),
   };
+}
+
+// The literal terminals (backtick spellings) a grammar uses — the alphabet the
+// preview can lex input against.
+function collectLiterals(grammar: Grammar): Set<string> {
+  const literals = new Set<string>();
+  for (const rule of grammar.rules) {
+    for (const production of rule.productions) {
+      for (const symbol of production.rhs) {
+        if (symbol.kind === "terminal") {
+          literals.add(symbol.value);
+        }
+      }
+    }
+  }
+  return literals;
+}
+
+// The ALL-CAPS token classes a grammar uses — terminals the preview cannot lex
+// without a per-language lexer.
+function collectTokenClasses(grammar: Grammar): string[] {
+  const classes = new Set<string>();
+  for (const rule of grammar.rules) {
+    for (const production of rule.productions) {
+      for (const symbol of production.rhs) {
+        if (symbol.kind === "token") {
+          classes.add(symbol.value);
+        }
+      }
+    }
+  }
+  return [...classes];
+}
+
+// Lex input by longest-match over the grammar's literal terminals, skipping
+// whitespace. A character no literal can start becomes an `unknown` token, which
+// never matches — so it surfaces as a rejection rather than a silent skip.
+function lexByLiterals(input: string, literals: Set<string>): Token[] {
+  const sorted = [...literals].sort((a, b) => b.length - a.length);
+  const tokens: Token[] = [];
+  let index = 0;
+
+  while (index < input.length) {
+    if (/\s/.test(input[index])) {
+      index += 1;
+      continue;
+    }
+    const literal = sorted.find((candidate) =>
+      input.startsWith(candidate, index),
+    );
+    if (literal) {
+      tokens.push({ kind: "literal", value: literal });
+      index += literal.length;
+    } else {
+      tokens.push({ kind: "unknown", value: input[index] });
+      index += 1;
+    }
+  }
+
+  return tokens;
 }
 
 function runEarley(
@@ -449,61 +552,9 @@ function addState(chart: EarleyState[], state: EarleyState): boolean {
   return false;
 }
 
-function tokenize(input: string): Token[] {
-  const tokens: Token[] = [];
-  let index = 0;
-
-  while (index < input.length) {
-    const char = input[index];
-
-    if (/\s/.test(char)) {
-      index += 1;
-      continue;
-    }
-
-    if (/\d/.test(char)) {
-      let value = char;
-      index += 1;
-      while (index < input.length && /\d/.test(input[index])) {
-        value += input[index];
-        index += 1;
-      }
-      tokens.push({ kind: "number", value });
-      continue;
-    }
-
-    if (/[A-Za-z_]/.test(char)) {
-      let value = char;
-      index += 1;
-      while (index < input.length && /[A-Za-z0-9_]/.test(input[index])) {
-        value += input[index];
-        index += 1;
-      }
-      tokens.push({ kind: "identifier", value });
-      continue;
-    }
-
-    tokens.push({ kind: "punctuation", value: char });
-    index += 1;
-  }
-
-  return tokens;
-}
-
+// A terminal matches a token only when it is a literal whose spelling equals the
+// token's text. Token classes are not matchable here (they are rejected upfront
+// in `evaluateGrammar`); an `unknown` token never matches anything.
 function tokenMatches(symbol: GrammarSymbol, token: Token): boolean {
-  if (symbol.kind === "terminal") {
-    return token.value === symbol.value;
-  }
-
-  if (symbol.kind === "token") {
-    if (symbol.value === "NUM") {
-      return token.kind === "number";
-    }
-    if (symbol.value === "PLUS") {
-      return token.kind === "punctuation" && token.value === "+";
-    }
-    return token.kind === "identifier" || token.kind === "number";
-  }
-
-  return false;
+  return symbol.kind === "terminal" && token.value === symbol.value;
 }
