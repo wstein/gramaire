@@ -7,7 +7,7 @@ Operators are left-associative; `*` and `/` bind tighter than `+` and `-`.
 
 An expression is a sum or difference of terms.
 
-```lr
+```grammark
 Expr
   : Expr '+' Term   {% \l _ r -> Add l r %}
   | Expr '-' Term   {% \l _ r -> Sub l r %}
@@ -20,7 +20,7 @@ Expr
 
 A term is a product or quotient of factors.
 
-```lr
+```grammark
 Term
   : Term '*' Factor {% \l _ r -> Mul l r %}
   | Term '/' Factor {% \l _ r -> Div l r %}
@@ -33,7 +33,7 @@ Term
 
 A factor is a number or a parenthesised expression.
 
-```lr
+```grammark
 Factor
   : '(' Expr ')'    {% \_ e _ -> e %}
   | NUMBER          {% \n -> Lit n %}
@@ -45,7 +45,7 @@ Factor
 
 Earlier declarations bind more loosely than later ones.
 
-```lr precedence
+```grammark precedence
 %left '+' '-'
 %left '*' '/'
 ```
@@ -54,7 +54,7 @@ Earlier declarations bind more loosely than later ones.
 
 Curated messages are keyed by parser state.
 
-```lr errors
+```grammark errors
 state 7:
   Expected an operator or the end of the expression here.
   A factor was parsed, but the input continued unexpectedly.

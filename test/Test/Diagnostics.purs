@@ -58,7 +58,7 @@ tests = do
       (contains (Pattern "`Factor`") msg)
 
   log "  diagnostics: the undefined-nonterminal check is wired into parsing"
-  case Lr.parse "```lr\nA\n  : 'x' Bogus\n```\n" of
+  case Lr.parse "```grammark\nA\n  : 'x' Bogus\n```\n" of
     Left msg -> assert' ("parse should reject undefined 'Bogus': " <> msg)
       (contains (Pattern "Bogus") msg)
     Right _ -> assert' "parsing a grammar with an undefined nonterminal should fail" false

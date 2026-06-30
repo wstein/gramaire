@@ -65,7 +65,7 @@ A small arithmetic grammar.
 
 An expression is a sum or difference of terms.
 
-```lr
+```grammark
 Expr
   : Expr `+` Term
   | Expr `-` Term
@@ -94,7 +94,7 @@ Reading the `lr` block:
 
 Add the remaining rules — `Term`, then `Factor` for numbers and parentheses:
 
-```lr
+```grammark
 Term
   : Term `*` Factor
   | Term `/` Factor
@@ -134,7 +134,7 @@ Grammark gives you sugar that compiles down to that clean core automatically
 
 For example, a statement block is just:
 
-```lr
+```grammark
 Block
   : `{` Sep<Stmt, `;`> `}`
 ```
@@ -145,7 +145,7 @@ A recognizer only says yes or no. To build a value or an AST, put a host-languag
 action between `{%` and `%}`. The default action language is **PureScript** (the
 core's own language):
 
-```lr
+```grammark
 Expr
   : Expr `+` Term   {% \l _ r -> Add l r %}
   | Expr `-` Term   {% \l _ r -> Sub l r %}
@@ -159,7 +159,7 @@ we discard with `_`), and the right value.
 If you name your fields, you can skip the lambda entirely — a **bare body** binds
 the field names for you:
 
-```lr
+```grammark
 Expr
   : left:Expr `+` right:Term   {% Add left right %}
 ```
@@ -183,7 +183,7 @@ declarations bind more loosely:
 ````md
 ## Precedence
 
-```lr precedence
+```grammark precedence
 %left `+` `-`
 %left `*` `/`
 ```

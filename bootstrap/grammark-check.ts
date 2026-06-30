@@ -42,8 +42,8 @@ const EXPECTED_TAIL: readonly string[] = ["Error messages", "Generated tables"];
 // ---- Domain types (mirror the PureScript ADTs) ----------------------------
 
 export interface Block {
-  readonly info: string; // full info string, e.g. "lr precedence"
-  readonly lang: string; // first word of info, e.g. "lr"
+  readonly info: string; // full info string, e.g. "grammark precedence"
+  readonly lang: string; // first word of info, e.g. "grammark"
   readonly nonterminal: string | null; // Maybe String
   readonly content: string;
   readonly fenceLen: number;
@@ -137,7 +137,7 @@ export function parse(src: string): Doc {
       }
       const lang = info.split(/\s+/)[0] ?? "";
       let nonterminal: string | null = null;
-      if (info === "lr") {
+      if (info === "grammark") {
         const first = content.find((l) => l.trim().length > 0) ?? "";
         nonterminal = first.trim().split(/\s+/)[0] ?? null;
       }
@@ -165,14 +165,14 @@ export function grammarHashes(doc: Doc): GrammarHashes {
   const ruleHashes: Record<string, string> = {};
   const grammarParts: string[] = [];
   for (const b of doc.blocks) {
-    if (b.lang !== "lr") continue;
-    if (b.info === "lr" && b.nonterminal) {
+    if (b.lang !== "grammark") continue;
+    if (b.info === "grammark" && b.nonterminal) {
       ruleHashes[b.nonterminal] = sha256(`lr\n${b.content}`);
     }
     if (
-      b.info === "lr" ||
-      b.info === "lr precedence" ||
-      b.info === "lr tokens"
+      b.info === "grammark" ||
+      b.info === "grammark precedence" ||
+      b.info === "grammark tokens"
     ) {
       grammarParts.push(`${b.info}\n${b.content}`);
     }
@@ -199,7 +199,7 @@ export function checkStructure(doc: Doc): string[] {
   // deliberately ignored here (free presentational grouping; ADR D29), so do
   // not add a level-3+ check.
   const ruleNames = doc.blocks
-    .filter((b) => b.info === "lr" && b.nonterminal)
+    .filter((b) => b.info === "grammark" && b.nonterminal)
     .map((b) => b.nonterminal as string);
   const h2 = doc.headings.filter((h) => h.level === 2).map((h) => h.text);
   const tail = h2.includes("Precedence")
@@ -438,7 +438,7 @@ export function fmt(file: string, doc: Doc, mode: DiagramMode): void {
   const nonterminals = new Set<string>(Object.keys(ruleHashes));
   const contentByRule = new Map<string, string>();
   for (const b of doc.blocks) {
-    if (b.info === "lr" && b.nonterminal)
+    if (b.info === "grammark" && b.nonterminal)
       contentByRule.set(b.nonterminal, b.content);
   }
 

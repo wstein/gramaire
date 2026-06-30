@@ -4,7 +4,7 @@ You are reading a grammar. You are also reading a pitch for Grammark, and
 those are not two files — they are this one. Grammark is an LR parser
 generator whose source format _is_ Markdown: a `.gram.md` renders on
 GitHub as ordinary prose and railroad diagrams while being, byte for byte,
-the input its generator reads. The productions live in the fenced `lr`
+the input its generator reads. The productions live in the fenced `grammark`
 blocks below; everything around them — including this paragraph — is
 documentation that ships with the grammar and never goes stale, because
 `grammark --check` gates the whole file.
@@ -30,7 +30,7 @@ one word of the prose.
 
 A readme is the whole pitch: a non-empty run of sentences.
 
-```lr
+```grammark
 Readme
   : SentenceList    {% \ss -> Readme ss %}
 ```
@@ -41,7 +41,7 @@ Readme
 
 Left recursion accumulates sentences in reading order.
 
-```lr
+```grammark
 SentenceList
   : Sentence                  {% \s -> [s] %}
   | SentenceList Sentence     {% \ss s -> snoc ss s %}
@@ -55,7 +55,7 @@ A sentence is one or more words terminated by a period. The `.` is what
 lets one token of lookahead tell a finished sentence from a continuing
 one.
 
-```lr
+```grammark
 Sentence
   : Words '.'    {% \ws _ -> Sentence ws %}
 ```
@@ -64,7 +64,7 @@ Sentence
 
 ## Words
 
-```lr
+```grammark
 Words
   : WORD          {% \w -> [w] %}
   | Words WORD    {% \ws w -> snoc ws w %}
@@ -76,7 +76,7 @@ Words
 
 Curated messages keyed by the parser state they are reported from.
 
-```lr errors
+```grammark errors
 after Words, lookahead is `$`:
   This sentence never ends. A sentence is words terminated by a `.`.
   Add the period and the pitch parses.

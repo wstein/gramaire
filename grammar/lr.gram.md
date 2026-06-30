@@ -1,7 +1,7 @@
 # Lr
 
-This is the `lr` productions micro-language — the notation inside every
-fenced `lr` block — described in itself. It is the Grammark bootstrap: the
+This is the `grammark` productions micro-language — the notation inside every
+fenced `grammark` block — described in itself. It is the Grammark bootstrap: the
 grammar Grammark's own parser is generated from, and the first real test
 that the toolchain can parse what it claims to.
 
@@ -61,7 +61,7 @@ The helpers `cons` and `snoc` prepend and append to an `Array`.
 
 ## Tokens
 
-The `lr` notation's own lexis (lexer-spec §10). The payload-bearing classes
+The `grammark` notation's own lexis (lexer-spec §10). The payload-bearing classes
 capture their text: `ACTION` its body, `LABEL` / `ATTR` the bare name, `NL` a
 single `\n`. `TERM_LIT` matches a terminal literal in either of two
 interchangeable delimiters (ADR D34) — `'x'` or `"x"` — as the whole lexeme;
@@ -69,7 +69,7 @@ the consumer unquotes it. `ATTR` precedes `IDENT` / `LABEL` so a `#[name]`
 attribute out-matches a `# Name` label; `WS` is skipped; `':'` and `'|'` stay
 implicit literals from the productions.
 
-```lr tokens
+```grammark tokens
 WS       : /[ \t]+/                       %skip
 NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      %external(layout)
 ATTR     : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/
@@ -89,7 +89,7 @@ COMMA    : ","
 
 A grammar is a non-empty list of rules.
 
-```lr
+```grammark
 Grammar
   : RuleList   {% \rs -> Grammar rs %}
 ```
@@ -101,7 +101,7 @@ Grammar
 Left recursion accumulates rules in source order. The `NL` between two rules is
 the one boundary newline the normalization pass keeps (see the intro).
 
-```lr
+```grammark
 RuleList
   : Rule               {% \r -> [r] %}
   | RuleList NL Rule   {% \rs _ r -> snoc rs r %}
@@ -119,7 +119,7 @@ head form is fixed and never written inline.
 A rule may carry `#[attr]` attributes (e.g. `#[inline]`, which `Grammark.Desugar`
 folds into use sites) before its name.
 
-```lr
+```grammark
 Rule
   : ATTR IDENT NL ':' Body   {% \attr lhs _ _ alts -> Rule lhs [ attr ] alts %}
   | IDENT NL ':' Body        {% \lhs _ _ alts -> Rule lhs [] alts %}
@@ -133,7 +133,7 @@ The body is a `|`-separated list of alternatives. `|` is the only separator; a
 line break inside an alternative is insignificant, so an alternative may wrap
 across physical lines.
 
-```lr
+```grammark
 Body
   : Alt            {% \a -> [a] %}
   | Body '|' Alt   {% \bs _ a -> snoc bs a %}
@@ -146,7 +146,7 @@ Body
 An alternative is a list of symbols, an optional `# Label` naming it, and an
 optional trailing action.
 
-```lr
+```grammark
 Alt
   : SymList Label Action   {% \syms lbl act -> Alt syms lbl act %}
   | SymList Label          {% \syms lbl -> Alt syms lbl Nothing %}
@@ -158,7 +158,7 @@ Alt
 
 ## SymList
 
-```lr
+```grammark
 SymList
   : Sym           {% \s -> [s] %}
   | SymList Sym   {% \ss s -> snoc ss s %}
@@ -178,7 +178,7 @@ separated-list rule. A `name:X` prefix names that right-hand-side position; the
 name is carried onto the IR (for CST accessors and visitors) and does not affect
 the recognized language.
 
-```lr
+```grammark
 Sym
   : IDENT              {% \i -> Ref i %}
   | TERM_LIT           {% \t -> Lit t %}
@@ -198,7 +198,7 @@ Sym
 
 The comma-separated argument list of a macro call.
 
-```lr
+```grammark
 Args
   : Sym               {% \s -> [s] %}
   | Args COMMA Sym    {% \as _ s -> snoc as s %}
@@ -208,7 +208,7 @@ Args
 
 ## Action
 
-```lr
+```grammark
 Action
   : ACTION   {% \a -> Just a %}
 ```
@@ -220,7 +220,7 @@ Action
 A `# Name` label names an alternative, for per-alternative visitor methods and
 CST accessors.
 
-```lr
+```grammark
 Label
   : LABEL   {% \l -> Just l %}
 ```
@@ -231,7 +231,7 @@ Label
 
 Curated messages keyed by the parser state they are reported from.
 
-```lr errors
+```grammark errors
 after IDENT NL:
   Expected `:` to begin this rule's alternatives.
   A rule is its name on one line, then `:` and the first alternative
