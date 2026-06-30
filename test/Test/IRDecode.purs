@@ -12,8 +12,9 @@ import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (log)
-import Gramark.IR (IROn(OnTerm), buildIR, conflictToIR, serialize, toJson)
+import Gramark.IR (IROn(OnTerm), buildIR, conflictToIR, serialize, toJson, withStrategy)
 import Gramark.IR.Decode (decode, toParseTable)
+import Gramark.IR.Validate (validate)
 import Gramark.Json as Json
 import Gramark.Lr as Lr
 import Gramark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
@@ -75,6 +76,31 @@ conflicts = do
         Left e -> assert' ("conflict round-trip failed: " <> e) false
         Right ir'' -> assert' "conflict did not survive serialize -> parse -> decode" (ir''.conflicts == ir'.conflicts)
 
+-- The `ll-star` strategy attaches a serialized ATN; it must validate and survive
+-- the JSON round trip, while `lr` (the default) leaves the IR byte-unchanged.
+strategy :: Effect Unit
+strategy = do
+  log "  ir-decode: the ll-star strategy serializes a valid ATN that round-trips"
+  md <- readTextFile UTF8 "examples/calc.grmk.md"
+  case Lr.parse md of
+    Left e -> assert' ("could not parse calc: " <> e) false
+    Right g -> case buildIR Canonical "Calc" g of
+      Left _ -> assert' "calc should build an IR" false
+      Right ir -> do
+        let irLl = withStrategy "ll-star" g ir
+        let
+          atnStates = case irLl.atn of
+            Just a -> a.states
+            Nothing -> []
+        assert' "strategy is recorded" (irLl.strategy == "ll-star")
+        assert' "an ATN is attached" (not (null atnStates))
+        assert' "the ll-star IR validates clean" (null (validate irLl))
+        case decode =<< Json.parse (Json.stringify (toJson irLl)) of
+          Left e -> assert' ("ll-star round-trip failed: " <> e) false
+          Right back -> assert' "the ll-star IR survives serialize -> parse -> decode" (back == irLl)
+        assert' "lr is the default and attaches no ATN" (ir.strategy == "lr" && ir.atn == Nothing)
+        assert' "withStrategy lr leaves the IR byte-unchanged" (Json.stringify (toJson (withStrategy "lr" g ir)) == Json.stringify (toJson ir))
+
 tests :: Effect Unit
 tests = do
   for_
@@ -84,3 +110,4 @@ tests = do
     ]
     check
   conflicts
+  strategy

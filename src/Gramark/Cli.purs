@@ -35,7 +35,7 @@ import Gramark.Conformance.Lexers (tokensBlock)
 import Gramark.Tokens (parseTokens)
 import Gramark.Diagnostics (renderConflicts)
 import Gramark.Glr (explainP)
-import Gramark.IR (IR, attachLexer, buildIRP)
+import Gramark.IR (IR, attachLexer, buildIRP, withStrategy)
 import Gramark.Lr (parse, precedenceOf, strip)
 import Gramark.Syntax (Grammar)
 import Gramark.Table (Method(Canonical))
@@ -51,10 +51,11 @@ type EmitOpts =
   { file :: Maybe String
   , backend :: String
   , out :: Maybe String
+  , strategy :: String
   }
 
 defaultEmit :: EmitOpts
-defaultEmit = { file: Nothing, backend: "ir", out: Nothing }
+defaultEmit = { file: Nothing, backend: "ir", out: Nothing, strategy: "lr" }
 
 -- | Parse the arguments to `emit`. The single positional argument is the
 -- | grammar file; `--backend` and `--out` each take a value.
@@ -66,6 +67,7 @@ parseEmit = go defaultEmit
     Just { head: a, tail } -> case a of
       "--backend" -> value "--backend" tail \v rest -> go (opts { backend = v }) rest
       "--out" -> value "--out" tail \v rest -> go (opts { out = Just v }) rest
+      "--strategy" -> value "--strategy" tail \v rest -> go (opts { strategy = v }) rest
       _
         | String.take 2 a == "--" -> Left ("unknown option: " <> a)
         | otherwise -> case opts.file of
@@ -127,7 +129,10 @@ runEmit args = case parseEmit args of
                   ( "emit: " <> file <> " has unresolved LR(1) conflicts:\n\n"
                       <> String.joinWith "\n\n" (renderConflicts g conflicts)
                   )
-              Right ir -> deliver opts.out (b.emit (withLexis md ir))
+              Right ir
+                | not (Array.elem opts.strategy b.strategies) ->
+                    die ("emit: backend '" <> b.name <> "' does not support strategy '" <> opts.strategy <> "'")
+                | otherwise -> deliver opts.out (b.emit (withStrategy opts.strategy g (withLexis md ir)))
 
 -- Attach the grammar's `## Tokens` lexis to the IR, if any, so lexer-aware
 -- backends (e.g. ANTLR) can emit token rules. Malformed or absent tokens leave

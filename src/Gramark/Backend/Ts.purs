@@ -42,6 +42,7 @@ backend :: Backend
 backend =
   { name: "ts"
   , capabilities: [ Recognizer, Cst ]
+  , strategies: [ "lr" ]
   , emit: \ir ->
       [ { path: ir.grammar.name <> ".ts", contents: emit ir }
       , { path: ir.grammar.name <> ".d.ts", contents: emitDts ir }

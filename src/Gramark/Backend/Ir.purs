@@ -10,7 +10,7 @@ module Gramark.Backend.Ir
 
 import Prelude
 
-import Gramark.Backend (Backend, Capability(..))
+import Gramark.Backend (Backend, Capability(..), allStrategies)
 import Gramark.IR (toJson)
 import Gramark.Json (stringify)
 
@@ -18,5 +18,6 @@ backend :: Backend
 backend =
   { name: "ir"
   , capabilities: [ Data ]
+  , strategies: allStrategies
   , emit: \ir -> [ { path: ir.grammar.name <> ".ir.json", contents: stringify (toJson ir) } ]
   }

@@ -22,7 +22,7 @@ import Data.String (joinWith)
 import Data.String.Common (replaceAll)
 import Data.String.Pattern (Pattern(..), Replacement(..))
 import Data.Tuple (Tuple(..))
-import Gramark.Backend (Backend, Capability(..))
+import Gramark.Backend (Backend, Capability(..), allStrategies)
 import Gramark.IR (IR, IRAct(..), IROn(..), IRTerminal(..))
 
 -- | The DOT backend as a first-party `format` backend: one `.dot` file named
@@ -31,6 +31,7 @@ backend :: Backend
 backend =
   { name: "dot"
   , capabilities: [ Format ]
+  , strategies: allStrategies
   , emit: \ir -> [ { path: ir.grammar.name <> ".dot", contents: emit ir } ]
   }
 

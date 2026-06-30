@@ -203,16 +203,28 @@ surface is reached by **conversion**, not syntax expansion (§4).
   whole lexeme as the token text — and actual modes/channels (which need grammar
   syntax Gramark has deliberately not grown).
 
-### Phase 5 — IR + codegen
+### Phase 5 — IR + codegen ✅ IR + SPI
 
-- IR: a new `strategy` field (`lr` | `ll-star`) and an optional serialized
-  `atn` section (mirror ANTLR's compact ATN serialization) so a backend can ship
-  the ATN instead of LR tables. Bump `irVersion`; extend `spec/ir-schema.json`;
-  validate in `Test.Schema`.
-- Backends: each backend's SPI grows a `supportsStrategy` query. The TS backend
-  emits an ATN + a port of the `antlr4ng` predictor (or depends on `antlr4ng`
-  as the runtime); the interpreter backend runs `Gramark.Ll` directly. EBNF/DOT
-  backends are strategy-agnostic (they read structure, not tables).
+- ✅ **IR `strategy` + `atn`:** the IR gains a `strategy` field (`lr` default |
+  `ll-star`) and an optional serialized `atn` section (`IRAtn` — a
+  strategy-agnostic mirror of `Gramark.Atn`: states with kind/decision and
+  ε/atom/rule transitions). `IR.withStrategy "ll-star" g` desugars,
+  left-recursion-eliminates, and `buildAtn`s exactly as `Gramark.Ll` does, then
+  serializes the network. Both encode and **decode** (`IR.Decode`), and
+  `IR.Validate` adds presence-guarded referential-integrity checks (every
+  transition target in range, blockStart count = `decisions`).
+  Following the additive-field convention (`extras`/`recovery`/`glr`), both are
+  **omit-when-default**, so `irVersion` stays `0` and every existing golden is
+  byte-unchanged; `spec/ir-schema.json` documents the new optional shapes.
+- ✅ **Backend SPI:** `Backend` grows a `strategies :: Array String` query; the
+  structure-reading backends (`ir`/`ebnf`/`dot`/`antlr`) consume both, the
+  table-driven TS backend declares `["lr"]`. `gramark emit --strategy <s>`
+  selects it and errors if the backend can't consume it.
+- ✅ **Test (`Test.IRDecode`):** an `ll-star` IR validates, its ATN survives the
+  JSON round trip, and `lr` leaves the IR byte-identical.
+- ⏳ **Deferred:** a TS/interpreter backend that actually _emits_ an ATN-driven
+  parser (a port of the `antlr4ng` predictor, or `Gramark.Ll` shipped as the
+  runtime) — the serialized `atn` is the substrate it will consume.
 
 ### Phase 6 — Diagnostics, profiling, conformance
 
