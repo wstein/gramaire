@@ -9,9 +9,10 @@ import Prelude
 
 import Data.Array (length, null)
 import Data.Either (Either(..), isLeft)
-import Data.String (joinWith)
+import Data.String (Pattern(..), contains, joinWith)
 import Effect (Effect)
 import Effect.Console (log)
+import Grammark.Glr (explain, explainP)
 import Grammark.IR (buildIR, buildIRP)
 import Grammark.Lr (parse, precedenceOf)
 import Grammark.Table (Method(Canonical))
@@ -57,3 +58,8 @@ tests = do
             (not (null ir.grammar.precedence))
           assert' "one level per %left line (two levels)"
             (length ir.grammar.precedence == 2)
+      -- explain-conflict separates resolved-by-declaration from genuine.
+      assert' "explainP reports the conflicts as resolved by declaration"
+        (contains (Pattern "resolved by declaration") (explainP (precedenceOf ambiguousCalc) g))
+      assert' "explain (no precedence) reports them as genuine"
+        (contains (Pattern "genuine") (explain g))

@@ -31,7 +31,7 @@ import Grammark.Backend (Output)
 import Grammark.Backend.Registry (backends, findBackend)
 import Grammark.Conformance (Descriptor, calcDescriptor, lrDescriptor, runSuites, summarize)
 import Grammark.Diagnostics (renderConflicts)
-import Grammark.Glr (explain)
+import Grammark.Glr (explainP)
 import Grammark.IR (buildIRP)
 import Grammark.Lr (parse, precedenceOf, strip)
 import Grammark.Syntax (Grammar)
@@ -190,7 +190,7 @@ runExplain args = case Array.head args of
       Left err -> die ("explain-conflict: cannot read " <> file <> ": " <> message err)
       Right md -> case parse md of
         Left pe -> die ("explain-conflict: parse error in " <> file <> ": " <> pe)
-        Right g -> log (explain g)
+        Right g -> log (explainP (precedenceOf md) g)
 
 die :: String -> Effect Unit
 die msg = do
@@ -215,7 +215,7 @@ usage = for_ lines log
     , "Backends: " <> backendNames
     , ""
     , "With no --out, the artifact is written to stdout."
-    , "strip writes the raw .grmk projection (the grammark blocks, no prose)."
+    , "strip writes the raw .grmk projection (grammar + docs as comments)."
     , "conformance runs the differential oracle over the built-in corpora."
-    , "explain-conflict classifies a grammar's conflicts: LALR artifact vs genuine."
+    , "explain-conflict classifies conflicts: LALR artifact, resolved by declaration, or genuine."
     ]

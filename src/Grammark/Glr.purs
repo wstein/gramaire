@@ -14,11 +14,16 @@
 -- | construction methods: a conflict LALR(1) reports but canonical LR(1)
 -- | resolves is an *LALR artifact* (use IELR); one that survives canonical LR(1)
 -- | is *genuine* — the grammar is ambiguous or otherwise not LR(1), and `forest`
--- | will return more than one parse to prove it.
+-- | will return more than one parse to prove it. `explainP` additionally folds in
+-- | the grammar's declared `%left`/`%right` precedence (ADR D37): a conflict the
+-- | declarations resolve is reported as *resolved by declaration*, separating it
+-- | from the *genuine* conflicts that persist even with precedence — the ones a
+-- | new declaration or a refactor still has to address.
 module Grammark.Glr
   ( parseForest
   , forest
   , explain
+  , explainP
   ) where
 
 import Prelude
@@ -33,7 +38,7 @@ import Grammark.Cst (Cst, cstReduce, cstToken)
 import Grammark.Diagnostics (renderConflicts)
 import Grammark.Lexer (Token)
 import Grammark.Syntax (Grammar)
-import Grammark.Table (Action(..), GSym(..), GlrTable, Method(..), buildGlrTablesFor, buildTablesFor)
+import Grammark.Table (Action(..), GSym(..), GlrTable, Method(..), Precedence, buildGlrTablesFor, buildTablesFor, buildTablesForP, emptyPrec)
 
 -- One in-flight parser: parallel state/value stacks and an input position.
 type Config v = { states :: Array Int, values :: Array v, pos :: Int }
@@ -121,13 +126,20 @@ forest method g toks = parseForest (buildGlrTablesFor method g) cstToken cstRedu
 -- | and render a human report. Separates "LALR artifact" (canonical/IELR
 -- | resolve it) from "genuine" (canonical LR(1) cannot).
 explain :: Grammar -> String
-explain g =
+explain = explainP emptyPrec
+
+-- | `explain`, but folding in the grammar's declared precedence so the verdict
+-- | separates conflicts *resolved by declaration* (the `%left`/`%right` lines did
+-- | their job) from the *genuine* ones that persist even with precedence.
+explainP :: Precedence -> Grammar -> String
+explainP prec g =
   joinWith "\n" $
     [ "conflicts by method: canonical LR(1) = " <> show nc
         <> ", LALR(1) = "
         <> show nl
         <> ", IELR(1) = "
         <> show ni
+        <> (if hasPrec then ", canonical + declared precedence = " <> show ncp else "")
     ]
       <> verdict
   where
@@ -138,6 +150,12 @@ explain g =
   nl = count LALR
   ni = count IELR
 
+  hasPrec = not (Map.isEmpty prec.terms)
+  -- Canonical conflicts that remain after applying the declared precedence.
+  ncp = case buildTablesForP prec Canonical g of
+    Left cs -> Array.length cs
+    Right _ -> 0
+
   verdict
     | nc == 0 && nl == 0 =
         [ "verdict: conflict-free — the grammar is LALR(1)." ]
@@ -147,13 +165,20 @@ explain g =
             <> (if ni == 0 then " (and so does IELR(1))." else ".")
         , "         the grammar is LR(1); build it with IELR(1) for a compact conflict-free table."
         ]
-    | otherwise =
-        [ "verdict: genuine — " <> show nc
-            <> " conflict(s) persist under canonical LR(1); the grammar is not LR(1)"
-        , "         (ambiguous, or in need of a refactor or the GLR driver). conflicts:"
+    | ncp == 0 =
+        [ "verdict: resolved by declaration — " <> show nc
+            <> " conflict(s) under canonical LR(1), all resolved by the %left/%right precedence"
+            <> " declarations; the grammar compiles."
         ]
-          <> map (\c -> "  " <> c) canonicalConflicts
+    | otherwise =
+        [ "verdict: genuine — " <> show ncp
+            <> " conflict(s) persist under canonical LR(1)"
+            <> (if hasPrec then " even with the declared precedence" else "")
+            <> "; the grammar is not LR(1)"
+        , "         (ambiguous, or in need of a refactor, more precedence, or the GLR driver). conflicts:"
+        ]
+          <> map (\c -> "  " <> c) genuineConflicts
 
-  canonicalConflicts = case buildTablesFor Canonical g of
+  genuineConflicts = case buildTablesForP prec Canonical g of
     Left cs -> renderConflicts g cs
     Right _ -> []

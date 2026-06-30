@@ -92,7 +92,7 @@ renderConflict prods = case _ of
       <> "\n"
       <> "  fix: give "
       <> sym r.onSymbol
-      <> " a precedence in `lr precedence`, inline a rule, or enable GLR."
+      <> " a precedence in the `## Precedence` block, inline a rule, or enable GLR."
   ReduceReduce r ->
     "reduce/reduce conflict in state " <> show r.state
       <> " on "
