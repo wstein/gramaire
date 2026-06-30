@@ -40,6 +40,7 @@ module Grammark.IR
   , irVersion
   , buildIR
   , buildIRWithTokens
+  , buildIRP
   , toJson
   , serialize
   ) where
@@ -51,14 +52,14 @@ import Data.Either (Either(..))
 import Data.Foldable (foldl)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Tuple (Tuple(..))
 import Grammark.Json (Json(..), stringify)
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 import Grammark.Tokens (TokenDef, TokenPattern(..))
-import Grammark.Table (Action(..), Conflict(..), GSym(..), Method(..), ParseTable, buildTablesFor)
+import Grammark.Table (Action(..), Assoc(..), Conflict(..), GSym(..), Method(..), ParseTable, Prec, Precedence, buildTablesForP, emptyPrec)
 
 -- | The current IR schema version. `0` means draft/unstable: files at this
 -- | version carry no compatibility promise.
@@ -234,8 +235,16 @@ type IRPrec = { level :: Int, assoc :: String, terminals :: Array Int }
 -- | Lower a named grammar into the IR using the tables of the chosen method.
 -- | Returns `Left` with every conflict when the grammar is not parseable.
 buildIR :: Method -> String -> Grammar -> Either (Array Conflict) IR
-buildIR method name g@(Grammar rules) =
-  case buildTablesFor method g of
+buildIR = buildIRP emptyPrec
+
+-- | Like `buildIR`, but with declared operator precedence (ADR D37): the
+-- | `%left` / `%right` / `%nonassoc` declarations resolve the shift/reduce
+-- | conflicts they cover (so an ambiguous-expr-plus-precedence grammar
+-- | compiles), and the IR's `precedence` field is populated. Conflicts no
+-- | declaration covers still surface as `Left`.
+buildIRP :: Precedence -> Method -> String -> Grammar -> Either (Array Conflict) IR
+buildIRP prec method name g@(Grammar rules) =
+  case buildTablesForP prec method g of
     Left conflicts -> Left conflicts
     Right table ->
       Right
@@ -246,7 +255,7 @@ buildIR method name g@(Grammar rules) =
             , terminals
             , nonterminals
             , rules: irRules
-            , precedence: []
+            , precedence: irPrecedence
             , extras: []
             }
         , tables: assembleTables (algorithmName method) termId ntId table
@@ -299,6 +308,26 @@ buildIR method name g@(Grammar rules) =
 
   termId :: String -> Int
   termId s = fromMaybe (-1) (Map.lookup s termIdMap)
+
+  -- The declared precedence, grouped by level into the IR's `precedence` array
+  -- (terminals as ids). One level per `%left` / `%right` / `%nonassoc` line.
+  irPrecedence :: Array IRPrec
+  irPrecedence = map toLevel (Map.toUnfoldable grouped :: Array (Tuple Int (Array { assoc :: Assoc, term :: String })))
+    where
+    grouped =
+      foldl
+        (\m (Tuple t p) -> Map.insertWith (<>) p.level [ { assoc: p.assoc, term: t } ] m)
+        Map.empty
+        (Map.toUnfoldable prec.terms :: Array (Tuple String Prec))
+    toLevel (Tuple level items) =
+      { level
+      , assoc: maybe "left" (assocStr <<< _.assoc) (Array.head items)
+      , terminals: map (termId <<< _.term) items
+      }
+    assocStr a = case a of
+      LeftA -> "left"
+      RightA -> "right"
+      NonA -> "nonassoc"
 
   terminals :: Array IRTerminal
   terminals =

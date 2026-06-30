@@ -96,6 +96,7 @@ jobs:
         run: |
           node bootstrap/grammark-check.ts grammar/lr.grmk.md
           node bootstrap/grammark-check.ts examples/calc.grmk.md
+          node bootstrap/grammark-check.ts examples/calc-prec.grmk.md
           node bootstrap/grammark-check.ts examples/json.grmk.md
           node bootstrap/grammark-check.ts examples/readme.grmk.md
 
@@ -104,6 +105,7 @@ jobs:
         run: |
           node bootstrap/grammark-check.ts --write-lock grammar/lr.grmk.md
           node bootstrap/grammark-check.ts --write-lock examples/calc.grmk.md
+          node bootstrap/grammark-check.ts --write-lock examples/calc-prec.grmk.md
           node bootstrap/grammark-check.ts --write-lock examples/json.grmk.md
           node bootstrap/grammark-check.ts --write-lock examples/readme.grmk.md
           git diff --exit-code

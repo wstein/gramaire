@@ -12,6 +12,7 @@ module Grammark.Lr
   , lrBlocks
   , parse
   , parseWith
+  , precedenceOf
   , strip
   , toFenced
   , tokenVal
@@ -33,7 +34,7 @@ import Grammark.Scanner (ScanItem, buildItems, hasError, scan)
 import Grammark.Tokens (parseTokens)
 import Grammark.Parser (run)
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
-import Grammark.Table (Method(..), buildTablesFor)
+import Grammark.Table (Method(..), Precedence, buildTablesFor, emptyPrec, parsePrecedence)
 
 -- | A semantic value on the parse stack: the union of everything the `lr`
 -- | actions build. `VIgnore` is the value of a punctuation/NL token.
@@ -250,3 +251,12 @@ parseWith method md =
 -- | Parse using canonical LR(1) tables.
 parse :: String -> Either String Grammar
 parse = parseWith Canonical
+
+-- | The declared operator precedence of a `.grmk.md` (its `## Precedence`
+-- | block's `%left` / `%right` / `%nonassoc` lines), or empty if it has none.
+-- | Feeds `buildIRP` so an ambiguous-expr-plus-precedence grammar compiles and
+-- | the IR's `precedence` field is populated (ADR D37).
+precedenceOf :: String -> Precedence
+precedenceOf md = case Array.find (\b -> b.info == "precedence") (grammarkBlocks md) of
+  Just b -> parsePrecedence b.content
+  Nothing -> emptyPrec

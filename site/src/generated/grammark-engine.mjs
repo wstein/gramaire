@@ -7358,17 +7358,17 @@ var $$unescape = /* @__PURE__ */ (function() {
         return ["\\"];
       }
       ;
-      throw new Error("Failed pattern match at Grammark.Lr (line 79, column 34 - line 81, column 26): " + [v1.constructor.name]);
+      throw new Error("Failed pattern match at Grammark.Lr (line 80, column 34 - line 82, column 26): " + [v1.constructor.name]);
     }
     ;
     if (v instanceof Just) {
       return cons(v.value0.head)(go(v.value0.tail));
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Lr (line 77, column 11 - line 82, column 53): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Lr (line 78, column 11 - line 83, column 53): " + [v.constructor.name]);
   };
-  return function($175) {
-    return fromCharArray(go(toCharArray($175)));
+  return function($178) {
+    return fromCharArray(go(toCharArray($178)));
   };
 })();
 var unquoteLit = function(s) {
@@ -7388,8 +7388,8 @@ var trimBlankEnds = /* @__PURE__ */ (function() {
   var dropBlank = dropWhile(function(l) {
     return trim(l) === "";
   });
-  return function($176) {
-    return reverse(dropBlank(reverse(dropBlank($176))));
+  return function($179) {
+    return reverse(dropBlank(reverse(dropBlank($179))));
   };
 })();
 var tokenVal = function(tok) {
@@ -7533,8 +7533,8 @@ var lrBlocks = function(md) {
   var scan2 = function(acc) {
     return function(line) {
       if (acc.inside) {
-        var $154 = trim(line) === "```";
-        if ($154) {
+        var $155 = trim(line) === "```";
+        if ($155) {
           return {
             inside: false,
             cur: [],
@@ -7549,8 +7549,8 @@ var lrBlocks = function(md) {
         };
       }
       ;
-      var $155 = trim(line) === "```grammark";
-      if ($155) {
+      var $156 = trim(line) === "```grammark";
+      if ($156) {
         return {
           blocks: acc.blocks,
           inside: true,
@@ -7581,7 +7581,7 @@ var isUpperName = function(name) {
       return false;
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Lr (line 211, column 8 - line 213, column 23): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Lr (line 212, column 8 - line 214, column 23): " + [v.constructor.name]);
   })());
 };
 var isTokenDef = function(l) {
@@ -7595,7 +7595,7 @@ var isTokenDef = function(l) {
       return isUpperName(trim(take3(v.value0)(l)));
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Lr (line 203, column 8 - line 205, column 46): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Lr (line 204, column 8 - line 206, column 46): " + [v.constructor.name]);
   })());
 };
 var isPrecDecl = function(l) {
@@ -7605,8 +7605,8 @@ var isPrecDecl = function(l) {
   })(["%left ", "%right ", "%nonassoc "]);
 };
 var toFenced = function(src) {
-  var $160 = contains("```grammark")(src);
-  if ($160) {
+  var $161 = contains("```grammark")(src);
+  if ($161) {
     return src;
   }
   ;
@@ -7618,8 +7618,8 @@ var toFenced = function(src) {
   var block = function(info) {
     return function(body) {
       var trimmed = trimBlankEnds(body);
-      var $161 = $$null(trimmed);
-      if ($161) {
+      var $162 = $$null(trimmed);
+      if ($162) {
         return [];
       }
       ;
@@ -7632,8 +7632,8 @@ var parseWith = function(method) {
   return function(md) {
     var src = joinWith("\n")(lrBlocks(toFenced(md))) + "\n";
     var raw = scan(lrScanItems)(src);
-    var $162 = hasError(raw);
-    if ($162) {
+    var $163 = hasError(raw);
+    if ($163) {
       return new Left("lexical error in grammar source");
     }
     ;
@@ -7656,10 +7656,10 @@ var parseWith = function(method) {
         return new Left("parse did not yield a Grammar");
       }
       ;
-      throw new Error("Failed pattern match at Grammark.Lr (line 245, column 22 - line 248, column 56): " + [v1.constructor.name]);
+      throw new Error("Failed pattern match at Grammark.Lr (line 246, column 22 - line 249, column 56): " + [v1.constructor.name]);
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Lr (line 243, column 10 - line 248, column 56): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Lr (line 244, column 10 - line 249, column 56): " + [v.constructor.name]);
   };
 };
 var parse = /* @__PURE__ */ (function() {
