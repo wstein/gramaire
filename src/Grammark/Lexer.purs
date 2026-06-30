@@ -40,9 +40,11 @@ import Data.String.CodeUnits (fromCharArray, toCharArray)
 type Token = { terminal :: String, text :: String }
 
 -- | A lexed token with its source span: `[start, end)` as **code-unit** offsets
--- | (the lexer's unit), covering the token's full lexeme — including the
--- | backticks of a `TERM_LIT` and the `{% %}` of an `ACTION`, while `text`
--- | stays the payload. The gap between one token's `end` and the next's `start`
+-- | (the lexer's unit), covering the token's full lexeme. For `ATTR` / `LABEL`
+-- | / `ACTION` the `text` is the payload (the name, the trimmed body); for a
+-- | `TERM_LIT` it is the whole quoted lexeme — delimiters included — which the
+-- | consumer unquotes (a regex can't, so the scanner agrees on the lexeme, not
+-- | the payload). The gap between one token's `end` and the next's `start`
 -- | is leading trivia (skipped whitespace), so the span stream is the
 -- | full-fidelity substrate the Phase-F runtime builds its `Tree` on
 -- | (incremental-spec §1–3). Byte / UTF-16 position mapping (R5) is the runtime
@@ -112,9 +114,20 @@ tokenizeSpanned src = go 0 []
                 in
                   go j (Array.snoc acc (sp "LABEL" (slice s j) i j))
               _ -> Left (err i "expected an identifier after `#` alternative label")
+      -- A terminal literal in any of three interchangeable delimiters (ADR D34):
+      -- `` `x` ``, `'x'`, or `"x"`. The token `text` is the WHOLE lexeme,
+      -- delimiters included; the consumer (`Grammark.Lr.tokenVal`) unquotes and
+      -- unescapes. Backticks take no escape; the quoted forms escape their own
+      -- delimiter with a backslash (`'\''`, `"\""`).
       | c == '`' -> case findChar '`' (i + 1) of
           Nothing -> Left (err i "unterminated `...` terminal literal")
-          Just j -> go (j + 1) (Array.snoc acc (sp "TERM_LIT" (slice (i + 1) j) i (j + 1)))
+          Just j -> go (j + 1) (Array.snoc acc (sp "TERM_LIT" (slice i (j + 1)) i (j + 1)))
+      | c == '\'' -> case findDelim '\'' (i + 1) of
+          Nothing -> Left (err i "unterminated '...' terminal literal")
+          Just j -> go (j + 1) (Array.snoc acc (sp "TERM_LIT" (slice i (j + 1)) i (j + 1)))
+      | c == '"' -> case findDelim '"' (i + 1) of
+          Nothing -> Left (err i "unterminated \"...\" terminal literal")
+          Just j -> go (j + 1) (Array.snoc acc (sp "TERM_LIT" (slice i (j + 1)) i (j + 1)))
       | c == '{' && at (i + 1) == Just '%' -> case findActionEnd (i + 2) of
           Nothing -> Left (err i "unterminated {% ... %} action")
           Just j -> go (j + 2) (Array.snoc acc (sp "ACTION" (trim (slice (i + 2) j)) i (j + 2)))
@@ -136,6 +149,15 @@ tokenizeSpanned src = go 0 []
     Nothing -> Nothing
     Just c | c == target -> Just i
     _ -> findChar target (i + 1)
+
+  -- Like `findChar`, but a backslash escapes the next character, so an escaped
+  -- delimiter (`\'`, `\"`) does not close the literal.
+  findDelim :: Char -> Int -> Maybe Int
+  findDelim target i = case at i of
+    Nothing -> Nothing
+    Just '\\' -> findDelim target (i + 2)
+    Just c | c == target -> Just i
+    _ -> findDelim target (i + 1)
 
   -- Index of the `%` in the closing `%}`.
   findActionEnd :: Int -> Maybe Int

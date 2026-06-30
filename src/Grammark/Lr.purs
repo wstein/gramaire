@@ -22,6 +22,7 @@ import Data.Either (Either(..), fromRight)
 import Data.Foldable (foldl)
 import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..), joinWith, split, trim)
+import Data.String.CodeUnits (charAt, fromCharArray, length, slice, toCharArray)
 import Grammark.Bootstrap (bootstrapGrammar, lrTokensSource)
 import Grammark.Desugar (desugar)
 import Grammark.Diagnostics (checkDefined)
@@ -50,11 +51,35 @@ data SemVal
 tokenVal :: Token -> SemVal
 tokenVal tok = case tok.terminal of
   "IDENT" -> VStr tok.text
-  "TERM_LIT" -> VStr tok.text
+  "TERM_LIT" -> VStr (unquoteLit tok.text)
   "ACTION" -> VStr (trim tok.text)
   "LABEL" -> VStr tok.text
   "ATTR" -> VStr tok.text
   _ -> VIgnore -- NL, `:`, `|`
+
+-- | Unquote a `TERM_LIT` lexeme to the terminal's spelling (ADR D34). All three
+-- | delimiters — `` `x` ``, `'x'`, `"x"` — are stripped; the quoted forms also
+-- | unescape a backslash-escaped character (so `'\''` is the terminal `'`).
+-- | Backtick literals take no escape.
+unquoteLit :: String -> String
+unquoteLit s = case charAt 0 s of
+  Just '`' -> inner
+  Just '\'' -> unescape inner
+  Just '"' -> unescape inner
+  _ -> s
+  where
+  inner = slice 1 (length s - 1) s
+
+-- | Replace each `\x` with `x` (the delimiter-escape of a quoted literal).
+unescape :: String -> String
+unescape = fromCharArray <<< go <<< toCharArray
+  where
+  go cs = case Array.uncons cs of
+    Nothing -> []
+    Just { head: '\\', tail } -> case Array.uncons tail of
+      Just { head: c, tail: rest } -> Array.cons c (go rest)
+      Nothing -> [ '\\' ]
+    Just { head: c, tail } -> Array.cons c (go tail)
 
 -- | The semantic actions of `grammar/lr.gram.md`, keyed by production index
 -- | (the order `Grammark.Table.productions` flattens `bootstrapGrammar` into).

@@ -83,10 +83,15 @@ not match differently), so it does not weaken this guarantee.
 The effective token set a grammar lexes is the union of:
 
 1. **Named classes** — defined in `lr tokens` (§2).
-2. **Implicit literals** — every backtick literal that appears in a production
+2. **Implicit literals** — every terminal literal that appears in a production
    (`` `{` ``, `` `,` ``, `` `true` ``, and in `lr` itself `` `:` `` / `` `|` ``)
    is a token defined by its exact spelling. These need **no** `lr tokens` entry;
-   the productions define them.
+   the productions define them. A literal may be written in any of three
+   interchangeable delimiters — `` `x` ``, `'x'`, or `"x"` — all identical
+   (ADR D34); the author picks whichever needs no escaping (`'"'`, `"'"`,
+   `` `'` ``). The chosen delimiter is escaped with a backslash inside the
+   literal (`'\''`, `"\""`); backticks take none. The lexer emits the whole
+   quoted lexeme; the consumer unquotes and unescapes to the spelling.
 
 All of these are merged into **one** scanner DFA. A grammar therefore never needs
 to repeat its punctuation/keyword literals in `lr tokens`; it declares only the
@@ -114,9 +119,12 @@ open-ended classes.
   is the captured span; when absent, it is the whole match. In both cases the
   token's **span** is the whole match (for source fidelity). This is how the
   generated lexer reproduces the bootstrap `Grammark.Lexer`'s payload extraction:
-  `` TERM_LIT : /`([^`]+)`/ `` emits the content; `ACTION : /\{%((?:[^%]|%[^}])*)%\}/`
-  emits the body; `NL : /(\r?\n)(?:[ \t]*\r?\n)*/` emits a single `\n`. Trimming
-  an action body's surrounding whitespace is the **consumer's** concern (codegen),
+  `ACTION : /\{%((?:[^%]|%[^}])*)%\}/` emits the body; `NL :
+  /(\r?\n)(?:[ \t]*\r?\n)*/` emits a single `\n`. `TERM_LIT` (ADR D34) is the one
+  exception — its three-delimiter alternation cannot carry a per-branch capture
+  (≤1 capture, D32), so it emits the whole quoted lexeme and the consumer
+  unquotes. Trimming an action body's surrounding whitespace is likewise the
+  **consumer's** concern (codegen),
   not the lexer's.
 
 ## 6. Modifiers, extras, and the external hook
@@ -212,7 +220,7 @@ WS       : /[ \t]+/                       %skip
 NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      %external(layout)
 ATTR     : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/
 IDENT    : /[A-Za-z_][A-Za-z0-9_]*/
-TERM_LIT : /`([^`]+)`/
+TERM_LIT : /`[^`]+`|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/
 ACTION   : /\{%((?:[^%]|%[^}])*)%\}/
 LABEL    : /#[ \t]*([A-Za-z_][A-Za-z0-9_]*)/
 PLUS     : "+"
