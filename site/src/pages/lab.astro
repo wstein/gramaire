@@ -15,10 +15,13 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
     >
       <h1>Grammark Lab</h1>
       <p>
-        An in-browser preview of grammar evaluation. It lexes input from a
-        grammar's literal terminals; grammars that use token classes (ALL-CAPS,
-        e.g. <code>NUM</code>) need the <code>grammark</code> CLI for full evaluation.
-        Wiring the compiled core into the browser is on the roadmap.
+        Grammar evaluation in your browser, running the real Grammark engine
+        (the compiled PureScript core). It lexes input from the grammar's
+        literal terminals <em>and</em> any token classes (ALL-CAPS, e.g. <code
+          >NUM</code
+        >) declared in its <code>## Tokens</code> block, then parses with the LR tables
+        — the same verdict the <code>grammark</code> CLI gives. Edits re-evaluate
+        live.
       </p>
       <div
         style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 1rem; margin-top: 1.5rem;"
@@ -35,12 +38,12 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
           <div
             style="margin-top: 0.75rem; display: flex; gap: 0.5rem; align-items: center;"
           >
-            <button
-              id="run-grammar"
-              style="padding: 0.55rem 0.9rem; border: none; border-radius: 999px; background: #15b879; color: white; cursor: pointer;"
-              >Evaluate</button
+            <span style="font-size: 0.95rem; color: #6b7280;"
+              >Result (live):</span
             >
-            <span id="status-pill" style="font-size: 0.95rem; color: #6b7280;"
+            <span
+              id="status-pill"
+              style="font-size: 0.95rem; font-weight: 600; color: #15b879;"
               >Ready</span
             >
           </div>
@@ -76,7 +79,6 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
       const resultOutput = document.getElementById("result-output");
       const diagnosticsList = document.getElementById("diagnostics-list");
       const statusPill = document.getElementById("status-pill");
-      const runButton = document.getElementById("run-grammar");
 
       async function evaluate() {
         const grammarSource = grammarInput.value;
@@ -89,6 +91,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
         const result = await parseGrammarkDocument(grammarSource, input);
 
         statusPill.textContent = result.success ? "Accepted" : "Rejected";
+        statusPill.style.color = result.success ? "#15b879" : "#dc2626";
         resultOutput.textContent = [
           result.message,
           "",
@@ -109,20 +112,19 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
         }
       }
 
-      runButton.addEventListener("click", () => {
+      // Evaluation is live: it re-runs as you edit the grammar or the input, so
+      // the result pill always reflects the current text (no button to press).
+      function safeEvaluate() {
         evaluate().catch((error) => {
           statusPill.textContent = "Error";
+          statusPill.style.color = "#dc2626";
           resultOutput.textContent =
             error instanceof Error ? error.message : String(error);
         });
-      });
-      grammarInput.addEventListener("input", () => {
-        evaluate().catch(() => undefined);
-      });
-      inputTest.addEventListener("input", () => {
-        evaluate().catch(() => undefined);
-      });
-      evaluate().catch(() => undefined);
+      }
+      grammarInput.addEventListener("input", safeEvaluate);
+      inputTest.addEventListener("input", safeEvaluate);
+      safeEvaluate();
     </script>
   </body>
 </html>
