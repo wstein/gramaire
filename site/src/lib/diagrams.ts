@@ -72,10 +72,26 @@ export function renderDiagrams(
   const out: RuleDiagram[] = [];
   for (const { name, content } of ruleBlocks(source, ruleNames)) {
     try {
-      out.push({ name, svg: renderSvg(parseProduction(content, nts)) });
+      out.push({
+        name,
+        svg: linkNonterminals(renderSvg(parseProduction(content, nts))),
+      });
     } catch {
       // skip a rule the railroad renderer can't parse
     }
   }
   return out;
+}
+
+// Wrap each nonterminal node (an `rr-nonterm` rect plus the rule-name text that
+// immediately follows it) in an SVG anchor pointing at that rule's own diagram,
+// so the Lab's diagram panel becomes grammar navigation (the bottlecaps /
+// Regexper convention). Terminals (`rr-term`) are left alone — they have no
+// rule to jump to.
+function linkNonterminals(svg: string): string {
+  return svg.replace(
+    /(<rect class="rr-nonterm"[^>]*\/>)(<text class="rr-text"[^>]*>)([^<]+)(<\/text>)/g,
+    (_m, rect, textOpen, name, textClose) =>
+      `<a class="rr-nav" href="#diagram-${name}">${rect}${textOpen}${name}${textClose}</a>`,
+  );
 }
