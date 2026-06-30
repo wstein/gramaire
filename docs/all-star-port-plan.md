@@ -136,23 +136,28 @@ surfaces (spago, the bridge, conformance). Phases 0–2 are the parsing core;
   with the LR oracle (`Gramark.Conformance.recognize`) on every vector of four
   non-left-recursive grammars, including an LL(3) decision that only resolves
   three tokens deep.
+- ✅ **Corpus gate (Phase 2):** with `Gramark.LeftRec` in front of `buildAtn`,
+  `Test.Ll` also runs the left-recursive `lr` bootstrap (45 productions) and
+  `calc` corpora top-down and matches the LR oracle on every vector.
 - ⏳ **Deferred:** the lazy DFA cache (an `ST`/`Effect` mutable region, §7), full
-  **LL** (full-context) fallback, and a `Cst`-producing `Gramark.Ll.parse`. The
-  corpus-wide gate (`calc`, `json`, `lr`) is **blocked on Phase 2**: those
-  grammars are left-recursive after desugaring (`X+`/`X*` → left-recursive list
-  rules; the bootstrap throughout), which top-down parsing cannot handle until
-  the rewrite. Prediction stays total there via `Sim`'s depth cap.
+  **LL** (full-context) fallback, and a `Cst`-producing `Gramark.Ll.parse`.
 
-### Phase 2 — Left-recursion elimination
+### Phase 2 — Left-recursion elimination ✅ recognizer
 
-- Port ANTLR's left-recursion rewrite: a directly left-recursive rule becomes a
-  primary + precedence-ranked binary/suffix/prefix tail, with
-  `PrecedencePredicateTransition`s carrying the precedence. This lets the
-  _ambiguous calc_ (`expr: expr op expr`) parse **without** the LR `## Precedence`
-  table — precedence is expressed as alternative order + the `%left`/`%right`
-  hints already in the format (ADR D37 reused, different mechanism).
-- **Test:** `examples/calc-prec` parses under `ll-star` with the same tree
-  shape LR produces with precedence; a left-recursion unit-test grammar.
+- ✅ `Gramark.LeftRec.eliminate` rewrites every **directly** left-recursive rule
+  `A : A α | β` to the epsilon-free right-recursive form `A : β | β A_tail`,
+  `A_tail : α | α A_tail` — so `L(A)` is unchanged but every cycle passes through
+  a terminal, keeping `Sim`'s closure bounded and `Ll`'s descent total. It runs
+  after `Desugar`, so the left-recursive list rules that `X+`/`X*`/macros lower
+  to are eliminated by the same pass; no ATN loop states are needed.
+- ✅ **Test (`Test.Ll`):** a classic left-recursive expression grammar plus the
+  `lr` bootstrap and `calc` corpora all parse top-down and match the LR oracle.
+- ⏳ **Deferred:** **indirect** (mutual) left recursion (the corpus has none);
+  the precedence-climbing variant that preserves left-associative **tree shape**
+  (with `PrecedencePredicateTransition`s) for a `Cst`-producing `Ll.parse` — the
+  recognizer ignores associativity, so it is not needed for accept/reject parity.
+  When that lands, `examples/calc-prec` should parse under `ll-star` with the
+  same tree LR produces from `## Precedence` (ADR D37 reused, different mechanism).
 
 ### Phase 3 — ANTLR ↔ Gramark converter (instead of growing Gramark's syntax) ✅ export half
 

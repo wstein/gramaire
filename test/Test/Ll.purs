@@ -15,12 +15,15 @@ import Data.Either (Either(..))
 import Data.Foldable (traverse_)
 import Effect (Effect)
 import Effect.Console (log)
-import Gramark.Conformance (Outcome(..), recognize)
-import Gramark.Conformance.Lexers (Lexer, scannerLexer)
+import Gramark.Bootstrap (bootstrapGrammar)
+import Gramark.Conformance (Outcome(..), calcVectors, lrVectors, recognize)
+import Gramark.Conformance.Lexers (Lexer, calcLexer, lrLexer, scannerLexer)
 import Gramark.Ll as Ll
 import Gramark.Lr as Lr
 import Gramark.Syntax (Grammar)
 import Gramark.Table (Method(Canonical))
+import Node.Encoding (Encoding(UTF8))
+import Node.FS.Sync (readTextFile)
 import Test.Assert (assert')
 
 type Vector = { input :: String, expect :: Boolean }
@@ -75,12 +78,51 @@ cases =
         , { input: "abc", expect: false }
         ]
     }
+  , { name: "direct left recursion — classic expression grammar (Phase 2)"
+    , grammar: "```gramark\nE\n  : E '+' T\n  | E '-' T\n  | T\n\nT\n  : T '*' F\n  | F\n\nF\n  : '(' E ')'\n  | 'n'\n```\n"
+    , vectors:
+        [ { input: "n", expect: true }
+        , { input: "n+n", expect: true }
+        , { input: "n+n*n", expect: true }
+        , { input: "n-n-n", expect: true }
+        , { input: "(n+n)*n", expect: true }
+        , { input: "n+", expect: false }
+        , { input: "+n", expect: false }
+        , { input: "(n+n", expect: false }
+        , { input: "n n", expect: false }
+        , { input: "", expect: false }
+        ]
+    }
   ]
+
+-- One conformance-corpus vector (its `expect` is an `Outcome`).
+type CVector = { name :: String, input :: String, expect :: Outcome }
+
+-- Run a corpus through the LL recognizer, asserting each vector's expectation
+-- (which the LR oracle already meets, per `Test.Conformance`). A lexer failure
+-- counts as a reject, matching the LR path.
+runCorpus :: String -> Grammar -> Lexer -> Array CVector -> Effect Unit
+runCorpus label g lexer = traverse_ \v ->
+  let
+    want = v.expect == Accept
+  in
+    case lexer v.input of
+      Left _ -> assert' (label <> " / " <> v.name <> ": lex failed but expected accept") (not want)
+      Right toks -> assert' (label <> " / " <> v.name <> ": " <> show v.input <> " expected " <> show v.expect) (Ll.recognize g toks == want)
 
 tests :: Effect Unit
 tests = do
-  log "  ll: top-down ALL(*) prediction matches the LR oracle (non-left-recursive)"
+  log "  ll: top-down ALL(*) prediction matches the LR oracle (incl. left recursion)"
   traverse_ runCase cases
+
+  log "  ll: the left-recursive `lr` bootstrap corpus parses top-down (Phase 2)"
+  runCorpus "lr" bootstrapGrammar lrLexer lrVectors
+
+  log "  ll: the left-recursive `calc` corpus parses top-down (Phase 2)"
+  calcMd <- readTextFile UTF8 "examples/calc.grmk.md"
+  case Lr.parse calcMd of
+    Left e -> assert' ("calc grammar should parse: " <> e) false
+    Right g -> runCorpus "calc" g calcLexer calcVectors
 
 runCase :: Case -> Effect Unit
 runCase c = case Lr.parse c.grammar of
