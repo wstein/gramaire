@@ -24,6 +24,12 @@ module Grammark.Table
   , analyze
   , buildTables
   , buildTablesFor
+  , buildTablesForP
+  , Assoc(..)
+  , Prec
+  , Precedence
+  , emptyPrec
+  , parsePrecedence
   , GlrTable
   , buildGlrTablesFor
   ) where
@@ -39,6 +45,8 @@ import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Set (Set)
 import Data.Set as Set
+import Data.String (Pattern(..), split, stripPrefix, trim)
+import Data.String.CodeUnits as CU
 import Data.Tuple (Tuple(..))
 import Grammark.Syntax (Grammar(..), Rule(..), Alt(..), Sym(..))
 
@@ -74,6 +82,61 @@ derive instance eqAction :: Eq Action
 data Conflict
   = ShiftReduce { state :: Int, onSymbol :: GSym, reduceProd :: Int }
   | ReduceReduce { state :: Int, onSymbol :: GSym, prodA :: Int, prodB :: Int }
+
+-- | Operator associativity (ADR D37): the `%left` / `%right` / `%nonassoc`
+-- | precedence declarations of the `## Precedence` block.
+data Assoc = LeftA | RightA | NonA
+
+derive instance eqAssoc :: Eq Assoc
+
+-- | A precedence level (higher binds tighter) with its associativity.
+type Prec = { level :: Int, assoc :: Assoc }
+
+-- | Declared operator precedence: a terminal's spelling to its level/assoc.
+-- | A production's precedence is that of its last terminal. Used to resolve
+-- | shift/reduce conflicts the yacc/LR way (ADR D37) — but ONLY those a
+-- | declaration covers; an undeclared conflict still surfaces (the hard rule).
+type Precedence = { terms :: Map String Prec }
+
+emptyPrec :: Precedence
+emptyPrec = { terms: Map.empty }
+
+-- | Parse a `## Precedence` block's content (its `grammark precedence` lines)
+-- | into declared precedence (ADR D37). Each `%left` / `%right` / `%nonassoc`
+-- | line is one level; later lines bind tighter (yacc's convention). The
+-- | operators are the quoted literals on the line: `%left '+' '-'`.
+parsePrecedence :: String -> Precedence
+parsePrecedence content =
+  { terms: foldlWithIndex addLine Map.empty meaningful }
+  where
+  meaningful =
+    Array.filter (\l -> l /= "" && l /= "grammark precedence")
+      (map trim (split (Pattern "\n") content))
+
+  addLine level acc line = case assocOf line of
+    Nothing -> acc
+    Just assoc -> foldl (\m t -> Map.insert t { level, assoc } m) acc (literalsOf line)
+
+  assocOf line
+    | isPrefix "%left" line = Just LeftA
+    | isPrefix "%right" line = Just RightA
+    | isPrefix "%nonassoc" line = Just NonA
+    | otherwise = Nothing
+
+  isPrefix p line = case stripPrefix (Pattern p) line of
+    Just _ -> true
+    Nothing -> false
+
+  -- The quoted literals on the line, unquoted: `%left '+' '-'` -> ["+","-"].
+  literalsOf line = Array.mapMaybe unquoteTok (split (Pattern " ") (trim line))
+
+  unquoteTok tok =
+    let
+      t = trim tok
+      n = CU.length t
+    in
+      if n >= 2 && (CU.charAt 0 t == Just '\'' || CU.charAt 0 t == Just '"') then Just (CU.slice 1 (n - 1) t)
+      else Nothing
 
 -- | The finished tables (filled by the automaton stage).
 type ParseTable =
@@ -205,19 +268,20 @@ type Ctx =
   { prods :: Array Prod -- augmented; index 0 = accept
   , byLhs :: Map String (Array Int) -- lhs -> indices into `prods`
   , firsts :: Map String (Set GSym)
+  , prec :: Precedence -- declared operator precedence (ADR D37)
   }
 
 acceptName :: String
 acceptName = "$accept"
 
-mkCtx :: Analysis -> Ctx
-mkCtx a =
+mkCtx :: Precedence -> Analysis -> Ctx
+mkCtx prec a =
   let
     aug = { lhs: acceptName, rhs: [ NonTerm a.start ] }
     prods = Array.cons aug a.prods
     byLhs = foldlWithIndex (\i m p -> Map.insertWith (<>) p.lhs [ i ] m) Map.empty prods
   in
-    { prods, byLhs, firsts: a.firsts }
+    { prods, byLhs, firsts: a.firsts, prec }
 
 rhsOf :: Ctx -> Int -> Array GSym
 rhsOf ctx i = maybe [] _.rhs (Array.index ctx.prods i)
@@ -353,7 +417,11 @@ fillTables ctx st realProds =
           Nothing -> acc { action = Map.insert key act acc.action }
           Just existing ->
             if existing == act then acc
-            else acc { conflicts = Array.snoc acc.conflicts (conflictAt i it.look existing newProd) }
+            else case resolvePrec ctx it.prod it.look existing act of
+              -- A precedence declaration settles this shift/reduce cleanly.
+              Just winner -> acc { action = Map.insert key winner acc.action }
+              -- Undeclared (or reduce/reduce): still a conflict — the hard rule.
+              Nothing -> acc { conflicts = Array.snoc acc.conflicts (conflictAt i it.look existing newProd) }
 
   -- A clash where the incumbent is a Shift is shift/reduce; otherwise it is a
   -- reduce/reduce (two distinct reductions on the same lookahead). Both name
@@ -363,6 +431,35 @@ fillTables ctx st realProds =
     Shift _ -> ShiftReduce { state, onSymbol: sym, reduceProd: newProd }
     Reduce n -> ReduceReduce { state, onSymbol: sym, prodA: n, prodB: newProd }
     Accept -> ReduceReduce { state, onSymbol: sym, prodA: -1, prodB: newProd }
+
+-- | Resolve a shift/reduce clash via declared precedence (ADR D37), or
+-- | `Nothing` if no declaration covers it (so it stays a conflict). The shift
+-- | terminal is the lookahead; the reduce production's precedence is its last
+-- | terminal's. Higher level binds tighter; on a tie, `%left` reduces, `%right`
+-- | shifts, `%nonassoc` is left unresolved. Reduce/reduce is never resolved here.
+resolvePrec :: Ctx -> Int -> GSym -> Action -> Action -> Maybe Action
+resolvePrec ctx prodIdx look existing newAct = case existing, look of
+  Shift _, Term t -> do
+    tp <- Map.lookup t ctx.prec.terms
+    pp <- prodPrecedence ctx prodIdx
+    if pp.level > tp.level then Just newAct
+    else if pp.level < tp.level then Just existing
+    else case pp.assoc of
+      LeftA -> Just newAct
+      RightA -> Just existing
+      NonA -> Nothing
+  _, _ -> Nothing
+
+-- | A production's precedence: that of its last terminal (yacc's rule).
+prodPrecedence :: Ctx -> Int -> Maybe Prec
+prodPrecedence ctx i = lastTermOf (rhsOf ctx i) >>= \t -> Map.lookup t ctx.prec.terms
+
+lastTermOf :: Array GSym -> Maybe String
+lastTermOf = Array.foldl pick Nothing
+  where
+  pick acc s = case s of
+    Term t -> Just t
+    _ -> acc
 
 -- LALR(1): merge canonical states sharing an LR(0) core --------------------
 
@@ -533,12 +630,20 @@ instance showMethod :: Show Method where
   show IELR = "IELR"
 
 -- | Build parse tables by the chosen method, returning `Left` with every
--- | conflict if the grammar is not parseable by that method.
+-- | conflict if the grammar is not parseable by that method. No declared
+-- | precedence — every shift/reduce ambiguity surfaces.
 buildTablesFor :: Method -> Grammar -> Either (Array Conflict) ParseTable
-buildTablesFor method g = fillTables ctx states a.prods
+buildTablesFor = buildTablesForP emptyPrec
+
+-- | Like `buildTablesFor`, but resolve shift/reduce conflicts that a `%left` /
+-- | `%right` / `%nonassoc` declaration covers (ADR D37). Conflicts NOT covered
+-- | by a declaration — including every reduce/reduce — still surface, so
+-- | precedence never hides a real ambiguity.
+buildTablesForP :: Precedence -> Method -> Grammar -> Either (Array Conflict) ParseTable
+buildTablesForP prec method g = fillTables ctx states a.prods
   where
   a = analyze g
-  ctx = mkCtx a
+  ctx = mkCtx prec a
   canonical = buildStates ctx
   states = case method of
     Canonical -> canonical
@@ -569,7 +674,7 @@ buildGlrTablesFor :: Method -> Grammar -> GlrTable
 buildGlrTablesFor method g = fillGlr ctx states a.prods
   where
   a = analyze g
-  ctx = mkCtx a
+  ctx = mkCtx emptyPrec a
   canonical = buildStates ctx
   states = case method of
     Canonical -> canonical
