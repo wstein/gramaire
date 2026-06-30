@@ -51,62 +51,45 @@ function formatReport(result: {
   return parts.join("\n");
 }
 
-// The lab's sample grammar — arithmetic expressions, the classic LR(1)
-// stratification (expr / term / factor) that bakes precedence and
-// left-associativity into the shape. Terminals use single-quoted literals
-// ('+', '(') and the INT / NEWLINE classes are declared in `## Tokens`, so the
-// preview lexes it with the real engine — no hand-written scanner.
-const DEFAULT_GRAMMAR = `# Expr
+// The lab's sample grammar — arithmetic expressions in the raw, fence-free
+// `.gram` projection (ADR D36): a `/** */` banner and `//` comments carry the
+// docs, ALL-CAPS `NAME : /regex/` lines declare the token classes, Mixed-case
+// productions carry `{% … %}` actions, and `%left` lines declare precedence.
+// The same engine reads it as it reads a fenced `.gram.md` — `toFenced` re-fences
+// it and `decomment` skips the comments — so the preview lexes NUMBER natively.
+const DEFAULT_GRAMMAR = `/**
+ * Calc
+ *
+ * A small arithmetic grammar demonstrating the Grammark fenced envelope.
+ * Operators are left-associative; \`*\` and \`/\` bind tighter than \`+\` and \`-\`.
+ */
 
-A small calculator grammar: newline-separated arithmetic expressions over
-integers. \`*\` and \`/\` bind tighter than \`+\` and \`-\`, and all four
-associate left — encoded by stratifying \`expr\` → \`term\` → \`factor\` rather
-than by precedence declarations, so the grammar stays LR(1) by construction.
+NUMBER : /[0-9]+/
+WS     : /[ \\t\\r\\n]+/   %skip
 
-## Tokens
+// An expression is a sum or difference of terms.
+Expr
+  : Expr '+' Term   {% \\l _ r -> Add l r %}
+  | Expr '-' Term   {% \\l _ r -> Sub l r %}
+  | Term            {% \\t -> t %}
 
-\`\`\`grammark tokens
-INT     : /[0-9]+/
-NEWLINE : /[\\r\\n]+/
-WS      : /[ \\t]+/   %skip
-\`\`\`
+// A term is a product or quotient of factors.
+Term
+  : Term '*' Factor {% \\l _ r -> Mul l r %}
+  | Term '/' Factor {% \\l _ r -> Div l r %}
+  | Factor          {% \\f -> f %}
 
-## prog
+// A factor is a number or a parenthesised expression.
+Factor
+  : '(' Expr ')'    {% \\_ e _ -> e %}
+  | NUMBER          {% \\n -> Lit n %}
 
-\`\`\`grammark
-prog
-  : expr NEWLINE
-  | prog expr NEWLINE
-\`\`\`
-
-## expr
-
-\`\`\`grammark
-expr
-  : expr '+' term
-  | expr '-' term
-  | term
-\`\`\`
-
-## term
-
-\`\`\`grammark
-term
-  : term '*' factor
-  | term '/' factor
-  | factor
-\`\`\`
-
-## factor
-
-\`\`\`grammark
-factor
-  : INT
-  | '(' expr ')'
-\`\`\`
+// Earlier declarations bind more loosely than later ones.
+%left '+' '-'
+%left '*' '/'
 `;
 
-const DEFAULT_INPUT = "1 + 2 * 3\n(4 - 1) / 3\n";
+const DEFAULT_INPUT = "(4 - 1) * 3 + 2";
 
 export function getDefaultGrammar(): string {
   return DEFAULT_GRAMMAR;
