@@ -30,6 +30,19 @@ data Pair = Pair String Json   -- member key, member value
 The helper `snoc` appends to an `Array`; the lexer classes `STRING` and
 `NUMBER` carry the already-decoded literal.
 
+## Tokens
+
+The grammar's lexis (lexer-spec §2). Two open-ended classes plus skipped
+whitespace; the structural punctuation and the `true` / `false` / `null`
+keywords are implicit literals from the productions, so they are not repeated
+here. With this block the grammar is self-contained — no hand-written scanner.
+
+```lr tokens
+STRING : /"(?:[^"\\]|\\.)*"/
+NUMBER : /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/
+WS     : /[ \t\r\n]+/    %skip
+```
+
 ## Value
 
 A JSON value is an object, an array, or one of the five primitive forms.

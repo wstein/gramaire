@@ -23,6 +23,7 @@ import Test.IR as IR
 import Test.IRDecode as IRDecode
 import Test.IRLexer as IRLexer
 import Test.Json as Json
+import Test.JsonSelfHost as JsonSelfHost
 import Test.Lexer as Lexer
 import Test.LexerSelfHost as LexerSelfHost
 import Test.Parser as Parser
@@ -59,6 +60,8 @@ main = do
   IR.tests
   log "Test.Json"
   Json.tests
+  log "Test.JsonSelfHost"
+  JsonSelfHost.tests
   log "Test.IRDecode"
   IRDecode.tests
   log "Test.IRLexer"

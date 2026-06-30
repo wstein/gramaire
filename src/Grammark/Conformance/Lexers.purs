@@ -11,15 +11,23 @@ module Grammark.Conformance.Lexers
   ( Lexer
   , lrLexer
   , calcLexer
+  , scannerLexer
+  , grammarLiterals
+  , tokensBlock
   ) where
 
 import Prelude
 
 import Data.Array as Array
 import Data.Either (Either(..))
+import Data.Foldable (foldl)
 import Data.Maybe (Maybe(..))
+import Data.String (Pattern(..), joinWith, split, trim)
 import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Grammark.Lexer (Token, normalizeNewlines, tokenize)
+import Grammark.Scanner (buildItems, hasError, scan)
+import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
+import Grammark.Tokens (TokenDef)
 
 -- | A language's input lexer: source text to tokens, or a reason it cannot.
 type Lexer = String -> Either String (Array Token)
@@ -60,3 +68,44 @@ calcLexer input = go 0 []
     Just d | isDigit d -> spanDigits (j + 1)
     _ -> j
   slice a b = fromCharArray (Array.slice a b cs)
+
+-- | A `Lexer` built from a grammar's own `lr tokens` definitions plus its
+-- | implicit (backtick-literal) terminals — the self-contained path (lexer-spec
+-- | §11): the input is scanned with the merged DFA, and any lexical error makes
+-- | the whole input a `Left`.
+scannerLexer :: Array TokenDef -> Grammar -> Lexer
+scannerLexer defs g input =
+  let
+    toks = scan (buildItems defs (grammarLiterals g)) input
+  in
+    if hasError toks then Left "lexical error in input"
+    else Right toks
+
+-- | Every literal terminal (backtick spelling) a grammar uses — the implicit
+-- | alphabet the scanner needs alongside the named classes.
+grammarLiterals :: Grammar -> Array String
+grammarLiterals (Grammar rules) = Array.nub (Array.concatMap ruleLits rules)
+  where
+  ruleLits (Rule _ _ alts) = Array.concatMap altLits alts
+  altLits (Alt syms _ _) = Array.concatMap symLits syms
+  symLits = case _ of
+    Lit s -> [ s ]
+    Field _ s -> symLits s
+    _ -> []
+
+-- | Extract the content of the first ```` ```lr tokens ```` block from a
+-- | `.gram.md` document, or `Nothing` if it has none.
+tokensBlock :: String -> Maybe String
+tokensBlock md =
+  (foldl step { inside: false, cur: [], found: Nothing } (split (Pattern "\n") md)).found
+  where
+  step acc line
+    | acc.inside =
+        if trim line == "```" then
+          acc { inside = false, found = orFirst acc.found (joinWith "\n" acc.cur) }
+        else acc { cur = Array.snoc acc.cur line }
+    | trim line == "```lr tokens" = acc { inside = true, cur = [] }
+    | otherwise = acc
+  orFirst found content = case found of
+    Just _ -> found
+    Nothing -> Just content
