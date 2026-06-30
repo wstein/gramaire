@@ -7,7 +7,8 @@
 -- |
 -- | `Result` is a plain record and the argument a plain record, so both cross
 -- | the FFI boundary as ordinary JS objects: `evaluate({ source, input })`
--- | returns `{ ok, accepted, message, diagnostics, rules, tokens }`.
+-- | returns `{ ok, accepted, message, diagnostics, rules, tokens, tree,
+-- | conflicts }`.
 module Grammark.Playground (Result, evaluate) where
 
 import Prelude
@@ -20,8 +21,8 @@ import Data.String (joinWith)
 import Grammark.Conformance (Outcome(..), recognize)
 import Grammark.Conformance.Lexers (scannerLexer, tokensBlock)
 import Grammark.Cst (Cst(..))
-import Grammark.Glr (forest)
-import Grammark.Lr (parse)
+import Grammark.Glr (explainP, forest)
+import Grammark.Lr (parse, precedenceOf)
 import Grammark.Syntax (Grammar(..), Rule(..))
 import Grammark.Table (Method(..), Prod, productions)
 import Grammark.Tokens (parseTokens)
@@ -34,6 +35,7 @@ type Result =
   , rules :: Array String -- the grammar's nonterminals, in order
   , tokens :: Array String -- the input's lexed token texts
   , tree :: String -- the parse tree (CST), one node per line, "" if rejected
+  , conflicts :: String -- the explain-conflict analysis of the grammar itself
   }
 
 evaluate :: { source :: String, input :: String } -> Result
@@ -46,10 +48,14 @@ evaluate { source, input } = case parse source of
     , rules: []
     , tokens: []
     , tree: ""
+    , conflicts: ""
     }
   Right grammar ->
     let
       rules = ruleNamesOf grammar
+      -- The grammar's own conflict analysis (LALR artifact / resolved by
+      -- declaration / genuine), folding in its declared precedence.
+      conflicts = explainP (precedenceOf source) grammar
       -- The grammar's own lexis: its `## Tokens` block, if any. Absent or
       -- malformed, the scanner falls back to the literal terminals alone.
       defs = case tokensBlock source of
@@ -68,6 +74,7 @@ evaluate { source, input } = case parse source of
           , rules
           , tokens: []
           , tree: ""
+          , conflicts
           }
         Right toks ->
           let
@@ -93,6 +100,7 @@ evaluate { source, input } = case parse source of
             , rules
             , tokens: map _.text toks
             , tree
+            , conflicts
             }
 
 ruleNamesOf :: Grammar -> Array String

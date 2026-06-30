@@ -861,11 +861,11 @@ var Just = /* @__PURE__ */ (function() {
   return Just2;
 })();
 var showMaybe = function(dictShow) {
-  var show7 = show(dictShow);
+  var show9 = show(dictShow);
   return {
     show: function(v) {
       if (v instanceof Just) {
-        return "(Just " + (show7(v.value0) + ")");
+        return "(Just " + (show9(v.value0) + ")");
       }
       ;
       if (v instanceof Nothing) {
@@ -1584,7 +1584,7 @@ var traverseArrayImpl = /* @__PURE__ */ (function() {
     };
   }
   return function(apply2) {
-    return function(map19) {
+    return function(map20) {
       return function(pure4) {
         return function(f) {
           return function(array) {
@@ -1593,14 +1593,14 @@ var traverseArrayImpl = /* @__PURE__ */ (function() {
                 case 0:
                   return pure4([]);
                 case 1:
-                  return map19(array1)(f(array[bot]));
+                  return map20(array1)(f(array[bot]));
                 case 2:
-                  return apply2(map19(array2)(f(array[bot])))(f(array[bot + 1]));
+                  return apply2(map20(array2)(f(array[bot])))(f(array[bot + 1]));
                 case 3:
-                  return apply2(apply2(map19(array3)(f(array[bot])))(f(array[bot + 1])))(f(array[bot + 2]));
+                  return apply2(apply2(map20(array3)(f(array[bot])))(f(array[bot + 1])))(f(array[bot + 2]));
                 default:
                   var pivot = bot + Math.floor((top2 - bot) / 4) * 2;
-                  return apply2(map19(concat2)(go(bot, pivot)))(go(pivot, top2));
+                  return apply2(map20(concat2)(go(bot, pivot)))(go(pivot, top2));
               }
             }
             return go(0, array.length);
@@ -3805,12 +3805,12 @@ var fromFoldable1 = /* @__PURE__ */ fromFoldable2(ordString)(foldableArray);
 var map23 = /* @__PURE__ */ map(functorMaybe);
 var fromFoldable22 = /* @__PURE__ */ fromFoldable(foldableList);
 var spliceCst = function(im) {
-  return function(sym) {
+  return function(sym2) {
     var v = function(v1) {
-      return [sym];
+      return [sym2];
     };
-    if (sym instanceof Ref) {
-      var $68 = lookup2(sym.value0)(im);
+    if (sym2 instanceof Ref) {
+      var $68 = lookup2(sym2.value0)(im);
       if ($68 instanceof Just) {
         return $68.value0.value0;
       }
@@ -4352,12 +4352,12 @@ var sugarDesugar = function(v) {
   var assign = function(syms) {
     return function(flags) {
       var step = function(acc) {
-        return function(sym) {
-          if (optStar(sym)) {
+        return function(sym2) {
+          if (optStar(sym2)) {
             var v1 = uncons(acc.fs);
             if (v1 instanceof Just) {
               return {
-                out: snoc(acc.out)(new Tuple(sym, v1.value0.head)),
+                out: snoc(acc.out)(new Tuple(sym2, v1.value0.head)),
                 fs: v1.value0.tail
               };
             }
@@ -4365,7 +4365,7 @@ var sugarDesugar = function(v) {
             if (v1 instanceof Nothing) {
               return {
                 fs: acc.fs,
-                out: snoc(acc.out)(new Tuple(sym, false))
+                out: snoc(acc.out)(new Tuple(sym2, false))
               };
             }
             ;
@@ -4375,11 +4375,11 @@ var sugarDesugar = function(v) {
           if (otherwise) {
             return {
               fs: acc.fs,
-              out: snoc(acc.out)(new Tuple(sym, true))
+              out: snoc(acc.out)(new Tuple(sym2, true))
             };
           }
           ;
-          throw new Error("Failed pattern match at Grammark.Desugar (line 97, column 5 - line 101, column 70): " + [acc.constructor.name, sym.constructor.name]);
+          throw new Error("Failed pattern match at Grammark.Desugar (line 97, column 5 - line 101, column 70): " + [acc.constructor.name, sym2.constructor.name]);
         };
       };
       return foldl4(step)({
@@ -4441,8 +4441,10 @@ var desugar = function(g) {
 // ../output/Grammark.Table/index.js
 var lookup3 = /* @__PURE__ */ lookup(ordString);
 var member4 = /* @__PURE__ */ member2(ordString);
+var eq4 = /* @__PURE__ */ eq(/* @__PURE__ */ eqMaybe(eqChar));
 var map10 = /* @__PURE__ */ map(functorArray);
 var foldl5 = /* @__PURE__ */ foldl(foldableArray);
+var insert4 = /* @__PURE__ */ insert(ordString);
 var foldlWithIndex2 = /* @__PURE__ */ foldlWithIndex(foldableWithIndexArray);
 var fromFoldable5 = /* @__PURE__ */ fromFoldable3(foldableArray);
 var fromFoldable12 = /* @__PURE__ */ fromFoldable5(ordString);
@@ -4487,7 +4489,7 @@ var insert32 = /* @__PURE__ */ insert(/* @__PURE__ */ ordTuple2(ordString));
 var ordRecord1 = /* @__PURE__ */ ordRecord2(/* @__PURE__ */ ordRecordCons2(dotIsSymbol)(ordInt));
 var ordSet2 = /* @__PURE__ */ ordSet(ordRecord1);
 var lookup32 = /* @__PURE__ */ lookup(ordSet2);
-var insert4 = /* @__PURE__ */ insert(ordSet2);
+var insert42 = /* @__PURE__ */ insert(ordSet2);
 var Canonical = /* @__PURE__ */ (function() {
   function Canonical2() {
   }
@@ -4683,6 +4685,83 @@ var resolve = function($copy_v) {
     return $tco_result;
   };
 };
+var parsePrecedence = function(content) {
+  var unquoteTok = function(tok) {
+    var t = trim(tok);
+    var n = length2(t);
+    var $207 = n >= 2 && (eq4(charAt2(0)(t))(new Just("'")) || eq4(charAt2(0)(t))(new Just('"')));
+    if ($207) {
+      return new Just(slice2(1)(n - 1 | 0)(t));
+    }
+    ;
+    return Nothing.value;
+  };
+  var meaningful = filter(function(l) {
+    return l !== "" && l !== "grammark precedence";
+  })(map10(trim)(split("\n")(content)));
+  var literalsOf = function(line) {
+    return mapMaybe(unquoteTok)(split(" ")(trim(line)));
+  };
+  var isPrefix = function(p) {
+    return function(line) {
+      var v = stripPrefix(p)(line);
+      if (v instanceof Just) {
+        return true;
+      }
+      ;
+      if (v instanceof Nothing) {
+        return false;
+      }
+      ;
+      throw new Error("Failed pattern match at Grammark.Table (line 126, column 21 - line 128, column 21): " + [v.constructor.name]);
+    };
+  };
+  var assocOf = function(line) {
+    if (isPrefix("%left")(line)) {
+      return new Just(LeftA.value);
+    }
+    ;
+    if (isPrefix("%right")(line)) {
+      return new Just(RightA.value);
+    }
+    ;
+    if (isPrefix("%nonassoc")(line)) {
+      return new Just(NonA.value);
+    }
+    ;
+    if (otherwise) {
+      return Nothing.value;
+    }
+    ;
+    throw new Error("Failed pattern match at Grammark.Table (line 120, column 3 - line 124, column 26): " + [line.constructor.name]);
+  };
+  var addLine = function(level) {
+    return function(acc) {
+      return function(line) {
+        var v = assocOf(line);
+        if (v instanceof Nothing) {
+          return acc;
+        }
+        ;
+        if (v instanceof Just) {
+          return foldl5(function(m) {
+            return function(t) {
+              return insert4(t)({
+                level,
+                assoc: v.value0
+              })(m);
+            };
+          })(acc)(literalsOf(line));
+        }
+        ;
+        throw new Error("Failed pattern match at Grammark.Table (line 116, column 28 - line 118, column 88): " + [v.constructor.name]);
+      };
+    };
+  };
+  return {
+    terms: foldlWithIndex2(addLine)(empty2)(meaningful)
+  };
+};
 var nontermSet = function(v) {
   return fromFoldable12(map10(function(v1) {
     return v1.value0;
@@ -4828,7 +4907,7 @@ var eqSymbol = {
 };
 var fixpoint1 = /* @__PURE__ */ fixpoint(/* @__PURE__ */ eqMap(eqString)(/* @__PURE__ */ eqSet(eqSymbol)));
 var fixpoint2 = /* @__PURE__ */ fixpoint(/* @__PURE__ */ eqSet(/* @__PURE__ */ eqRec()(/* @__PURE__ */ eqRowCons(/* @__PURE__ */ eqRowCons(/* @__PURE__ */ eqRowCons(eqRowNil)()(prodIsSymbol)(eqInt))()(lookIsSymbol)(eqSymbol))()(dotIsSymbol)(eqInt))));
-var eq4 = /* @__PURE__ */ eq(eqSymbol);
+var eq42 = /* @__PURE__ */ eq(eqSymbol);
 var ordSymbol = {
   compare: function(x) {
     return function(y) {
@@ -4913,15 +4992,15 @@ var followStep = function(firsts) {
           return function(rhs) {
             return function(i) {
               return function(m) {
-                return function(sym) {
-                  if (sym instanceof NonTerm) {
+                return function(sym2) {
+                  if (sym2 instanceof NonTerm) {
                     var v = index(rhs)(i + 1 | 0);
                     if (v instanceof Just) {
-                      return insertWith2(union1)(sym.value0)(firstOfSymbol(firsts)(v.value0))(m);
+                      return insertWith2(union1)(sym2.value0)(firstOfSymbol(firsts)(v.value0))(m);
                     }
                     ;
                     if (v instanceof Nothing) {
-                      return insertWith2(union1)(sym.value0)(setOf(lhs)(m))(m);
+                      return insertWith2(union1)(sym2.value0)(setOf(lhs)(m))(m);
                     }
                     ;
                     throw new Error("Failed pattern match at Grammark.Table (line 226, column 18 - line 229, column 60): " + [v.constructor.name]);
@@ -5253,13 +5332,13 @@ var fillTables = function(ctx) {
   return function(st) {
     return function(realProds) {
       var conflictAt = function(state) {
-        return function(sym) {
+        return function(sym2) {
           return function(existing) {
             return function(newProd) {
               if (existing instanceof Shift) {
                 return new ShiftReduce({
                   state,
-                  onSymbol: sym,
+                  onSymbol: sym2,
                   reduceProd: newProd
                 });
               }
@@ -5267,7 +5346,7 @@ var fillTables = function(ctx) {
               if (existing instanceof Reduce) {
                 return new ReduceReduce({
                   state,
-                  onSymbol: sym,
+                  onSymbol: sym2,
                   prodA: existing.value0,
                   prodB: newProd
                 });
@@ -5276,7 +5355,7 @@ var fillTables = function(ctx) {
               if (existing instanceof Accept) {
                 return new ReduceReduce({
                   state,
-                  onSymbol: sym,
+                  onSymbol: sym2,
                   prodA: -1 | 0,
                   prodB: newProd
                 });
@@ -5420,7 +5499,7 @@ var initialPartition = function(canonical) {
         ;
         if (v instanceof Nothing) {
           return {
-            coreToId: insert4(core)(nextId)(acc.coreToId),
+            coreToId: insert42(core)(nextId)(acc.coreToId),
             part: insert1(i)(nextId)(acc.part)
           };
         }
@@ -5451,7 +5530,7 @@ var mergeLALR = function(st) {
         ;
         if (v instanceof Nothing) {
           return {
-            coreToId: insert4(core)(nextId)(acc.coreToId),
+            coreToId: insert42(core)(nextId)(acc.coreToId),
             oldToNew: insert1(i)(nextId)(acc.oldToNew),
             states: snoc(acc.states)(items)
           };
@@ -5522,7 +5601,7 @@ var $$goto = function(ctx) {
     return function(x) {
       var shift = function(it) {
         var v = index(rhsOf(ctx)(it.prod))(it.dot);
-        if (v instanceof Just && eq4(v.value0)(x)) {
+        if (v instanceof Just && eq42(v.value0)(x)) {
           return new Just({
             prod: it.prod,
             look: it.look,
@@ -5715,8 +5794,24 @@ var buildTablesFor = /* @__PURE__ */ buildTablesForP(emptyPrec);
 
 // ../output/Grammark.Diagnostics/index.js
 var map11 = /* @__PURE__ */ map(functorArray);
+var show3 = /* @__PURE__ */ show(showInt);
 var member5 = /* @__PURE__ */ member2(ordString);
 var nub2 = /* @__PURE__ */ nub(ordString);
+var sym = function(v) {
+  if (v instanceof NonTerm) {
+    return v.value0;
+  }
+  ;
+  if (v instanceof Term) {
+    return "`" + (v.value0 + "`");
+  }
+  ;
+  if (v instanceof EOF) {
+    return "$";
+  }
+  ;
+  throw new Error("Failed pattern match at Grammark.Diagnostics (line 121, column 7 - line 124, column 13): " + [v.constructor.name]);
+};
 var refsOf = function(v) {
   if (v instanceof Ref) {
     return [v.value0];
@@ -5747,6 +5842,43 @@ var refsOf = function(v) {
   }
   ;
   throw new Error("Failed pattern match at Grammark.Diagnostics (line 52, column 10 - line 59, column 46): " + [v.constructor.name]);
+};
+var prodName = function(prods) {
+  return function(i) {
+    var v = index(prods)(i);
+    if (v instanceof Just) {
+      return v.value0.lhs + (" -> " + (function() {
+        var $31 = $$null(v.value0.rhs);
+        if ($31) {
+          return "\u03B5";
+        }
+        ;
+        return joinWith(" ")(map11(sym)(v.value0.rhs));
+      })());
+    }
+    ;
+    if (v instanceof Nothing) {
+      return "accept (the start production)";
+    }
+    ;
+    throw new Error("Failed pattern match at Grammark.Diagnostics (line 113, column 20 - line 116, column 45): " + [v.constructor.name]);
+  };
+};
+var renderConflict = function(prods) {
+  return function(v) {
+    if (v instanceof ShiftReduce) {
+      return "shift/reduce conflict in state " + (show3(v.value0.state) + (" on " + (sym(v.value0.onSymbol) + (":\n" + ("  shift " + (sym(v.value0.onSymbol) + ("  vs  reduce " + (prodName(prods)(v.value0.reduceProd) + ("\n" + ("  fix: give " + (sym(v.value0.onSymbol) + " a precedence in the `## Precedence` block, inline a rule, or enable GLR.")))))))))));
+    }
+    ;
+    if (v instanceof ReduceReduce) {
+      return "reduce/reduce conflict in state " + (show3(v.value0.state) + (" on " + (sym(v.value0.onSymbol) + (":\n" + ("  reduce " + (prodName(prods)(v.value0.prodA) + ("  vs  reduce " + (prodName(prods)(v.value0.prodB) + ("\n" + ("  fix: the rules are ambiguous on " + (sym(v.value0.onSymbol) + "; merge them into one rule, left-factor, or enable GLR.")))))))))));
+    }
+    ;
+    throw new Error("Failed pattern match at Grammark.Diagnostics (line 82, column 24 - line 108, column 67): " + [v.constructor.name]);
+  };
+};
+var renderConflicts = function(g) {
+  return map11(renderConflict(productions(g)));
 };
 var isNonterminalName = function(name) {
   return toUpper(name) !== name;
@@ -5783,7 +5915,7 @@ var checkDefined = function(g) {
 };
 
 // ../output/Grammark.Parser/index.js
-var show3 = /* @__PURE__ */ show(showString);
+var show4 = /* @__PURE__ */ show(showString);
 var show1 = /* @__PURE__ */ show(showInt);
 var ordTuple3 = /* @__PURE__ */ ordTuple(ordInt);
 var lookup6 = /* @__PURE__ */ lookup(/* @__PURE__ */ ordTuple3(ordString));
@@ -5821,7 +5953,7 @@ var InternalError = /* @__PURE__ */ (function() {
 var showParseError = {
   show: function(v) {
     if (v instanceof UnexpectedToken) {
-      return "unexpected token " + (show3(v.value0.terminal) + (" in state " + show1(v.value0.state)));
+      return "unexpected token " + (show4(v.value0.terminal) + (" in state " + show1(v.value0.state)));
     }
     ;
     if (v instanceof UnexpectedEnd) {
@@ -7407,7 +7539,7 @@ var buildItems = function(defs) {
 
 // ../output/Grammark.Lr/index.js
 var foldl7 = /* @__PURE__ */ foldl(foldableArray);
-var show4 = /* @__PURE__ */ show(showInt);
+var show5 = /* @__PURE__ */ show(showInt);
 var all3 = /* @__PURE__ */ all(foldableArray)(heytingAlgebraBoolean);
 var notEq13 = /* @__PURE__ */ notEq(/* @__PURE__ */ eqMaybe(eqChar));
 var any5 = /* @__PURE__ */ any(foldableArray)(heytingAlgebraBoolean);
@@ -7705,7 +7837,7 @@ var reduce = function(p) {
       return new VMaybeStr(new Just(kids[0].value0));
     }
     ;
-    return new VErr("unexpected reduce shape for production " + show4(p));
+    return new VErr("unexpected reduce shape for production " + show5(p));
   };
 };
 var lrScanItems = /* @__PURE__ */ buildItems(/* @__PURE__ */ fromRight([])(/* @__PURE__ */ parseTokens(lrTokensSource)))([":", "|"]);
@@ -7783,6 +7915,69 @@ var isPrecDecl = function(l) {
   return any5(function(p) {
     return isJust(stripPrefix(p)(t));
   })(["%left ", "%right ", "%nonassoc "]);
+};
+var grammarkBlocks = function(md) {
+  var step = function(acc) {
+    return function(line) {
+      if (acc.inside) {
+        var $197 = trim(line) === "```";
+        if ($197) {
+          return {
+            info: acc.info,
+            cur: acc.cur,
+            inside: false,
+            out: snoc(acc.out)({
+              info: acc.info,
+              content: joinWith("\n")(acc.cur)
+            })
+          };
+        }
+        ;
+        return {
+          info: acc.info,
+          inside: acc.inside,
+          out: acc.out,
+          cur: snoc(acc.cur)(line)
+        };
+      }
+      ;
+      var v = stripPrefix("```grammark")(trim(line));
+      if (v instanceof Just) {
+        return {
+          out: acc.out,
+          inside: true,
+          info: trim(v.value0),
+          cur: []
+        };
+      }
+      ;
+      if (v instanceof Nothing) {
+        return acc;
+      }
+      ;
+      throw new Error("Failed pattern match at Grammark.Lr (line 146, column 10 - line 148, column 21): " + [v.constructor.name]);
+    };
+  };
+  return foldl7(step)({
+    inside: false,
+    info: "",
+    cur: [],
+    out: []
+  })(split("\n")(md)).out;
+};
+var precedenceOf = function(md) {
+  var v = find2(function(b) {
+    return b.info === "precedence";
+  })(grammarkBlocks(md));
+  if (v instanceof Just) {
+    return parsePrecedence(v.value0.content);
+  }
+  ;
+  if (v instanceof Nothing) {
+    return emptyPrec;
+  }
+  ;
+  throw new Error("Failed pattern match at Grammark.Lr (line 354, column 19 - line 356, column 23): " + [v.constructor.name]);
 };
 var decomment = function(ls) {
   var step = function(acc) {
@@ -8030,7 +8225,7 @@ var cstReduce = /* @__PURE__ */ (function() {
 })();
 
 // ../output/Grammark.Conformance/index.js
-var show5 = /* @__PURE__ */ show(showParseError);
+var show6 = /* @__PURE__ */ show(showParseError);
 var Accept2 = /* @__PURE__ */ (function() {
   function Accept3() {
   }
@@ -8062,7 +8257,7 @@ var parseCst = function(lexer) {
           ;
           if (v1 instanceof Right) {
             return either(function($24) {
-              return Left.create(show5($24));
+              return Left.create(show6($24));
             })(Right.create)(run3(v1.value0)(cstToken)(cstReduce)(v.value0));
           }
           ;
@@ -8100,10 +8295,97 @@ var eqOutcome = {
 };
 
 // ../output/Grammark.Glr/index.js
+var show7 = /* @__PURE__ */ show(showInt);
 var append15 = /* @__PURE__ */ append(semigroupArray);
+var map18 = /* @__PURE__ */ map(functorArray);
 var ordTuple4 = /* @__PURE__ */ ordTuple(ordInt);
 var lookup7 = /* @__PURE__ */ lookup(/* @__PURE__ */ ordTuple4(ordString));
 var lookup13 = /* @__PURE__ */ lookup(/* @__PURE__ */ ordTuple4(ordSymbol));
+var explainP = function(prec) {
+  return function(g) {
+    var ncp = (function() {
+      var v = buildTablesForP(prec)(Canonical.value)(g);
+      if (v instanceof Left) {
+        return length(v.value0);
+      }
+      ;
+      if (v instanceof Right) {
+        return 0;
+      }
+      ;
+      throw new Error("Failed pattern match at Grammark.Glr (line 155, column 9 - line 157, column 17): " + [v.constructor.name]);
+    })();
+    var hasPrec = !isEmpty(prec.terms);
+    var genuineConflicts = (function() {
+      var v = buildTablesForP(prec)(Canonical.value)(g);
+      if (v instanceof Left) {
+        return renderConflicts(g)(v.value0);
+      }
+      ;
+      if (v instanceof Right) {
+        return [];
+      }
+      ;
+      throw new Error("Failed pattern match at Grammark.Glr (line 182, column 22 - line 184, column 18): " + [v.constructor.name]);
+    })();
+    var count = function(m) {
+      var v = buildTablesFor(m)(g);
+      if (v instanceof Left) {
+        return length(v.value0);
+      }
+      ;
+      if (v instanceof Right) {
+        return 0;
+      }
+      ;
+      throw new Error("Failed pattern match at Grammark.Glr (line 146, column 13 - line 148, column 17): " + [v.constructor.name]);
+    };
+    var nc = count(Canonical.value);
+    var ni = count(IELR.value);
+    var nl = count(LALR.value);
+    var verdict = (function() {
+      if (nc === 0 && nl === 0) {
+        return ["verdict: conflict-free \u2014 the grammar is LALR(1)."];
+      }
+      ;
+      if (nc === 0) {
+        return ["verdict: LALR artifact \u2014 " + (show7(nl) + (" conflict(s) under LALR(1) that canonical LR(1) resolves" + (function() {
+          var $35 = ni === 0;
+          if ($35) {
+            return " (and so does IELR(1)).";
+          }
+          ;
+          return ".";
+        })())), "         the grammar is LR(1); build it with IELR(1) for a compact conflict-free table."];
+      }
+      ;
+      if (ncp === 0) {
+        return ["verdict: resolved by declaration \u2014 " + (show7(nc) + " conflict(s) under canonical LR(1), all resolved by the %left/%right precedence declarations; the grammar compiles.")];
+      }
+      ;
+      if (otherwise) {
+        return append15(["verdict: genuine \u2014 " + (show7(ncp) + (" conflict(s) persist under canonical LR(1)" + ((function() {
+          if (hasPrec) {
+            return " even with the declared precedence";
+          }
+          ;
+          return "";
+        })() + "; the grammar is not LR(1)"))), "         (ambiguous, or in need of a refactor, more precedence, or the GLR driver). conflicts:"])(map18(function(c) {
+          return "  " + c;
+        })(genuineConflicts));
+      }
+      ;
+      throw new Error("Failed pattern match at Grammark.Glr (line 159, column 3 - line 180, column 52): ");
+    })();
+    return joinWith("\n")(append15(["conflicts by method: canonical LR(1) = " + (show7(nc) + (", LALR(1) = " + (show7(nl) + (", IELR(1) = " + (show7(ni) + (function() {
+      if (hasPrec) {
+        return ", canonical + declared precedence = " + show7(ncp);
+      }
+      ;
+      return "";
+    })())))))])(verdict));
+  };
+};
 var budget = 2e5;
 var parseForest = function(table) {
   return function(tokenVal2) {
@@ -8274,13 +8556,13 @@ var forest = function(method) {
 };
 
 // ../output/Grammark.Playground/index.js
-var map18 = /* @__PURE__ */ map(functorArray);
-var show6 = /* @__PURE__ */ show(showString);
+var map19 = /* @__PURE__ */ map(functorArray);
+var show8 = /* @__PURE__ */ show(showString);
 var foldMap3 = /* @__PURE__ */ foldMap(foldableArray)(monoidString);
 var show13 = /* @__PURE__ */ show(showInt);
 var eq7 = /* @__PURE__ */ eq(eqOutcome);
 var ruleNamesOf = function(v) {
-  return map18(function(v1) {
+  return map19(function(v1) {
     return v1.value0;
   })(v);
 };
@@ -8296,14 +8578,14 @@ var renderTree = function(prods) {
         return "(start)";
       }
       ;
-      throw new Error("Failed pattern match at Grammark.Playground (line 115, column 19 - line 117, column 27): " + [v1.constructor.name]);
+      throw new Error("Failed pattern match at Grammark.Playground (line 123, column 19 - line 125, column 27): " + [v1.constructor.name]);
     }
     ;
     if (v instanceof Token) {
-      return v.value0 + (" " + show6(v.value1));
+      return v.value0 + (" " + show8(v.value1));
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Playground (line 114, column 11 - line 118, column 36): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Playground (line 122, column 11 - line 126, column 36): " + [v.constructor.name]);
   };
   var indent = function(depth) {
     return joinWith("")(replicate(depth)("  "));
@@ -8321,7 +8603,7 @@ var renderTree = function(prods) {
           return "";
         }
         ;
-        throw new Error("Failed pattern match at Grammark.Playground (line 111, column 10 - line 113, column 24): " + [node.constructor.name]);
+        throw new Error("Failed pattern match at Grammark.Playground (line 119, column 10 - line 121, column 24): " + [node.constructor.name]);
       })());
     };
   };
@@ -8337,7 +8619,8 @@ var evaluate = function(v) {
       diagnostics: [v1.value0],
       rules: [],
       tokens: [],
-      tree: ""
+      tree: "",
+      conflicts: ""
     };
   }
   ;
@@ -8355,16 +8638,17 @@ var evaluate = function(v) {
           return [];
         }
         ;
-        throw new Error("Failed pattern match at Grammark.Playground (line 56, column 23 - line 58, column 23): " + [v3.constructor.name]);
+        throw new Error("Failed pattern match at Grammark.Playground (line 62, column 23 - line 64, column 23): " + [v3.constructor.name]);
       }
       ;
       if (v22 instanceof Nothing) {
         return [];
       }
       ;
-      throw new Error("Failed pattern match at Grammark.Playground (line 55, column 14 - line 59, column 22): " + [v22.constructor.name]);
+      throw new Error("Failed pattern match at Grammark.Playground (line 61, column 14 - line 65, column 22): " + [v22.constructor.name]);
     })();
     var lexer = scannerLexer(defs)(v1.value0);
+    var conflicts = explainP(precedenceOf(v.source))(v1.value0);
     var v2 = lexer(v.input);
     if (v2 instanceof Left) {
       return {
@@ -8374,7 +8658,8 @@ var evaluate = function(v) {
         diagnostics: [v2.value0],
         rules,
         tokens: [],
-        tree: ""
+        tree: "",
+        conflicts
       };
     }
     ;
@@ -8397,7 +8682,7 @@ var evaluate = function(v) {
           return "";
         }
         ;
-        throw new Error("Failed pattern match at Grammark.Playground (line 79, column 20 - line 83, column 28): " + [v3.constructor.name]);
+        throw new Error("Failed pattern match at Grammark.Playground (line 86, column 20 - line 90, column 28): " + [v3.constructor.name]);
       })();
       var accepted = eq7(recognize(lexer)(Canonical.value)(v1.value0)(v.input))(Accept2.value);
       return {
@@ -8418,17 +8703,18 @@ var evaluate = function(v) {
           return ["The input did not match the grammar."];
         })(),
         rules,
-        tokens: map18(function(v3) {
+        tokens: map19(function(v3) {
           return v3.text;
         })(v2.value0),
-        tree
+        tree,
+        conflicts
       };
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Playground (line 62, column 7 - line 96, column 14): " + [v2.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Playground (line 68, column 7 - line 104, column 14): " + [v2.constructor.name]);
   }
   ;
-  throw new Error("Failed pattern match at Grammark.Playground (line 40, column 30 - line 96, column 14): " + [v1.constructor.name]);
+  throw new Error("Failed pattern match at Grammark.Playground (line 42, column 30 - line 104, column 14): " + [v1.constructor.name]);
 };
 export {
   evaluate
