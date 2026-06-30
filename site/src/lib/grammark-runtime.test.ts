@@ -44,6 +44,13 @@ test("the grammar analysis reports the stratified default as conflict-free", asy
   assert.match(result.conflicts, /conflict-free/);
 });
 
+test("the parse trace lists shift/reduce steps in order", async () => {
+  const result = await parseGrammarkDocument(getDefaultGrammar(), "1 + 2");
+  // First the engine shifts a NUMBER, last it reduces the whole Expr.
+  assert.match(result.trace, /1\. shift\s+NUMBER "1"/);
+  assert.match(result.trace, /reduce Expr -> Expr '\+' Term/);
+});
+
 test("the default grammar rejects an incomplete expression", async () => {
   const result = await parseGrammarkDocument(getDefaultGrammar(), "1 +");
   assert.equal(result.success, false);
