@@ -15,9 +15,10 @@ export interface GrammarkParseResult {
 
 export async function parseGrammarkDocument(
   source: string,
+  inputOverride?: string,
 ): Promise<GrammarkParseResult> {
   const { grammar, issues } = parseMarkdownGrammar(source);
-  const input = getDefaultInput();
+  const input = inputOverride ?? getDefaultInput();
   const evaluation = evaluateGrammar(grammar, input);
 
   if (!grammar) {

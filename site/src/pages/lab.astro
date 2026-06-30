@@ -81,7 +81,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammar-lab.ts";
         resultOutput.textContent = "Invoking the real Grammark parser…";
         diagnosticsList.innerHTML = "";
 
-        const result = await parseGrammarkDocument(grammarSource);
+        const result = await parseGrammarkDocument(grammarSource, input);
 
         statusPill.textContent = result.success ? "Accepted" : "Rejected";
         resultOutput.textContent = [
