@@ -25,6 +25,7 @@ import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..), joinWith, split, trim)
 import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Grammark.Lexer (Token, normalizeNewlines, tokenize)
+import Grammark.Lr (toFenced)
 import Grammark.Scanner (buildItems, hasError, scan)
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 import Grammark.Tokens (TokenDef)
@@ -94,10 +95,12 @@ grammarLiterals (Grammar rules) = Array.nub (Array.concatMap ruleLits rules)
     _ -> []
 
 -- | Extract the content of the first ```` ```grammark tokens ```` block from a
--- | `.grmk.md` document, or `Nothing` if it has none.
+-- | `.grmk.md` document, or `Nothing` if it has none. `toFenced` first reads a
+-- | fence-free `.grmk` projection (its `%% tokens` section) back to this form,
+-- | so the Lab and conformance lex either representation.
 tokensBlock :: String -> Maybe String
-tokensBlock md =
-  (foldl step { inside: false, cur: [], found: Nothing } (split (Pattern "\n") md)).found
+tokensBlock md0 =
+  (foldl step { inside: false, cur: [], found: Nothing } (split (Pattern "\n") (toFenced md0))).found
   where
   step acc line
     | acc.inside =
