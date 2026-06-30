@@ -209,7 +209,7 @@ How each ANTLR feature maps:
 | rules, alternatives, EBNF (`*`,`+`,`?`) | productions + Gramaire sugar (`X*`/`X+`/`X?`, `Comma`/`Sep`)                       |
 | `#Label` alternative labels             | Gramaire `# Label` (already shared)                                                |
 | `{ action }` / `{% %}`-equivalent       | Gramaire `{% … %}` action block                                                    |
-| semantic predicate `{ … }?`             | an IR predicate node, rendered as a flagged `{% … %}` block; not core syntax      |
+| semantic predicate `{ … }?`             | a `{%? … %}` action — the `?` flag tags it a predicate on the IR (D-predicates)   |
 | `~set`, `.` wildcard                    | desugared to explicit token-set alternatives where finite; flagged otherwise      |
 | lexer modes / channels / `fragment`     | `## Tokens` entries + IR lexer metadata (or flagged as unsupported)               |
 | rule args / returns / locals            | carried as opaque IR rule metadata for `emit`, dropped on `import` with a warning |
@@ -279,3 +279,70 @@ Principles kept:
 
 Land each phase green across spago / bridge / site, with a conformance column
 proving the new engine agrees with the old where their languages overlap.
+
+## 9. Decisions
+
+### D-strategy — strategy is a build flag; the grammar is neutral
+
+**Decision.** A `.gram.md` does not declare its parsing strategy. The same
+productions build under LR (the default) or ALL(\*), chosen at build time — an IR
+`strategy` field set by `--strategy ll-star`, never grammar syntax.
+
+**Why.** It keeps the format frozen and strategy-agnostic: one grammar, two
+engines, no per-grammar annotation to drift or to teach. It is the cleanest
+possible answer to "keep Gramaire's syntax" — there is _nothing to add_.
+
+**Consequence.** Under ALL(\*), **alternative order becomes load-bearing**
+(first match disambiguates) where LR treats alternatives as unordered and errors
+on a genuine conflict. That is a semantic difference, not a syntactic one: a
+grammar that leans on ordering only behaves under ALL(\*). Surface it with a lint
+note when an `ll-star` build relies on order an LR build would have rejected —
+but add no syntax.
+
+### D-grammar-roles — roles are inferred and import-based; no `parser/lexer grammar` keyword
+
+**Decision.** Gramaire does **not** adopt ANTLR's `parser grammar X;` /
+`lexer grammar X;` / `grammar X;` headers. The combined form (`## Tokens` +
+productions in one file) stays the default and the identity. A _lexer grammar_
+is a `## Tokens`-only file; a _parser grammar_ is a file of productions that
+`import`s a tokens file. The role is inferred from content and validated by the
+structure gate, not declared with a keyword.
+
+**Why.** Gramaire already separates lexis (`## Tokens`) from productions **by
+section** inside one self-contained, doc-rendering file. ANTLR's keyword exists
+only because a `.g4` is flat and has no other way to say "lexer-only." A
+file-type header would add ceremony that reads against the doc-as-grammar grain.
+
+**Consequence.** Parser/lexer separation is gated on the **cross-file `import`**
+mechanism — that RFC ([`spec/import-rfc.md`](../spec/import-rfc.md), currently
+deferred) is the real prerequisite, not new grammar syntax. The converter (§4)
+maps ANTLR's three forms onto Gramaire's: `grammar G` → one combined file;
+`lexer grammar L` → a `## Tokens`-only `L.gram.md`; `parser grammar P` → a
+productions `P.gram.md` that `import`s `L`.
+
+### D-predicates — a semantic predicate rides a flagged `{%? … %}` action
+
+**Decision.** An ANTLR semantic predicate `{ p }?` becomes a Gramaire action
+written `{%? p %}` — an ordinary `{% … %}` action whose opener is `{%?`. The
+leading `?` (echoing ANTLR's `{…}?`) is the **flag**: a body-content convention,
+not a lexer change, that tags the action a **predicate** (a prediction-time
+boolean gate) rather than a value-building action, on the IR. The body is
+host-language source carried verbatim, like any action; the backend supplies the
+evaluator (narrow waist).
+
+**Why.** It imports ANTLR's signature feature without growing the core syntax —
+it is still a `{% … %}` action to the lexer, the formatter, and GFM. The `?`
+makes a predicate visible to the human, the converter, and the engine at once.
+
+**Consequence.** Every action consumer must read the flag: the ALL(\*) predictor
+**evaluates** `{%? %}` nodes during prediction; value codegen (the TS backend,
+the CST) **ignores** them (a predicate builds no value); an **LR** build of a
+predicate-using grammar is flagged — _"uses semantic predicates; build with
+`--strategy ll-star`"_ — because LR has no predicate semantics. Disambiguation
+is by the literal `{%?` opener, so a value action whose body happens to start
+with `?` is written with a leading space (`{% ?x %}`). Precedence predicates
+(ANTLR's left-recursion `<assoc>`) are **not** this — they are handled by the
+left-recursion rewrite (Phase 2), not as `{%? %}` blocks. Native authoring of a
+predicate uses the same `{%? %}` convention the converter emits; it is the one
+place ALL(\*)'s power reaches a hand-written grammar — as a convention, never a
+new construct.
