@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "mode": "sidecar",
+  "grammarSha256": "27b4eacebdbc5487241a39e6e41dfedce1a09b5b7a4a7eb160d61ab0a3b92991",
+  "artifacts": [
+    {
+      "kind": "railroad",
+      "nonterminal": "expr",
+      "path": "diagrams/expr.svg",
+      "sourceSha256": "e0f325794f57de8847c7277167bc24f4b3b3ae4cbce9e0e65d82113b71b0c16c"
+    },
+    {
+      "kind": "tables",
+      "section": "Generated tables",
+      "sourceSha256": "27b4eacebdbc5487241a39e6e41dfedce1a09b5b7a4a7eb160d61ab0a3b92991"
+    }
+  ]
+}

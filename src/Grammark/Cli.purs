@@ -32,8 +32,8 @@ import Grammark.Backend.Registry (backends, findBackend)
 import Grammark.Conformance (Descriptor, calcDescriptor, lrDescriptor, runSuites, summarize)
 import Grammark.Diagnostics (renderConflicts)
 import Grammark.Glr (explain)
-import Grammark.IR (buildIR)
-import Grammark.Lr (parse, strip)
+import Grammark.IR (buildIRP)
+import Grammark.Lr (parse, precedenceOf, strip)
 import Grammark.Syntax (Grammar)
 import Grammark.Table (Method(Canonical))
 import Node.Encoding (Encoding(UTF8))
@@ -117,7 +117,7 @@ runEmit args = case parseEmit args of
           Left err -> die ("emit: cannot read " <> file <> ": " <> message err)
           Right md -> case parse md of
             Left pe -> die ("emit: parse error in " <> file <> ": " <> pe)
-            Right g -> case buildIR Canonical (grammarName md file) g of
+            Right g -> case buildIRP (precedenceOf md) Canonical (grammarName md file) g of
               Left conflicts ->
                 die
                   ( "emit: " <> file <> " has unresolved LR(1) conflicts:\n\n"
