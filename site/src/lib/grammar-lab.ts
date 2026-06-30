@@ -14,10 +14,23 @@ export interface GrammarRule {
   productions: GrammarProduction[];
 }
 
+// A named token class from a `## Tokens` block, compiled to a sticky RegExp so
+// the preview can lex it. The regular sublanguage Grammark allows (no
+// backreferences, lookaround, or anchors) is a subset of JS regex, so the
+// source compiles directly.
+export interface GrammarTokenClass {
+  name: string;
+  regex: RegExp;
+  skip: boolean;
+}
+
 export interface Grammar {
   name: string;
   startSymbol: string;
   rules: GrammarRule[];
+  // Classes declared in the grammar's own `lr tokens` block, if any. With these
+  // the preview can lex ALL-CAPS terminals (STRING, NUMBER, …) itself.
+  tokenClasses: GrammarTokenClass[];
 }
 
 export interface EvaluationResult {
@@ -62,8 +75,12 @@ interface EarleyState {
 }
 
 interface Token {
-  kind: "literal" | "unknown";
+  kind: "literal" | "class" | "unknown";
+  // For a literal: its spelling. For a class: the matched text (for display).
+  // For unknown: the offending character.
   value: string;
+  // The token class name (e.g. "STRING") when kind === "class".
+  className?: string;
 }
 
 const DEFAULT_GRAMMAR = `# Brackets
@@ -97,9 +114,11 @@ export function parseMarkdownGrammar(source: string): {
 } {
   const lines = source.split(/\r?\n/);
   const rules = new Map<string, GrammarRule>();
+  const tokenClasses: GrammarTokenClass[] = [];
   const issues: ParseIssue[] = [];
   let currentBlock: string[] = [];
   let inFence = false;
+  let fenceInfo = "";
   let currentRule: string | null = null;
 
   for (const rawLine of lines) {
@@ -109,13 +128,21 @@ export function parseMarkdownGrammar(source: string): {
       if (!inFence) {
         inFence = true;
         currentBlock = [];
+        // Key on the fence info string, like the CLI's `lrBlocks`: a ```lr
+        // fence holds grammar productions, a ```lr tokens fence the lexis.
+        // Everything else — `lr errors`, `lr precedence`, a ```purescript AST
+        // sketch — is skipped (a content heuristic used to mistake the AST's
+        // `| Arr …` lines for alternatives).
+        fenceInfo = line.slice(3).trim();
       } else {
-        const block = currentBlock.join("\n");
-        if (looksLikeGrammarBlock(block)) {
-          parseRuleBlock(block, rules, issues, currentRule);
+        if (fenceInfo === "lr") {
+          parseRuleBlock(currentBlock.join("\n"), rules, issues, currentRule);
+        } else if (fenceInfo === "lr tokens") {
+          parseTokenBlock(currentBlock.join("\n"), tokenClasses, issues);
         }
         currentBlock = [];
         inFence = false;
+        fenceInfo = "";
       }
       continue;
     }
@@ -172,19 +199,75 @@ export function parseMarkdownGrammar(source: string): {
             name: "Lab Grammar",
             startSymbol,
             rules: grammarRules,
+            tokenClasses,
           }
         : null,
     issues,
   };
 }
 
-function looksLikeGrammarBlock(block: string): boolean {
-  return block
+// Parse a `lr tokens` block: one `NAME : /regex/ [%skip]` (or `NAME : "literal"`)
+// per line. Each regex class is compiled to a sticky RegExp the preview can lex
+// with; a class whose pattern is rejected by JS regex (or uses a Grammark-only
+// construct) is dropped, so it surfaces later as an undefined class rather than
+// a crash.
+function parseTokenBlock(
+  block: string,
+  tokenClasses: GrammarTokenClass[],
+  issues: ParseIssue[],
+): void {
+  const lines = block
     .split(/\r?\n/)
-    .some(
-      (line) =>
-        /^\s*(:|\|)/.test(line) || /^[A-Za-z][A-Za-z0-9_-]*$/.test(line.trim()),
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  for (const line of lines) {
+    const match = /^([A-Z][A-Z0-9_]*)\s*:\s*(.+)$/.exec(line);
+    if (!match) {
+      issues.push({
+        severity: "warning",
+        message: `Could not parse token definition: ${line}`,
+      });
+      continue;
+    }
+    const name = match[1];
+    const def = match[2].trim();
+    const skip = /(^|\s)%skip(\s|$)/.test(def);
+    // Strip trailing modifiers (%skip, %prec N, %external(...)) to isolate the pattern.
+    const pattern = def.replace(
+      /\s*%(skip|prec\s+\d+|external\([^)]*\)).*$/,
+      "",
     );
+
+    let regex: RegExp | null = null;
+    const rx = /^\/(.*)\/$/.exec(pattern);
+    const lit = /^"(.*)"$/.exec(pattern);
+    if (rx) {
+      try {
+        regex = new RegExp(rx[1], "y");
+      } catch {
+        issues.push({
+          severity: "warning",
+          message: `Token ${name} has a pattern the preview can't compile; it won't be lexed here.`,
+        });
+        continue;
+      }
+    } else if (lit) {
+      // An exact-string class lexes like the literal it spells.
+      regex = new RegExp(escapeRegExp(lit[1]), "y");
+    } else {
+      issues.push({
+        severity: "warning",
+        message: `Token ${name} is neither /regex/ nor "literal"; skipped.`,
+      });
+      continue;
+    }
+    tokenClasses.push({ name, regex, skip });
+  }
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function parseRuleBlock(
@@ -303,18 +386,20 @@ export function evaluateGrammar(
   }
 
   // The preview lexes input from the grammar's own literal terminals — a
-  // literal is its own lexer. Token classes (ALL-CAPS) carry no lexer here, so
-  // a grammar relying on them cannot be evaluated in the browser; we say so
-  // rather than guess what `NUM` or `PLUS` mean.
-  const tokenClasses = collectTokenClasses(grammar);
-  if (tokenClasses.length > 0) {
+  // literal is its own lexer — plus any classes the grammar declares in its
+  // `## Tokens` block (STRING, NUMBER, …). A class that is USED but not DEFINED
+  // there carries no lexer, so we say so rather than guess what it means.
+  const usedClasses = collectTokenClasses(grammar);
+  const definedClasses = new Set(grammar.tokenClasses.map((c) => c.name));
+  const undefinedClasses = usedClasses.filter((c) => !definedClasses.has(c));
+  if (undefinedClasses.length > 0) {
     return {
       success: false,
-      message: "The in-browser preview can't evaluate token classes.",
+      message:
+        "The in-browser preview can't evaluate undeclared token classes.",
       diagnostics: [
-        `This grammar relies on the token class(es): ${tokenClasses.join(", ")}.`,
-        "Token classes (ALL-CAPS names) need a per-language lexer the preview does not have — only literal terminals such as `(` can be lexed here.",
-        "Rewrite those terminals as literals, or run the grammark CLI for full evaluation.",
+        `This grammar uses the token class(es) ${undefinedClasses.join(", ")} with no definition in a \`## Tokens\` block.`,
+        "Declare them in an `lr tokens` block (so the preview can lex them), rewrite those terminals as literals, or run the grammark CLI for full evaluation.",
       ],
       trace: [],
       inputTokens: [],
@@ -322,7 +407,11 @@ export function evaluateGrammar(
     };
   }
 
-  const tokens = lexByLiterals(input, collectLiterals(grammar));
+  const tokens = lexByGrammar(
+    input,
+    collectLiterals(grammar),
+    grammar.tokenClasses,
+  );
   const inputTokens = tokens.map((token) => token.value);
   const unknown = tokens.filter((token) => token.kind === "unknown");
   const parsed = runEarley(grammar, tokens);
@@ -389,11 +478,17 @@ function collectTokenClasses(grammar: Grammar): string[] {
   return [...classes];
 }
 
-// Lex input by longest-match over the grammar's literal terminals, skipping
-// whitespace. A character no literal can start becomes an `unknown` token, which
-// never matches — so it surfaces as a rejection rather than a silent skip.
-function lexByLiterals(input: string, literals: Set<string>): Token[] {
-  const sorted = [...literals].sort((a, b) => b.length - a.length);
+// Lex input by maximal munch over the grammar's literal terminals AND its
+// declared token classes (from the `## Tokens` block), skipping whitespace and
+// any `%skip` class. On a tie a literal wins (keyword reservation: `true` beats
+// an identifier class). A character nothing can start becomes an `unknown`
+// token, which never matches — so it surfaces as a rejection, not a silent skip.
+function lexByGrammar(
+  input: string,
+  literals: Set<string>,
+  tokenClasses: GrammarTokenClass[],
+): Token[] {
+  const sortedLiterals = [...literals].sort((a, b) => b.length - a.length);
   const tokens: Token[] = [];
   let index = 0;
 
@@ -402,12 +497,36 @@ function lexByLiterals(input: string, literals: Set<string>): Token[] {
       index += 1;
       continue;
     }
-    const literal = sorted.find((candidate) =>
+
+    // Longest class match at the cursor (sticky regex anchors at lastIndex).
+    let bestClass: { length: number; token: Token; skip: boolean } | null =
+      null;
+    for (const cls of tokenClasses) {
+      cls.regex.lastIndex = index;
+      const m = cls.regex.exec(input);
+      if (m && m.index === index && m[0].length > 0) {
+        if (!bestClass || m[0].length > bestClass.length) {
+          bestClass = {
+            length: m[0].length,
+            token: { kind: "class", value: m[0], className: cls.name },
+            skip: cls.skip,
+          };
+        }
+      }
+    }
+
+    // Longest literal at the cursor (sortedLiterals is longest-first).
+    const literal = sortedLiterals.find((candidate) =>
       input.startsWith(candidate, index),
     );
-    if (literal) {
+
+    // A literal wins ties (>=); a strictly longer class wins otherwise.
+    if (literal && (!bestClass || literal.length >= bestClass.length)) {
       tokens.push({ kind: "literal", value: literal });
       index += literal.length;
+    } else if (bestClass) {
+      if (!bestClass.skip) tokens.push(bestClass.token);
+      index += bestClass.length;
     } else {
       tokens.push({ kind: "unknown", value: input[index] });
       index += 1;
@@ -552,9 +671,15 @@ function addState(chart: EarleyState[], state: EarleyState): boolean {
   return false;
 }
 
-// A terminal matches a token only when it is a literal whose spelling equals the
-// token's text. Token classes are not matchable here (they are rejected upfront
-// in `evaluateGrammar`); an `unknown` token never matches anything.
+// A literal terminal matches a literal token of equal spelling; an ALL-CAPS
+// token class matches a lexed class token of the same name. An `unknown` token
+// never matches anything.
 function tokenMatches(symbol: GrammarSymbol, token: Token): boolean {
-  return symbol.kind === "terminal" && token.value === symbol.value;
+  if (symbol.kind === "terminal") {
+    return token.kind === "literal" && token.value === symbol.value;
+  }
+  if (symbol.kind === "token") {
+    return token.kind === "class" && token.className === symbol.value;
+  }
+  return false;
 }
