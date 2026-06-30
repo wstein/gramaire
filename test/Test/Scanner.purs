@@ -44,6 +44,16 @@ tests = do
       assert' "the whole number is one NUMBER token"
         (map _.terminal toks == [ "NUMBER" ] && map _.text toks == [ "123.45e-6" ])
 
+  log "  scanner: %caseless (on a string) and /…/i (on a regex) fold case (D35)"
+  case parseTokens "WS : /[ ]+/   %skip\nKW : \"begin\"   %caseless\nEE : /end/i" of
+    Left e -> assert' ("caseless tokens should parse: " <> e) false
+    Right defs -> do
+      let toks = scan (buildItems defs []) "BEGIN eNd"
+      assert' "both keywords match regardless of casing"
+        (map _.terminal toks == [ "KW", "EE" ])
+      assert' "the matched source text is preserved as written"
+        (map _.text toks == [ "BEGIN", "eNd" ])
+
   log "  scanner: an unmatched character becomes an ERROR token and resyncs (M4)"
   case parseTokens idTokens of
     Left _ -> assert' "tokens parse" false

@@ -16,13 +16,19 @@ import Test.Assert (assert')
 matchLen :: String -> String -> Maybe Int
 matchLen pattern input = case parseRegex pattern of
   Left _ -> Nothing
-  Right rx -> longestMatch rx (toCharArray input) 0
+  Right rx -> longestMatch false rx (toCharArray input) 0
 
 -- The emitted text of the longest match: the capture span, else the whole match.
 matchText :: String -> String -> Maybe String
 matchText pattern input = case parseRegex pattern of
   Left _ -> Nothing
-  Right rx -> map (\s -> slice s.textStart s.textEnd input) (longestMatchSpan rx (toCharArray input) 0)
+  Right rx -> map (\s -> slice s.textStart s.textEnd input) (longestMatchSpan false rx (toCharArray input) 0)
+
+-- Longest match end with ASCII case-insensitive matching (the `/…/i` flag, D35).
+matchLenCI :: String -> String -> Maybe Int
+matchLenCI pattern input = case parseRegex pattern of
+  Left _ -> Nothing
+  Right rx -> longestMatch true rx (toCharArray input) 0
 
 rejects :: String -> String -> Effect Unit
 rejects why pattern =
@@ -81,3 +87,11 @@ tests = do
     (matchLen "a\\.b" "a.b" == Just 3)
   assert' "an escaped dot does not match an arbitrary char"
     (matchLen "a\\.b" "axb" == Nothing)
+
+  log "  regex: the /…/i flag folds ASCII case in Lit and Class (D35)"
+  assert' "a caseless literal matches any casing"
+    (matchLenCI "select" "SeLeCt" == Just 6)
+  assert' "a caseless class folds both directions"
+    (matchLenCI "[a-z]+" "AbC9" == Just 3)
+  assert' "without the flag, case is significant"
+    (matchLen "select" "SELECT" == Nothing)

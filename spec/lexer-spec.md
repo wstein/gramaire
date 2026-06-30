@@ -36,7 +36,8 @@ NAME : <definition> [ modifiers ]
   already used in productions.
 - `<definition>` is either a **string literal** `"…"` (an exact match) or a
   **regular expression** `/…/` (§3).
-- `modifiers` are zero or more of `%skip`, `%prec N`, `%external(pass)` (§6).
+- `modifiers` are zero or more of `%skip`, `%prec N`, `%caseless`, `%external(pass)`
+  (§6); a `/regex/` may also carry a glued `i` case-insensitivity flag (`/…/i`).
 
 A grammar MUST place all its named classes here; an ALL-CAPS symbol used in a
 production but absent from `lr tokens` is an error ("token class `X` used but
@@ -137,6 +138,12 @@ open-ended classes.
   naming externally-defined tokens (`%external` mode), where there is no in-file
   pattern to carry `%skip`.
 - **`%prec N`** — explicit tie-break priority (§5, M2).
+- **`%caseless`** — the class matches **ASCII case-insensitively** (ADR D35):
+  every `Lit` and `Class` in its pattern folds case, so `KW : "select" %caseless`
+  matches `SELECT`, `Select`, … . The equivalent on a regex is the glued **`i`
+  flag** — `KW : /select/i` — identical in meaning; an author may write either.
+  The matched **text** stays the source casing (`SeLeCt` lexes as itself). Unicode
+  case folding is deferred with `\p{…}` (§13); v0 folds ASCII only.
 - **`%external(pass)`** — after the regular scan, a named, host-supplied **post-lex
   pass** may reclassify or transform the token stream. It is the escape hatch for
   the genuinely non-regular fraction of lexing (indentation/offside, semicolon

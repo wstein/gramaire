@@ -24,8 +24,9 @@ grammar :: Grammar
 grammar = Grammar
   [ Rule "S" [] [ Alt [ Ref "NUM", Lit "+", Ref "NUM" ] Nothing Nothing ] ]
 
+-- NUM carries the `/…/i` caseless flag (D35) so the IR round-trips it.
 tokenBlock :: String
-tokenBlock = "NUM : /[0-9]+/\nWS  : /[ ]+/   %skip"
+tokenBlock = "NUM : /[0-9]+/i\nWS  : /[ ]+/   %skip"
 
 tests :: Effect Unit
 tests = do
@@ -40,7 +41,9 @@ tests = do
           assert' "mode is regular" (lx.mode == "regular")
           assert' "two token classes" (length lx.classes == 2)
           case find (\c -> c.pattern == IRRegex "[0-9]+") lx.classes of
-            Just c -> assert' "NUM is a non-skipped regex class" (not c.skip)
+            Just c -> do
+              assert' "NUM is a non-skipped regex class" (not c.skip)
+              assert' "NUM carries its caseless flag into the IR (D35)" c.caseless
             Nothing -> assert' "NUM class present with its regex source" false
           -- WS is %skip and never used in a production, so it got a fresh id and
           -- populates extras

@@ -17,6 +17,7 @@ module Grammark.Regex
   , parseRegex
   , longestMatch
   , longestMatchSpan
+  , swapCase
   ) where
 
 import Prelude
@@ -27,7 +28,7 @@ import Data.Either (Either(..))
 import Data.Foldable (foldl)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), isJust)
+import Data.Maybe (Maybe(..), fromMaybe, isJust)
 import Data.String.CodeUnits (toCharArray)
 import Data.Tuple (Tuple(..))
 
@@ -283,15 +284,15 @@ type Cap = Maybe (Tuple Int Int)
 -- | the captured span on the path that reached it. Position-map simulation:
 -- | never backtracks, so it is immune to catastrophic blowup; bounded by the
 -- | input length.
-matchCap :: Rx -> Chars -> Int -> Map Int Cap
-matchCap rx chars start = case rx of
+matchCap :: Boolean -> Rx -> Chars -> Int -> Map Int Cap
+matchCap caseless rx chars start = case rx of
   Empty -> Map.singleton start Nothing
-  Lit c -> advance (eq c)
+  Lit c -> advance (ciMatch caseless (eq c))
   AnyChar -> advance (\x -> x /= '\n' && x /= '\r')
-  Class neg items -> advance (classMatch neg items)
-  Capture inner -> map (\_ -> Just (Tuple start (lastKey inner))) (matchCap inner chars start)
+  Class neg items -> advance (classMatch caseless neg items)
+  Capture inner -> map (\_ -> Just (Tuple start (lastKey inner))) (matchCap caseless inner chars start)
   Concat xs -> foldl step (Map.singleton start Nothing) xs
-  Alt xs -> foldl (\acc r -> merge acc (matchCap r chars start)) Map.empty xs
+  Alt xs -> foldl (\acc r -> merge acc (matchCap caseless r chars start)) Map.empty xs
   Star r -> closure r
   where
   advance pred = case at chars start of
@@ -300,7 +301,7 @@ matchCap rx chars start = case rx of
 
   -- A capture wraps a single contiguous span; with at most one capture per
   -- pattern its end is the (single) longest end of the inner match.
-  lastKey inner = case Map.findMax (matchCap inner chars start) of
+  lastKey inner = case Map.findMax (matchCap caseless inner chars start) of
     Just { key } -> key
     Nothing -> start
 
@@ -309,7 +310,7 @@ matchCap rx chars start = case rx of
       ( \out (Tuple e cap) ->
           foldl (\o (Tuple e' cap') -> Map.insertWith orElse e' (orElse cap cap') o)
             out
-            (Map.toUnfoldable (matchCap r chars e) :: Array (Tuple Int Cap))
+            (Map.toUnfoldable (matchCap caseless r chars e) :: Array (Tuple Int Cap))
       )
       Map.empty
       (Map.toUnfoldable acc :: Array (Tuple Int Cap))
@@ -321,7 +322,7 @@ matchCap rx chars start = case rx of
       Nothing -> visited
       Just { head, tail } ->
         let
-          nexts = matchCap r chars head
+          nexts = matchCap caseless r chars head
           fresh = Map.toUnfoldable nexts :: Array (Tuple Int Cap)
           newKeys = Array.filter (\k -> not (Map.member k visited)) (map fst' fresh)
         in
@@ -334,28 +335,41 @@ orElse :: Cap -> Cap -> Cap
 orElse (Just x) _ = Just x
 orElse Nothing y = y
 
-classMatch :: Boolean -> Array ClassItem -> Char -> Boolean
-classMatch neg items x =
+-- | Apply a char predicate, and when `caseless`, also to the char's ASCII
+-- | case-swap — so `/abc/i` (or `%caseless`) matches any casing (ADR D35).
+ciMatch :: Boolean -> (Char -> Boolean) -> Char -> Boolean
+ciMatch caseless p x = p x || (caseless && p (swapCase x))
+
+-- | ASCII case toggle (Unicode case folding is deferred with `\p{…}`, §13).
+swapCase :: Char -> Char
+swapCase c
+  | c >= 'a' && c <= 'z' = fromMaybe c (fromCharCode (toCharCode c - 32))
+  | c >= 'A' && c <= 'Z' = fromMaybe c (fromCharCode (toCharCode c + 32))
+  | otherwise = c
+
+classMatch :: Boolean -> Boolean -> Array ClassItem -> Char -> Boolean
+classMatch caseless neg items x =
   let
-    hit = Array.any inItem items
+    hit = Array.any (\item -> ciMatch caseless (inItem item) x) items
   in
     if neg then not hit else hit
   where
-  inItem = case _ of
-    One c -> x == c
-    Range lo hi -> x >= lo && x <= hi
+  inItem item ch = case item of
+    One c -> ch == c
+    Range lo hi -> ch >= lo && ch <= hi
 
 -- | The longest end position at which `rx` matches `chars` at `start`
 -- | (maximal munch), or `Nothing` if it does not match at all. An empty match
 -- | returns `Just start`; the scanner is responsible for requiring progress.
-longestMatch :: Rx -> Chars -> Int -> Maybe Int
-longestMatch rx chars start = map _.key (Map.findMax (matchCap rx chars start))
+longestMatch :: Boolean -> Rx -> Chars -> Int -> Maybe Int
+longestMatch caseless rx chars start = map _.key (Map.findMax (matchCap caseless rx chars start))
 
 -- | The longest match's end and the source span of its emitted **text**: the
 -- | capturing group's span if the pattern has one (M5), else the whole match.
+-- | `caseless` (ADR D35) folds ASCII case in `Lit` / `Class` matching.
 longestMatchSpan
-  :: Rx -> Chars -> Int -> Maybe { end :: Int, textStart :: Int, textEnd :: Int }
-longestMatchSpan rx chars start = case Map.findMax (matchCap rx chars start) of
+  :: Boolean -> Rx -> Chars -> Int -> Maybe { end :: Int, textStart :: Int, textEnd :: Int }
+longestMatchSpan caseless rx chars start = case Map.findMax (matchCap caseless rx chars start) of
   Nothing -> Nothing
   Just { key: end, value: cap } -> case cap of
     Just (Tuple cs ce) -> Just { end, textStart: cs, textEnd: ce }

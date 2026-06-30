@@ -29,7 +29,7 @@ import Data.Array as Array
 import Data.Maybe (Maybe(..))
 import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Grammark.Lexer (Token)
-import Grammark.Regex (longestMatchSpan)
+import Grammark.Regex (longestMatchSpan, swapCase)
 import Grammark.Tokens (TokenDef, TokenPattern(..))
 
 -- | A successful match: where it ends (for the cursor) and the source span of
@@ -54,19 +54,19 @@ buildItems defs literals = implicitItems <> Array.mapWithIndex classItem defs
   where
   implicitItems =
     map
-      (\lit -> { terminal: lit, match: exactMatch (toCharArray lit), skip: false, priority: 0 })
+      (\lit -> { terminal: lit, match: exactMatch false (toCharArray lit), skip: false, priority: 0 })
       literals
 
   classItem idx def = case def.pattern of
     Exact s ->
       { terminal: def.name
-      , match: exactMatch (toCharArray s)
+      , match: exactMatch def.caseless (toCharArray s)
       , skip: def.skip
       , priority: priorityOf 1 def.prec
       }
     Regex _ rx ->
       { terminal: def.name
-      , match: longestMatchSpan rx
+      , match: longestMatchSpan def.caseless rx
       , skip: def.skip
       , priority: priorityOf (2 + idx) def.prec
       }
@@ -76,15 +76,18 @@ buildItems defs literals = implicitItems <> Array.mapWithIndex classItem defs
     Nothing -> base
 
 -- An exact (literal) matcher: succeed iff `pat` is a prefix of the input at the
--- cursor. The whole match is the text (a literal has no capture group).
-exactMatch :: Array Char -> Array Char -> Int -> Maybe Span
-exactMatch pat chars pos =
+-- cursor. The whole match is the text (a literal has no capture group). With
+-- `caseless`, ASCII case is folded (D35).
+exactMatch :: Boolean -> Array Char -> Array Char -> Int -> Maybe Span
+exactMatch caseless pat chars pos =
   if matchesAt 0 then Just { end, textStart: pos, textEnd: end } else Nothing
   where
   end = pos + Array.length pat
   matchesAt i
     | i >= Array.length pat = true
-    | otherwise = Array.index chars (pos + i) == Array.index pat i && matchesAt (i + 1)
+    | otherwise = case Array.index chars (pos + i), Array.index pat i of
+        Just x, Just p -> (x == p || (caseless && swapCase x == p)) && matchesAt (i + 1)
+        _, _ -> false
 
 -- | Scan input into a token stream. Skipped tokens are dropped; an unmatched
 -- | character becomes an `ERROR` token (M4). A token's `text` is the matched

@@ -1321,11 +1321,11 @@ var fst = function(v) {
 var eqTuple = function(dictEq) {
   var eq6 = eq(dictEq);
   return function(dictEq1) {
-    var eq14 = eq(dictEq1);
+    var eq13 = eq(dictEq1);
     return {
       eq: function(x) {
         return function(y) {
-          return eq6(x.value0)(y.value0) && eq14(x.value1)(y.value1);
+          return eq6(x.value0)(y.value0) && eq13(x.value1)(y.value1);
         };
       }
     };
@@ -2948,7 +2948,7 @@ var stepAsc = /* @__PURE__ */ (function() {
   })($$const(IterDone.value));
 })();
 var eqMapIter = function(dictEq) {
-  var eq14 = eq(dictEq);
+  var eq13 = eq(dictEq);
   return function(dictEq1) {
     var eq23 = eq(dictEq1);
     return {
@@ -2962,7 +2962,7 @@ var eqMapIter = function(dictEq) {
               var v = stepAsc(a);
               if (v instanceof IterNext) {
                 var v2 = stepAsc(b);
-                if (v2 instanceof IterNext && (eq14(v.value0)(v2.value0) && eq23(v.value1)(v2.value1))) {
+                if (v2 instanceof IterNext && (eq13(v.value0)(v2.value0) && eq23(v.value1)(v2.value1))) {
                   $tco_var_a = v.value2;
                   $copy_b = v2.value2;
                   return;
@@ -3268,7 +3268,7 @@ var findMax = function($copy_v) {
 var eqMap = function(dictEq) {
   var eqMapIter1 = eqMapIter(dictEq);
   return function(dictEq1) {
-    var eq14 = eq(eqMapIter1(dictEq1));
+    var eq13 = eq(eqMapIter1(dictEq1));
     return {
       eq: function(xs) {
         return function(ys) {
@@ -3282,7 +3282,7 @@ var eqMap = function(dictEq) {
           ;
           if (xs instanceof Node) {
             if (ys instanceof Node && xs.value1 === ys.value1) {
-              return eq14(toMapIter(xs))(toMapIter(ys));
+              return eq13(toMapIter(xs))(toMapIter(ys));
             }
             ;
             return false;
@@ -3423,6 +3423,21 @@ var Capture = /* @__PURE__ */ (function() {
   };
   return Capture2;
 })();
+var swapCase = function(c) {
+  if (c >= "a" && c <= "z") {
+    return fromMaybe(c)(fromCharCode2(toCharCode2(c) - 32 | 0));
+  }
+  ;
+  if (c >= "A" && c <= "Z") {
+    return fromMaybe(c)(fromCharCode2(toCharCode2(c) + 32 | 0));
+  }
+  ;
+  if (otherwise) {
+    return c;
+  }
+  ;
+  throw new Error("Failed pattern match at Grammark.Regex (line 344, column 1 - line 344, column 25): " + [c.constructor.name]);
+};
 var orElse = function(v) {
   return function(v1) {
     if (v instanceof Just) {
@@ -3433,7 +3448,7 @@ var orElse = function(v) {
       return v1;
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Regex (line 333, column 1 - line 333, column 28): " + [v.constructor.name, v1.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Regex (line 334, column 1 - line 334, column 28): " + [v.constructor.name, v1.constructor.name]);
   };
 };
 var hexDigit = function(c) {
@@ -3453,7 +3468,7 @@ var hexDigit = function(c) {
     return Nothing.value;
   }
   ;
-  throw new Error("Failed pattern match at Grammark.Regex (line 238, column 1 - line 238, column 30): " + [c.constructor.name]);
+  throw new Error("Failed pattern match at Grammark.Regex (line 239, column 1 - line 239, column 30): " + [c.constructor.name]);
 };
 var countCaptures = /* @__PURE__ */ (function() {
   var sum2 = foldl3(add2)(0);
@@ -3477,191 +3492,208 @@ var countCaptures = /* @__PURE__ */ (function() {
     return 0;
   };
 })();
-var classMatch = function(neg) {
-  return function(items) {
+var ciMatch = function(caseless) {
+  return function(p) {
     return function(x) {
-      var inItem = function(v) {
-        if (v instanceof One) {
-          return x === v.value0;
+      return p(x) || caseless && p(swapCase(x));
+    };
+  };
+};
+var classMatch = function(caseless) {
+  return function(neg) {
+    return function(items) {
+      return function(x) {
+        var inItem = function(item) {
+          return function(ch) {
+            if (item instanceof One) {
+              return ch === item.value0;
+            }
+            ;
+            if (item instanceof Range) {
+              return ch >= item.value0 && ch <= item.value1;
+            }
+            ;
+            throw new Error("Failed pattern match at Grammark.Regex (line 357, column 20 - line 359, column 40): " + [item.constructor.name]);
+          };
+        };
+        var hit = any2(function(item) {
+          return ciMatch(caseless)(inItem(item))(x);
+        })(items);
+        if (neg) {
+          return !hit;
         }
         ;
-        if (v instanceof Range) {
-          return x >= v.value0 && x <= v.value1;
-        }
-        ;
-        throw new Error("Failed pattern match at Grammark.Regex (line 344, column 12 - line 346, column 38): " + [v.constructor.name]);
+        return hit;
       };
-      var hit = any2(inItem)(items);
-      if (neg) {
-        return !hit;
-      }
-      ;
-      return hit;
     };
   };
 };
 var at = index;
-var matchCap = function(rx) {
-  return function(chars) {
-    return function(start) {
-      var step = function(acc) {
-        return function(r) {
-          return foldl3(function(out) {
-            return function(v) {
-              return foldl3(function(o) {
-                return function(v1) {
-                  return insertWith2(orElse)(v1.value0)(orElse(v.value1)(v1.value1))(o);
-                };
-              })(out)(toUnfoldable2(matchCap(r)(chars)(v.value0)));
-            };
-          })(empty2)(toUnfoldable2(acc));
-        };
-      };
-      var merge = function(a) {
-        return function(b) {
-          return foldl3(function(m) {
-            return function(v) {
-              return insertWith2(orElse)(v.value0)(v.value1)(m);
-            };
-          })(a)(toUnfoldable2(b));
-        };
-      };
-      var lastKey = function(inner) {
-        var v = findMax(matchCap(inner)(chars)(start));
-        if (v instanceof Just) {
-          return v.value0.key;
-        }
-        ;
-        if (v instanceof Nothing) {
-          return start;
-        }
-        ;
-        throw new Error("Failed pattern match at Grammark.Regex (line 303, column 19 - line 305, column 21): " + [v.constructor.name]);
-      };
-      var fst$prime = function(v) {
-        return v.value0;
-      };
-      var closure2 = function(r) {
-        var go = function($copy_visited) {
-          return function($copy_frontier) {
-            var $tco_var_visited = $copy_visited;
-            var $tco_done = false;
-            var $tco_result;
-            function $tco_loop(visited, frontier) {
-              var v = uncons(frontier);
-              if (v instanceof Nothing) {
-                $tco_done = true;
-                return visited;
-              }
-              ;
-              if (v instanceof Just) {
-                var nexts = matchCap(r)(chars)(v.value0.head);
-                var fresh = toUnfoldable2(nexts);
-                var newKeys = filter(function(k) {
-                  return !member2(k)(visited);
-                })(map6(fst$prime)(fresh));
-                $tco_var_visited = foldl3(function(m) {
-                  return function(v1) {
-                    return insertWith2(orElse)(v1.value0)(v1.value1)(m);
-                  };
-                })(visited)(fresh);
-                $copy_frontier = append1(v.value0.tail)(newKeys);
-                return;
-              }
-              ;
-              throw new Error("Failed pattern match at Grammark.Regex (line 320, column 27 - line 328, column 101): " + [v.constructor.name]);
-            }
-            ;
-            while (!$tco_done) {
-              $tco_result = $tco_loop($tco_var_visited, $copy_frontier);
-            }
-            ;
-            return $tco_result;
-          };
-        };
-        return go(singleton5(start)(Nothing.value))([start]);
-      };
-      var advance = function(pred) {
-        var v = at(chars)(start);
-        if (v instanceof Just && pred(v.value0)) {
-          return singleton5(start + 1 | 0)(Nothing.value);
-        }
-        ;
-        return empty2;
-      };
-      if (rx instanceof Empty) {
-        return singleton5(start)(Nothing.value);
-      }
-      ;
-      if (rx instanceof Lit2) {
-        return advance(eq4(rx.value0));
-      }
-      ;
-      if (rx instanceof AnyChar) {
-        return advance(function(x) {
-          return x !== "\n" && x !== "\r";
-        });
-      }
-      ;
-      if (rx instanceof Class) {
-        return advance(classMatch(rx.value0)(rx.value1));
-      }
-      ;
-      if (rx instanceof Capture) {
-        return map12(function(v) {
-          return new Just(new Tuple(start, lastKey(rx.value0)));
-        })(matchCap(rx.value0)(chars)(start));
-      }
-      ;
-      if (rx instanceof Concat) {
-        return foldl3(step)(singleton5(start)(Nothing.value))(rx.value0);
-      }
-      ;
-      if (rx instanceof Alt2) {
-        return foldl3(function(acc) {
+var matchCap = function(caseless) {
+  return function(rx) {
+    return function(chars) {
+      return function(start) {
+        var step = function(acc) {
           return function(r) {
-            return merge(acc)(matchCap(r)(chars)(start));
+            return foldl3(function(out) {
+              return function(v) {
+                return foldl3(function(o) {
+                  return function(v1) {
+                    return insertWith2(orElse)(v1.value0)(orElse(v.value1)(v1.value1))(o);
+                  };
+                })(out)(toUnfoldable2(matchCap(caseless)(r)(chars)(v.value0)));
+              };
+            })(empty2)(toUnfoldable2(acc));
           };
-        })(empty2)(rx.value0);
-      }
-      ;
-      if (rx instanceof Star2) {
-        return closure2(rx.value0);
-      }
-      ;
-      throw new Error("Failed pattern match at Grammark.Regex (line 287, column 27 - line 295, column 22): " + [rx.constructor.name]);
+        };
+        var merge = function(a) {
+          return function(b) {
+            return foldl3(function(m) {
+              return function(v) {
+                return insertWith2(orElse)(v.value0)(v.value1)(m);
+              };
+            })(a)(toUnfoldable2(b));
+          };
+        };
+        var lastKey = function(inner) {
+          var v = findMax(matchCap(caseless)(inner)(chars)(start));
+          if (v instanceof Just) {
+            return v.value0.key;
+          }
+          ;
+          if (v instanceof Nothing) {
+            return start;
+          }
+          ;
+          throw new Error("Failed pattern match at Grammark.Regex (line 304, column 19 - line 306, column 21): " + [v.constructor.name]);
+        };
+        var fst$prime = function(v) {
+          return v.value0;
+        };
+        var closure2 = function(r) {
+          var go = function($copy_visited) {
+            return function($copy_frontier) {
+              var $tco_var_visited = $copy_visited;
+              var $tco_done = false;
+              var $tco_result;
+              function $tco_loop(visited, frontier) {
+                var v = uncons(frontier);
+                if (v instanceof Nothing) {
+                  $tco_done = true;
+                  return visited;
+                }
+                ;
+                if (v instanceof Just) {
+                  var nexts = matchCap(caseless)(r)(chars)(v.value0.head);
+                  var fresh = toUnfoldable2(nexts);
+                  var newKeys = filter(function(k) {
+                    return !member2(k)(visited);
+                  })(map6(fst$prime)(fresh));
+                  $tco_var_visited = foldl3(function(m) {
+                    return function(v1) {
+                      return insertWith2(orElse)(v1.value0)(v1.value1)(m);
+                    };
+                  })(visited)(fresh);
+                  $copy_frontier = append1(v.value0.tail)(newKeys);
+                  return;
+                }
+                ;
+                throw new Error("Failed pattern match at Grammark.Regex (line 321, column 27 - line 329, column 101): " + [v.constructor.name]);
+              }
+              ;
+              while (!$tco_done) {
+                $tco_result = $tco_loop($tco_var_visited, $copy_frontier);
+              }
+              ;
+              return $tco_result;
+            };
+          };
+          return go(singleton5(start)(Nothing.value))([start]);
+        };
+        var advance = function(pred) {
+          var v = at(chars)(start);
+          if (v instanceof Just && pred(v.value0)) {
+            return singleton5(start + 1 | 0)(Nothing.value);
+          }
+          ;
+          return empty2;
+        };
+        if (rx instanceof Empty) {
+          return singleton5(start)(Nothing.value);
+        }
+        ;
+        if (rx instanceof Lit2) {
+          return advance(ciMatch(caseless)(eq4(rx.value0)));
+        }
+        ;
+        if (rx instanceof AnyChar) {
+          return advance(function(x) {
+            return x !== "\n" && x !== "\r";
+          });
+        }
+        ;
+        if (rx instanceof Class) {
+          return advance(classMatch(caseless)(rx.value0)(rx.value1));
+        }
+        ;
+        if (rx instanceof Capture) {
+          return map12(function(v) {
+            return new Just(new Tuple(start, lastKey(rx.value0)));
+          })(matchCap(caseless)(rx.value0)(chars)(start));
+        }
+        ;
+        if (rx instanceof Concat) {
+          return foldl3(step)(singleton5(start)(Nothing.value))(rx.value0);
+        }
+        ;
+        if (rx instanceof Alt2) {
+          return foldl3(function(acc) {
+            return function(r) {
+              return merge(acc)(matchCap(caseless)(r)(chars)(start));
+            };
+          })(empty2)(rx.value0);
+        }
+        ;
+        if (rx instanceof Star2) {
+          return closure2(rx.value0);
+        }
+        ;
+        throw new Error("Failed pattern match at Grammark.Regex (line 288, column 36 - line 296, column 22): " + [rx.constructor.name]);
+      };
     };
   };
 };
-var longestMatchSpan = function(rx) {
-  return function(chars) {
-    return function(start) {
-      var v = findMax(matchCap(rx)(chars)(start));
-      if (v instanceof Nothing) {
-        return Nothing.value;
-      }
-      ;
-      if (v instanceof Just) {
-        if (v.value0.value instanceof Just) {
-          return new Just({
-            end: v.value0.key,
-            textStart: v.value0.value.value0.value0,
-            textEnd: v.value0.value.value0.value1
-          });
+var longestMatchSpan = function(caseless) {
+  return function(rx) {
+    return function(chars) {
+      return function(start) {
+        var v = findMax(matchCap(caseless)(rx)(chars)(start));
+        if (v instanceof Nothing) {
+          return Nothing.value;
         }
         ;
-        if (v.value0.value instanceof Nothing) {
-          return new Just({
-            end: v.value0.key,
-            textStart: start,
-            textEnd: v.value0.key
-          });
+        if (v instanceof Just) {
+          if (v.value0.value instanceof Just) {
+            return new Just({
+              end: v.value0.key,
+              textStart: v.value0.value.value0.value0,
+              textEnd: v.value0.value.value0.value1
+            });
+          }
+          ;
+          if (v.value0.value instanceof Nothing) {
+            return new Just({
+              end: v.value0.key,
+              textStart: start,
+              textEnd: v.value0.key
+            });
+          }
+          ;
+          throw new Error("Failed pattern match at Grammark.Regex (line 374, column 36 - line 376, column 60): " + [v.value0.value.constructor.name]);
         }
         ;
-        throw new Error("Failed pattern match at Grammark.Regex (line 360, column 36 - line 362, column 60): " + [v.value0.value.constructor.name]);
-      }
-      ;
-      throw new Error("Failed pattern match at Grammark.Regex (line 358, column 35 - line 362, column 60): " + [v.constructor.name]);
+        throw new Error("Failed pattern match at Grammark.Regex (line 372, column 44 - line 376, column 60): " + [v.constructor.name]);
+      };
     };
   };
 };
@@ -3693,7 +3725,7 @@ var pInt = function(chars) {
             return new Tuple(acc, p);
           }
           ;
-          throw new Error("Failed pattern match at Grammark.Regex (line 272, column 14 - line 274, column 27): " + [v2.constructor.name]);
+          throw new Error("Failed pattern match at Grammark.Regex (line 273, column 14 - line 275, column 27): " + [v2.constructor.name]);
         }
         ;
         while (!$tco_done) {
@@ -3712,7 +3744,7 @@ var pInt = function(chars) {
       return new Right(go(v.value0)(pos + 1 | 0));
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Regex (line 268, column 18 - line 270, column 37): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Regex (line 269, column 18 - line 271, column 37): " + [v.constructor.name]);
   };
 };
 var pBounded = function(atom) {
@@ -3789,10 +3821,10 @@ var pUnicode = function(chars) {
               return new Left("`\\u` must be followed by four hex digits");
             }
             ;
-            throw new Error("Failed pattern match at Grammark.Regex (line 234, column 19 - line 236, column 68): " + [v2.constructor.name]);
+            throw new Error("Failed pattern match at Grammark.Regex (line 235, column 19 - line 237, column 68): " + [v2.constructor.name]);
           }
           ;
-          throw new Error("Failed pattern match at Grammark.Regex (line 232, column 3 - line 236, column 68): " + [i.constructor.name, acc.constructor.name]);
+          throw new Error("Failed pattern match at Grammark.Regex (line 233, column 3 - line 237, column 68): " + [i.constructor.name, acc.constructor.name]);
         }
         ;
         while (!$tco_done) {
@@ -3817,10 +3849,10 @@ var pUnicode = function(chars) {
         return new Left("invalid `\\uXXXX` code point");
       }
       ;
-      throw new Error("Failed pattern match at Grammark.Regex (line 228, column 17 - line 230, column 51): " + [v1.constructor.name]);
+      throw new Error("Failed pattern match at Grammark.Regex (line 229, column 17 - line 231, column 51): " + [v1.constructor.name]);
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Regex (line 226, column 20 - line 230, column 51): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Regex (line 227, column 20 - line 231, column 51): " + [v.constructor.name]);
   };
 };
 var escChar = function(chars) {
@@ -3850,7 +3882,7 @@ var escChar = function(chars) {
       return new Right(new Tuple(v.value0, p + 1 | 0));
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Regex (line 217, column 19 - line 223, column 36): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Regex (line 218, column 19 - line 224, column 36): " + [v.constructor.name]);
   };
 };
 var classChar = function(chars) {
@@ -3868,7 +3900,7 @@ var classChar = function(chars) {
       return new Left("unterminated character class `[`");
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Regex (line 209, column 21 - line 212, column 53): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Regex (line 210, column 21 - line 213, column 53): " + [v.constructor.name]);
   };
 };
 var pClass = function(chars) {
@@ -3931,12 +3963,12 @@ var pEscape = function(chars) {
           return new Right(new Tuple(new Lit2(v1.value0.value0), v1.value0.value1));
         }
         ;
-        throw new Error("Failed pattern match at Grammark.Regex (line 183, column 20 - line 185, column 55): " + [v1.constructor.name]);
+        throw new Error("Failed pattern match at Grammark.Regex (line 184, column 20 - line 186, column 55): " + [v1.constructor.name]);
       }
       ;
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Regex (line 179, column 21 - line 185, column 55): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Regex (line 180, column 21 - line 186, column 55): " + [v.constructor.name]);
   };
 };
 var pRepeat = function(chars) {
@@ -4087,7 +4119,7 @@ var pAtom = function(chars) {
       return new Right(new Tuple(new Lit2(v.value0), pos + 1 | 0));
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Regex (line 151, column 19 - line 175, column 44): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Regex (line 152, column 19 - line 176, column 44): " + [v.constructor.name]);
   };
 };
 var pAlt = function(chars) {
@@ -4138,7 +4170,7 @@ var parseRegex = function(src) {
     ;
   }
   ;
-  throw new Error("Failed pattern match at Grammark.Regex (line 79, column 5 - line 84, column 32): " + [v.constructor.name]);
+  throw new Error("Failed pattern match at Grammark.Regex (line 80, column 5 - line 85, column 32): " + [v.constructor.name]);
 };
 
 // ../output/Data.String.CodePoints/foreign.js
@@ -4332,12 +4364,12 @@ var Regex = /* @__PURE__ */ (function() {
   return Regex2;
 })();
 var words = /* @__PURE__ */ (function() {
-  var $118 = filter(function(v) {
+  var $116 = filter(function(v) {
     return v !== "";
   });
-  var $119 = split(" ");
-  return function($120) {
-    return $118($119($120));
+  var $117 = split(" ");
+  return function($118) {
+    return $116($117($118));
   };
 })();
 var validateName = function(name) {
@@ -4380,7 +4412,7 @@ var splitFirstColon = function(s) {
     return new Just(new Tuple(take3(v.value0)(s), drop3(v.value0 + 1 | 0)(s)));
   }
   ;
-  throw new Error("Failed pattern match at Grammark.Tokens (line 76, column 21 - line 78, column 67): " + [v.constructor.name]);
+  throw new Error("Failed pattern match at Grammark.Tokens (line 84, column 21 - line 86, column 67): " + [v.constructor.name]);
 };
 var readDelimited = function(delim) {
   return function($$unescape2) {
@@ -4401,7 +4433,7 @@ var readDelimited = function(delim) {
             if (v instanceof Just) {
               if (v.value0 === delim) {
                 $tco_done = true;
-                return new Right(new Tuple(fromCharArray(acc), trim(fromCharArray(drop(i + 1 | 0)(chars)))));
+                return new Right(new Tuple(fromCharArray(acc), fromCharArray(drop(i + 1 | 0)(chars))));
               }
               ;
               if (v.value0 === "\\") {
@@ -4423,7 +4455,7 @@ var readDelimited = function(delim) {
                   return;
                 }
                 ;
-                throw new Error("Failed pattern match at Grammark.Tokens (line 120, column 22 - line 124, column 49): " + [v1.constructor.name]);
+                throw new Error("Failed pattern match at Grammark.Tokens (line 133, column 22 - line 137, column 49): " + [v1.constructor.name]);
               }
               ;
               if (otherwise) {
@@ -4434,7 +4466,7 @@ var readDelimited = function(delim) {
               ;
             }
             ;
-            throw new Error("Failed pattern match at Grammark.Tokens (line 114, column 14 - line 125, column 51): " + [v.constructor.name]);
+            throw new Error("Failed pattern match at Grammark.Tokens (line 127, column 14 - line 138, column 51): " + [v.constructor.name]);
           }
           ;
           while (!$tco_done) {
@@ -4468,22 +4500,38 @@ var parseDefinition = function(s) {
   var v = head(toCharArray(s));
   if (v instanceof Just && v.value0 === '"') {
     return bind3(readDelimited('"')(true)(drop3(1)(s)))(function(v1) {
-      return new Right(new Tuple(new Exact(v1.value0), v1.value1));
+      return new Right({
+        pattern: new Exact(v1.value0),
+        iflag: false,
+        rest: trim(v1.value1)
+      });
     });
   }
   ;
   if (v instanceof Just && v.value0 === "/") {
     return bind3(readDelimited("/")(false)(drop3(1)(s)))(function(v1) {
+      var iflag = take3(1)(v1.value1) === "i";
+      var rest$prime = trim((function() {
+        if (iflag) {
+          return drop3(1)(v1.value1);
+        }
+        ;
+        return v1.value1;
+      })());
       var v2 = parseRegex(v1.value0);
       if (v2 instanceof Left) {
         return new Left("invalid pattern /" + (v1.value0 + ("/: " + v2.value0)));
       }
       ;
       if (v2 instanceof Right) {
-        return new Right(new Tuple(new Regex(v1.value0, v2.value0), v1.value1));
+        return new Right({
+          pattern: new Regex(v1.value0, v2.value0),
+          iflag,
+          rest: rest$prime
+        });
       }
       ;
-      throw new Error("Failed pattern match at Grammark.Tokens (line 102, column 5 - line 104, column 52): " + [v2.constructor.name]);
+      throw new Error("Failed pattern match at Grammark.Tokens (line 115, column 5 - line 117, column 70): " + [v2.constructor.name]);
     });
   }
   ;
@@ -4510,9 +4558,21 @@ var parseModifiers = /* @__PURE__ */ (function() {
         if (v instanceof Just) {
           if (v.value0.head === "%skip") {
             $tco_var_acc = {
+              caseless: acc.caseless,
               prec: acc.prec,
               external: acc.external,
               skip: true
+            };
+            $copy_ws = v.value0.tail;
+            return;
+          }
+          ;
+          if (v.value0.head === "%caseless") {
+            $tco_var_acc = {
+              skip: acc.skip,
+              prec: acc.prec,
+              external: acc.external,
+              caseless: true
             };
             $copy_ws = v.value0.tail;
             return;
@@ -4525,6 +4585,7 @@ var parseModifiers = /* @__PURE__ */ (function() {
               if (v2 instanceof Just) {
                 $tco_var_acc = {
                   skip: acc.skip,
+                  caseless: acc.caseless,
                   external: acc.external,
                   prec: new Just(v2.value0)
                 };
@@ -4537,7 +4598,7 @@ var parseModifiers = /* @__PURE__ */ (function() {
                 return new Left("`%prec` expects a number, got: " + v1.value0.head);
               }
               ;
-              throw new Error("Failed pattern match at Grammark.Tokens (line 144, column 43 - line 146, column 69): " + [v2.constructor.name]);
+              throw new Error("Failed pattern match at Grammark.Tokens (line 159, column 43 - line 161, column 69): " + [v2.constructor.name]);
             }
             ;
             if (v1 instanceof Nothing) {
@@ -4545,7 +4606,7 @@ var parseModifiers = /* @__PURE__ */ (function() {
               return new Left("`%prec` expects a number");
             }
             ;
-            throw new Error("Failed pattern match at Grammark.Tokens (line 143, column 28 - line 147, column 53): " + [v1.constructor.name]);
+            throw new Error("Failed pattern match at Grammark.Tokens (line 158, column 28 - line 162, column 53): " + [v1.constructor.name]);
           }
           ;
         }
@@ -4555,15 +4616,16 @@ var parseModifiers = /* @__PURE__ */ (function() {
             return new Left("unknown token modifier: " + v.value0.head);
           }
           ;
-          throw new Error("Failed pattern match at Grammark.Tokens (line 136, column 1 - line 136, column 53): " + [v.constructor.name]);
+          throw new Error("Failed pattern match at Grammark.Tokens (line 150, column 1 - line 150, column 53): " + [v.constructor.name]);
         };
         if (v instanceof Just) {
-          var $98 = externalPass(v.value0.head);
-          if ($98 instanceof Just) {
+          var $99 = externalPass(v.value0.head);
+          if ($99 instanceof Just) {
             $tco_var_acc = {
               skip: acc.skip,
+              caseless: acc.caseless,
               prec: acc.prec,
-              external: new Just($98.value0)
+              external: new Just($99.value0)
             };
             $copy_ws = v.value0.tail;
             return;
@@ -4587,7 +4649,8 @@ var parseModifiers = /* @__PURE__ */ (function() {
   return go({
     skip: false,
     prec: Nothing.value,
-    external: Nothing.value
+    external: Nothing.value,
+    caseless: false
   });
 })();
 var parseLine = function(line) {
@@ -4598,21 +4661,22 @@ var parseLine = function(line) {
   ;
   if (v instanceof Just) {
     return bind3(validateName(trim(v.value0.value0)))(function(name) {
-      return bind3(parseDefinition(trim(v.value0.value1)))(function(v1) {
-        return bind3(parseModifiers(words(v1.value1)))(function(mods) {
+      return bind3(parseDefinition(trim(v.value0.value1)))(function(def) {
+        return bind3(parseModifiers(words(def.rest)))(function(mods) {
           return pure2({
             name,
-            pattern: v1.value0,
+            pattern: def.pattern,
             skip: mods.skip,
             prec: mods.prec,
-            external: mods.external
+            external: mods.external,
+            caseless: def.iflag || mods.caseless
           });
         });
       });
     });
   }
   ;
-  throw new Error("Failed pattern match at Grammark.Tokens (line 65, column 18 - line 71, column 86): " + [v.constructor.name]);
+  throw new Error("Failed pattern match at Grammark.Tokens (line 66, column 18 - line 79, column 8): " + [v.constructor.name]);
 };
 var parseTokens = function(content) {
   var meaningful = function(line) {
@@ -4622,7 +4686,6 @@ var parseTokens = function(content) {
 };
 
 // ../output/Grammark.Scanner/index.js
-var eq13 = /* @__PURE__ */ eq(/* @__PURE__ */ eqMaybe(eqChar));
 var map9 = /* @__PURE__ */ map(functorArray);
 var append3 = /* @__PURE__ */ append(semigroupArray);
 var scan = function(items) {
@@ -4650,8 +4713,8 @@ var scan = function(items) {
     var better = function(a) {
       return function(b) {
         if (a.span.end !== b.span.end) {
-          var $20 = a.span.end > b.span.end;
-          if ($20) {
+          var $22 = a.span.end > b.span.end;
+          if ($22) {
             return a;
           }
           ;
@@ -4659,15 +4722,15 @@ var scan = function(items) {
         }
         ;
         if (otherwise) {
-          var $21 = a.item.priority <= b.item.priority;
-          if ($21) {
+          var $23 = a.item.priority <= b.item.priority;
+          if ($23) {
             return a;
           }
           ;
           return b;
         }
         ;
-        throw new Error("Failed pattern match at Grammark.Scanner (line 123, column 3 - line 125, column 70): " + [a.constructor.name, b.constructor.name]);
+        throw new Error("Failed pattern match at Grammark.Scanner (line 126, column 3 - line 128, column 70): " + [a.constructor.name, b.constructor.name]);
       };
     };
     var best = function(pos) {
@@ -4681,7 +4744,7 @@ var scan = function(items) {
         return new Just(foldl2(better)(v.value0.head)(v.value0.tail));
       }
       ;
-      throw new Error("Failed pattern match at Grammark.Scanner (line 115, column 7 - line 117, column 67): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Grammark.Scanner (line 118, column 7 - line 120, column 67): " + [v.constructor.name]);
     };
     var go = function($copy_pos) {
       return function($copy_acc) {
@@ -4721,10 +4784,10 @@ var scan = function(items) {
               return;
             }
             ;
-            throw new Error("Failed pattern match at Grammark.Scanner (line 101, column 19 - line 108, column 89): " + [v.constructor.name]);
+            throw new Error("Failed pattern match at Grammark.Scanner (line 104, column 19 - line 111, column 89): " + [v.constructor.name]);
           }
           ;
-          throw new Error("Failed pattern match at Grammark.Scanner (line 99, column 3 - line 108, column 89): " + [pos.constructor.name, acc.constructor.name]);
+          throw new Error("Failed pattern match at Grammark.Scanner (line 102, column 3 - line 111, column 89): " + [pos.constructor.name, acc.constructor.name]);
         }
         ;
         while (!$tco_done) {
@@ -4740,31 +4803,39 @@ var scan = function(items) {
 var hasError = /* @__PURE__ */ any2(function(t) {
   return t.terminal === "ERROR";
 });
-var exactMatch = function(pat) {
-  return function(chars) {
-    return function(pos) {
-      var matchesAt = function(i) {
-        if (i >= length(pat)) {
-          return true;
+var exactMatch = function(caseless) {
+  return function(pat) {
+    return function(chars) {
+      return function(pos) {
+        var matchesAt = function(i) {
+          if (i >= length(pat)) {
+            return true;
+          }
+          ;
+          if (otherwise) {
+            var v = index(pat)(i);
+            var v1 = index(chars)(pos + i | 0);
+            if (v1 instanceof Just && v instanceof Just) {
+              return (v1.value0 === v.value0 || caseless && swapCase(v1.value0) === v.value0) && matchesAt(i + 1 | 0);
+            }
+            ;
+            return false;
+          }
+          ;
+          throw new Error("Failed pattern match at Grammark.Scanner (line 86, column 3 - line 90, column 22): " + [i.constructor.name]);
+        };
+        var end = pos + length(pat) | 0;
+        var $38 = matchesAt(0);
+        if ($38) {
+          return new Just({
+            end,
+            textStart: pos,
+            textEnd: end
+          });
         }
         ;
-        if (otherwise) {
-          return eq13(index(chars)(pos + i | 0))(index(pat)(i)) && matchesAt(i + 1 | 0);
-        }
-        ;
-        throw new Error("Failed pattern match at Grammark.Scanner (line 85, column 3 - line 87, column 88): " + [i.constructor.name]);
+        return Nothing.value;
       };
-      var end = pos + length(pat) | 0;
-      var $32 = matchesAt(0);
-      if ($32) {
-        return new Just({
-          end,
-          textStart: pos,
-          textEnd: end
-        });
-      }
-      ;
-      return Nothing.value;
     };
   };
 };
@@ -4786,7 +4857,7 @@ var buildItems = function(defs) {
     var implicitItems = map9(function(lit) {
       return {
         terminal: lit,
-        match: exactMatch(toCharArray(lit)),
+        match: exactMatch(false)(toCharArray(lit)),
         skip: false,
         priority: 0
       };
@@ -4796,7 +4867,7 @@ var buildItems = function(defs) {
         if (def.pattern instanceof Exact) {
           return {
             terminal: def.name,
-            match: exactMatch(toCharArray(def.pattern.value0)),
+            match: exactMatch(def.caseless)(toCharArray(def.pattern.value0)),
             skip: def.skip,
             priority: priorityOf(1)(def.prec)
           };
@@ -4805,7 +4876,7 @@ var buildItems = function(defs) {
         if (def.pattern instanceof Regex) {
           return {
             terminal: def.name,
-            match: longestMatchSpan(def.pattern.value1),
+            match: longestMatchSpan(def.caseless)(def.pattern.value1),
             skip: def.skip,
             priority: priorityOf(2 + idx | 0)(def.prec)
           };
