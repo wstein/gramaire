@@ -1,7 +1,7 @@
 {
   "version": 1,
   "mode": "sidecar",
-  "grammarSha256": "eb53723b3948a86860297dc479760a93dd78c61666486ced4110317db24b02c1",
+  "grammarSha256": "1ae6c5484859a4b51f347236efd992165692338b8d3ff2ebfe4fb5d69667d057",
   "artifacts": [
     {
       "kind": "railroad",
@@ -13,25 +13,19 @@
       "kind": "railroad",
       "nonterminal": "RuleList",
       "path": "diagrams/rulelist.svg",
-      "sourceSha256": "b7f8151de70e063f793b58128a14a62dbfcf06c6a5fdddbfc3042cf494ca32f5"
+      "sourceSha256": "00eb4d19c11aecdfc7126a54bef84cf12161b9e7bc7585a7f58683d32bae7678"
     },
     {
       "kind": "railroad",
       "nonterminal": "Rule",
       "path": "diagrams/rule.svg",
-      "sourceSha256": "84e14aa09d83d5d2db622a9c238dd825cdb585e08772a2b375ea6282599a8816"
+      "sourceSha256": "7be03882a4b5555937025da53bce461fb4f68c2ab1a238e2ee793db50b415d70"
     },
     {
       "kind": "railroad",
       "nonterminal": "Body",
       "path": "diagrams/body.svg",
-      "sourceSha256": "086ebde011b8cb02193b0502cc4b8eda710172b50ad287bef1637bf7aa5997b2"
-    },
-    {
-      "kind": "railroad",
-      "nonterminal": "AltTail",
-      "path": "diagrams/alttail.svg",
-      "sourceSha256": "d647159d8f6a5b88b7ca3e4e5ab773ea51df1006241fd8d2dae0fee67d7fb203"
+      "sourceSha256": "0387aa6645f9c20eae619217d6eeb5c7bbe659266359443196bbc987464fbe5c"
     },
     {
       "kind": "railroad",
@@ -72,7 +66,7 @@
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "eb53723b3948a86860297dc479760a93dd78c61666486ced4110317db24b02c1"
+      "sourceSha256": "1ae6c5484859a4b51f347236efd992165692338b8d3ff2ebfe4fb5d69667d057"
     }
   ]
 }

@@ -233,12 +233,20 @@ surface conventions explicit and forgiving:
   that is referenced but never defined is rejected by name
   (`Grammark.Diagnostics.checkDefined`, wired into `Lr.parse`) instead of
   silently resolving to a phantom terminal — turning a typo into a build error.
-- **Deliberate newline significance + line continuation (shipped).** `NL` ends
-  an alternative on purpose — that is what lets the notation drop the `;`
-  terminators yacc-family grammars need and stay LR(1) on one token of
-  lookahead. To keep that from forcing a long alternative onto one physical
-  line, a trailing `\` continues the line (the lexer swallows the newline). A
-  `\` anywhere but the line end is a lex error.
+- **Line continuation — Option A (shipped, supersedes the trailing `\`).** A
+  line break inside an alternative is **insignificant**: `|` is the only
+  alternative separator, so a long alternative may wrap across physical lines
+  with no marker. The provisional trailing-`\` continuation was dropped (a `\`
+  at end of line is the GFM hard-break and trips the no-trailing-space rule).
+  The only structural newlines are the head `NL` inside `IDENT NL :` (the shape
+  that distinguishes a head from a `name:Sym` field) and the boundary `NL`
+  before the next head; a normalization pass in `Grammark.Lexer`
+  (`normalizeNewlines`) keeps exactly those two and drops the rest, so the
+  decision is made once, before the LR parser, which stays LR(1) without `;`
+  terminators. This was a real self-host edit: `Body` became a left-recursive
+  `|`-list and `AltTail` was deleted (28 → 27 productions), validated by the
+  three-method self-host oracle. fmt auto-wrapping of long alternatives (spec
+  §7) is the one deferred piece — parsing is layout-invariant regardless.
 
 **The `X?` / `X*` correction (refines D27).** I had deferred optional/star as
 unable to be both epsilon-free *and* arity-preserving. That was wrong: they

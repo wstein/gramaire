@@ -69,8 +69,7 @@ expectedFirst = Map.fromFoldable
   [ Tuple "Grammar" (set [ t "ATTR", t "IDENT" ])
   , Tuple "RuleList" (set [ t "ATTR", t "IDENT" ])
   , Tuple "Rule" (set [ t "ATTR", t "IDENT" ])
-  , Tuple "Body" (set [ t ":" ])
-  , Tuple "AltTail" (set [ t "NL" ])
+  , Tuple "Body" (set [ t "IDENT", t "TERM_LIT" ])
   , Tuple "Alt" (set [ t "IDENT", t "TERM_LIT" ])
   , Tuple "SymList" (set [ t "IDENT", t "TERM_LIT" ])
   , Tuple "Sym" (set [ t "IDENT", t "TERM_LIT" ])
@@ -83,24 +82,23 @@ expectedFirst = Map.fromFoldable
 expectedFollow :: Map String (Set GSym)
 expectedFollow = Map.fromFoldable
   [ Tuple "Grammar" (set [ EOF ])
-  , Tuple "RuleList" (set [ t "ATTR", t "IDENT", EOF ])
-  , Tuple "Rule" (set [ t "ATTR", t "IDENT", EOF ])
-  , Tuple "Body" (set [ t "ATTR", t "IDENT", EOF ])
-  , Tuple "AltTail" (set [ t "ATTR", t "IDENT", EOF ])
-  , Tuple "Alt" (set [ t "NL" ])
-  , Tuple "SymList" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT" ])
-  , Tuple "Sym" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT", t "RANGLE", t "COMMA" ])
+  , Tuple "RuleList" (set [ t "NL", EOF ])
+  , Tuple "Rule" (set [ t "NL", EOF ])
+  , Tuple "Body" (set [ t "NL", t "|", EOF ])
+  , Tuple "Alt" (set [ t "NL", t "|", EOF ])
+  , Tuple "SymList" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT", t "|", EOF ])
+  , Tuple "Sym" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT", t "RANGLE", t "COMMA", t "|", EOF ])
   , Tuple "Args" (set [ t "RANGLE", t "COMMA" ])
-  , Tuple "Action" (set [ t "NL" ])
-  , Tuple "Label" (set [ t "ACTION", t "NL" ])
+  , Tuple "Action" (set [ t "NL", t "|", EOF ])
+  , Tuple "Label" (set [ t "ACTION", t "NL", t "|", EOF ])
   ]
 
 tests :: Effect Unit
 tests = do
   let a = analyze bootstrapGrammar
 
-  log "  table: bootstrapGrammar flattens to 28 productions"
-  assertEqual { actual: length (productions bootstrapGrammar), expected: 28 }
+  log "  table: bootstrapGrammar flattens to 27 productions"
+  assertEqual { actual: length (productions bootstrapGrammar), expected: 27 }
 
   log "  table: start symbol is Grammar"
   assertEqual { actual: a.start, expected: "Grammar" }

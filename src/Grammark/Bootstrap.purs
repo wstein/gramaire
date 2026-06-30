@@ -22,25 +22,19 @@ bootstrapGrammar = Grammar
 
   , Rule "RuleList" []
       [ Alt [ Ref "Rule" ] Nothing (Just "\\r -> [r]")
-      , Alt [ Ref "RuleList", Ref "Rule" ] Nothing (Just "\\rs r -> snoc rs r")
+      , Alt [ Ref "RuleList", Ref "NL", Ref "Rule" ] Nothing (Just "\\rs _ r -> snoc rs r")
       ]
 
   , Rule "Rule" []
-      [ Alt [ Ref "ATTR", Ref "IDENT", Ref "NL", Ref "Body" ] Nothing
-          (Just "\\attr lhs _ alts -> Rule lhs [ attr ] alts")
-      , Alt [ Ref "IDENT", Ref "NL", Ref "Body" ] Nothing
-          (Just "\\lhs _ alts -> Rule lhs [] alts")
+      [ Alt [ Ref "ATTR", Ref "IDENT", Ref "NL", Lit ":", Ref "Body" ] Nothing
+          (Just "\\attr lhs _ _ alts -> Rule lhs [ attr ] alts")
+      , Alt [ Ref "IDENT", Ref "NL", Lit ":", Ref "Body" ] Nothing
+          (Just "\\lhs _ _ alts -> Rule lhs [] alts")
       ]
 
   , Rule "Body" []
-      [ Alt [ Lit ":", Ref "Alt", Ref "AltTail" ] Nothing
-          (Just "\\_ a as -> cons a as")
-      ]
-
-  , Rule "AltTail" []
-      [ Alt [ Ref "NL" ] Nothing (Just "\\_ -> []")
-      , Alt [ Ref "NL", Lit "|", Ref "Alt", Ref "AltTail" ] Nothing
-          (Just "\\_ _ a as -> cons a as")
+      [ Alt [ Ref "Alt" ] Nothing (Just "\\a -> [a]")
+      , Alt [ Ref "Body", Lit "|", Ref "Alt" ] Nothing (Just "\\bs _ a -> snoc bs a")
       ]
 
   , Rule "Alt" []

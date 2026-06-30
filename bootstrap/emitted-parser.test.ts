@@ -28,9 +28,11 @@ const repo = (p: string) => fileURLToPath(new URL("../" + p, import.meta.url));
 const tok = (terminal: string, text: string) => ({ terminal, text });
 
 // The token stream for the exact input the PureScript CST golden locks:
-//   "Sum\n: Sum `+` NUM   {% \a _ b -> a %}\n| NUM"   (with the parser's
-// trailing newline). The backend emits no lexer — tokenization is per-language
-// — so the harness supplies tokens directly.
+//   "Sum\n: Sum `+` NUM   {% \a _ b -> a %}\n| NUM"
+// The backend emits no lexer — tokenization is per-language — so the harness
+// supplies tokens directly, already through the lr newline-normalization pass:
+// only the head `NL` (inside `IDENT NL :`) survives; the `NL` before `|` and the
+// trailing one are continuation newlines and are dropped.
 const sample = [
   tok("IDENT", "Sum"),
   tok("NL", "\n"),
@@ -39,10 +41,8 @@ const sample = [
   tok("TERM_LIT", "+"),
   tok("IDENT", "NUM"),
   tok("ACTION", "\\a _ b -> a"),
-  tok("NL", "\n"),
   tok("|", "|"),
   tok("IDENT", "NUM"),
-  tok("NL", "\n"),
 ];
 
 // Deep, key-order-independent normalization (the goldens are canonical JSON,
@@ -78,7 +78,7 @@ test("the typed Visitor folds the CST", () => {
   };
   const counter = new Proxy({} as unknown as Visitor<number>, handler);
   const cst: CstNode = parse(sample);
-  assert.equal(fold<number>(cst, counter), 28);
+  assert.equal(fold<number>(cst, counter), 25);
 });
 
 test("a malformed token stream is rejected with a ParseError", () => {

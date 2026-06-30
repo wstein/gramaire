@@ -92,8 +92,12 @@ export function formatSet(
 ): string {
   const rank = (n: string): number =>
     n === "$" ? order.length : order.indexOf(n);
-  return [...members]
-    .sort((a, b) => rank(a) - rank(b))
-    .map((n) => `\`${n}\``)
-    .join(" ");
+  return (
+    [...members]
+      .sort((a, b) => rank(a) - rank(b))
+      // A `|` terminal must be escaped inside the code span, or GFM reads it as a
+      // table-column separator (MD056); `\|` renders as a literal pipe.
+      .map((n) => `\`${n.replace(/\|/g, "\\|")}\``)
+      .join(" ")
+  );
 }

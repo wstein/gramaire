@@ -2,9 +2,7 @@
 -- |
 -- | It turns the raw text of an `lr` block into a flat token stream the
 -- | generated parser consumes. Per `grammar/lr.gram.md`, it skips spaces and
--- | indentation, collapses runs of blank lines to a single `NL`, treats a
--- | trailing `\` as a line continuation (swallowing the newline it precedes so
--- | an alternative may span physical lines), and emits:
+-- | indentation, collapses runs of blank lines to a single `NL`, and emits:
 -- |
 -- |   * `IDENT`    — `[A-Za-z_][A-Za-z0-9_]*`
 -- |   * `TERM_LIT` — a backtick-delimited terminal literal, e.g. `` `+` ``
@@ -27,6 +25,7 @@ module Grammark.Lexer
   , LexError(..)
   , tokenize
   , tokenizeSpanned
+  , normalizeNewlines
   ) where
 
 import Prelude
@@ -91,15 +90,6 @@ tokenizeSpanned src = go 0 []
             e = skipWhile isLayout (i + 1)
           in
             go e (Array.snoc acc (sp "NL" "\n" i e))
-      -- A trailing `\` continues the line: the newline it precedes is swallowed,
-      -- so one alternative can span several physical lines without ending early.
-      | c == '\\' ->
-          let
-            j = skipWhile (\ch -> ch == ' ' || ch == '\t' || ch == '\r') (i + 1)
-          in
-            case at j of
-              Just '\n' -> go (skipWhile isLayout (j + 1)) acc
-              _ -> Left (err i "a `\\` line continuation must be the last character on its line")
       | c == ':' -> go (i + 1) (Array.snoc acc (sp ":" ":" i (i + 1)))
       | c == '|' -> go (i + 1) (Array.snoc acc (sp "|" "|" i (i + 1)))
       | c == '+' -> go (i + 1) (Array.snoc acc (sp "PLUS" "+" i (i + 1)))
@@ -159,6 +149,34 @@ tokenizeSpanned src = go 0 []
 
   err :: Int -> String -> LexError
   err i message = LexError { at: i, message }
+
+-- | Reclassify newlines for the parser (line-continuation spec, §3). Only
+-- | rule-structural `NL`s survive: the head separator inside `IDENT NL :` (or
+-- | `ATTR IDENT NL :`) and a boundary `NL` immediately before such a head.
+-- | Every other `NL` — between two symbols of an alternative, before a `|` or a
+-- | `# Label` / `{% action %}`, or at a block edge — is dropped, so a line break
+-- | inside an alternative is insignificant. The head-shape lookahead happens
+-- | here, once, so it is never imposed on the LR parser.
+normalizeNewlines :: Array Token -> Array Token
+normalizeNewlines toks = Array.catMaybes (Array.mapWithIndex decide toks)
+  where
+  term j = map _.terminal (Array.index toks j)
+
+  -- A rule head begins at p: `IDENT NL :`, optionally prefixed by an `ATTR`.
+  isHead p =
+    (term p == Just "IDENT" && term (p + 1) == Just "NL" && term (p + 2) == Just ":")
+      ||
+        ( term p == Just "ATTR"
+            && term (p + 1) == Just "IDENT"
+            && term (p + 2) == Just "NL"
+            && term (p + 3) == Just ":"
+        )
+
+  decide i t
+    | t.terminal /= "NL" = Just t
+    | term (i - 1) == Just "IDENT" && term (i + 1) == Just ":" = Just t -- N1: head `NL`
+    | isHead (i + 1) = Just t -- N2: boundary `NL` before a head
+    | otherwise = Nothing -- N3: continuation `NL`, dropped
 
 isLayout :: Char -> Boolean
 isLayout c = c == ' ' || c == '\t' || c == '\r' || c == '\n'
