@@ -12,7 +12,7 @@ Term
   : NUM
 ```
 </textarea> <div style="margin-top:0.75rem; display:flex; gap:0.5rem; align-items:center;"> <button id="run-grammar" style="padding:0.55rem 0.9rem; border:none; border-radius:999px; background:#15b879; color:white; cursor:pointer;">Evaluate</button> <span id="status-pill" style="font-size:0.95rem; color:#6b7280;">Ready</span> </div> </section> <section style="border:1px solid #e5e7eb; border-radius:0.75rem; padding:1rem;"> <h2>Input</h2> <textarea id="input-test" style="width:100%; min-height:120px; font-family: ui-monospace, monospace; padding:0.75rem; border-radius:0.5rem; border:1px solid #d1d5db;">4 + 7</textarea> <h3 style="margin-top:1rem;">Result</h3> <pre id="result-output" style="background:#f5f6f3; padding:0.75rem; border-radius:0.5rem; min-height:120px; overflow:auto;">Waiting for evaluation…</pre> </section> </div> <section style="margin-top:1rem; border:1px solid #e5e7eb; border-radius:0.75rem; padding:1rem;"> <h2>Diagnostics</h2> <div id="diagnostics-list" style="display:grid; gap:0.5rem;"></div> </section> </main> <script type="module">
-      import { parseMarkdownGrammar, evaluateGrammar } from '/src/lib/grammar-lab.ts';
+      import { parseMarkdownGrammar, evaluateGrammar, formatEvaluationReport } from '/src/lib/grammar-lab.ts';
 
       const grammarInput = document.getElementById('grammar-input');
       const inputTest = document.getElementById('input-test');
@@ -28,7 +28,7 @@ Term
         const result = evaluateGrammar(grammar, input);
 
         statusPill.textContent = result.success ? 'Accepted' : 'Rejected';
-        resultOutput.textContent = [result.message, '', ...result.diagnostics].join('\n');
+        resultOutput.textContent = formatEvaluationReport(result);
 
         diagnosticsList.innerHTML = '';
         const items = [

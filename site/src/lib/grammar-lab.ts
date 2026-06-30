@@ -29,6 +29,26 @@ export interface EvaluationResult {
   grammarRules: string[];
 }
 
+export function formatEvaluationReport(result: EvaluationResult): string {
+  const parts = [result.message];
+
+  if (result.inputTokens.length > 0) {
+    parts.push(`Tokens: ${result.inputTokens.join(', ')}`);
+  }
+
+  if (result.trace.length > 0) {
+    parts.push('Trace:');
+    parts.push(...result.trace.map((entry) => `- ${entry}`));
+  }
+
+  if (result.diagnostics.length > 0) {
+    parts.push('Diagnostics:');
+    parts.push(...result.diagnostics.map((entry) => `- ${entry}`));
+  }
+
+  return parts.join('\n');
+}
+
 export interface ParseIssue {
   message: string;
   severity: 'error' | 'warning';
