@@ -139,11 +139,11 @@ var bottomNumber = Number.NEGATIVE_INFINITY;
 
 // ../output/Data.Ord/foreign.js
 var unsafeCompareImpl = function(lt) {
-  return function(eq7) {
+  return function(eq8) {
     return function(gt) {
       return function(x) {
         return function(y) {
-          return x < y ? lt : x === y ? eq7 : gt;
+          return x < y ? lt : x === y ? eq8 : gt;
         };
       };
     };
@@ -708,7 +708,7 @@ var fromJust = function() {
   };
 };
 var eqMaybe = function(dictEq) {
-  var eq7 = eq(dictEq);
+  var eq8 = eq(dictEq);
   return {
     eq: function(x) {
       return function(y) {
@@ -717,7 +717,7 @@ var eqMaybe = function(dictEq) {
         }
         ;
         if (x instanceof Just && y instanceof Just) {
-          return eq7(x.value0)(y.value0);
+          return eq8(x.value0)(y.value0);
         }
         ;
         return false;
@@ -1053,12 +1053,12 @@ var unsafeIndexImpl = function(xs, n) {
 
 // ../output/Control.Monad/index.js
 var ap = function(dictMonad) {
-  var bind6 = bind(dictMonad.Bind1());
+  var bind7 = bind(dictMonad.Bind1());
   var pure4 = pure(dictMonad.Applicative0());
   return function(f) {
     return function(a) {
-      return bind6(f)(function(f$prime) {
-        return bind6(a)(function(a$prime) {
+      return bind7(f)(function(f$prime) {
+        return bind7(a)(function(a$prime) {
           return pure4(f$prime(a$prime));
         });
       });
@@ -1325,13 +1325,13 @@ var fst = function(v) {
   return v.value0;
 };
 var eqTuple = function(dictEq) {
-  var eq7 = eq(dictEq);
+  var eq8 = eq(dictEq);
   return function(dictEq1) {
     var eq13 = eq(dictEq1);
     return {
       eq: function(x) {
         return function(y) {
-          return eq7(x.value0)(y.value0) && eq13(x.value1)(y.value1);
+          return eq8(x.value0)(y.value0) && eq13(x.value1)(y.value1);
         };
       }
     };
@@ -1891,10 +1891,10 @@ var find2 = function(f) {
 };
 var filter = /* @__PURE__ */ runFn2(filterImpl);
 var elemIndex = function(dictEq) {
-  var eq23 = eq(dictEq);
+  var eq22 = eq(dictEq);
   return function(x) {
     return findIndex(function(v) {
-      return eq23(v)(x);
+      return eq22(v)(x);
     });
   };
 };
@@ -2617,7 +2617,7 @@ var foldableList = {
 };
 var eq1List = {
   eq1: function(dictEq) {
-    var eq7 = eq(dictEq);
+    var eq8 = eq(dictEq);
     return function(xs) {
       return function(ys) {
         var go = function($copy_v) {
@@ -2641,7 +2641,7 @@ var eq1List = {
                 if (v instanceof Cons && v1 instanceof Cons) {
                   $tco_var_v = v.value1;
                   $tco_var_v1 = v1.value1;
-                  $copy_v2 = v2 && eq7(v1.value0)(v.value0);
+                  $copy_v2 = v2 && eq8(v1.value0)(v.value0);
                   return;
                 }
                 ;
@@ -3208,7 +3208,7 @@ var stepAsc = /* @__PURE__ */ (function() {
 var eqMapIter = function(dictEq) {
   var eq13 = eq(dictEq);
   return function(dictEq1) {
-    var eq23 = eq(dictEq1);
+    var eq22 = eq(dictEq1);
     return {
       eq: /* @__PURE__ */ (function() {
         var go = function($copy_a) {
@@ -3220,7 +3220,7 @@ var eqMapIter = function(dictEq) {
               var v = stepAsc(a);
               if (v instanceof IterNext) {
                 var v2 = stepAsc(b);
-                if (v2 instanceof IterNext && (eq13(v.value0)(v2.value0) && eq23(v.value1)(v2.value1))) {
+                if (v2 instanceof IterNext && (eq13(v.value0)(v2.value0) && eq22(v.value1)(v2.value1))) {
                   $tco_var_a = v.value2;
                   $copy_b = v2.value2;
                   return;
@@ -3656,11 +3656,11 @@ var foldableSet = {
 };
 var foldl12 = /* @__PURE__ */ foldl(foldableSet);
 var eqSet = function(dictEq) {
-  var eq7 = eq(eqMap(dictEq)(eqUnit));
+  var eq8 = eq(eqMap(dictEq)(eqUnit));
   return {
     eq: function(v) {
       return function(v1) {
-        return eq7(v)(v1);
+        return eq8(v)(v1);
       };
     }
   };
@@ -4364,13 +4364,14 @@ var desugar = function(g) {
 // ../output/Grammark.Table/index.js
 var lookup3 = /* @__PURE__ */ lookup(ordString);
 var member4 = /* @__PURE__ */ member2(ordString);
-var fromFoldable5 = /* @__PURE__ */ fromFoldable3(foldableArray);
-var fromFoldable12 = /* @__PURE__ */ fromFoldable5(ordString);
 var map10 = /* @__PURE__ */ map(functorArray);
-var compare3 = /* @__PURE__ */ compare(ordString);
-var insertWith2 = /* @__PURE__ */ insertWith(ordString);
 var foldl5 = /* @__PURE__ */ foldl(foldableArray);
 var foldlWithIndex2 = /* @__PURE__ */ foldlWithIndex(foldableWithIndexArray);
+var fromFoldable5 = /* @__PURE__ */ fromFoldable3(foldableArray);
+var fromFoldable12 = /* @__PURE__ */ fromFoldable5(ordString);
+var bind3 = /* @__PURE__ */ bind(bindMaybe);
+var compare3 = /* @__PURE__ */ compare(ordString);
+var insertWith2 = /* @__PURE__ */ insertWith(ordString);
 var foldl13 = /* @__PURE__ */ foldl(foldableList);
 var max3 = /* @__PURE__ */ max(ordInt);
 var lookup1 = /* @__PURE__ */ lookup(ordInt);
@@ -4399,17 +4400,17 @@ var any4 = /* @__PURE__ */ any(foldableList)(heytingAlgebraBoolean);
 var any1 = /* @__PURE__ */ any(foldableArray)(heytingAlgebraBoolean);
 var ordTuple1 = /* @__PURE__ */ ordTuple2(/* @__PURE__ */ ordArray(ordInt));
 var lookup22 = /* @__PURE__ */ lookup(ordTuple1);
-var insert4 = /* @__PURE__ */ insert(ordInt);
-var insert1 = /* @__PURE__ */ insert(ordTuple1);
+var insert1 = /* @__PURE__ */ insert(ordInt);
+var insert22 = /* @__PURE__ */ insert(ordTuple1);
 var insertWith1 = /* @__PURE__ */ insertWith(ordInt);
 var append3 = /* @__PURE__ */ append(semigroupArray);
 var map13 = /* @__PURE__ */ map(functorMap);
-var eq22 = /* @__PURE__ */ eq(/* @__PURE__ */ eqMap(eqInt)(eqInt));
-var insert22 = /* @__PURE__ */ insert(/* @__PURE__ */ ordTuple2(ordString));
+var eq32 = /* @__PURE__ */ eq(/* @__PURE__ */ eqMap(eqInt)(eqInt));
+var insert32 = /* @__PURE__ */ insert(/* @__PURE__ */ ordTuple2(ordString));
 var ordRecord1 = /* @__PURE__ */ ordRecord2(/* @__PURE__ */ ordRecordCons2(dotIsSymbol)(ordInt));
 var ordSet2 = /* @__PURE__ */ ordSet(ordRecord1);
 var lookup32 = /* @__PURE__ */ lookup(ordSet2);
-var insert32 = /* @__PURE__ */ insert(ordSet2);
+var insert4 = /* @__PURE__ */ insert(ordSet2);
 var Canonical = /* @__PURE__ */ (function() {
   function Canonical2() {
   }
@@ -4478,6 +4479,27 @@ var ReduceReduce = /* @__PURE__ */ (function() {
   };
   return ReduceReduce2;
 })();
+var LeftA = /* @__PURE__ */ (function() {
+  function LeftA2() {
+  }
+  ;
+  LeftA2.value = new LeftA2();
+  return LeftA2;
+})();
+var RightA = /* @__PURE__ */ (function() {
+  function RightA2() {
+  }
+  ;
+  RightA2.value = new RightA2();
+  return RightA2;
+})();
+var NonA = /* @__PURE__ */ (function() {
+  function NonA2() {
+  }
+  ;
+  NonA2.value = new NonA2();
+  return NonA2;
+})();
 var Shift = /* @__PURE__ */ (function() {
   function Shift2(value0) {
     this.value0 = value0;
@@ -4529,8 +4551,8 @@ var resolve = function($copy_v) {
     var $tco_result;
     function $tco_loop(v, v1) {
       if (v1 instanceof Ref) {
-        var $185 = member4(v1.value0)(v);
-        if ($185) {
+        var $197 = member4(v1.value0)(v);
+        if ($197) {
           $tco_done = true;
           return new NonTerm(v1.value0);
         }
@@ -4574,7 +4596,7 @@ var resolve = function($copy_v) {
         return;
       }
       ;
-      throw new Error("Failed pattern match at Grammark.Table (line 100, column 1 - line 100, column 37): " + [v.constructor.name, v1.constructor.name]);
+      throw new Error("Failed pattern match at Grammark.Table (line 163, column 1 - line 163, column 37): " + [v.constructor.name, v1.constructor.name]);
     }
     ;
     while (!$tco_done) {
@@ -4601,13 +4623,73 @@ var productions = function(v) {
   };
   return concatMap(ruleProds)(v);
 };
+var lastTermOf = /* @__PURE__ */ (function() {
+  var pick = function(acc) {
+    return function(s) {
+      if (s instanceof Term) {
+        return new Just(s.value0);
+      }
+      ;
+      return acc;
+    };
+  };
+  return foldl2(pick)(Nothing.value);
+})();
+var prodPrecedence = function(ctx) {
+  return function(i) {
+    return bind3(lastTermOf(rhsOf(ctx)(i)))(function(t) {
+      return lookup3(t)(ctx.prec.terms);
+    });
+  };
+};
+var resolvePrec = function(ctx) {
+  return function(prodIdx) {
+    return function(look) {
+      return function(existing) {
+        return function(newAct) {
+          if (existing instanceof Shift && look instanceof Term) {
+            return bind3(lookup3(look.value0)(ctx.prec.terms))(function(tp) {
+              return bind3(prodPrecedence(ctx)(prodIdx))(function(pp) {
+                var $231 = pp.level > tp.level;
+                if ($231) {
+                  return new Just(newAct);
+                }
+                ;
+                var $232 = pp.level < tp.level;
+                if ($232) {
+                  return new Just(existing);
+                }
+                ;
+                if (pp.assoc instanceof LeftA) {
+                  return new Just(newAct);
+                }
+                ;
+                if (pp.assoc instanceof RightA) {
+                  return new Just(existing);
+                }
+                ;
+                if (pp.assoc instanceof NonA) {
+                  return Nothing.value;
+                }
+                ;
+                throw new Error("Failed pattern match at Grammark.Table (line 447, column 10 - line 450, column 22): " + [pp.assoc.constructor.name]);
+              });
+            });
+          }
+          ;
+          return Nothing.value;
+        };
+      };
+    };
+  };
+};
 var fixpoint = function(dictEq) {
-  var eq52 = eq(dictEq);
+  var eq62 = eq(dictEq);
   return function(step) {
     return function(x) {
       var x$prime = step(x);
-      var $209 = eq52(x$prime)(x);
-      if ($209) {
+      var $236 = eq62(x$prime)(x);
+      if ($236) {
         return x;
       }
       ;
@@ -4629,7 +4711,7 @@ var firstOfSymbol = function(firsts) {
       return setOf(v.value0)(firsts);
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Table (line 135, column 24 - line 138, column 30): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Table (line 198, column 24 - line 201, column 30): " + [v.constructor.name]);
   };
 };
 var firstSeqThen = function(ctx) {
@@ -4644,7 +4726,7 @@ var firstSeqThen = function(ctx) {
         return singleton7(a);
       }
       ;
-      throw new Error("Failed pattern match at Grammark.Table (line 227, column 27 - line 229, column 29): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Grammark.Table (line 291, column 27 - line 293, column 29): " + [v.constructor.name]);
     };
   };
 };
@@ -4669,7 +4751,7 @@ var eqSymbol = {
 };
 var fixpoint1 = /* @__PURE__ */ fixpoint(/* @__PURE__ */ eqMap(eqString)(/* @__PURE__ */ eqSet(eqSymbol)));
 var fixpoint2 = /* @__PURE__ */ fixpoint(/* @__PURE__ */ eqSet(/* @__PURE__ */ eqRec()(/* @__PURE__ */ eqRowCons(/* @__PURE__ */ eqRowCons(/* @__PURE__ */ eqRowCons(eqRowNil)()(prodIsSymbol)(eqInt))()(lookIsSymbol)(eqSymbol))()(dotIsSymbol)(eqInt))));
-var eq32 = /* @__PURE__ */ eq(eqSymbol);
+var eq4 = /* @__PURE__ */ eq(eqSymbol);
 var ordSymbol = {
   compare: function(x) {
     return function(y) {
@@ -4712,14 +4794,14 @@ var union1 = /* @__PURE__ */ union2(ordSymbol);
 var ordRecord22 = /* @__PURE__ */ ordRecord2(/* @__PURE__ */ ordRecordCons(/* @__PURE__ */ ordRecordCons2(lookIsSymbol)(ordSymbol))()(dotIsSymbol)(ordInt));
 var union22 = /* @__PURE__ */ union2(ordRecord22);
 var ordTuple22 = /* @__PURE__ */ ordTuple2(ordSymbol);
-var insert42 = /* @__PURE__ */ insert(ordTuple22);
+var insert5 = /* @__PURE__ */ insert(ordTuple22);
 var ordSet1 = /* @__PURE__ */ ordSet(ordRecord22);
-var insert5 = /* @__PURE__ */ insert(ordSet1);
+var insert6 = /* @__PURE__ */ insert(ordSet1);
 var fromFoldable23 = /* @__PURE__ */ fromFoldable5(ordSymbol);
 var insertWith22 = /* @__PURE__ */ insertWith(ordSymbol);
 var member1 = /* @__PURE__ */ member2(ordSymbol);
 var lookup4 = /* @__PURE__ */ lookup(ordTuple22);
-var insert6 = /* @__PURE__ */ insert2(ordRecord22);
+var insert7 = /* @__PURE__ */ insert2(ordRecord22);
 var fromFoldable32 = /* @__PURE__ */ fromFoldable5(ordRecord22);
 var lookup5 = /* @__PURE__ */ lookup(ordSet1);
 var firstStep = function(prods) {
@@ -4735,7 +4817,7 @@ var firstStep = function(prods) {
           return insertWith2(union1)(v.lhs)(firstOfSymbol(m)(v1.value0))(m);
         }
         ;
-        throw new Error("Failed pattern match at Grammark.Table (line 143, column 28 - line 145, column 65): " + [v1.constructor.name]);
+        throw new Error("Failed pattern match at Grammark.Table (line 206, column 28 - line 208, column 65): " + [v1.constructor.name]);
       };
     };
     return foldl5(addProd)(m0)(prods);
@@ -4764,7 +4846,7 @@ var followStep = function(firsts) {
                       return insertWith2(union1)(sym.value0)(setOf(lhs)(m))(m);
                     }
                     ;
-                    throw new Error("Failed pattern match at Grammark.Table (line 163, column 18 - line 166, column 60): " + [v.constructor.name]);
+                    throw new Error("Failed pattern match at Grammark.Table (line 226, column 18 - line 229, column 60): " + [v.constructor.name]);
                   }
                   ;
                   return m;
@@ -4803,8 +4885,8 @@ var fromPartition = function(canonical) {
     var blockItems = function(b) {
       return foldl5(function(acc) {
         return function(c) {
-          var $245 = blk(c) === b;
-          if ($245) {
+          var $272 = blk(c) === b;
+          if ($272) {
             return union22(acc)(itemsOf(c));
           }
           ;
@@ -4814,7 +4896,7 @@ var fromPartition = function(canonical) {
     };
     var remap = function(acc) {
       return function(v) {
-        return insert42(new Tuple(blk(v.value0.value0), v.value0.value1))(blk(v.value1))(acc);
+        return insert5(new Tuple(blk(v.value0.value0), v.value0.value1))(blk(v.value1))(acc);
       };
     };
     return {
@@ -4822,7 +4904,7 @@ var fromPartition = function(canonical) {
       index: foldlWithIndex2(function(i) {
         return function(m) {
           return function(s) {
-            return insert5(s)(i)(m);
+            return insert6(s)(i)(m);
           };
         };
       })(empty2)(map10(blockItems)(range2(0)(numBlocks - 1 | 0))),
@@ -4872,18 +4954,18 @@ var refineOnce = function(ctx) {
                 if (v instanceof Just) {
                   return {
                     ids: acc.ids,
-                    part: insert4(c)(v.value0)(acc.part)
+                    part: insert1(c)(v.value0)(acc.part)
                   };
                 }
                 ;
                 if (v instanceof Nothing) {
                   return {
-                    ids: insert1(sig)(nextId)(acc.ids),
-                    part: insert4(c)(nextId)(acc.part)
+                    ids: insert22(sig)(nextId)(acc.ids),
+                    part: insert1(c)(nextId)(acc.part)
                   };
                 }
                 ;
-                throw new Error("Failed pattern match at Grammark.Table (line 484, column 22 - line 486, column 98): " + [v.constructor.name]);
+                throw new Error("Failed pattern match at Grammark.Table (line 581, column 22 - line 583, column 98): " + [v.constructor.name]);
               };
             };
           };
@@ -4922,14 +5004,14 @@ var refineOnce = function(ctx) {
               return -1 | 0;
             }
             ;
-            throw new Error("Failed pattern match at Grammark.Table (line 471, column 17 - line 473, column 18): " + [v.constructor.name]);
+            throw new Error("Failed pattern match at Grammark.Table (line 568, column 17 - line 570, column 18): " + [v.constructor.name]);
           };
         };
         var sigOf = function(c) {
           var b = blk(c);
           var marker = (function() {
-            var $259 = fromMaybe(false)(lookup1(b)(inadeqOf));
-            if ($259) {
+            var $286 = fromMaybe(false)(lookup1(b)(inadeqOf));
+            if ($286) {
               return c;
             }
             ;
@@ -4953,8 +5035,8 @@ var refineToFix = function($copy_ctx) {
         var $tco_result;
         function $tco_loop(ctx, canonical, symbols, part) {
           var part$prime = refineOnce(ctx)(canonical)(symbols)(part);
-          var $260 = eq22(part$prime)(part);
-          if ($260) {
+          var $287 = eq32(part$prime)(part);
+          if ($287) {
             $tco_done = true;
             return part;
           }
@@ -5009,7 +5091,7 @@ var eqAction = {
     };
   }
 };
-var eq4 = /* @__PURE__ */ eq(eqAction);
+var eq5 = /* @__PURE__ */ eq(eqAction);
 var fillTables = function(ctx) {
   return function(st) {
     return function(realProds) {
@@ -5043,7 +5125,7 @@ var fillTables = function(ctx) {
                 });
               }
               ;
-              throw new Error("Failed pattern match at Grammark.Table (line 362, column 43 - line 365, column 79): " + [existing.constructor.name]);
+              throw new Error("Failed pattern match at Grammark.Table (line 430, column 43 - line 433, column 79): " + [existing.constructor.name]);
             };
           };
         };
@@ -5054,7 +5136,7 @@ var fillTables = function(ctx) {
             return {
               "goto": acc["goto"],
               conflicts: acc.conflicts,
-              action: insert42(new Tuple(v.value0.value0, v.value0.value1))(new Shift(v.value1))(acc.action)
+              action: insert5(new Tuple(v.value0.value0, v.value0.value1))(new Shift(v.value1))(acc.action)
             };
           }
           ;
@@ -5062,7 +5144,7 @@ var fillTables = function(ctx) {
             return {
               action: acc.action,
               conflicts: acc.conflicts,
-              "goto": insert22(new Tuple(v.value0.value0, v.value0.value1.value0))(v.value1)(acc["goto"])
+              "goto": insert32(new Tuple(v.value0.value0, v.value0.value1.value0))(v.value1)(acc["goto"])
             };
           }
           ;
@@ -5070,7 +5152,7 @@ var fillTables = function(ctx) {
             return acc;
           }
           ;
-          throw new Error("Failed pattern match at Grammark.Table (line 334, column 42 - line 337, column 15): " + [v.value0.value1.constructor.name]);
+          throw new Error("Failed pattern match at Grammark.Table (line 398, column 42 - line 401, column 15): " + [v.value0.value1.constructor.name]);
         };
       };
       var shifted = foldl5(addTrans)({
@@ -5081,16 +5163,16 @@ var fillTables = function(ctx) {
       var addReduce = function(i) {
         return function(acc) {
           return function(it) {
-            var $298 = it.dot < length(rhsOf(ctx)(it.prod));
-            if ($298) {
+            var $327 = it.dot < length(rhsOf(ctx)(it.prod));
+            if ($327) {
               return acc;
             }
             ;
             var newProd = it.prod - 1 | 0;
             var key = new Tuple(i, it.look);
             var act = (function() {
-              var $299 = it.prod === 0;
-              if ($299) {
+              var $328 = it.prod === 0;
+              if ($328) {
                 return Accept.value;
               }
               ;
@@ -5101,24 +5183,37 @@ var fillTables = function(ctx) {
               return {
                 "goto": acc["goto"],
                 conflicts: acc.conflicts,
-                action: insert42(key)(act)(acc.action)
+                action: insert5(key)(act)(acc.action)
               };
             }
             ;
             if (v instanceof Just) {
-              var $301 = eq4(v.value0)(act);
-              if ($301) {
+              var $330 = eq5(v.value0)(act);
+              if ($330) {
                 return acc;
               }
               ;
-              return {
-                action: acc.action,
-                "goto": acc["goto"],
-                conflicts: snoc(acc.conflicts)(conflictAt(i)(it.look)(v.value0)(newProd))
-              };
+              var v1 = resolvePrec(ctx)(it.prod)(it.look)(v.value0)(act);
+              if (v1 instanceof Just) {
+                return {
+                  "goto": acc["goto"],
+                  conflicts: acc.conflicts,
+                  action: insert5(key)(v1.value0)(acc.action)
+                };
+              }
+              ;
+              if (v1 instanceof Nothing) {
+                return {
+                  action: acc.action,
+                  "goto": acc["goto"],
+                  conflicts: snoc(acc.conflicts)(conflictAt(i)(it.look)(v.value0)(newProd))
+                };
+              }
+              ;
+              throw new Error("Failed pattern match at Grammark.Table (line 420, column 18 - line 424, column 110): " + [v1.constructor.name]);
             }
             ;
-            throw new Error("Failed pattern match at Grammark.Table (line 352, column 9 - line 356, column 102): " + [v.constructor.name]);
+            throw new Error("Failed pattern match at Grammark.Table (line 416, column 9 - line 424, column 110): " + [v.constructor.name]);
           };
         };
       };
@@ -5130,8 +5225,8 @@ var fillTables = function(ctx) {
         };
       };
       var filled = foldlWithIndex2(addReduces)(shifted)(st.states);
-      var $303 = $$null(filled.conflicts);
-      if ($303) {
+      var $334 = $$null(filled.conflicts);
+      if ($334) {
         return new Right({
           action: filled.action,
           "goto": filled["goto"],
@@ -5142,6 +5237,9 @@ var fillTables = function(ctx) {
       return new Left(filled.conflicts);
     };
   };
+};
+var emptyPrec = {
+  terms: empty2
 };
 var coreOf = /* @__PURE__ */ map8(ordRecord1)(function(it) {
   return {
@@ -5159,18 +5257,18 @@ var initialPartition = function(canonical) {
         if (v instanceof Just) {
           return {
             coreToId: acc.coreToId,
-            part: insert4(i)(v.value0)(acc.part)
+            part: insert1(i)(v.value0)(acc.part)
           };
         }
         ;
         if (v instanceof Nothing) {
           return {
-            coreToId: insert32(core)(nextId)(acc.coreToId),
-            part: insert4(i)(nextId)(acc.part)
+            coreToId: insert4(core)(nextId)(acc.coreToId),
+            part: insert1(i)(nextId)(acc.part)
           };
         }
         ;
-        throw new Error("Failed pattern match at Grammark.Table (line 444, column 24 - line 446, column 107): " + [v.constructor.name]);
+        throw new Error("Failed pattern match at Grammark.Table (line 541, column 24 - line 543, column 107): " + [v.constructor.name]);
       };
     };
   };
@@ -5189,20 +5287,20 @@ var mergeLALR = function(st) {
         if (v instanceof Just) {
           return {
             coreToId: acc.coreToId,
-            oldToNew: insert4(i)(v.value0)(acc.oldToNew),
+            oldToNew: insert1(i)(v.value0)(acc.oldToNew),
             states: fromMaybe(acc.states)(modifyAt(v.value0)(union22(items))(acc.states))
           };
         }
         ;
         if (v instanceof Nothing) {
           return {
-            coreToId: insert32(core)(nextId)(acc.coreToId),
-            oldToNew: insert4(i)(nextId)(acc.oldToNew),
+            coreToId: insert4(core)(nextId)(acc.coreToId),
+            oldToNew: insert1(i)(nextId)(acc.oldToNew),
             states: snoc(acc.states)(items)
           };
         }
         ;
-        throw new Error("Failed pattern match at Grammark.Table (line 397, column 24 - line 406, column 8): " + [v.constructor.name]);
+        throw new Error("Failed pattern match at Grammark.Table (line 494, column 24 - line 503, column 8): " + [v.constructor.name]);
       };
     };
   };
@@ -5216,7 +5314,7 @@ var mergeLALR = function(st) {
   };
   var remap = function(acc) {
     return function(v) {
-      return insert42(new Tuple(newId(v.value0.value0), v.value0.value1))(newId(v.value1))(acc);
+      return insert5(new Tuple(newId(v.value0.value0), v.value0.value1))(newId(v.value1))(acc);
     };
   };
   return {
@@ -5224,7 +5322,7 @@ var mergeLALR = function(st) {
     index: foldlWithIndex2(function(i) {
       return function(m) {
         return function(s) {
-          return insert5(s)(i)(m);
+          return insert6(s)(i)(m);
         };
       };
     })(empty2)(merged.states),
@@ -5243,7 +5341,7 @@ var closure = function(ctx) {
           return function(pIdx) {
             return foldl5(function(a2) {
               return function(la) {
-                return insert6({
+                return insert7({
                   prod: pIdx,
                   dot: 0,
                   look: la
@@ -5267,7 +5365,7 @@ var $$goto = function(ctx) {
     return function(x) {
       var shift = function(it) {
         var v = index(rhsOf(ctx)(it.prod))(it.dot);
-        if (v instanceof Just && eq32(v.value0)(x)) {
+        if (v instanceof Just && eq4(v.value0)(x)) {
           return new Just({
             prod: it.prod,
             look: it.look,
@@ -5305,11 +5403,11 @@ var buildStates = function(ctx) {
         return new Tuple({
           trans: st.trans,
           states: snoc(st.states)(items),
-          index: insert5(items)(j)(st.index)
+          index: insert6(items)(j)(st.index)
         }, j);
       }
       ;
-      throw new Error("Failed pattern match at Grammark.Table (line 301, column 23 - line 307, column 98): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Grammark.Table (line 365, column 23 - line 371, column 98): " + [v.constructor.name]);
     };
   };
   var stepSym = function(items) {
@@ -5317,8 +5415,8 @@ var buildStates = function(ctx) {
       return function(st) {
         return function(x) {
           var g = $$goto(ctx)(items)(x);
-          var $321 = isEmpty2(g);
-          if ($321) {
+          var $352 = isEmpty2(g);
+          if ($352) {
             return st;
           }
           ;
@@ -5326,7 +5424,7 @@ var buildStates = function(ctx) {
           return {
             states: v.value0.states,
             index: v.value0.index,
-            trans: insert42(new Tuple(i, x))(v.value1)(v.value0.trans)
+            trans: insert5(new Tuple(i, x))(v.value1)(v.value0.trans)
           };
         };
       };
@@ -5338,8 +5436,8 @@ var buildStates = function(ctx) {
       var $tco_done = false;
       var $tco_result;
       function $tco_loop(st, i) {
-        var $325 = i >= length(st.states);
-        if ($325) {
+        var $356 = i >= length(st.states);
+        if ($356) {
           $tco_done = true;
           return st;
         }
@@ -5356,7 +5454,7 @@ var buildStates = function(ctx) {
           return;
         }
         ;
-        throw new Error("Failed pattern match at Grammark.Table (line 284, column 10 - line 286, column 93): " + [v.constructor.name]);
+        throw new Error("Failed pattern match at Grammark.Table (line 348, column 10 - line 350, column 93): " + [v.constructor.name]);
       }
       ;
       while (!$tco_done) {
@@ -5386,48 +5484,54 @@ var analyze = function(g) {
   };
 };
 var acceptName = "$accept";
-var mkCtx = function(a) {
-  var aug = {
-    lhs: acceptName,
-    rhs: [new NonTerm(a.start)]
-  };
-  var prods = cons(aug)(a.prods);
-  var byLhs = foldlWithIndex2(function(i) {
-    return function(m) {
-      return function(p) {
-        return insertWith2(append3)(p.lhs)([i])(m);
-      };
+var mkCtx = function(prec) {
+  return function(a) {
+    var aug = {
+      lhs: acceptName,
+      rhs: [new NonTerm(a.start)]
     };
-  })(empty2)(prods);
-  return {
-    prods,
-    byLhs,
-    firsts: a.firsts
+    var prods = cons(aug)(a.prods);
+    var byLhs = foldlWithIndex2(function(i) {
+      return function(m) {
+        return function(p) {
+          return insertWith2(append3)(p.lhs)([i])(m);
+        };
+      };
+    })(empty2)(prods);
+    return {
+      prods,
+      byLhs,
+      firsts: a.firsts,
+      prec
+    };
   };
 };
-var buildTablesFor = function(method) {
-  return function(g) {
-    var a = analyze(g);
-    var ctx = mkCtx(a);
-    var canonical = buildStates(ctx);
-    var states = (function() {
-      if (method instanceof Canonical) {
-        return canonical;
-      }
-      ;
-      if (method instanceof LALR) {
-        return mergeLALR(canonical);
-      }
-      ;
-      if (method instanceof IELR) {
-        return buildIELR(ctx)(canonical);
-      }
-      ;
-      throw new Error("Failed pattern match at Grammark.Table (line 543, column 12 - line 546, column 36): " + [method.constructor.name]);
-    })();
-    return fillTables(ctx)(states)(a.prods);
+var buildTablesForP = function(prec) {
+  return function(method) {
+    return function(g) {
+      var a = analyze(g);
+      var ctx = mkCtx(prec)(a);
+      var canonical = buildStates(ctx);
+      var states = (function() {
+        if (method instanceof Canonical) {
+          return canonical;
+        }
+        ;
+        if (method instanceof LALR) {
+          return mergeLALR(canonical);
+        }
+        ;
+        if (method instanceof IELR) {
+          return buildIELR(ctx)(canonical);
+        }
+        ;
+        throw new Error("Failed pattern match at Grammark.Table (line 648, column 12 - line 651, column 36): " + [method.constructor.name]);
+      })();
+      return fillTables(ctx)(states)(a.prods);
+    };
   };
 };
+var buildTablesFor = /* @__PURE__ */ buildTablesForP(emptyPrec);
 
 // ../output/Grammark.Diagnostics/index.js
 var map11 = /* @__PURE__ */ map(functorArray);
@@ -5700,7 +5804,7 @@ var fromCharCode3 = /* @__PURE__ */ toEnum(boundedEnumChar);
 
 // ../output/Grammark.Regex/index.js
 var add2 = /* @__PURE__ */ add(semiringInt);
-var eq5 = /* @__PURE__ */ eq(eqChar);
+var eq6 = /* @__PURE__ */ eq(eqChar);
 var foldl6 = /* @__PURE__ */ foldl(foldableArray);
 var map14 = /* @__PURE__ */ map(functorArray);
 var insertWith3 = /* @__PURE__ */ insertWith(ordInt);
@@ -5708,7 +5812,7 @@ var toUnfoldable5 = /* @__PURE__ */ toUnfoldable(unfoldableArray);
 var member6 = /* @__PURE__ */ member(ordInt);
 var append12 = /* @__PURE__ */ append(semigroupArray);
 var map15 = /* @__PURE__ */ map(functorMap);
-var bind3 = /* @__PURE__ */ bind(bindMaybe);
+var bind4 = /* @__PURE__ */ bind(bindMaybe);
 var bind1 = /* @__PURE__ */ bind(bindEither);
 var notEq1 = /* @__PURE__ */ notEq(/* @__PURE__ */ eqMaybe(eqChar));
 var show22 = /* @__PURE__ */ show(/* @__PURE__ */ showMaybe(showChar));
@@ -6013,7 +6117,7 @@ var matchCap = function(caseless) {
         }
         ;
         if (rx instanceof Lit2) {
-          return advance(ciMatch(caseless)(eq5(rx.value0)));
+          return advance(ciMatch(caseless)(eq6(rx.value0)));
         }
         ;
         if (rx instanceof AnyChar) {
@@ -6103,7 +6207,7 @@ var pInt = function(chars) {
         var $tco_done = false;
         var $tco_result;
         function $tco_loop(acc, p) {
-          var v2 = bind3(at(chars)(p))(digit);
+          var v2 = bind4(at(chars)(p))(digit);
           if (v2 instanceof Just) {
             $tco_var_acc = (acc * 10 | 0) + v2.value0 | 0;
             $copy_p = p + 1 | 0;
@@ -6125,7 +6229,7 @@ var pInt = function(chars) {
         return $tco_result;
       };
     };
-    var v = bind3(at(chars)(pos))(digit);
+    var v = bind4(at(chars)(pos))(digit);
     if (v instanceof Nothing) {
       return new Left("expected a number in a bounded repeat");
     }
@@ -6199,7 +6303,7 @@ var pUnicode = function(chars) {
           }
           ;
           if (otherwise) {
-            var v2 = bind3(at(chars)(p + i | 0))(hexDigit);
+            var v2 = bind4(at(chars)(p + i | 0))(hexDigit);
             if (v2 instanceof Just) {
               $tco_var_i = i + 1 | 0;
               $copy_acc = (acc * 16 | 0) + v2.value0 | 0;
@@ -6567,7 +6671,7 @@ var parseRegex = function(src) {
 var show23 = /* @__PURE__ */ show(showChar);
 var append13 = /* @__PURE__ */ append(semigroupArray);
 var notEq12 = /* @__PURE__ */ notEq(/* @__PURE__ */ eqArray(eqChar));
-var bind4 = /* @__PURE__ */ bind(bindEither);
+var bind5 = /* @__PURE__ */ bind(bindEither);
 var bind12 = /* @__PURE__ */ bind(bindMaybe);
 var pure3 = /* @__PURE__ */ pure(applicativeEither);
 var traverse3 = /* @__PURE__ */ traverse(traversableArray)(applicativeEither);
@@ -6731,7 +6835,7 @@ var parseIntStr = function(s) {
 var parseDefinition = function(s) {
   var v = head(toCharArray(s));
   if (v instanceof Just && v.value0 === '"') {
-    return bind4(readDelimited('"')(true)(drop3(1)(s)))(function(v1) {
+    return bind5(readDelimited('"')(true)(drop3(1)(s)))(function(v1) {
       return new Right({
         pattern: new Exact(v1.value0),
         iflag: false,
@@ -6741,7 +6845,7 @@ var parseDefinition = function(s) {
   }
   ;
   if (v instanceof Just && v.value0 === "/") {
-    return bind4(readDelimited("/")(false)(drop3(1)(s)))(function(v1) {
+    return bind5(readDelimited("/")(false)(drop3(1)(s)))(function(v1) {
       var iflag = take3(1)(v1.value1) === "i";
       var rest$prime = trim((function() {
         if (iflag) {
@@ -6892,9 +6996,9 @@ var parseLine = function(line) {
   }
   ;
   if (v instanceof Just) {
-    return bind4(validateName(trim(v.value0.value0)))(function(name) {
-      return bind4(parseDefinition(trim(v.value0.value1)))(function(def) {
-        return bind4(parseModifiers(words(def.rest)))(function(mods) {
+    return bind5(validateName(trim(v.value0.value0)))(function(name) {
+      return bind5(parseDefinition(trim(v.value0.value1)))(function(def) {
+        return bind5(parseModifiers(words(def.rest)))(function(mods) {
           return pure3({
             name,
             pattern: def.pattern,
@@ -7129,7 +7233,7 @@ var notEq4 = /* @__PURE__ */ notEq(/* @__PURE__ */ eqMaybe(eqChar));
 var any5 = /* @__PURE__ */ any(foldableArray)(heytingAlgebraBoolean);
 var append14 = /* @__PURE__ */ append(semigroupArray);
 var show12 = /* @__PURE__ */ show(showParseError);
-var bind5 = /* @__PURE__ */ bind(bindEither);
+var bind6 = /* @__PURE__ */ bind(bindEither);
 var VStr = /* @__PURE__ */ (function() {
   function VStr2(value0) {
     this.value0 = value0;
@@ -7545,7 +7649,7 @@ var parseWith = function(method) {
       }
       ;
       if (v1 instanceof Right && v1.value0 instanceof VGrammar) {
-        return bind5(desugar(v1.value0.value0))(checkDefined);
+        return bind6(desugar(v1.value0.value0))(checkDefined);
       }
       ;
       if (v1 instanceof Right) {
@@ -7772,7 +7876,7 @@ var eqOutcome = {
 
 // ../output/Grammark.Playground/index.js
 var map18 = /* @__PURE__ */ map(functorArray);
-var eq6 = /* @__PURE__ */ eq(eqOutcome);
+var eq7 = /* @__PURE__ */ eq(eqOutcome);
 var ruleNamesOf = function(v) {
   return map18(function(v1) {
     return v1.value0;
@@ -7828,7 +7932,7 @@ var evaluate = function(v) {
     }
     ;
     if (v2 instanceof Right) {
-      var accepted = eq6(recognize(lexer)(Canonical.value)(v1.value0)(v.input))(Accept2.value);
+      var accepted = eq7(recognize(lexer)(Canonical.value)(v1.value0)(v.input))(Accept2.value);
       return {
         ok: true,
         accepted,
