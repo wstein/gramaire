@@ -12,6 +12,37 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
       href={`${import.meta.env.BASE_URL}favicon.svg`}
     />
     <title>Gramaire Lab</title>
+    <style is:global>
+      /* Railroad-diagram navigation + zoom (the SVGs are injected at runtime,
+         so these must be global, not scoped). */
+      .rr-figure {
+        margin: 0;
+        overflow: auto;
+        cursor: zoom-in;
+        border-radius: 0.5rem;
+        transition: outline-color 0.2s;
+        outline: 2px solid transparent;
+      }
+      .rr-figure svg {
+        max-width: 100%;
+        height: auto;
+      }
+      .rr-figure.zoomed {
+        cursor: zoom-out;
+      }
+      .rr-figure.zoomed svg {
+        max-width: none;
+      }
+      .rr-figure.rr-flash {
+        outline-color: #15b879;
+      }
+      a.rr-nav {
+        cursor: pointer;
+      }
+      a.rr-nav:hover rect.rr-nonterm {
+        fill: #d1fae5;
+      }
+    </style>
   </head>
   <body>
     <main
@@ -80,7 +111,11 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
         <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
           One per rule, drawn live from the grammar above — the same SVGs <code
             >gramaire fmt</code
-          > writes back into a <code>.gram.md</code>.
+          > writes back into a <code>.gram.md</code>. <strong
+            >Click a nonterminal</strong
+          >
+          to jump to its rule's diagram; <strong>click a diagram</strong> to zoom
+          it to full size.
         </p>
         <div
           id="diagrams-output"
@@ -169,6 +204,28 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
       const conflictsOutput = document.getElementById("conflicts-output");
       const diagramsOutput = document.getElementById("diagrams-output");
 
+      // Diagram navigation + zoom (event-delegated, so it survives re-renders):
+      // clicking a nonterminal node scrolls to that rule's diagram and flashes
+      // it; clicking anywhere else on a diagram toggles a zoomed (natural-size)
+      // view, since real grammars produce wide diagrams.
+      diagramsOutput.addEventListener("click", (event) => {
+        const nav = event.target.closest("a.rr-nav");
+        if (nav) {
+          event.preventDefault();
+          const target = document.getElementById(
+            nav.getAttribute("href").slice(1),
+          );
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "center" });
+            target.classList.add("rr-flash");
+            setTimeout(() => target.classList.remove("rr-flash"), 900);
+          }
+          return;
+        }
+        const figure = event.target.closest(".rr-figure");
+        if (figure) figure.classList.toggle("zoomed");
+      });
+
       async function evaluate() {
         const grammarSource = grammarInput.value;
         const input = inputTest.value;
@@ -202,7 +259,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
           diagramsOutput.innerHTML = diagrams
             .map(
               (d) =>
-                `<figure style="margin:0"><figcaption style="font-size:0.85rem;color:#6b7280;margin-bottom:0.25rem">${d.name}</figcaption>${d.svg}</figure>`,
+                `<figure id="diagram-${d.name}" class="rr-figure" title="click to zoom"><figcaption style="font-size:0.85rem;color:#6b7280;margin-bottom:0.25rem">${d.name}</figcaption>${d.svg}</figure>`,
             )
             .join("");
         }
