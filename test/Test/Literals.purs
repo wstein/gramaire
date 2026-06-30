@@ -9,25 +9,25 @@ import Prelude
 import Data.Either (Either(Right), isLeft, isRight)
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Lr (parse)
-import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
+import Gramark.Lr (parse)
+import Gramark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 import Test.Assert (assert')
 
 tests :: Effect Unit
 tests = do
   log "  literals: 'x' and \"x\" parse to the same terminal (ADR D34)"
-  let sq = parse "```grammark\nS\n  : '(' S ')'\n  | 'x'\n```\n"
-  let dq = parse "```grammark\nS\n  : \"(\" S \")\"\n  | \"x\"\n```\n"
+  let sq = parse "```gramark\nS\n  : '(' S ')'\n  | 'x'\n```\n"
+  let dq = parse "```gramark\nS\n  : \"(\" S \")\"\n  | \"x\"\n```\n"
   assert' "both delimiter styles parse" (isRight sq && isRight dq)
   assert' ("single-quote must equal double-quote:\n" <> show sq <> "\nvs\n" <> show dq)
     (sq == dq)
 
   log "  literals: backtick is no longer a delimiter — `x` is rejected"
   assert' "a backtick literal is a lex error"
-    (isLeft (parse "```grammark\nS\n  : `x`\n```\n"))
+    (isLeft (parse "```gramark\nS\n  : `x`\n```\n"))
 
   log "  literals: the delimiter is escapable, so '\\'' is the terminal '"
-  case parse "```grammark\nS\n  : '\\''\n```\n" of
+  case parse "```gramark\nS\n  : '\\''\n```\n" of
     Right (Grammar [ Rule _ _ [ Alt [ Lit s ] _ _ ] ]) ->
       assert' ("'\\'' should unquote to a single quote, got " <> show s) (s == "'")
     other -> assert' ("'\\'' should be one Lit \"'\": " <> show other) false

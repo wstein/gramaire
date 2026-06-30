@@ -4,7 +4,7 @@
 // markdownlint-cli2 is resolved from this package's node_modules (module
 // resolution is relative to this file), while linting runs from the repo root
 // so the `**/*.md` glob and the `**/node_modules/**` ignore both behave. This
-// complements `grammark --check`, which lints the two grammar files; here we
+// complements `gramark --check`, which lints the two grammar files; here we
 // also cover README, docs/, and bootstrap/README.
 import { fileURLToPath } from "node:url";
 import { main as markdownlint } from "markdownlint-cli2";

@@ -11,10 +11,10 @@ import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..), contains, joinWith)
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Diagnostics (checkDefined, renderConflicts, undefinedNonterminals)
-import Grammark.Lr as Lr
-import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
-import Grammark.Table (Method(Canonical), buildTablesFor)
+import Gramark.Diagnostics (checkDefined, renderConflicts, undefinedNonterminals)
+import Gramark.Lr as Lr
+import Gramark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
+import Gramark.Table (Method(Canonical), buildTablesFor)
 import Test.Assert (assert')
 
 -- The textbook ambiguous expression grammar: `E + E` reduces or shifts `+` on
@@ -58,7 +58,7 @@ tests = do
       (contains (Pattern "`Factor`") msg)
 
   log "  diagnostics: the undefined-nonterminal check is wired into parsing"
-  case Lr.parse "```grammark\nA\n  : 'x' Bogus\n```\n" of
+  case Lr.parse "```gramark\nA\n  : 'x' Bogus\n```\n" of
     Left msg -> assert' ("parse should reject undefined 'Bogus': " <> msg)
       (contains (Pattern "Bogus") msg)
     Right _ -> assert' "parsing a grammar with an undefined nonterminal should fail" false

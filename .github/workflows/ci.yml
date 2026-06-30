@@ -48,8 +48,8 @@ jobs:
         # regeneration entry point are allowed to. This guards the boundary the
         # browser/playground goal relies on before FS coupling can spread.
         run: |
-          hits=$(grep -rlE 'Node\.(FS|Buffer)' src/Grammark --include='*.purs' \
-            | grep -vE 'Grammark/Cli\.purs|Grammark/Codegen/Main\.purs' || true)
+          hits=$(grep -rlE 'Node\.(FS|Buffer)' src/Gramark --include='*.purs' \
+            | grep -vE 'Gramark/Cli\.purs|Gramark/Codegen/Main\.purs' || true)
           if [ -n "$hits" ]; then
             echo "These core modules import Node.FS/Buffer — keep the core filesystem-free (ADR D13):"
             echo "$hits"
@@ -91,23 +91,23 @@ jobs:
       - name: Lint Markdown (markdownlint-cli2)
         run: npm run lint:md
 
-      - name: grammark --check grammar and examples
+      - name: gramark --check grammar and examples
         working-directory: ${{ github.workspace }}
         run: |
-          node bootstrap/grammark-check.ts grammar/lr.grmk.md
-          node bootstrap/grammark-check.ts examples/calc.grmk.md
-          node bootstrap/grammark-check.ts examples/calc-prec.grmk.md
-          node bootstrap/grammark-check.ts examples/json.grmk.md
-          node bootstrap/grammark-check.ts examples/readme.grmk.md
+          node bootstrap/gramark-check.ts grammar/lr.grmk.md
+          node bootstrap/gramark-check.ts examples/calc.grmk.md
+          node bootstrap/gramark-check.ts examples/calc-prec.grmk.md
+          node bootstrap/gramark-check.ts examples/json.grmk.md
+          node bootstrap/gramark-check.ts examples/readme.grmk.md
 
       - name: Derived artifacts are up to date (no drift)
         working-directory: ${{ github.workspace }}
         run: |
-          node bootstrap/grammark-check.ts --write-lock grammar/lr.grmk.md
-          node bootstrap/grammark-check.ts --write-lock examples/calc.grmk.md
-          node bootstrap/grammark-check.ts --write-lock examples/calc-prec.grmk.md
-          node bootstrap/grammark-check.ts --write-lock examples/json.grmk.md
-          node bootstrap/grammark-check.ts --write-lock examples/readme.grmk.md
+          node bootstrap/gramark-check.ts --write-lock grammar/lr.grmk.md
+          node bootstrap/gramark-check.ts --write-lock examples/calc.grmk.md
+          node bootstrap/gramark-check.ts --write-lock examples/calc-prec.grmk.md
+          node bootstrap/gramark-check.ts --write-lock examples/json.grmk.md
+          node bootstrap/gramark-check.ts --write-lock examples/readme.grmk.md
           git diff --exit-code
 
   site:
@@ -132,7 +132,7 @@ jobs:
         run: npm ci
 
       - name: Engine bundle is up to date (rebuild + no drift, ADR D13)
-        # `Grammark.Playground` → browser ESM. If this fails, run
+        # `Gramark.Playground` → browser ESM. If this fails, run
         # `npm run build:engine` in site/ and commit the regenerated bundle.
         run: npm run check:engine
 

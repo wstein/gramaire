@@ -1,17 +1,17 @@
-// Recommended markdownlint configuration for Grammark grammar files.
+// Recommended markdownlint configuration for Gramark grammar files.
 //
 // Philosophy: relax line-length where a formal grammar legitimately needs
 // the room, and keep EVERY rule that protects how the file renders on
 // GitHub or that guards against unsafe markup. markdownlint-cli2 discovers
 // this file automatically, so it supplies the ruleset to both
-// `grammark --check <file>` (which lints exactly that file) and CI.
+// `gramark --check <file>` (which lints exactly that file) and CI.
 //
 // No `globs` key on purpose: markdownlint-cli2 merges config globs with any
 // paths passed on the command line, which would make the per-file lint gate
 // also lint every other grammar in the repo. CI passes the globs it wants
 // explicitly; the gate passes a single file.
 //
-// Trade-off worth knowing: because line-length is relaxed here, a Grammark
+// Trade-off worth knowing: because line-length is relaxed here, a Gramark
 // file dropped into a repo whose own config enforces strict MD013 may warn
 // on long lines there. That is the deliberate, pragmatic choice — long
 // productions and wide FIRST/FOLLOW rows should not be forced to wrap.

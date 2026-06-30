@@ -1,17 +1,17 @@
 ---
 title: Language Specification
-description: The formal Grammark grammar format — document envelope, lexical rules, newline normalization, desugaring, and the IR/CST contracts.
+description: The formal Gramark grammar format — document envelope, lexical rules, newline normalization, desugaring, and the IR/CST contracts.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
 
-This is the formal definition of the Grammark grammar language (v0.1): the
+This is the formal definition of the Gramark grammar language (v0.1): the
 document envelope, the `lr` lexical grammar, the newline rule, the desugaring
 that compiles surface sugar to the epsilon-free core, and the contracts the
 compiler emits. Keywords MUST / SHOULD / MAY per RFC 2119.
 
 <Aside>
-  The canonical on-disk layout that `grammark fmt` produces is specified
+  The canonical on-disk layout that `gramark fmt` produces is specified
   separately in the [fmt output
   contract](../../../../../docs/fmt-output-contract.md). This page specifies the
   _language_; that one specifies its _formatting_.
@@ -19,9 +19,9 @@ compiler emits. Keywords MUST / SHOULD / MAY per RFC 2119.
 
 ## 1. Document envelope
 
-A Grammark grammar is hosted in a GitHub-Flavored Markdown document. The compiler
+A Gramark grammar is hosted in a GitHub-Flavored Markdown document. The compiler
 ignores prose, list markers, and images; it extracts the grammar by scanning ATX
-headings and fenced code blocks whose info string begins with `grammark`.
+headings and fenced code blocks whose info string begins with `gramark`.
 
 - **Grammar name.** The single `# H1`. There MUST be exactly one.
 - **Nonterminal rules.** Every non-reserved `## H2` names a nonterminal; the
@@ -149,7 +149,7 @@ emitted `Visitor<T>` — exactly ANTLR's `visitMulDiv` pattern, and
 host-language-agnostic. Inline lambdas, by contrast, pin the grammar to one host
 (PureScript). So:
 
-```grammark
+```gramark
 expr
   : expr '*' term   # MulDiv
   | expr '+' term   # AddSub
@@ -160,7 +160,7 @@ emits `interface Visitor<T> { MulDiv(c): T; AddSub(c): T; Int(c): T; … }` — 
 fill in the methods in your host language, no inline lambda required. Inline
 `{% … %}` stays available for one-liners where a visitor class is overkill.
 
-## 5. The IR contract — `grammark-ir`
+## 5. The IR contract — `gramark-ir`
 
 The compiler emits the analyzed grammar and its parse tables as a versioned JSON
 document, the [IR schema](../ir-schema/). Every backend reads only this artifact —
@@ -196,7 +196,7 @@ isolating target generators from Markdown processing and layout entirely.
 }
 ```
 
-## 6. The CST contract — `grammark-cst`
+## 6. The CST contract — `gramark-cst`
 
 An action-free grammar still fully defines a **concrete syntax tree**: a `branch`
 per reduced production (tagged with its `rules[]` index) and a `token` leaf per
@@ -204,7 +204,7 @@ consumed terminal, children in source order. This generic tree is the portable
 artifact any backend can emit and any host can walk; its shape is fixed by the
 [CST schema](../cst-schema/). The spanned tokenizer carries exact source ranges,
 so a tool can link a CST node back to both its production and its input slice —
-the substrate the [Lab](/grammark/lab) uses for hover-linking.
+the substrate the [Lab](/gramark/lab) uses for hover-linking.
 
 ## 7. Table construction and conflicts
 

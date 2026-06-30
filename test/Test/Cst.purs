@@ -2,7 +2,7 @@
 -- |
 -- | Parses a representative `lr` input into a `Cst`, locks its serialized JSON
 -- | against a golden (so any change to the tree shape or encoding is caught),
--- | and asserts it honors the `grammark-cst` contract: every branch's rule id
+-- | and asserts it honors the `gramark-cst` contract: every branch's rule id
 -- | is a real production index. To regenerate after an intended change, delete
 -- | `test/golden/lr.cst.json` and run the suite once.
 module Test.Cst (tests) where
@@ -14,11 +14,11 @@ import Data.Either (Either(..))
 import Data.String (joinWith)
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Bootstrap (bootstrapGrammar)
-import Grammark.Conformance (parseCst)
-import Grammark.Conformance.Lexers (lrLexer)
-import Grammark.Cst (serialize, validate)
-import Grammark.Table (Method(Canonical), productions)
+import Gramark.Bootstrap (bootstrapGrammar)
+import Gramark.Conformance (parseCst)
+import Gramark.Conformance.Lexers (lrLexer)
+import Gramark.Cst (serialize, validate)
+import Gramark.Table (Method(Canonical), productions)
 import Test.Assert (assert')
 import Test.Golden as Golden
 
@@ -29,7 +29,7 @@ sample = "Sum\n: Sum '+' NUM   {% \\a _ b -> a %}\n| NUM"
 
 tests :: Effect Unit
 tests = do
-  log "  cst: a representative parse builds a tree honoring grammark-cst"
+  log "  cst: a representative parse builds a tree honoring gramark-cst"
   case parseCst lrLexer Canonical bootstrapGrammar sample of
     Left e -> assert' ("could not parse the sample input: " <> e) false
     Right cst -> do

@@ -1,5 +1,5 @@
 ---
-import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
+import { getDefaultGrammar, getDefaultInput } from "../lib/gramark-runtime.ts";
 ---
 
 <html lang="en">
@@ -7,22 +7,22 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Grammark Lab</title>
+    <title>Gramark Lab</title>
   </head>
   <body>
     <main
       style="max-width: 1200px; margin: 0 auto; padding: 2rem; font-family: Inter, sans-serif;"
     >
-      <h1>Grammark Lab</h1>
+      <h1>Gramark Lab</h1>
       <p>
-        Grammar evaluation in your browser, running the real Grammark engine
-        (the compiled PureScript core). It lexes input from the grammar's
-        literal terminals <em>and</em> any token classes (ALL-CAPS names like
+        Grammar evaluation in your browser, running the real Gramark engine (the
+        compiled PureScript core). It lexes input from the grammar's literal
+        terminals <em>and</em> any token classes (ALL-CAPS names like
         <code>NUMBER</code> declared as <code>NUMBER : /[0-9]+/</code> — in a
         <code>## Tokens</code> block, or as bare lines in the raw <code
           >.grmk</code
         > form shown here), then parses with the LR tables — the same verdict the
-        <code>grammark</code> CLI gives. Edits re-evaluate live.
+        <code>gramark</code> CLI gives. Edits re-evaluate live.
       </p>
       <p style="font-size: 0.85rem; color: #6b7280; margin-top: -0.5rem;">
         <strong>What's live:</strong> lexing, LR parsing, and the accept/reject verdict,
@@ -75,7 +75,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
         <h2>Railroad diagrams</h2>
         <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
           One per rule, drawn live from the grammar above — the same SVGs <code
-            >grammark fmt</code
+            >gramark fmt</code
           > writes back into a <code>.grmk.md</code>.
         </p>
         <div
@@ -95,7 +95,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
             >resolved by declaration</em
           > (your <code>%left</code>/<code>%right</code> lines clear it), or a
           <em>genuine</em> conflict. The same as <code
-            >grammark explain-conflict</code
+            >gramark explain-conflict</code
           >.
         </p>
         <pre
@@ -152,7 +152,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
     </main>
 
     <script type="module">
-      import { parseGrammarkDocument } from "/src/lib/grammark-runtime.ts";
+      import { parseGramarkDocument } from "/src/lib/gramark-runtime.ts";
       import { renderDiagrams } from "/src/lib/diagrams.ts";
 
       const grammarInput = document.getElementById("grammar-input");
@@ -173,7 +173,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
         resultOutput.textContent = "Evaluating in the browser…";
         diagnosticsList.innerHTML = "";
 
-        const result = await parseGrammarkDocument(grammarSource, input);
+        const result = await parseGramarkDocument(grammarSource, input);
 
         statusPill.textContent = result.success ? "Accepted" : "Rejected";
         statusPill.style.color = result.success ? "#15b879" : "#dc2626";

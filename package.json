@@ -1,10 +1,10 @@
 {
-  "name": "grammark",
+  "name": "gramark",
   "version": "0.0.0",
   "private": true,
   "description": "Grammars that render themselves — an LR(1) parser generator whose grammars are lint-clean Markdown (.grmk.md).",
   "bin": {
-    "grammark": "bin/grammark.mjs"
+    "gramark": "bin/gramark.mjs"
   },
   "files": [
     "bin/",

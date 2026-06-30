@@ -1,16 +1,16 @@
 {
-  "name": "grammark-bootstrap",
+  "name": "gramark-bootstrap",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Disposable TypeScript bridge implementing `grammark --check` until the PureScript core is self-hosting.",
+  "description": "Disposable TypeScript bridge implementing `gramark --check` until the PureScript core is self-hosting.",
   "bin": {
-    "grammark": "./grammark-check.ts"
+    "gramark": "./gramark-check.ts"
   },
   "scripts": {
-    "check": "node grammark-check.ts",
+    "check": "node gramark-check.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test grammark-check.test.ts railroad.test.ts analyze.test.ts emitted-parser.test.ts",
+    "test": "node --test gramark-check.test.ts railroad.test.ts analyze.test.ts emitted-parser.test.ts",
     "lint:md": "node lint-docs.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

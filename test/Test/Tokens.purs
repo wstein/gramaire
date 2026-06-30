@@ -10,7 +10,7 @@ import Data.Maybe (Maybe(..))
 import Data.String (joinWith)
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Tokens (TokenDef, TokenPattern(..), parseTokens)
+import Gramark.Tokens (TokenDef, TokenPattern(..), parseTokens)
 import Test.Assert (assert')
 
 -- The §10 `lr` tokens block.

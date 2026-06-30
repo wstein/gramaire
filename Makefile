@@ -1,13 +1,13 @@
 .PHONY: help install build dev test format lint clean all
 
-# Grammark project task manager
+# Gramark project task manager
 # Provides a unified interface for building, testing, and developing across:
 # - Core PureScript compiler (via Spago)
 # - Documentation site (via Astro/npm in site/)
 # - Bootstrap bridge (via npm in bootstrap/)
 
 help:
-	@echo "Grammark - Make targets"
+	@echo "Gramark - Make targets"
 	@echo ""
 	@echo "Setup & Installation:"
 	@echo "  make install       Install all dependencies (Spago, site npm, bootstrap npm)"

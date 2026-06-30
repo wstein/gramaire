@@ -1,20 +1,20 @@
-# Grammark — brand
+# Gramark — brand
 
 ## The idea
 
 The name is _gram + mark_ — grammar plus Markdown. The mark is a tiny
 **railroad rule**: a track enters a node and forks into two alternatives —
-exactly what Grammark turns a grammar into. The accent is a "valid / passes
+exactly what Gramark turns a grammar into. The accent is a "valid / passes
 the gate" emerald, because the whole tool is about grammars that render
 clean and check green.
 
 ## Logo
 
-- **Logomark** (`grammark-logomark.svg`) — the railroad node + fork. Square,
+- **Logomark** (`gramark-logomark.svg`) — the railroad node + fork. Square,
   transparent, works as a GitHub avatar or favicon. Reads down to 16 px.
-- **Wordmark** (`grammark-wordmark.svg`) — logomark + _Gram·mark_, where the
+- **Wordmark** (`gramark-wordmark.svg`) — logomark + _Gram·mark_, where the
   `mark` half is emerald so the compound reads at a glance.
-- **Dark variant** (`grammark-wordmark-dark.svg`) — for dark READMEs; ink
+- **Dark variant** (`gramark-wordmark-dark.svg`) — for dark READMEs; ink
   becomes off-white, the emerald brightens for contrast.
 
 Clear space: keep at least the node's height of empty space on all sides.
@@ -39,7 +39,7 @@ wordmark — don't spread it across UI; it should always read as "valid."
 - **Wordmark / headings:** a geometric sans — Inter (700, tight tracking) is
   the reference. Outline the text to paths for production logo files.
 - **Code, grammars, CLI:** a monospace — JetBrains Mono or the system mono.
-  Grammar payloads, `grammark` blocks, and `grammark --check` output are always
+  Grammar payloads, `gramark` blocks, and `gramark --check` output are always
   monospace.
 
 ## Voice

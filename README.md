@@ -1,10 +1,10 @@
-# Grammark
+# Gramark
 
-![Grammark](brand/grammark-wordmark.svg)
+![Gramark](brand/gramark-wordmark.svg)
 
-[![CI](https://github.com/wstein/grammark/actions/workflows/ci.yml/badge.svg)](https://github.com/wstein/grammark/actions/workflows/ci.yml)
+[![CI](https://github.com/wstein/gramark/actions/workflows/ci.yml/badge.svg)](https://github.com/wstein/gramark/actions/workflows/ci.yml)
 
-**Grammars that render themselves.** Grammark is an LR parser generator whose
+**Grammars that render themselves.** Gramark is an LR parser generator whose
 source format _is_ Markdown: a `.grmk.md` file is a normal document that
 renders on GitHub — prose, railroad diagrams, FIRST/FOLLOW tables — and is at
 the same time the exact input the generator reads. The productions live in
@@ -14,7 +14,7 @@ the grammar.
 Here is what a rule looks like — productions on the left, an optional
 semantic action between `{%` and `%}` carried verbatim to codegen:
 
-```grammark
+```gramark
 Expr
   : Expr `+` Term   {% \l _ r -> Add l r %}
   | Expr `-` Term   {% \l _ r -> Sub l r %}
@@ -23,15 +23,15 @@ Expr
 
 ![Railroad diagram for the Expr rule](examples/diagrams/calc/expr.svg)
 
-On GitHub that fence renders as a code block; to Grammark it is the `Expr`
+On GitHub that fence renders as a code block; to Gramark it is the `Expr`
 rule. The prose around it, the railroad diagram beside it, and the
 FIRST/FOLLOW table below it are all the same document.
 
 The real implementation is PureScript (under [`src/`](src/)). It is
-self-hosting by design: Grammark's own notation is described, in itself, in
+self-hosting by design: Gramark's own notation is described, in itself, in
 [`grammar/lr.grmk.md`](grammar/lr.grmk.md), and the generated parser must read
 that file back to a value equal to the hand-written
-[`Grammark.Bootstrap`](src/Grammark/Bootstrap.purs) literal.
+[`Gramark.Bootstrap`](src/Gramark/Bootstrap.purs) literal.
 
 ## The `.grmk.md` format
 
@@ -54,7 +54,7 @@ trip the renderer or the linter.
 
 Every grammar in this repository is a working demonstration of the format:
 each renders on GitHub as the page you would have written by hand, and each
-passes `grammark --check`. See for yourself —
+passes `gramark --check`. See for yourself —
 
 - [`examples/json.grmk.md`](examples/json.grmk.md) — the complete JSON
   grammar (RFC 8259). A full, instantly recognisable language on one
@@ -72,19 +72,19 @@ not a grammar. This file is a window onto those grammars, not itself one.
 
 The PureScript generator is still being bootstrapped, so today the runnable
 tool is the small TypeScript bridge in [`bootstrap/`](bootstrap/) — it
-implements `grammark --check` (structure, drift, and lint gates) and `grammark
+implements `gramark --check` (structure, drift, and lint gates) and `gramark
 fmt` (railroad diagrams + lock) over any `.grmk.md` file. Node 22+ runs it
 directly:
 
 ```sh
 # check a grammar file against the fmt output contract
-node bootstrap/grammark-check.ts examples/json.grmk.md
+node bootstrap/gramark-check.ts examples/json.grmk.md
 
 # format: emit real railroad diagrams and the sidecar *.grmk.lock
-node bootstrap/grammark-check.ts fmt grammar/lr.grmk.md
+node bootstrap/gramark-check.ts fmt grammar/lr.grmk.md
 
 # ...or embed the diagrams as GitHub-native mermaid instead of sidecar SVGs
-node bootstrap/grammark-check.ts fmt --diagrams=mermaid grammar/lr.grmk.md
+node bootstrap/gramark-check.ts fmt --diagrams=mermaid grammar/lr.grmk.md
 ```
 
 To work on the bridge itself (typecheck + unit tests):
@@ -107,37 +107,37 @@ spago build --strict --pedantic-packages
 spago test
 ```
 
-The core also ships a **native PureScript CLI**, `grammark emit`, which reads a
-`.grmk.md`, lowers it to `grammark-ir`, and runs a backend over the IR — with no
+The core also ships a **native PureScript CLI**, `gramark emit`, which reads a
+`.grmk.md`, lowers it to `gramark-ir`, and runs a backend over the IR — with no
 TypeScript bridge involved. After `spago build`:
 
 ```sh
-# print the canonical grammark-ir JSON (the default `ir` backend)
-node bin/grammark.mjs emit examples/json.grmk.md
+# print the canonical gramark-ir JSON (the default `ir` backend)
+node bin/gramark.mjs emit examples/json.grmk.md
 
 # render the grammar as EBNF via the `ebnf` format backend
-node bin/grammark.mjs emit examples/calc.grmk.md --backend ebnf
+node bin/gramark.mjs emit examples/calc.grmk.md --backend ebnf
 
 # write the artifact into a directory instead of stdout
-node bin/grammark.mjs emit examples/json.grmk.md --backend ebnf --out gen/
+node bin/gramark.mjs emit examples/json.grmk.md --backend ebnf --out gen/
 
 # run the differential-oracle conformance suite over the built-in lr corpus
-node bin/grammark.mjs conformance
+node bin/gramark.mjs conformance
 ```
 
 ## Repository layout
 
-| Path            | What lives there                                                    |
-| --------------- | ------------------------------------------------------------------- |
-| `src/Grammark/` | Core: lexer, tables, parser, `grammark-ir`, codegen, backends, CLI. |
-| `bin/`          | `grammark.mjs` — entry shim for the native PureScript CLI.          |
-| `spec/`         | `ir-schema.json` (IR contract) and `incremental-spec.md` (CST/LSP). |
-| `grammar/`      | `lr.grmk.md` — the `lr` notation described in itself.               |
-| `examples/`     | Worked grammars: `json`, `calc`, and the `readme` meta demo.        |
-| `bootstrap/`    | Disposable TypeScript `grammark --check` bridge (its README).       |
-| `brand/`        | Logo and wordmark SVGs.                                             |
-| `docs/`         | Branding, the `fmt` contract, the multi-backend plan.               |
-| `test/`         | PureScript tests (self-host, IR, codegen, backends, conformance).   |
+| Path           | What lives there                                                    |
+| -------------- | ------------------------------------------------------------------- |
+| `src/Gramark/` | Core: lexer, tables, parser, `gramark-ir`, codegen, backends, CLI.  |
+| `bin/`         | `gramark.mjs` — entry shim for the native PureScript CLI.           |
+| `spec/`        | `ir-schema.json` (IR contract) and `incremental-spec.md` (CST/LSP). |
+| `grammar/`     | `lr.grmk.md` — the `lr` notation described in itself.               |
+| `examples/`    | Worked grammars: `json`, `calc`, and the `readme` meta demo.        |
+| `bootstrap/`   | Disposable TypeScript `gramark --check` bridge (its README).        |
+| `brand/`       | Logo and wordmark SVGs.                                             |
+| `docs/`        | Branding, the `fmt` contract, the multi-backend plan.               |
+| `test/`        | PureScript tests (self-host, IR, codegen, backends, conformance).   |
 
 ## Status
 
@@ -150,40 +150,40 @@ methods against each other (an LR(1)-but-not-LALR(1) grammar is accepted by
 canonical, rejected by LALR, and recovered by IELR).
 
 The front end also lowers a grammar and its tables into
-[`grammark-ir`](src/Grammark/IR.purs) — the versioned, canonically serialized
-JSON artifact that every backend will target (`Grammark.IR`, with the canonical
-serializer in `Grammark.Json`). `Test.IR` locks the emitted JSON against
+[`gramark-ir`](src/Gramark/IR.purs) — the versioned, canonically serialized
+JSON artifact that every backend will target (`Gramark.IR`, with the canonical
+serializer in `Gramark.Json`). `Test.IR` locks the emitted JSON against
 checked-in goldens for the `lr` and `json` grammars. A first backend,
-[`Grammark.Backend.Ebnf`](src/Grammark/Backend/Ebnf.purs), consumes that IR —
+[`Gramark.Backend.Ebnf`](src/Gramark/Backend/Ebnf.purs), consumes that IR —
 and nothing else — to render a grammar as W3C-style EBNF, proving the narrow
 waist end to end. The emitted IR is validated against its JSON Schema
 ([`spec/ir-schema.json`](spec/ir-schema.json)) by `Test.Schema` for every
-grammar, and a differential-oracle conformance suite (`grammark conformance`,
+grammar, and a differential-oracle conformance suite (`gramark conformance`,
 `Test.Conformance`) checks that accept/reject vectors agree under all three
-methods. The IR also round-trips: [`Grammark.IR.Decode`](src/Grammark/IR/Decode.purs)
+methods. The IR also round-trips: [`Gramark.IR.Decode`](src/Gramark/IR/Decode.purs)
 parses serialized IR back and rebuilds the exact parse table, so the interpreter
 runs from the artifact alone. When a grammar is not LR(1),
-[`Grammark.Diagnostics`](src/Grammark/Diagnostics.purs) reports the conflict in
+[`Gramark.Diagnostics`](src/Gramark/Diagnostics.purs) reports the conflict in
 the author's own rules with a suggested fix, rather than in raw state numbers.
 
 Source-emitting codegen is now real: the `lr` grammar's `reduce` is
 **generated** from the IR plus a typed-AST profile
-([`Grammark.Codegen`](src/Grammark/Codegen.purs) →
-[`Grammark.Generated.LrReduce`](src/Grammark/Generated/LrReduce.purs)) and
+([`Gramark.Codegen`](src/Gramark/Codegen.purs) →
+[`Gramark.Generated.LrReduce`](src/Gramark/Generated/LrReduce.purs)) and
 proven by `Test.Codegen` — self-hosting runs through the generated reduce. The
-hand-written [`Grammark.Lr`](src/Grammark/Lr.purs) reduce stays the reference
+hand-written [`Gramark.Lr`](src/Gramark/Lr.purs) reduce stays the reference
 the generator reproduces.
 
-The bridge's `grammark fmt` emits real railroad diagrams — sidecar SVGs by
+The bridge's `gramark fmt` emits real railroad diagrams — sidecar SVGs by
 default, or GitHub-native mermaid fences with `--diagrams=mermaid` — and every
 grammar's FIRST/FOLLOW table is machine-checked against the parser's own
-analysis (`Test.FirstFollow`). Still ahead: the rest of `grammark fmt`
+analysis (`Test.FirstFollow`). Still ahead: the rest of `gramark fmt`
 (canonical reformatting, table regeneration) in PureScript. Until that lands,
-the TypeScript bridge keeps `grammark --check`/`fmt` usable from commit one; see
+the TypeScript bridge keeps `gramark --check`/`fmt` usable from commit one; see
 [`bootstrap/README.md`](bootstrap/README.md) for its delete-me conditions — the
 self-host half of which now holds.
 
-The road from here — the `grammark-ir` narrow waist, source-emitting codegen,
+The road from here — the `gramark-ir` narrow waist, source-emitting codegen,
 multi-language backends, and the incremental CST/LSP runtime
 ([`spec/incremental-spec.md`](spec/incremental-spec.md)) — is laid out in the
 [multi-backend implementation plan](docs/multi-backend-implementation-plan.md).

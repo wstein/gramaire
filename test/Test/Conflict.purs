@@ -12,8 +12,8 @@ import Data.Either (isLeft, isRight)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
-import Grammark.Table (Method(Canonical), buildTablesFor, buildTablesForP, parsePrecedence)
+import Gramark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
+import Gramark.Table (Method(Canonical), buildTablesFor, buildTablesForP, parsePrecedence)
 import Test.Assert (assert')
 
 -- The ambiguous expression grammar (NOT stratified): both operators recurse on

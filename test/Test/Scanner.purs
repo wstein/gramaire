@@ -8,8 +8,8 @@ import Data.Either (Either(..))
 import Data.String (joinWith)
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Scanner (buildItems, hasError, scan)
-import Grammark.Tokens (parseTokens)
+import Gramark.Scanner (buildItems, hasError, scan)
+import Gramark.Tokens (parseTokens)
 import Test.Assert (assert')
 
 idTokens :: String

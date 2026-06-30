@@ -12,10 +12,10 @@ import Data.Either (Either(..), isLeft)
 import Data.String (Pattern(..), contains, joinWith)
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Glr (explain, explainP)
-import Grammark.IR (buildIR, buildIRP)
-import Grammark.Lr (parse, precedenceOf)
-import Grammark.Table (Method(Canonical))
+import Gramark.Glr (explain, explainP)
+import Gramark.IR (buildIR, buildIRP)
+import Gramark.Lr (parse, precedenceOf)
+import Gramark.Table (Method(Canonical))
 import Test.Assert (assert')
 
 -- The natural, ambiguous calculator grammar plus declared precedence.
@@ -25,7 +25,7 @@ ambiguousCalc = joinWith "\n"
   , ""
   , "## expr"
   , ""
-  , "```grammark"
+  , "```gramark"
   , "expr"
   , "  : expr '+' expr   {% \\l _ r -> Add l r %}"
   , "  | expr '*' expr   {% \\l _ r -> Mul l r %}"
@@ -34,7 +34,7 @@ ambiguousCalc = joinWith "\n"
   , ""
   , "## Precedence"
   , ""
-  , "```grammark precedence"
+  , "```gramark precedence"
   , "%left '+'"
   , "%left '*'"
   , "```"

@@ -1,4 +1,4 @@
-# Grammark incremental + LSP specification
+# Gramark incremental + LSP specification
 
 Status: **draft**, tracks `irVersion: 0`. Normative for the Phase F runtime
 work (`[S16]`, `[S19]`) and the CST-first north star (ADR D7). Keywords MUST,
@@ -42,7 +42,7 @@ Requirements:
 - **R2 (CST first).** The tree MUST be buildable with no semantic actions. A
   typed AST is a *fold over the CST* supplied by an action profile, never a
   prerequisite for producing the tree (ADR D7). The hand-written reduce in
-  `Grammark.Lr` and the generated reduce (`[S2]`) are two such folds.
+  `Gramark.Lr` and the generated reduce (`[S2]`) are two such folds.
 - **R3 (stable identity).** Every Node has an identity that is preserved when an
   edit reuses its subtree unchanged (Section 5). Editors rely on identity to
   diff trees cheaply; reuse MUST imply identity, and identity MUST NOT survive a
@@ -90,7 +90,7 @@ A parser used in an editor sees incomplete and invalid input on most
 keystrokes, so recovery is mandatory, not optional.
 
 - **R9 (never throw).** Parsing malformed input MUST yield a tree with one or
-  more `Error` nodes; it MUST NOT abort. (`Grammark.Parser.ParseError` is the
+  more `Error` nodes; it MUST NOT abort. (`Gramark.Parser.ParseError` is the
   *batch* failure mode; the incremental runtime instead embeds errors in the
   tree.)
 - **R10 (strategy).** On an unexpected token in state `s`: when local repair is
@@ -117,7 +117,7 @@ keystrokes, so recovery is mandatory, not optional.
   **before** the engine implements it (the debate's spec-first rule); it joins
   the corpus when R13 ships, and until then is documented here, not asserted.
 
-  ```grammark
+  ```gramark
   Stmts : Stmt | Stmts Stmt
   Stmt  : Expr ';'        # Ok
         | error ';'       # Recovered   {% \_ _ -> Recovered %}
@@ -181,7 +181,7 @@ diagnostics(tree)               -> [Diagnostic]    // from Error nodes
 ```
 
 The PureScript first-party runtime mirrors this alongside the existing
-value-producing driver in [`Parser.purs`](../src/Grammark/Parser.purs) (`run`
+value-producing driver in [`Parser.purs`](../src/Gramark/Parser.purs) (`run`
 folds the tree into semantic values; the CST runtime builds the `Tree` itself):
 
 ```purescript
@@ -191,7 +191,7 @@ errors :: Tree -> Array Diagnostic
 ```
 
 `Tree`, `Node`, `Edit`, and `Diagnostic` are defined by this spec; `ParseTable`,
-`Action`, and `GSym` are reused unchanged from `Grammark.Table`.
+`Action`, and `GSym` are reused unchanged from `Gramark.Table`.
 
 ## 7. GLR interaction
 
@@ -242,7 +242,7 @@ is no real filesystem (a browser).
 - **R18.** The runtime and the language server MUST operate over an abstract
   document store (text by URI), never Node's `fs` directly. The same build MUST
   run in Node, a web worker, and the browser.
-- **R19.** The `grammark` toolchain that *generates* parsers SHOULD run over a
+- **R19.** The `gramark` toolchain that *generates* parsers SHOULD run over a
   virtual filesystem (e.g. memfs), so the web playground can generate a parser
   and parse input entirely in-browser (the ANTLR-ng memfs lesson).
 
@@ -303,7 +303,7 @@ plan ADR that resolves it, so the spec and plan agree.
    mode its expected error tree assumes, so C3 holds per mode. Repair is promoted
    to a default only after the descriptor corpus measures its quality.
 3. **Error-message text — Core-owned, localization deferred (ADR D17).** Message
-   text lives in the grammar's `grammark errors` block as one canonical set, keyed by
+   text lives in the grammar's `gramark errors` block as one canonical set, keyed by
    the D6 hybrid item-set signature. It is not a per-target profile (errors are
    input-facing prose, not host code) and not per-locale in v0; localization is
    an additive runtime/LSP catalog keyed by the same ids, with no consumer yet.

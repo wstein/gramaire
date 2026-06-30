@@ -1,11 +1,11 @@
-# Product Specification — Grammark Lab
+# Product Specification — Gramark Lab
 
 > A browser-native grammar laboratory. Edit a `.grmk.md` grammar, watch it
 > build, parse input live, and see _why_ — conflicts, parse trees, ambiguity,
 > generated parsers — with no server and sub-frame feedback.
 
 Status: **draft / north-star**. Tiers 1–3 are the roadmap; every feature is
-grounded in a capability the Grammark Core already exposes, so the target Lab is
+grounded in a capability the Gramark Core already exposes, so the target Lab is
 a thin skin over real machinery, never a mock.
 
 > **Current state (be honest about it).** The shipping Lab is a limited
@@ -27,7 +27,7 @@ rejected you get `unexpected token`. The _grammar author's_ questions — "which
 two of **my** rules collide?", "is this a real ambiguity or just an LALR
 artifact?", "what tree did this input actually produce?" — go unanswered.
 
-Grammark Lab answers them, in the browser, as you type. It is best-in-class on
+Gramark Lab answers them, in the browser, as you type. It is best-in-class on
 one axis none of the incumbents own: **the grammar is Markdown**, so the Lab is
 simultaneously a live editor, a rendering documentation preview, and a
 diagnostic oracle. The same PureScript Core that powers the CLI is compiled to
@@ -37,10 +37,10 @@ nothing to install.
 **Design tenets.**
 
 1. _No black box._ Every error is phrased in the author's own rules, never in
-   LR-item jargon (the Core's `Grammark.Diagnostics` already does this).
+   LR-item jargon (the Core's `Gramark.Diagnostics` already does this).
 2. _No server._ 100% client-side; a grammar never leaves the tab.
 3. _One source of truth._ The Lab uses the real Core, not a re-implementation —
-   what the Lab accepts, `grammark` accepts.
+   what the Lab accepts, `gramark` accepts.
 4. _Documentation is the artifact._ The thing you share renders as docs on
    GitHub and is the exact compiler input.
 
@@ -51,21 +51,21 @@ nothing to install.
 Seven established grammar workbenches, scored on the dimensions that matter for
 fast, visual grammar development. `●` full, `◐` partial, `○` absent.
 
-| Dimension                           | ANTLR Lab | Chevrotain | Nearley | LALRPOP (IDE) | RR/UI (bottlecaps) | Peggy | Flatbars Lab | **Grammark Lab** |
-| ----------------------------------- | :-------: | :--------: | :-----: | :-----------: | :----------------: | :---: | :----------: | :--------------: |
-| Runs in-browser (no server)         |     ○     |     ●      |    ●    |       ○       |         ●          |   ●   |      ●       |        ●         |
-| Declarative grammar (not host code) |     ●     |     ○      |    ◐    |       ●       |         ●          |   ◐   |      ◐       |        ●         |
-| Live evaluate input → result        |     ●     |     ●      |    ●    |       ○       |         ○          |   ●   |      ●       |        ●         |
-| Interactive parse tree / CST        |     ●     |     ●      |    ◐    |       ○       |         ○          |   ◐   |      ○       |        ●         |
-| Token stream linked to source       |     ◐     |     ●      |    ○    |       ○       |         ○          |   ○   |      ◐       |        ●         |
-| Railroad diagrams                   |     ◐     |     ●      |    ○    |       ○       |         ●          |   ○   |      ○       |        ●         |
-| FIRST/FOLLOW + state introspection  |     ○     |     ○      |    ○    |       ○       |         ○          |   ○   |      ○       |        ●         |
-| Grammar-relative conflict messages  |     ○     |     ○      |    ○    |       ●       |         ○          |   ○   |      ◐       |        ●         |
-| Ambiguity / all-parses view         |     ○     |     ○      |    ●    |       ○       |         ○          |   ○   |      ○       |        ●         |
-| Error-recovery preview              |     ◐     |     ○      |    ○    |       ○       |         ○          |   ◐   |      ○       |        ◐         |
-| Multi-target codegen export         |     ●     |     ○      |    ○    |       ●       |         ○          |   ○   |      ○       |        ●         |
-| Doc-as-grammar (renders as docs)    |     ○     |     ○      |    ○    |       ○       |         ○          |   ○   |      ○       |        ●         |
-| Dense share link / permalink        |     ○     |     ○      |    ○    |       ○       |         ◐          |   ◐   |      ●       |        ●         |
+| Dimension                           | ANTLR Lab | Chevrotain | Nearley | LALRPOP (IDE) | RR/UI (bottlecaps) | Peggy | Flatbars Lab | **Gramark Lab** |
+| ----------------------------------- | :-------: | :--------: | :-----: | :-----------: | :----------------: | :---: | :----------: | :-------------: |
+| Runs in-browser (no server)         |     ○     |     ●      |    ●    |       ○       |         ●          |   ●   |      ●       |        ●        |
+| Declarative grammar (not host code) |     ●     |     ○      |    ◐    |       ●       |         ●          |   ◐   |      ◐       |        ●        |
+| Live evaluate input → result        |     ●     |     ●      |    ●    |       ○       |         ○          |   ●   |      ●       |        ●        |
+| Interactive parse tree / CST        |     ●     |     ●      |    ◐    |       ○       |         ○          |   ◐   |      ○       |        ●        |
+| Token stream linked to source       |     ◐     |     ●      |    ○    |       ○       |         ○          |   ○   |      ◐       |        ●        |
+| Railroad diagrams                   |     ◐     |     ●      |    ○    |       ○       |         ●          |   ○   |      ○       |        ●        |
+| FIRST/FOLLOW + state introspection  |     ○     |     ○      |    ○    |       ○       |         ○          |   ○   |      ○       |        ●        |
+| Grammar-relative conflict messages  |     ○     |     ○      |    ○    |       ●       |         ○          |   ○   |      ◐       |        ●        |
+| Ambiguity / all-parses view         |     ○     |     ○      |    ●    |       ○       |         ○          |   ○   |      ○       |        ●        |
+| Error-recovery preview              |     ◐     |     ○      |    ○    |       ○       |         ○          |   ◐   |      ○       |        ◐        |
+| Multi-target codegen export         |     ●     |     ○      |    ○    |       ●       |         ○          |   ○   |      ○       |        ●        |
+| Doc-as-grammar (renders as docs)    |     ○     |     ○      |    ○    |       ○       |         ○          |   ○   |      ○       |        ●        |
+| Dense share link / permalink        |     ○     |     ○      |    ○    |       ○       |         ◐          |   ◐   |      ●       |        ●        |
 
 ### Per-tool teardown
 
@@ -100,27 +100,27 @@ fast, visual grammar development. `●` full, `◐` partial, `○` absent.
 No incumbent combines (a) in-browser execution, (b) a declarative,
 portable-as-documentation grammar, and (c) deep, author-relative introspection —
 conflicts named in your rules, the LALR-artifact-vs-genuine verdict, all parses
-of an ambiguous grammar, and one-click codegen. That intersection is Grammark
+of an ambiguous grammar, and one-click codegen. That intersection is Gramark
 Lab's lane, and every piece of it already exists in the Core.
 
 ---
 
-## 3. What only Grammark Lab can do
+## 3. What only Gramark Lab can do
 
 These map one-to-one onto Core modules already in the repository, which is what
 keeps the Lab honest:
 
-- **Conflicts in your rules.** `Grammark.Diagnostics.renderConflict` turns
+- **Conflicts in your rules.** `Gramark.Diagnostics.renderConflict` turns
   `shift/reduce in state 7` into "shift `+` vs reduce `Expr -> Expr + Expr`",
-  ready to underline the competing productions in the `grammark` block.
-- **"Artifact or genuine?"** `Grammark.Glr.explain` builds the grammar under all
+  ready to underline the competing productions in the `gramark` block.
+- **"Artifact or genuine?"** `Gramark.Glr.explain` builds the grammar under all
   three methods and reports whether a conflict is an **LALR artifact** (canonical
   / IELR resolve it — "switch to IELR") or **genuine** (the grammar is not LR(1))
   — a verdict no other playground gives.
-- **All the parses.** `Grammark.Glr.forest` returns _every_ derivation of an
+- **All the parses.** `Gramark.Glr.forest` returns _every_ derivation of an
   ambiguous grammar, so the Lab can show the two trees of `1+1+1` side by side.
 - **Source ⇄ tree ⇄ input hover-linking.** The spanned tokenizer
-  (`Grammark.Lexer.tokenizeSpanned`) and the generic CST
+  (`Gramark.Lexer.tokenizeSpanned`) and the generic CST
   (`spec/cst-schema.json`) carry exact source ranges, so hovering a CST node can
   highlight both the production and the matched input slice.
 - **Live, real artifacts.** The same backends the CLI ships —
@@ -145,7 +145,7 @@ can be built without new engine work unless noted.
 - **T0.2 Evaluate (preview).** Today: a client-side recognizer lexes input from
   the grammar's literal terminals and reports **accept / reject**; grammars that
   use token classes are declined with a clear message. **Tier 1 replaces this
-  with `Grammark.Lr.parse` + the real table-driven parser** (the honest version
+  with `Gramark.Lr.parse` + the real table-driven parser** (the honest version
   of this feature).
 - **T0.3 Inline diagnostics.** Build / evaluation messages surfaced in the UI.
 - **T0.4 Permalink.** Compress `{grammar, input, layout}` into the URL so a state
@@ -154,16 +154,16 @@ can be built without new engine work unless noted.
 ### Tier 1 — the workbench
 
 - **T1.0 Real Core in the browser (the keystone).** Compile the PureScript Core
-  to ES modules and run `Grammark.Lr.parse` → desugar → table build → CST in a
+  to ES modules and run `Gramark.Lr.parse` → desugar → table build → CST in a
   Web Worker, replacing the TypeScript preview recognizer. Everything else in
   Tier 1+ depends on this. The Core's FS-freedom guard means the parse path has
   no `node:fs`, so it bundles for the browser unchanged. (Input lexing for token
   classes still needs a per-language lexer — ship a small built-in set and/or let
   the grammar declare one.)
-- **T1.1 Monaco dual-pane** with `.grmk.md` highlighting (Markdown + an `grammark`
+- **T1.1 Monaco dual-pane** with `.grmk.md` highlighting (Markdown + an `gramark`
   fenced-block grammar mode), a diagnostics gutter in both panes, and debounced
   re-evaluation on every keystroke (target < 16 ms for small grammars).
-- **T1.2 Interactive CST explorer.** Render the `grammark-cst` tree
+- **T1.2 Interactive CST explorer.** Render the `gramark-cst` tree
   (collapsible). Branch nodes show their rule; token leaves show terminal + text.
 - **T1.3 Hover-linking (the signature feature).** Hover a CST branch → underline
   its production in the grammar pane; hover a token leaf → highlight its source
@@ -172,22 +172,22 @@ can be built without new engine work unless noted.
   and list the **expected terminals**; offer one-click insertion of a valid next
   token into the input.
 - **T1.5 Conflict underlining.** On a non-LR(1) build, underline the competing
-  productions in the `grammark` block (from `renderConflict`) instead of printing a
+  productions in the `gramark` block (from `renderConflict`) instead of printing a
   state number.
 
 ### Tier 2 — the oracle
 
 - **T2.1 Method switch + comparison.** Toggle Canonical / LALR / IELR; show
   per-method state count and conflict count; flag **LALR artifacts** with a
-  "build with IELR" affordance (`Grammark.Glr.explain`).
+  "build with IELR" affordance (`Gramark.Glr.explain`).
 - **T2.2 Ambiguity view.** When a grammar is ambiguous, render the parse
   **forest** — each distinct CST of the current input — from
-  `Grammark.Glr.forest`.
+  `Gramark.Glr.forest`.
 - **T2.3 Live railroad + FIRST/FOLLOW drawer.** Re-render the railroad SVG under
   each rule as you type, and show the generated FIRST/FOLLOW table (the same
-  artifact `grammark fmt` writes).
+  artifact `gramark fmt` writes).
 - **T2.4 Desugar lens.** Toggle "show lowered Core" to see how `X+ / X* / X? /
-  Comma<X> / #[inline]` expand to epsilon-free productions (`Grammark.Desugar`) —
+  Comma<X> / #[inline]` expand to epsilon-free productions (`Gramark.Desugar`) —
   a teaching tool and a debugging aid.
 - **T2.5 Codegen export.** Download buttons for `ir.json`, `.ebnf`, `.dot`, and a
   runnable `parser.ts` + `parser.d.ts` (the real `ts` backend), plus "copy as".
@@ -195,7 +195,7 @@ can be built without new engine work unless noted.
 ### Tier 3 — the studio
 
 - **T3.1 Conformance panel.** A table of accept/reject vectors run as a
-  differential oracle across all three methods (the `Grammark.Conformance`
+  differential oracle across all three methods (the `Gramark.Conformance`
   harness), green/red per vector — TDD for grammars.
 - **T3.2 LR state walk.** Step the automaton token-by-token over the input: show
   the stack, the current item set, and the action taken — an interactive
@@ -203,7 +203,7 @@ can be built without new engine work unless noted.
 - **T3.3 Recovery preview.** With panic-mode recovery, show how an erroneous
   input resynchronizes (depends on `tables.recovery`; partial in the Core today).
 - **T3.4 Gallery + examples.** One-click load of `calc`, `json`, and the
-  self-describing `grammark` grammar; a "fork this" flow.
+  self-describing `gramark` grammar; a "fork this" flow.
 - **T3.5 Embeddable lab.** An `<iframe>` / web-component build so a grammar can be
   embedded, live, in any docs page (including this site's tutorials).
 
@@ -225,7 +225,7 @@ flowchart LR
     URL["Permalink (LZMA)"]
   end
   subgraph Worker thread
-    P["Grammark.Lr.parse -> Desugar -> Table"]
+    P["Gramark.Lr.parse -> Desugar -> Table"]
     G["GLR explain / forest"]
     B["Backends: ir, ebnf, dot, ts"]
   end
@@ -280,7 +280,7 @@ respected, monospace for all grammar / CLI text (branding).
 
 - **Time-to-first-parse** under 2 s from cold load on a mid laptop.
 - **Keystroke-to-feedback** under one frame (16 ms) for grammars ≤ 50 rules.
-- **Parity:** every Lab verdict matches the `grammark` CLI on the same input
+- **Parity:** every Lab verdict matches the `gramark` CLI on the same input
   (enforced with a shared conformance fixture).
 - **Shareability:** a non-trivial grammar + input fits in a URL under 8 KB.
 - **"Aha" rate:** a first-time user can see _why_ an ambiguous grammar is

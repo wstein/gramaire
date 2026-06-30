@@ -1,5 +1,5 @@
 {
-  "name": "grammark-site",
+  "name": "gramark-site",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,9 +8,9 @@
     "build": "astro build",
     "preview": "astro preview",
     "deploy": "gh-pages -d dist",
-    "test": "tsx --test src/lib/grammark-runtime.test.ts",
-    "build:engine": "cd .. && spago build && cd site && esbuild ../output/Grammark.Playground/index.js --bundle --format=esm --platform=browser --outfile=src/generated/grammark-engine.mjs",
-    "check:engine": "npm run build:engine && git diff --exit-code src/generated/grammark-engine.mjs",
+    "test": "tsx --test src/lib/gramark-runtime.test.ts",
+    "build:engine": "cd .. && spago build && cd site && esbuild ../output/Gramark.Playground/index.js --bundle --format=esm --platform=browser --outfile=src/generated/gramark-engine.mjs",
+    "check:engine": "npm run build:engine && git diff --exit-code src/generated/gramark-engine.mjs",
     "format": "prettier --write \"src/**/*.{ts,astro,md,mdx}\" \"*.{json,md,mjs}\"",
     "lint": "prettier --check \"src/**/*.{ts,astro,md,mdx}\" \"*.{json,md,mjs}\""
   },

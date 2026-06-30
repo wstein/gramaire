@@ -12,12 +12,12 @@ import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.IR (IROn(OnTerm), buildIR, conflictToIR, serialize, toJson)
-import Grammark.IR.Decode (decode, toParseTable)
-import Grammark.Json as Json
-import Grammark.Lr as Lr
-import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
-import Grammark.Table (Method(Canonical), buildTablesFor)
+import Gramark.IR (IROn(OnTerm), buildIR, conflictToIR, serialize, toJson)
+import Gramark.IR.Decode (decode, toParseTable)
+import Gramark.Json as Json
+import Gramark.Lr as Lr
+import Gramark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
+import Gramark.Table (Method(Canonical), buildTablesFor)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Test.Assert (assert')

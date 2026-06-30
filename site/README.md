@@ -1,6 +1,6 @@
-# Grammark docs site
+# Gramark docs site
 
-This directory contains the Astro Starlight documentation site for Grammark.
+This directory contains the Astro Starlight documentation site for Gramark.
 
 ## Develop locally
 

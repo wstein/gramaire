@@ -9,12 +9,12 @@ import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Backend.Ebnf as Ebnf
-import Grammark.Backend.Registry (findBackend)
-import Grammark.IR (buildIR, toJson)
-import Grammark.Json (stringify)
-import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
-import Grammark.Table (Method(..))
+import Gramark.Backend.Ebnf as Ebnf
+import Gramark.Backend.Registry (findBackend)
+import Gramark.IR (buildIR, toJson)
+import Gramark.Json (stringify)
+import Gramark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
+import Gramark.Table (Method(..))
 import Test.Assert (assert', assertEqual)
 
 tiny :: Grammar

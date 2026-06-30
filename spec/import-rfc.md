@@ -25,7 +25,7 @@ system.
 
 ## Shape
 
-```grammark
+```gramark
 import ./json.grmk.md
 ```
 
@@ -41,7 +41,7 @@ open; the semantics below are not.
    nonterminal namespace (D30).
 2. **Collision is a hard error.** If an import defines a nonterminal the
    importer already defines (or two imports collide), the build fails and names
-   the clashing rule. The conflict reporter (`Grammark.Diagnostics`) already
+   the clashing rule. The conflict reporter (`Gramark.Diagnostics`) already
    renders grammar-relative messages and is the natural home.
 3. **Local paths only, no URLs.** An import resolves a relative filesystem path
    and nothing else. No `http(s)://`, no registry coordinates, no implicit
@@ -61,7 +61,7 @@ open; the semantics below are not.
 - Surface syntax (directive line vs. fenced block vs. front-matter list).
 - Selective import (whole grammar only, or a named subset of nonterminals?).
 - How an imported grammar's reserved sections (`Precedence`, `Error messages`)
-  merge, or whether only its `grammark` productions are pulled.
+  merge, or whether only its `gramark` productions are pulled.
 - Interaction with the start symbol: an imported grammar's start is demoted to
   an ordinary nonterminal in the importer.
 

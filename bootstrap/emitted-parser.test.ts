@@ -2,7 +2,7 @@
  * Runtime conformance for the TypeScript backend. Run with: `npm test`
  * (i.e. `node --test emitted-parser.test.ts`).
  *
- * `Grammark.Backend.Ts` emits a TypeScript parser; `test/Test/Backend/Ts.purs`
+ * `Gramark.Backend.Ts` emits a TypeScript parser; `test/Test/Backend/Ts.purs`
  * drift-locks its exact bytes into `test/golden/Lr.ts`. Here we *run* that same
  * golden: feed the emitted `parse` a token stream and assert the CST it builds
  * is byte-for-byte the one the PureScript reference locks in

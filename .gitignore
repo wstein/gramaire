@@ -16,5 +16,5 @@ site/.vite/
 # Editor / OS
 .DS_Store
 
-# Derived raw grammar projections (grammark strip); never authoritative (ADR D36)
+# Derived raw grammar projections (gramark strip); never authoritative (ADR D36)
 *.grmk

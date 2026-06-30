@@ -11,10 +11,10 @@ import Data.Maybe (Maybe(..), isJust)
 import Data.String (Pattern(..), contains)
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Desugar (desugar)
-import Grammark.Lr as Lr
-import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
-import Grammark.Table (Method(Canonical), buildTablesFor)
+import Gramark.Desugar (desugar)
+import Gramark.Lr as Lr
+import Gramark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
+import Gramark.Table (Method(Canonical), buildTablesFor)
 import Test.Assert (assert')
 
 ruleNamed :: String -> Grammar -> Maybe Rule
@@ -47,7 +47,7 @@ tests = do
       assert' "X+ grammar is LR(1)" (isRight (buildTablesFor Canonical g))
 
   log "  desugar: X? enumerates to two productions with Just/Nothing wrapper actions"
-  case Lr.parse "```grammark\nA\n  : 'x' NUM? 'y'   {% \\_ n _ -> n %}\n```\n" of
+  case Lr.parse "```gramark\nA\n  : 'x' NUM? 'y'   {% \\_ n _ -> n %}\n```\n" of
     Left e -> assert' ("X? parse failed: " <> e) false
     Right g -> case ruleNamed "A" g of
       Nothing -> assert' "A rule present" false
@@ -58,7 +58,7 @@ tests = do
         assert' "X? grammar is LR(1)" (isRight (buildTablesFor Canonical g))
 
   log "  desugar: X* enumerates (empty | list) and stays LR(1)"
-  case Lr.parse "```grammark\nL\n  : '[' NUM* ']'   {% \\_ ns _ -> ns %}\n```\n" of
+  case Lr.parse "```gramark\nL\n  : '[' NUM* ']'   {% \\_ ns _ -> ns %}\n```\n" of
     Left e -> assert' ("X* parse failed: " <> e) false
     Right g -> do
       assert' "X* introduces a NUM_plus list rule" (isJust (ruleNamed "NUM_plus" g))
@@ -68,12 +68,12 @@ tests = do
       assert' "X* grammar is LR(1)" (isRight (buildTablesFor Canonical g))
 
   log "  desugar: an all-optional alternative is rejected, not a silent epsilon"
-  case Lr.parse "```grammark\nZ\n  : NUM?   {% \\n -> n %}\n```\n" of
+  case Lr.parse "```gramark\nZ\n  : NUM?   {% \\n -> n %}\n```\n" of
     Left _ -> pure unit
     Right _ -> assert' "an all-optional alternative should be a build error" false
 
   log "  desugar: Comma<X> lowers to a one-or-more comma-separated list rule"
-  case Lr.parse "```grammark\nO\n  : '[' Comma<NUM> ']'\n```\n" of
+  case Lr.parse "```gramark\nO\n  : '[' Comma<NUM> ']'\n```\n" of
     Left e -> assert' ("Comma macro failed: " <> e) false
     Right g -> do
       case ruleNamed "NUM_comma" g of
@@ -82,17 +82,17 @@ tests = do
       assert' "the Comma<X> grammar is LR(1)" (isRight (buildTablesFor Canonical g))
 
   log "  desugar: Sep<X, S> lowers to a list separated by the given symbol"
-  case Lr.parse "```grammark\nL\n  : '(' Sep<NUM, ';'> ')'\n```\n" of
+  case Lr.parse "```gramark\nL\n  : '(' Sep<NUM, ';'> ')'\n```\n" of
     Left e -> assert' ("Sep macro failed: " <> e) false
     Right g -> assert' "a NUM_sep_Lit_; rule should be introduced" (isJust (ruleNamed "NUM_sep_Lit_;" g))
 
   log "  desugar: an unknown macro is rejected"
-  case Lr.parse "```grammark\nU\n  : Bogus<NUM>\n```\n" of
+  case Lr.parse "```gramark\nU\n  : Bogus<NUM>\n```\n" of
     Left _ -> pure unit
     Right _ -> assert' "an unknown macro should be a build error" false
 
   log "  desugar: a bare-body action binds the field names (named bindings)"
-  case Lr.parse "```grammark\nE\n  : left:NUM '+' right:NUM   {% Add left right %}\n```\n" of
+  case Lr.parse "```gramark\nE\n  : left:NUM '+' right:NUM   {% Add left right %}\n```\n" of
     Left e -> assert' ("named-binding parse failed: " <> e) false
     Right g -> case ruleNamed "E" g of
       Just (Rule _ _ [ Alt _ _ (Just act) ]) ->
@@ -100,7 +100,7 @@ tests = do
       _ -> assert' "E should have one alternative with an action" false
 
   log "  desugar: #[inline] folds a single-production nonterminal into its use sites"
-  case Lr.parse "```grammark\nS\n  : Pair Pair\n\n#[inline] Pair\n  : '(' ')'\n```\n" of
+  case Lr.parse "```gramark\nS\n  : Pair Pair\n\n#[inline] Pair\n  : '(' ')'\n```\n" of
     Left e -> assert' ("#[inline] parse failed: " <> e) false
     Right g -> do
       assert' "the inline rule is removed" (not (isJust (ruleNamed "Pair" g)))
@@ -110,7 +110,7 @@ tests = do
       assert' "#[inline] grammar is LR(1)" (isRight (buildTablesFor Canonical g))
 
   log "  desugar: #[inline] with an action threads the inlined value through a wrapper"
-  case Lr.parse "```grammark\nN\n  : Sign NUM   {% \\s n -> mk s n %}\n\n#[inline] Sign\n  : '+'   {% \\_ -> Pos %}\n```\n" of
+  case Lr.parse "```gramark\nN\n  : Sign NUM   {% \\s n -> mk s n %}\n\n#[inline] Sign\n  : '+'   {% \\_ -> Pos %}\n```\n" of
     Left e -> assert' ("#[inline] action parse failed: " <> e) false
     Right g -> case ruleNamed "N" g of
       Just (Rule _ _ [ Alt syms _ (Just act) ]) -> do
@@ -119,6 +119,6 @@ tests = do
       _ -> assert' "N should have one alternative with an action" false
 
   log "  desugar: a multi-production #[inline] rule is rejected"
-  case Lr.parse "```grammark\nT\n  : Op NUM\n\n#[inline] Op\n  : '+'\n  | '-'\n```\n" of
+  case Lr.parse "```gramark\nT\n  : Op NUM\n\n#[inline] Op\n  : '+'\n  | '-'\n```\n" of
     Left _ -> pure unit
     Right _ -> assert' "a multi-production #[inline] should be a build error" false

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://grammark.dev/spec/ir-schema.json",
-  "title": "grammark-ir",
-  "description": "The versioned narrow-waist artifact between the Grammark front end and every backend. irVersion 0 is draft/unstable and carries no compatibility promise.",
+  "$id": "https://gramark.dev/spec/ir-schema.json",
+  "title": "gramark-ir",
+  "description": "The versioned narrow-waist artifact between the Gramark front end and every backend. irVersion 0 is draft/unstable and carries no compatibility promise.",
   "type": "object",
   "required": ["irVersion", "grammar", "tables", "conflicts"],
   "additionalProperties": false,
