@@ -146,14 +146,14 @@ calcVectors =
 -- | The `lr` grammar corpus: clearly-valid and clearly-invalid `lr` snippets.
 lrVectors :: Array Vector
 lrVectors =
-  [ { name: "single rule, literal rhs", input: "Foo\n: `x`", expect: Accept }
-  , { name: "two symbols on the rhs", input: "Foo\n: Bar `x`", expect: Accept }
-  , { name: "rule with a semantic action", input: "Foo\n: `x` {% \\a -> a %}", expect: Accept }
-  , { name: "two alternatives", input: "Foo\n: `x`\n| `y`", expect: Accept }
-  , { name: "two rules", input: "A\n: `x`\n\nB\n: `y`", expect: Accept }
-  , { name: "leading terminal, no lhs", input: "`x`", expect: Reject }
+  [ { name: "single rule, literal rhs", input: "Foo\n: 'x'", expect: Accept }
+  , { name: "two symbols on the rhs", input: "Foo\n: Bar 'x'", expect: Accept }
+  , { name: "rule with a semantic action", input: "Foo\n: 'x' {% \\a -> a %}", expect: Accept }
+  , { name: "two alternatives", input: "Foo\n: 'x'\n| 'y'", expect: Accept }
+  , { name: "two rules", input: "A\n: 'x'\n\nB\n: 'y'", expect: Accept }
+  , { name: "leading terminal, no lhs", input: "'x'", expect: Reject }
   , { name: "missing newline after lhs", input: "Foo Bar", expect: Reject }
   , { name: "colon but empty body", input: "Foo\n:", expect: Reject }
-  , { name: "body starts with a bar", input: "Foo\n| `x`", expect: Reject }
+  , { name: "body starts with a bar", input: "Foo\n| 'x'", expect: Reject }
   , { name: "empty input", input: "", expect: Reject }
   ]

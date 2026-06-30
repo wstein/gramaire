@@ -47,18 +47,18 @@ tests = do
 
   log "  lexer: terminal literals are TERM_LIT (whole lexeme), raw : and | are punctuation"
   assertEqual
-    { actual: tokenize "Body\n  : `:` Alt AltTail"
+    { actual: tokenize "Body\n  : ':' Alt AltTail"
     , expected: Right
         [ tk "IDENT" "Body"
         , tk "NL" "\n"
         , tk ":" ":"
-        , tk "TERM_LIT" "`:`"
+        , tk "TERM_LIT" "':'"
         , tk "IDENT" "Alt"
         , tk "IDENT" "AltTail"
         ]
     }
 
-  log "  lexer: 'x' and \"x\" are TERM_LIT too (ADR D34), delimiter escapable"
+  log "  lexer: 'x' and \"x\" are both TERM_LIT (ADR D34), delimiter escapable"
   assertEqual
     { actual: tokenize "A\n  : '+' \"-\" '\\''"
     , expected: Right
@@ -115,10 +115,10 @@ tests = do
   assert (isLeft (tokenize "X {% oops"))
 
   log "  lexer: an unterminated terminal literal is a LexError"
-  assert (isLeft (tokenize "X `oops"))
+  assert (isLeft (tokenize "X 'oops"))
 
   log "  lexer: spanned tokens are exact, ordered, and rebuild the source"
-  let src = "E\n  : E `+` E  # Add  {% \\l _ r -> x %}"
+  let src = "E\n  : E '+' E  # Add  {% \\l _ r -> x %}"
   case tokenizeSpanned src of
     Left e -> assert' ("tokenizeSpanned failed: " <> show e) false
     Right ts -> do

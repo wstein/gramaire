@@ -25,7 +25,7 @@ import Test.Golden as Golden
 -- A small grammar text exercising the whole node vocabulary: two alternatives
 -- (so `|`), a literal terminal, nonterminal refs, and a `{% %}` action.
 sample :: String
-sample = "Sum\n: Sum `+` NUM   {% \\a _ b -> a %}\n| NUM"
+sample = "Sum\n: Sum '+' NUM   {% \\a _ b -> a %}\n| NUM"
 
 tests :: Effect Unit
 tests = do
