@@ -122,8 +122,28 @@ WS     : /[ \t\r\n]+/   %skip
 ```
 ````
 
-That is the whole recognizer's vocabulary. We will run it in §5; first, two
-conveniences.
+That is the whole recognizer's vocabulary. Grammark renders each rule as a
+**railroad diagram** — the same SVGs `grammark fmt` writes back into your
+`.gram.md`, so the committed file documents itself. Here is the calculator's
+shape, the stratification visible at a glance:
+
+<figure>
+  <img
+    src={`${import.meta.env.BASE_URL}diagrams/calc/expr.svg`}
+    alt="Railroad diagram for the Expr rule"
+  />
+  <img
+    src={`${import.meta.env.BASE_URL}diagrams/calc/term.svg`}
+    alt="Railroad diagram for the Term rule"
+  />
+  <img
+    src={`${import.meta.env.BASE_URL}diagrams/calc/factor.svg`}
+    alt="Railroad diagram for the Factor rule"
+  />
+  <figcaption>Expr, Term, and Factor — sums of products of atoms.</figcaption>
+</figure>
+
+We will run it in §5; first, two conveniences.
 
 ## 3. Surface sugar
 
