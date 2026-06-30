@@ -33,7 +33,7 @@ import Grammark.Conformance (Descriptor, calcDescriptor, lrDescriptor, runSuites
 import Grammark.Diagnostics (renderConflicts)
 import Grammark.Glr (explain)
 import Grammark.IR (buildIR)
-import Grammark.Lr (parse)
+import Grammark.Lr (parse, strip)
 import Grammark.Syntax (Grammar)
 import Grammark.Table (Method(Canonical))
 import Node.Encoding (Encoding(UTF8))
@@ -93,6 +93,7 @@ main = do
     Nothing -> usage *> setExitCode 1
     Just { head: cmd, tail } -> case cmd of
       "emit" -> runEmit tail
+      "strip" -> runStrip tail
       "conformance" -> runConformance
       "explain-conflict" -> runExplain tail
       "help" -> usage
@@ -133,6 +134,27 @@ deliver out outputs = case out of
       let path = dir <> "/" <> o.path
       writeTextFile UTF8 path o.contents
       log ("wrote " <> path)
+
+-- | `grammark strip <file.gram.md>` writes the raw `.gram` projection (ADR D36):
+-- | the fenced `grammark`* blocks with the prose dropped. It is a derived,
+-- | non-authoritative export — the `.gram.md` stays the single source of truth.
+runStrip :: Array String -> Effect Unit
+runStrip args = case Array.head args of
+  Nothing -> die "strip: no grammar file given"
+  Just file -> do
+    read <- try (readTextFile UTF8 file)
+    case read of
+      Left err -> die ("strip: cannot read " <> file <> ": " <> message err)
+      Right md -> do
+        let out = gramPath file
+        writeTextFile UTF8 out (strip md)
+        log ("wrote " <> out <> " (derived projection of " <> file <> "; never edit by hand)")
+
+-- The raw projection's path: swap a `.gram.md` extension for `.gram`.
+gramPath :: String -> String
+gramPath file = case String.stripSuffix (Pattern ".gram.md") file of
+  Just base -> base <> ".gram"
+  Nothing -> file <> ".gram"
 
 runConformance :: Effect Unit
 runConformance = do
@@ -186,12 +208,14 @@ usage = for_ lines log
     , ""
     , "Usage:"
     , "  grammark emit <file.gram.md> [--backend <name>] [--out <dir>]"
+    , "  grammark strip <file.gram.md>"
     , "  grammark conformance"
     , "  grammark explain-conflict <file.gram.md>"
     , ""
     , "Backends: " <> backendNames
     , ""
     , "With no --out, the artifact is written to stdout."
+    , "strip writes the raw .gram projection (the grammark blocks, no prose)."
     , "conformance runs the differential oracle over the built-in corpora."
     , "explain-conflict classifies a grammar's conflicts: LALR artifact vs genuine."
     ]

@@ -32,6 +32,7 @@ import Test.Regex as Regex
 import Test.Scanner as Scanner
 import Test.Schema as Schema
 import Test.SelfHost as SelfHost
+import Test.Strip as Strip
 import Test.Table as Table
 import Test.Tokens as Tokens
 
@@ -55,6 +56,8 @@ main = do
   Scanner.tests
   log "Test.SelfHost"
   SelfHost.tests
+  log "Test.Strip"
+  Strip.tests
   log "Test.FirstFollow"
   FirstFollow.tests
   log "Test.Glr"

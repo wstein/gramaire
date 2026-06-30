@@ -12,6 +12,7 @@ module Grammark.Lr
   , lrBlocks
   , parse
   , parseWith
+  , strip
   , tokenVal
   ) where
 
@@ -20,8 +21,8 @@ import Prelude
 import Data.Array as Array
 import Data.Either (Either(..), fromRight)
 import Data.Foldable (foldl)
-import Data.Maybe (Maybe(..))
-import Data.String (Pattern(..), joinWith, split, trim)
+import Data.Maybe (Maybe(..), isJust)
+import Data.String (Pattern(..), joinWith, split, stripPrefix, trim)
 import Data.String.CodeUnits (charAt, fromCharArray, length, slice, toCharArray)
 import Grammark.Bootstrap (bootstrapGrammar, lrTokensSource)
 import Grammark.Desugar (desugar)
@@ -126,6 +127,30 @@ lrBlocks md =
         acc { inside = false, cur = [], blocks = Array.snoc acc.blocks (joinWith "\n" acc.cur) }
       else acc { cur = Array.snoc acc.cur line }
     else if trim line == "```grammark" then acc { inside = true, cur = [] }
+    else acc
+
+-- | The raw `.gram` projection (ADR D36): every ` ```grammark `* fenced block
+-- | (productions, tokens, precedence, errors) kept with its fences, all prose,
+-- | headings, and diagrams dropped. It is a DERIVED, non-authoritative export —
+-- | the `.gram.md` stays the source of truth — and `parse (strip md) == parse md`
+-- | (Test.Strip), so the projection carries exactly the grammar the parser sees.
+strip :: String -> String
+strip md =
+  let
+    blocks = (foldl step { inside: false, cur: [], blocks: [] } (split (Pattern "\n") md)).blocks
+  in
+    joinWith "\n\n" blocks <> "\n"
+  where
+  step acc line =
+    if acc.inside then
+      if trim line == "```" then
+        acc
+          { inside = false
+          , blocks = Array.snoc acc.blocks (joinWith "\n" (Array.snoc acc.cur line))
+          }
+      else acc { cur = Array.snoc acc.cur line }
+    else if isJust (stripPrefix (Pattern "```grammark") (trim line)) then
+      acc { inside = true, cur = [ line ] }
     else acc
 
 -- | The production lexer for `lr` grammar source: the scanner built from the
