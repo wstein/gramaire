@@ -34,6 +34,7 @@ data Sym
   | Opt Sym -- ^ zero-or-one sugar (`X?`); eliminated by `Gramaire.Desugar`
   | Macro String (Array Sym) -- ^ a macro call `Name<args>` (e.g. `Comma<X>`)
   | Field String Sym -- ^ a named child position `name:X`; the name reaches the IR
+  | Group (Array (Array Sym)) -- ^ a parenthesised group `( a | b )`; hoisted to a fresh rule by `Gramaire.Desugar`
 
 -- Structural equality lets the self-hosting test assert that the parser,
 -- once generated, reads `lr.gram.md` back to a value equal to the literal.
@@ -52,6 +53,7 @@ instance showSym :: Show Sym where
   show (Opt s) = "Opt (" <> show s <> ")"
   show (Macro n args) = "Macro " <> show n <> " " <> show args
   show (Field n s) = "Field " <> show n <> " (" <> show s <> ")"
+  show (Group alts) = "Group " <> show alts
 
 instance showAlt :: Show Alt where
   show (Alt syms label act) =

@@ -122,3 +122,35 @@ tests = do
   case Lr.parse "```gramaire\nT\n  : Op NUM\n\n#[inline] Op\n  : '+'\n  | '-'\n```\n" of
     Left _ -> pure unit
     Right _ -> assert' "a multi-production #[inline] should be a build error" false
+
+  log "  desugar: a ( … ) group hoists to a fresh __group_ rule and stays LR(1)"
+  case groupG of
+    Left e -> assert' ("group desugar failed: " <> e) false
+    Right g -> do
+      assert' "the group is hoisted to __group_0" (isJust (ruleNamed "__group_0" g))
+      case ruleNamed "__group_0" g of
+        Just (Rule _ _ [ Alt syms _ _ ]) -> assert' "__group_0 carries the group's two symbols" (length syms == 2)
+        _ -> assert' "__group_0 should be a single B C alternative" false
+      assert' "no Group node survives desugaring" (not (any altHasGroup (rulesOf g)))
+      assert' "the grouped grammar is LR(1)" (isRight (buildTablesFor Canonical g))
+
+-- `A : (B C)+ D`, with B/C/D terminals.
+groupG :: Either String Grammar
+groupG = desugar
+  ( Grammar
+      [ Rule "A" [] [ Alt [ Rep (Group [ [ Ref "B", Ref "C" ] ]), Ref "D" ] Nothing Nothing ]
+      , Rule "B" [] [ Alt [ Lit "x" ] Nothing Nothing ]
+      , Rule "C" [] [ Alt [ Lit "y" ] Nothing Nothing ]
+      , Rule "D" [] [ Alt [ Lit "z" ] Nothing Nothing ]
+      ]
+  )
+
+rulesOf :: Grammar -> Array Rule
+rulesOf (Grammar rs) = rs
+
+altHasGroup :: Rule -> Boolean
+altHasGroup (Rule _ _ alts) = any (\(Alt syms _ _) -> any isGroup syms) alts
+  where
+  isGroup = case _ of
+    Group _ -> true
+    _ -> false

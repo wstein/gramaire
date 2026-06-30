@@ -141,6 +141,7 @@ flatten = case _ of
   Star s -> flatten s
   Opt s -> flatten s
   Macro n _ -> { name: n, terminal: false }
+  Group _ -> { name: "(group)", terminal: false } -- unreachable: groups are hoisted before the ATN is built
 
 lookup :: String -> Map String Int -> Int
 lookup k m = fromMaybe 0 (Map.lookup k m)

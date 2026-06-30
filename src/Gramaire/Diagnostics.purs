@@ -57,6 +57,7 @@ refsOf = case _ of
   Opt s -> refsOf s
   Field _ s -> refsOf s
   Macro _ args -> Array.concatMap refsOf args
+  Group alts -> Array.concatMap (Array.concatMap refsOf) alts
 
 -- | Reject a grammar that references an undefined nonterminal, naming each so
 -- | the message reads in the author's terms. A clean grammar passes through.

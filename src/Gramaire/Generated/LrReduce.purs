@@ -11,8 +11,8 @@ import Prelude
 
 import Data.Array (snoc)
 import Data.Maybe (Maybe(Just, Nothing))
-import Gramaire.Lr (SemVal(VGrammar, VRules, VRule, VAlts, VAlt, VSyms, VSym, VMaybeStr, VStr, VErr))
-import Gramaire.Syntax (Alt(Alt), Grammar(Grammar), Rule(Rule), Sym(Ref, Lit, Rep, Star, Opt, Macro, Field))
+import Gramaire.Lr (SemVal(VGrammar, VRules, VRule, VAlts, VAlt, VSyms, VSym, VGroupBody, VMaybeStr, VStr, VErr))
+import Gramaire.Syntax (Alt(Alt), Grammar(Grammar), Rule(Rule), Sym(Ref, Lit, Rep, Star, Opt, Macro, Field, Group))
 
 reduce :: Int -> Array SemVal -> SemVal
 reduce p kids = case p, kids of
@@ -39,8 +39,14 @@ reduce p kids = case p, kids of
   20, [ VStr t, _ ] -> VSym (Opt (Lit t))
   21, [ VStr name, _, VSyms args, _ ] -> VSym (Macro name args)
   22, [ VStr name, _, VSym s ] -> VSym (Field name s)
-  23, [ VSym s ] -> VSyms ([s])
-  24, [ VSyms as, _, VSym s ] -> VSyms (snoc as s)
-  25, [ VStr a ] -> VMaybeStr (Just a)
-  26, [ VStr l ] -> VMaybeStr (Just l)
+  23, [ _, VGroupBody g, _ ] -> VSym (Group g)
+  24, [ _, VGroupBody g, _, _ ] -> VSym (Rep (Group g))
+  25, [ _, VGroupBody g, _, _ ] -> VSym (Star (Group g))
+  26, [ _, VGroupBody g, _, _ ] -> VSym (Opt (Group g))
+  27, [ VSym s ] -> VSyms ([s])
+  28, [ VSyms as, _, VSym s ] -> VSyms (snoc as s)
+  29, [ VStr a ] -> VMaybeStr (Just a)
+  30, [ VStr l ] -> VMaybeStr (Just l)
+  31, [ VSyms syms ] -> VGroupBody ([syms])
+  32, [ VGroupBody alts, _, VSyms syms ] -> VGroupBody (snoc alts syms)
   _, _ -> VErr ("unexpected reduce shape for production " <> show p)
