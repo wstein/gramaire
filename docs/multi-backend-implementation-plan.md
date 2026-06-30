@@ -723,7 +723,7 @@ In order, per D14 / D16 / D15:
    in-process backend, from which the out-of-process protocol is extracted.
 4. **GLR engine phase [D15].** Multi-action tables + a fork driver; an Earley
    debug recognizer behind `grammark explain-conflict`.
-5. **Document-structure consensus (D29 / D30).** Three small, independent steps:
+5. **Document-structure consensus (D29 / D30) — shipped.** Three small steps, all done:
    (a) amend [`fmt-output-contract.md`](fmt-output-contract.md) so the H2 layer
    is "nonterminal **or** reserved section" and `###`+ headings are presentational
    (ignored by structure and by the per-section drift hash); (b) make

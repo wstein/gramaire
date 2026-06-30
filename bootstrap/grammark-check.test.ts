@@ -104,6 +104,18 @@ test("checkStructure accepts an optional Precedence section", () => {
   assert.deepEqual(checkStructure(parse(miniDoc({ precedence: true }))), []);
 });
 
+test("checkStructure ignores ###+ presentational grouping headings (D29)", () => {
+  // A heading deeper than H2 carries no structural meaning: it is free grouping
+  // ("Expressions", "Statements") or a subsection. The gate must pass it through
+  // — the strict layer is the H2-or-reserved-section one — while the GitHub TOC
+  // still nests it. Here a `### Notes` subsection sits inside the `## A` section.
+  const grouped = miniDoc().replace(
+    "## A\n\n",
+    "## A\n\n### Notes\n\nA presentational subsection the structure gate ignores.\n\n",
+  );
+  assert.deepEqual(checkStructure(parse(grouped)), []);
+});
+
 test("checkStructure flags a fence that is too wide", () => {
   // A 4-backtick fence around content with no backtick runs is wrong.
   const broken = miniDoc()
