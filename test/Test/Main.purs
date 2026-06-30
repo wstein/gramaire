@@ -18,6 +18,7 @@ import Test.Conflict as Conflict
 import Test.Precedence as Precedence
 import Test.Conformance as Conformance
 import Test.Continuation as Continuation
+import Test.Convert.Antlr as ConvertAntlr
 import Test.Cst as Cst
 import Test.Desugar as Desugar
 import Test.Diagnostics as Diagnostics
@@ -103,6 +104,8 @@ main = do
   Conformance.tests
   log "Test.Continuation"
   Continuation.tests
+  log "Test.Convert.Antlr"
+  ConvertAntlr.tests
   log "Test.Cst"
   Cst.tests
   log "Test.Diagnostics"
