@@ -14,6 +14,10 @@ export interface GramaireParseResult {
   tree: string;
   trace: string;
   conflicts: string;
+  /** The parse tree as gramaire-cst JSON; "" when the input was rejected. */
+  cstJson: string;
+  /** Per-production [{label, fields}] JSON — the evaluator's handler shape. */
+  meta: string;
   raw?: string;
 }
 
@@ -33,6 +37,8 @@ export async function parseGramaireDocument(
     tree: result.tree,
     trace: result.trace,
     conflicts: result.conflicts,
+    cstJson: result.cstJson,
+    meta: result.meta,
     raw: formatReport(result),
   };
 }
