@@ -59,7 +59,7 @@ buildItems defs literals = implicitItems <> Array.mapWithIndex classItem defs
       , skip: def.skip
       , priority: priorityOf 1 def.prec
       }
-    Regex rx ->
+    Regex _ rx ->
       { terminal: def.name
       , match: longestMatch rx
       , skip: def.skip

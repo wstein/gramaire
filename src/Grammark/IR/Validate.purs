@@ -14,6 +14,7 @@ import Prelude
 
 import Data.Array as Array
 import Data.Foldable (foldMap)
+import Data.Maybe (Maybe(..))
 import Data.Set as Set
 import Data.Tuple (Tuple(..))
 import Grammark.IR (IR, IRAct(..), IROn(..), IRRef(..), IRTerminal(..))
@@ -30,9 +31,11 @@ validate ir =
     <> foldMap checkExtra ir.grammar.extras
     <> foldMap (\r -> foldMap checkSync r.syncTokens) ir.tables.recovery
     <> foldMap (\gl -> foldMap checkConflictState gl.conflictStates) ir.tables.glr
+    <> foldMap checkLexer ir.lexer
   where
   termIds = map terminalId ir.grammar.terminals
   termSet = Set.fromFoldable termIds
+  classTermSet = Set.fromFoldable (Array.mapMaybe classId ir.grammar.terminals)
   ntIds = map _.id ir.grammar.nonterminals
   ntSet = Set.fromFoldable ntIds
   ruleIds = map _.id ir.grammar.rules
@@ -84,6 +87,19 @@ validate ir =
 
   checkConflictState s =
     if s < stateCount then [] else [ "tables.glr.conflictStates: state " <> show s <> " >= stateCount " <> show stateCount ]
+
+  checkLexer lx =
+    (if Array.elem lx.mode [ "regular", "external" ] then [] else [ "lexer.mode '" <> lx.mode <> "' is not regular|external" ])
+      <> foldMap (\i -> if Set.member i termSet then [] else [ "lexer.order: unknown terminal id " <> show i ]) lx.order
+      <> foldMap checkClass lx.classes
+
+  checkClass c =
+    if Set.member c.terminal classTermSet then []
+    else [ "lexer.classes: terminal " <> show c.terminal <> " is not a token-class terminal" ]
+
+  classId = case _ of
+    IRClass i _ -> Just i
+    IRLiteral _ _ -> Nothing
 
   stateBound label s =
     if s < stateCount then [] else [ label <> " row state " <> show s <> " >= stateCount " <> show stateCount ]

@@ -43,7 +43,7 @@ byName n = find (\d -> d.name == n)
 
 isRegex :: TokenPattern -> Boolean
 isRegex = case _ of
-  Regex _ -> true
+  Regex _ _ -> true
   Exact _ -> false
 
 tests :: Effect Unit
