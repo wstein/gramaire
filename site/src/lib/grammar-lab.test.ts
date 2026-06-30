@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateGrammar, getDefaultGrammar, getDefaultInput, parseMarkdownGrammar } from './grammar-lab.ts';
+import { evaluateGrammar, formatEvaluationReport, getDefaultGrammar, getDefaultInput, parseMarkdownGrammar } from './grammar-lab.ts';
 
 test('parseMarkdownGrammar extracts a simple rule set', () => {
   const { grammar, issues } = parseMarkdownGrammar(getDefaultGrammar());
@@ -23,4 +23,12 @@ test('evaluateGrammar rejects an unmatched input', () => {
   const result = evaluateGrammar(grammar, 'foo');
   assert.equal(result.success, false);
   assert.match(result.message, /did not match/i);
+});
+
+test('formatEvaluationReport includes trace details for successful parses', () => {
+  const { grammar } = parseMarkdownGrammar(getDefaultGrammar());
+  const result = evaluateGrammar(grammar, getDefaultInput());
+  const report = formatEvaluationReport(result);
+  assert.match(report, /Trace/i);
+  assert.match(report, /Term -> NUM/i);
 });

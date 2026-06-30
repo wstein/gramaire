@@ -35,7 +35,7 @@ import { getDefaultGrammar, getDefaultInput } from '../lib/grammar-lab.ts';
     </main>
 
     <script type="module">
-      import { parseMarkdownGrammar, evaluateGrammar } from '/src/lib/grammar-lab.ts';
+      import { parseMarkdownGrammar, evaluateGrammar, formatEvaluationReport } from '/src/lib/grammar-lab.ts';
 
       const grammarInput = document.getElementById('grammar-input');
       const inputTest = document.getElementById('input-test');
@@ -51,7 +51,7 @@ import { getDefaultGrammar, getDefaultInput } from '../lib/grammar-lab.ts';
         const result = evaluateGrammar(grammar, input);
 
         statusPill.textContent = result.success ? 'Accepted' : 'Rejected';
-        resultOutput.textContent = [result.message, '', ...result.diagnostics].join('\n');
+        resultOutput.textContent = formatEvaluationReport(result);
 
         diagnosticsList.innerHTML = '';
         const items = [
