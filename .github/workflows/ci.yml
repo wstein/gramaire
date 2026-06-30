@@ -91,9 +91,6 @@ jobs:
       - name: Lint Markdown (markdownlint-cli2)
         run: npm run lint:md
 
-      - name: Cross-check FIRST/FOLLOW against the documented table
-        run: npm run validate
-
       - name: grammark --check grammar and examples
         working-directory: ${{ github.workspace }}
         run: |

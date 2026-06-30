@@ -21,12 +21,11 @@ PureScript (Spago) project.
   mermaid with `--diagrams=mermaid` — and writes the lock.
 - `railroad.ts` — parses an `grammark` block into a Production and renders it as a
   self-contained SVG or a mermaid `flowchart`.
-- `grammark-check.test.ts` / `railroad.test.ts` — `node:test` unit coverage for
-  the gates, hashing model, diagram-mode round-trip, and the renderer.
-- `validate-firstfollow.mjs` — mirrors `Grammark.Table`'s FIRST/FOLLOW stage
-  on `bootstrapGrammar` and diffs the result against the table documented in
-  `grammar/lr.gram.md`. A cross-check that the literal, the algorithm, and the
-  docs agree, runnable without a PureScript toolchain.
+- `grammark-check.test.ts` / `railroad.test.ts` / `analyze.test.ts` —
+  `node:test` unit coverage for the gates, hashing model, diagram-mode
+  round-trip, the renderer, and FIRST/FOLLOW. The full FIRST/FOLLOW
+  cross-check against every grammar's documented table now lives in the
+  PureScript suite (`Test.FirstFollow`).
 
 ## Usage
 
@@ -35,13 +34,11 @@ PureScript (Spago) project.
 node bootstrap/grammark-check.ts examples/json.gram.md
 node bootstrap/grammark-check.ts fmt grammar/lr.gram.md
 node bootstrap/grammark-check.ts fmt --diagrams=mermaid grammar/lr.gram.md
-node bootstrap/validate-firstfollow.mjs            # reads ../grammar/lr.gram.md
 
 # from this directory, after `npm install`
 npm run check -- ../examples/calc.gram.md          # the structure/drift/lint gates
 npm test                                            # unit tests
 npm run typecheck                                   # tsc --noEmit over the bridge
-npm run validate                                    # FIRST/FOLLOW cross-check
 npm run format                                      # prettier --write
 ```
 

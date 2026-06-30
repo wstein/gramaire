@@ -9,7 +9,6 @@
   },
   "scripts": {
     "check": "node grammark-check.ts",
-    "validate": "node validate-firstfollow.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test grammark-check.test.ts railroad.test.ts analyze.test.ts emitted-parser.test.ts",
     "lint:md": "node lint-docs.mjs",

@@ -24,7 +24,7 @@ help:
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test          Run all tests (core, site, bootstrap)"
-	@echo "  make test-core     Run PureScript tests (bootstrap check, validate)"
+	@echo "  make test-core     Run PureScript tests (bootstrap check)"
 	@echo "  make test-site     Run site tests (tsx test harness)"
 	@echo "  make test-boot     Run bootstrap tests (Node --test)"
 	@echo ""
@@ -81,8 +81,8 @@ test: test-core test-site test-boot
 	@echo "All tests passed"
 
 test-core:
-	@echo "Testing PureScript grammar (bootstrap check & validate)..."
-	@cd bootstrap && npm run check && npm run validate
+	@echo "Testing PureScript grammar (bootstrap check)..."
+	@cd bootstrap && npm run check
 
 test-site:
 	@echo "Testing site utilities..."

@@ -114,7 +114,7 @@ reduce p kids = case p, kids of
   26, [ VStr l ] -> VMaybeStr (Just l) -- Label : LABEL
   _, _ -> VErr ("unexpected reduce shape for production " <> show p)
 
--- | Extract the contents of every ```lr fenced block — the rule blocks, not
+-- | Extract the contents of every ```grammark fenced block — the rule blocks, not
 -- | `lr precedence` / `lr errors` — from a `.gram.md` document, in order.
 lrBlocks :: String -> Array String
 lrBlocks md =
