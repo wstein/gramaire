@@ -45,7 +45,7 @@
                                   {
                                     "children": [
                                       {
-                                        "text": "+",
+                                        "text": "`+`",
                                         "token": "TERM_LIT"
                                       }
                                     ],

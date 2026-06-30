@@ -61,9 +61,11 @@ The helpers `cons` and `snoc` prepend and append to an `Array`.
 
 ## Tokens
 
-The `lr` notation's own lexis (lexer-spec §10), capturing each payload-bearing
-class's text: `TERM_LIT` keeps its content, `ACTION` its body, `LABEL` / `ATTR`
-the bare name, `NL` a single `\n`. `ATTR` precedes `IDENT` / `LABEL` so a
+The `lr` notation's own lexis (lexer-spec §10). The payload-bearing classes
+capture their text: `ACTION` its body, `LABEL` / `ATTR` the bare name, `NL` a
+single `\n`. `TERM_LIT` matches a terminal literal in any of three
+interchangeable delimiters (ADR D34) — `` `x` ``, `'x'`, `"x"` — as the whole
+lexeme; the consumer unquotes it. `ATTR` precedes `IDENT` / `LABEL` so a
 `#[name]` attribute out-matches a `# Name` label; `WS` is skipped; `` `:` `` and
 `` `|` `` stay implicit literals from the productions.
 
@@ -72,7 +74,7 @@ WS       : /[ \t]+/                       %skip
 NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      %external(layout)
 ATTR     : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/
 IDENT    : /[A-Za-z_][A-Za-z0-9_]*/
-TERM_LIT : /`([^`]+)`/
+TERM_LIT : /`[^`]+`|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/
 ACTION   : /\{%((?:[^%]|%[^}])*)%\}/
 LABEL    : /#[ \t]*([A-Za-z_][A-Za-z0-9_]*)/
 PLUS     : "+"

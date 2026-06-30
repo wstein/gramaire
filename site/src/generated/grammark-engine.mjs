@@ -1970,7 +1970,7 @@ var Rule = /* @__PURE__ */ (function() {
 })();
 
 // ../output/Grammark.Bootstrap/index.js
-var lrTokensSource = /* @__PURE__ */ joinWith("\n")(["WS       : /[ \\t]+/                       %skip", "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/      %external(layout)", "ATTR     : /#\\[([A-Za-z_][A-Za-z0-9_]*)\\]/", "IDENT    : /[A-Za-z_][A-Za-z0-9_]*/", "TERM_LIT : /`([^`]+)`/", "ACTION   : /\\{%((?:[^%]|%[^}])*)%\\}/", "LABEL    : /#[ \\t]*([A-Za-z_][A-Za-z0-9_]*)/", 'PLUS     : "+"', 'STAR     : "*"', 'QUESTION : "?"', 'LANGLE   : "<"', 'RANGLE   : ">"', 'COMMA    : ","']);
+var lrTokensSource = /* @__PURE__ */ joinWith("\n")(["WS       : /[ \\t]+/                       %skip", "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/      %external(layout)", "ATTR     : /#\\[([A-Za-z_][A-Za-z0-9_]*)\\]/", "IDENT    : /[A-Za-z_][A-Za-z0-9_]*/", "TERM_LIT : /`[^`]+`|'(?:[^'\\\\]|\\\\.)*'|\"(?:[^\"\\\\]|\\\\.)*\"/", "ACTION   : /\\{%((?:[^%]|%[^}])*)%\\}/", "LABEL    : /#[ \\t]*([A-Za-z_][A-Za-z0-9_]*)/", 'PLUS     : "+"', 'STAR     : "*"', 'QUESTION : "?"', 'LANGLE   : "<"', 'RANGLE   : ">"', 'COMMA    : ","']);
 var bootstrapGrammar = /* @__PURE__ */ (function() {
   return [new Rule("Grammar", [], [new Alt([new Ref("RuleList")], Nothing.value, new Just("\\rs -> Grammar rs"))]), new Rule("RuleList", [], [new Alt([new Ref("Rule")], Nothing.value, new Just("\\r -> [r]")), new Alt([new Ref("RuleList"), new Ref("NL"), new Ref("Rule")], Nothing.value, new Just("\\rs _ r -> snoc rs r"))]), new Rule("Rule", [], [new Alt([new Ref("ATTR"), new Ref("IDENT"), new Ref("NL"), new Lit(":"), new Ref("Body")], Nothing.value, new Just("\\attr lhs _ _ alts -> Rule lhs [ attr ] alts")), new Alt([new Ref("IDENT"), new Ref("NL"), new Lit(":"), new Ref("Body")], Nothing.value, new Just("\\lhs _ _ alts -> Rule lhs [] alts"))]), new Rule("Body", [], [new Alt([new Ref("Alt")], Nothing.value, new Just("\\a -> [a]")), new Alt([new Ref("Body"), new Lit("|"), new Ref("Alt")], Nothing.value, new Just("\\bs _ a -> snoc bs a"))]), new Rule("Alt", [], [new Alt([new Ref("SymList"), new Ref("Label"), new Ref("Action")], Nothing.value, new Just("\\syms lbl act -> Alt syms lbl act")), new Alt([new Ref("SymList"), new Ref("Label")], Nothing.value, new Just("\\syms lbl -> Alt syms lbl Nothing")), new Alt([new Ref("SymList"), new Ref("Action")], Nothing.value, new Just("\\syms act -> Alt syms Nothing act")), new Alt([new Ref("SymList")], Nothing.value, new Just("\\syms -> Alt syms Nothing Nothing"))]), new Rule("SymList", [], [new Alt([new Ref("Sym")], Nothing.value, new Just("\\s -> [s]")), new Alt([new Ref("SymList"), new Ref("Sym")], Nothing.value, new Just("\\ss s -> snoc ss s"))]), new Rule("Sym", [], [new Alt([new Ref("IDENT")], Nothing.value, new Just("\\i -> Ref i")), new Alt([new Ref("TERM_LIT")], Nothing.value, new Just("\\t -> Lit t")), new Alt([new Ref("IDENT"), new Ref("PLUS")], Nothing.value, new Just("\\i _ -> Rep (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("PLUS")], Nothing.value, new Just("\\t _ -> Rep (Lit t)")), new Alt([new Ref("IDENT"), new Ref("STAR")], Nothing.value, new Just("\\i _ -> Star (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("STAR")], Nothing.value, new Just("\\t _ -> Star (Lit t)")), new Alt([new Ref("IDENT"), new Ref("QUESTION")], Nothing.value, new Just("\\i _ -> Opt (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("QUESTION")], Nothing.value, new Just("\\t _ -> Opt (Lit t)")), new Alt([new Ref("IDENT"), new Ref("LANGLE"), new Ref("Args"), new Ref("RANGLE")], Nothing.value, new Just("\\name _ args _ -> Macro name args")), new Alt([new Ref("IDENT"), new Lit(":"), new Ref("Sym")], Nothing.value, new Just("\\name _ s -> Field name s"))]), new Rule("Args", [], [new Alt([new Ref("Sym")], Nothing.value, new Just("\\s -> [s]")), new Alt([new Ref("Args"), new Ref("COMMA"), new Ref("Sym")], Nothing.value, new Just("\\as _ s -> snoc as s"))]), new Rule("Action", [], [new Alt([new Ref("ACTION")], Nothing.value, new Just("\\a -> Just a"))]), new Rule("Label", [], [new Alt([new Ref("LABEL")], Nothing.value, new Just("\\l -> Just l"))])];
 })();
@@ -1984,6 +1984,15 @@ var toCharArray = function(s) {
 };
 var singleton3 = function(c) {
   return c;
+};
+var _charAt = function(just) {
+  return function(nothing) {
+    return function(i) {
+      return function(s) {
+        return i >= 0 && i < s.length ? just(s.charAt(i)) : nothing;
+      };
+    };
+  };
 };
 var length2 = function(s) {
   return s.length;
@@ -2006,6 +2015,13 @@ var take2 = function(n) {
 var drop2 = function(n) {
   return function(s) {
     return s.substring(n);
+  };
+};
+var slice2 = function(b) {
+  return function(e) {
+    return function(s) {
+      return s.slice(b, e);
+    };
   };
 };
 var splitAt = function(i) {
@@ -2048,6 +2064,9 @@ var stripPrefix = function(v) {
 var indexOf = /* @__PURE__ */ (function() {
   return _indexOf(Just.create)(Nothing.value);
 })();
+var charAt2 = /* @__PURE__ */ (function() {
+  return _charAt(Just.create)(Nothing.value);
+})();
 
 // ../output/Grammark.Lexer/index.js
 var map5 = /* @__PURE__ */ map(functorMaybe);
@@ -2079,7 +2098,7 @@ var normalizeNewlines = function(toks) {
         return Nothing.value;
       }
       ;
-      throw new Error("Failed pattern match at Grammark.Lexer (line 175, column 3 - line 179, column 26): " + [i.constructor.name, t.constructor.name]);
+      throw new Error("Failed pattern match at Grammark.Lexer (line 197, column 3 - line 201, column 26): " + [i.constructor.name, t.constructor.name]);
     };
   };
   return catMaybes(mapWithIndex2(decide)(toks));
@@ -4364,7 +4383,7 @@ var splitFirstColon = function(s) {
   throw new Error("Failed pattern match at Grammark.Tokens (line 76, column 21 - line 78, column 67): " + [v.constructor.name]);
 };
 var readDelimited = function(delim) {
-  return function($$unescape) {
+  return function($$unescape2) {
     return function(s) {
       var chars = toCharArray(s);
       var go = function($copy_i) {
@@ -4393,7 +4412,7 @@ var readDelimited = function(delim) {
                 }
                 ;
                 if (v1 instanceof Just) {
-                  if ($$unescape) {
+                  if ($$unescape2) {
                     $tco_var_i = i + 2 | 0;
                     $copy_acc = snoc(acc)(unescapeChar(v1.value0));
                     return;
@@ -7247,13 +7266,60 @@ var VErr = /* @__PURE__ */ (function() {
   };
   return VErr2;
 })();
+var $$unescape = /* @__PURE__ */ (function() {
+  var go = function(cs) {
+    var v = uncons(cs);
+    if (v instanceof Nothing) {
+      return [];
+    }
+    ;
+    if (v instanceof Just && v.value0.head === "\\") {
+      var v1 = uncons(v.value0.tail);
+      if (v1 instanceof Just) {
+        return cons(v1.value0.head)(go(v1.value0.tail));
+      }
+      ;
+      if (v1 instanceof Nothing) {
+        return ["\\"];
+      }
+      ;
+      throw new Error("Failed pattern match at Grammark.Lr (line 79, column 34 - line 81, column 26): " + [v1.constructor.name]);
+    }
+    ;
+    if (v instanceof Just) {
+      return cons(v.value0.head)(go(v.value0.tail));
+    }
+    ;
+    throw new Error("Failed pattern match at Grammark.Lr (line 77, column 11 - line 82, column 53): " + [v.constructor.name]);
+  };
+  return function($142) {
+    return fromCharArray(go(toCharArray($142)));
+  };
+})();
+var unquoteLit = function(s) {
+  var inner = slice2(1)(length2(s) - 1 | 0)(s);
+  var v = charAt2(0)(s);
+  if (v instanceof Just && v.value0 === "`") {
+    return inner;
+  }
+  ;
+  if (v instanceof Just && v.value0 === "'") {
+    return $$unescape(inner);
+  }
+  ;
+  if (v instanceof Just && v.value0 === '"') {
+    return $$unescape(inner);
+  }
+  ;
+  return s;
+};
 var tokenVal = function(tok) {
   if (tok.terminal === "IDENT") {
     return new VStr(tok.text);
   }
   ;
   if (tok.terminal === "TERM_LIT") {
-    return new VStr(tok.text);
+    return new VStr(unquoteLit(tok.text));
   }
   ;
   if (tok.terminal === "ACTION") {
@@ -7388,8 +7454,8 @@ var lrBlocks = function(md) {
   var scan2 = function(acc) {
     return function(line) {
       if (acc.inside) {
-        var $111 = trim(line) === "```";
-        if ($111) {
+        var $131 = trim(line) === "```";
+        if ($131) {
           return {
             inside: false,
             cur: [],
@@ -7404,8 +7470,8 @@ var lrBlocks = function(md) {
         };
       }
       ;
-      var $112 = trim(line) === "```lr";
-      if ($112) {
+      var $132 = trim(line) === "```lr";
+      if ($132) {
         return {
           blocks: acc.blocks,
           inside: true,
@@ -7426,8 +7492,8 @@ var parseWith = function(method) {
   return function(md) {
     var src = joinWith("\n")(lrBlocks(md)) + "\n";
     var raw = scan(lrScanItems)(src);
-    var $113 = hasError(raw);
-    if ($113) {
+    var $133 = hasError(raw);
+    if ($133) {
       return new Left("lexical error in grammar source");
     }
     ;
@@ -7450,10 +7516,10 @@ var parseWith = function(method) {
         return new Left("parse did not yield a Grammar");
       }
       ;
-      throw new Error("Failed pattern match at Grammark.Lr (line 129, column 22 - line 132, column 56): " + [v1.constructor.name]);
+      throw new Error("Failed pattern match at Grammark.Lr (line 154, column 22 - line 157, column 56): " + [v1.constructor.name]);
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Lr (line 127, column 10 - line 132, column 56): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Lr (line 152, column 10 - line 157, column 56): " + [v.constructor.name]);
   };
 };
 var parse = /* @__PURE__ */ (function() {

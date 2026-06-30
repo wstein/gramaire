@@ -45,16 +45,29 @@ tests = do
         ]
     }
 
-  log "  lexer: backtick literals are TERM_LIT, raw : and | are punctuation"
+  log "  lexer: terminal literals are TERM_LIT (whole lexeme), raw : and | are punctuation"
   assertEqual
     { actual: tokenize "Body\n  : `:` Alt AltTail"
     , expected: Right
         [ tk "IDENT" "Body"
         , tk "NL" "\n"
         , tk ":" ":"
-        , tk "TERM_LIT" ":"
+        , tk "TERM_LIT" "`:`"
         , tk "IDENT" "Alt"
         , tk "IDENT" "AltTail"
+        ]
+    }
+
+  log "  lexer: 'x' and \"x\" are TERM_LIT too (ADR D34), delimiter escapable"
+  assertEqual
+    { actual: tokenize "A\n  : '+' \"-\" '\\''"
+    , expected: Right
+        [ tk "IDENT" "A"
+        , tk "NL" "\n"
+        , tk ":" ":"
+        , tk "TERM_LIT" "'+'"
+        , tk "TERM_LIT" "\"-\""
+        , tk "TERM_LIT" "'\\''"
         ]
     }
 
