@@ -24,6 +24,7 @@ import Test.IRDecode as IRDecode
 import Test.Json as Json
 import Test.Lexer as Lexer
 import Test.Parser as Parser
+import Test.Regex as Regex
 import Test.Schema as Schema
 import Test.SelfHost as SelfHost
 import Test.Table as Table
@@ -36,6 +37,8 @@ main = do
   Lexer.tests
   log "Test.Parser"
   Parser.tests
+  log "Test.Regex"
+  Regex.tests
   log "Test.SelfHost"
   SelfHost.tests
   log "Test.FirstFollow"
