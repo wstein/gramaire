@@ -17,11 +17,17 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
       <p>
         Grammar evaluation in your browser, running the real Grammark engine
         (the compiled PureScript core). It lexes input from the grammar's
-        literal terminals <em>and</em> any token classes (ALL-CAPS, e.g. <code
-          >NUM</code
-        >) declared in its <code>## Tokens</code> block, then parses with the LR tables
-        — the same verdict the <code>grammark</code> CLI gives. Edits re-evaluate
-        live.
+        literal terminals <em>and</em> any token classes (ALL-CAPS names like
+        <code>NUMBER</code> declared as <code>NUMBER : /[0-9]+/</code> — in a
+        <code>## Tokens</code> block, or as bare lines in the raw <code
+          >.gram</code
+        > form shown here), then parses with the LR tables — the same verdict the
+        <code>grammark</code> CLI gives. Edits re-evaluate live.
+      </p>
+      <p style="font-size: 0.85rem; color: #6b7280; margin-top: -0.5rem;">
+        <strong>What's live:</strong> lexing, LR parsing, and the accept/reject verdict,
+        all client-side — your grammar never leaves the page. This is the same engine
+        the CLI ships, not a stub or a server.
       </p>
       <div
         style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 1rem; margin-top: 1.5rem;"
