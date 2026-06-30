@@ -110,3 +110,38 @@ jobs:
           node bootstrap/grammark-check.ts --write-lock examples/json.gram.md
           node bootstrap/grammark-check.ts --write-lock examples/readme.gram.md
           git diff --exit-code
+
+  site:
+    name: Playground site (Astro)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install the PureScript toolchain (for the engine bundle)
+        run: npm i -g purescript@0.15.16 spago@1.0.4
+
+      - name: Install site dependencies
+        run: npm ci
+
+      - name: Engine bundle is up to date (rebuild + no drift, ADR D13)
+        # `Grammark.Playground` → browser ESM. If this fails, run
+        # `npm run build:engine` in site/ and commit the regenerated bundle.
+        run: npm run check:engine
+
+      - name: Check formatting (prettier)
+        run: npm run lint
+
+      - name: Unit tests (the real engine, via the bundle)
+        run: npm test
+
+      - name: Build the site
+        run: npm run build
