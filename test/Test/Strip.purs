@@ -1,8 +1,9 @@
--- | The raw `.grmk` projection (ADR D36): `strip` drops a `.grmk.md`'s prose,
--- | headings, and diagrams, keeping only the fenced `grammark`* blocks. It is a
+-- | The raw `.grmk` projection (ADR D36): `strip` turns a `.grmk.md`'s prose and
+-- | headings into `//` comments and keeps the grammar, fence-free. It is a
 -- | derived, non-authoritative export — the safety property is that it carries
 -- | exactly the grammar the parser sees: `parse (strip md) == parse md` for
--- | every grammar, so `.grmk` can never be a second source of truth.
+-- | every grammar (the comments are skipped on parse), so `.grmk` can never be a
+-- | second source of truth.
 module Test.Strip (tests) where
 
 import Prelude
@@ -18,7 +19,7 @@ import Node.FS.Sync (readTextFile)
 import Test.Assert (assert')
 
 tests :: Effect Unit
-tests =
+tests = do
   for_
     [ "grammar/lr.grmk.md"
     , "examples/calc.grmk.md"
@@ -27,13 +28,23 @@ tests =
     ]
     check
 
+  log "  strip: // and /* … */ comments are skipped on parse"
+  let
+    withComments = "// a line comment\n/* a\n   block comment */\nS\n  : 'x'\n"
+    without = "S\n  : 'x'\n"
+  assert' "both comment styles are transparent to the parser"
+    (parse withComments == parse without && isRight (parse without))
+
 check :: String -> Effect Unit
 check path = do
   log ("  strip: parse(strip(x)) == parse(x) for " <> path)
   md <- readTextFile UTF8 path
   let stripped = strip md
-  -- The projection drops the prose: a `.grmk` has no `## ` headings.
-  assert' (path <> ": strip should drop ## headings") (not (contains (Pattern "\n## ") stripped))
-  -- … and keeps the grammark blocks, so it parses to the same grammar.
+  -- Prose/headings become `//` comments (not dropped): no bare `## ` heading,
+  -- but the projection does carry `// ` comment lines.
+  assert' (path <> ": no bare ## headings (they become // comments)")
+    (not (contains (Pattern "\n## ") stripped))
+  assert' (path <> ": prose survives as // comments") (contains (Pattern "// ") stripped)
+  -- … and the grammar still parses to the same value (toFenced skips comments).
   assert' (path <> ": stripped form should still parse") (isRight (parse stripped))
   assert' (path <> ": parse(strip(x)) must equal parse(x)") (parse stripped == parse md)

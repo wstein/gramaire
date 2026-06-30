@@ -151,31 +151,46 @@ grammarkBlocks md =
 -- | follows ANTLR's design. Lexer/token classes are ALL-CAPS `NAME : pattern`
 -- | one-liners; parser rules are Mixed-case `Name`-on-its-own-line productions;
 -- | the two are intermixed and told apart **by case** — exactly how Grammark
--- | already reads them. `%left` / `%right` precedence declarations are kept
--- | (they self-identify); error messages are dropped (a docs/runtime concern,
--- | not grammar, as in ANTLR). Prose, headings, and diagrams are dropped. It is
--- | DERIVED and non-authoritative — `.grmk.md` stays the source of truth — and
--- | `parse (strip md) == parse md` (Test.Strip), since `toFenced` reads it back.
+-- | already reads them. `%left` / `%right` precedence declarations are kept (they
+-- | self-identify). The Markdown **prose and headings become `//` comments** (so
+-- | the documentation travels with the projection, not lost), `## errors` blocks
+-- | and railroad-diagram images are dropped, and `## purescript` AST sketches are
+-- | dropped. It is DERIVED and non-authoritative — `.grmk.md` stays the source of
+-- | truth — and `parse (strip md) == parse md` (Test.Strip), since `toFenced`
+-- | reads it back (skipping the comments).
 strip :: String -> String
 strip md =
-  let
-    blocks = grammarkBlocks md
-    pick info = joinWith "\n\n" (map _.content (Array.filter (\b -> b.info == info) blocks))
-    parts = Array.filter (_ /= "") [ pick "tokens", pick "", pick "precedence" ]
-  in
-    joinWith "\n\n" parts <> "\n"
+  joinWith "\n" (Array.reverse (foldl step { fence: Nothing, out: [] } (split (Pattern "\n") md)).out) <> "\n"
+  where
+  step acc line =
+    let
+      t = trim line
+    in
+      case acc.fence of
+        Just info ->
+          if t == "```" then acc { fence = Nothing }
+          else if isGrammarkInfo info && info /= "grammark errors" then acc { out = Array.cons line acc.out }
+          else acc -- non-grammar fence (errors / purescript): dropped
+        Nothing -> case stripPrefix (Pattern "```") t of
+          Just rest -> acc { fence = Just (trim rest) }
+          Nothing
+            | isJust (stripPrefix (Pattern "![") t) -> acc -- drop diagram image links
+            | t == "" -> acc { out = Array.cons "" acc.out }
+            | otherwise -> acc { out = Array.cons ("// " <> line) acc.out } -- prose -> comment
+
+  isGrammarkInfo info = info == "grammark" || isJust (stripPrefix (Pattern "grammark ") info)
 
 -- | Read a fence-free `.grmk` projection back to the fenced form the parser
--- | expects (a no-op on already-fenced `.grmk.md`). ALL-CAPS `NAME :` lines are
--- | token-class definitions (the lexis); `%left` / `%right` lines are dropped
--- | (precedence is not modelled by the core yet); everything else is the
--- | productions.
+-- | expects (a no-op on already-fenced `.grmk.md`). `//` and `/* … */` comments
+-- | are skipped (the prose), ALL-CAPS `NAME :` lines are token-class definitions
+-- | (the lexis), `%left` / `%right` lines are dropped (precedence is not modelled
+-- | by the core yet), and everything else is the productions.
 toFenced :: String -> String
 toFenced src =
   if contains (Pattern "```grammark") src then src
   else
     let
-      ls = split (Pattern "\n") src
+      ls = decomment (split (Pattern "\n") src)
       tokenLines = Array.filter isTokenDef ls
       prodLines = Array.filter (\l -> not (isTokenDef l) && not (isPrecDecl l)) ls
       block info body =
@@ -221,6 +236,23 @@ isPrecDecl l =
     t = trim l
   in
     any (\p -> isJust (stripPrefix (Pattern p) t)) [ "%left ", "%right ", "%nonassoc " ]
+
+-- | Drop `//` line comments and `/* … */` block comments (the prose `strip`
+-- | writes into a `.grmk`), so the grammar lexer never sees them. Whole-line
+-- | only: a `//` mid-line (e.g. inside a `{% … %}` action) is left alone.
+decomment :: Array String -> Array String
+decomment ls = Array.reverse (foldl step { inBlock: false, out: [] } ls).out
+  where
+  step acc line =
+    let
+      t = trim line
+    in
+      if acc.inBlock then
+        if contains (Pattern "*/") t then acc { inBlock = false } else acc
+      else if isJust (stripPrefix (Pattern "//") t) then acc
+      else if isJust (stripPrefix (Pattern "/*") t) then
+        (if contains (Pattern "*/") t then acc else acc { inBlock = true })
+      else acc { out = Array.cons line acc.out }
 
 -- | The production lexer for `lr` grammar source: the scanner built from the
 -- | notation's own `## Tokens` block (`lrTokensSource`), with `:` and `|` as
