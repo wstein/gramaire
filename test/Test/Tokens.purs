@@ -17,11 +17,11 @@ import Test.Assert (assert')
 lrTokens :: String
 lrTokens = joinWith "\n"
   [ "WS       : /[ \\t]+/                  %skip"
-  , "NL       : /\\r?\\n([ \\t]*\\r?\\n)*/     %external(layout)"
+  , "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/     %external(layout)"
   , "IDENT    : /[A-Za-z_][A-Za-z0-9_]*/"
-  , "TERM_LIT : /`[^`]+`/"
-  , "ACTION   : /\\{%([^%]|%[^}])*%\\}/"
-  , "LABEL    : /#[ \\t]*[A-Za-z_][A-Za-z0-9_]*/"
+  , "TERM_LIT : /`([^`]+)`/"
+  , "ACTION   : /\\{%((?:[^%]|%[^}])*)%\\}/"
+  , "LABEL    : /#[ \\t]*([A-Za-z_][A-Za-z0-9_]*)/"
   , "PLUS     : \"+\""
   , "STAR     : \"*\""
   , "QUESTION : \"?\""
@@ -33,8 +33,8 @@ lrTokens = joinWith "\n"
 -- The §11 `json` tokens block.
 jsonTokens :: String
 jsonTokens = joinWith "\n"
-  [ "STRING : /\"([^\"\\\\]|\\\\.)*\"/"
-  , "NUMBER : /-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][-+]?[0-9]+)?/"
+  [ "STRING : /\"(?:[^\"\\\\]|\\\\.)*\"/"
+  , "NUMBER : /-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/"
   , "WS     : /[ \\t\\r\\n]+/    %skip"
   ]
 
