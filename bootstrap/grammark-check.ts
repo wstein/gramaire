@@ -169,7 +169,11 @@ export function grammarHashes(doc: Doc): GrammarHashes {
     if (b.info === "lr" && b.nonterminal) {
       ruleHashes[b.nonterminal] = sha256(`lr\n${b.content}`);
     }
-    if (b.info === "lr" || b.info === "lr precedence") {
+    if (
+      b.info === "lr" ||
+      b.info === "lr precedence" ||
+      b.info === "lr tokens"
+    ) {
       grammarParts.push(`${b.info}\n${b.content}`);
     }
   }
@@ -188,7 +192,8 @@ export function checkStructure(doc: Doc): string[] {
   if (h1s.length !== 1)
     fails.push(`expected exactly one H1, found ${h1s.length} (MD025)`);
 
-  // Canonical order: H1, then each lr-nonterminal as an H2 in block order,
+  // Canonical order: H1, then the optional Tokens section (alphabet before
+  // grammar; lexer-spec §9), then each lr-nonterminal as an H2 in block order,
   // then the optional Precedence section, then Error messages and Generated
   // tables. Only the H1 and H2 layers are structural — `###`+ headings are
   // deliberately ignored here (free presentational grouping; ADR D29), so do
@@ -200,7 +205,11 @@ export function checkStructure(doc: Doc): string[] {
   const tail = h2.includes("Precedence")
     ? ["Precedence", ...EXPECTED_TAIL]
     : EXPECTED_TAIL;
-  const expected = [...ruleNames, ...tail];
+  const expected = [
+    ...(h2.includes("Tokens") ? ["Tokens"] : []),
+    ...ruleNames,
+    ...tail,
+  ];
   if (JSON.stringify(h2) !== JSON.stringify(expected)) {
     fails.push(
       `H2 sections out of canonical order.\n      expected: ${JSON.stringify(
