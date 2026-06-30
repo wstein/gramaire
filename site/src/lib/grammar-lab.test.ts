@@ -79,3 +79,14 @@ test("parseGrammarkDocument resolves the grammar locally in the browser runtime"
   assert.equal(result.success, true);
   assert.match(result.message, /matched|accepted/i);
 });
+
+test("parseGrammarkDocument evaluates the provided input against the pasted grammar", async () => {
+  const source = readFileSync(
+    new URL("../../../examples/calc.gram.md", import.meta.url),
+    "utf8",
+  );
+  const result = await parseGrammarkDocument(source, "1 + 2");
+
+  assert.equal(result.success, true);
+  assert.match(result.message, /matched/i);
+});
