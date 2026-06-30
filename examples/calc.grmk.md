@@ -3,6 +3,13 @@
 A small arithmetic grammar demonstrating the Grammark fenced envelope.
 Operators are left-associative; `*` and `/` bind tighter than `+` and `-`.
 
+## Tokens
+
+```grammark tokens
+NUMBER : /[0-9]+/
+WS     : /[ \t\r\n]+/   %skip
+```
+
 ## Expr
 
 An expression is a sum or difference of terms.
