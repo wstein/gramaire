@@ -1,4 +1,4 @@
--- | Cover the `grammark-ir` lowering: a structural unit check on a tiny
+-- | Cover the `gramaire-ir` lowering: a structural unit check on a tiny
 -- | grammar, and canonical-JSON goldens for the real grammars.
 -- |
 -- | The goldens lock the exact serialized bytes, so any change to the IR shape
@@ -17,10 +17,10 @@ import Data.Maybe (Maybe(..), isNothing)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.IR (IRRef(..), IRTerminal(..), buildIR, serialize)
-import Grammark.Lr (parse)
-import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
-import Grammark.Table (Method(..))
+import Gramaire.IR (IRRef(..), IRTerminal(..), buildIR, serialize)
+import Gramaire.Lr (parse)
+import Gramaire.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
+import Gramaire.Table (Method(..))
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Test.Assert (assert', assertEqual)

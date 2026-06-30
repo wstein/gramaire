@@ -9,7 +9,7 @@ import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Cli (grammarName, parseEmit)
+import Gramaire.Cli (grammarName, parseEmit)
 import Test.Assert (assertEqual)
 
 tests :: Effect Unit

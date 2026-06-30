@@ -9,7 +9,7 @@ import Data.Maybe (Maybe(..))
 import Data.String.CodeUnits (slice, toCharArray)
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Regex (longestMatch, longestMatchSpan, parseRegex)
+import Gramaire.Regex (longestMatch, longestMatchSpan, parseRegex)
 import Test.Assert (assert')
 
 -- Longest match end position of a pattern over an input, or Nothing.

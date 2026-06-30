@@ -1,4 +1,4 @@
-name: Deploy Grammark docs
+name: Deploy Gramaire docs
 
 on:
   push:

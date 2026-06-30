@@ -1,7 +1,7 @@
 -- | Machine-check every grammar's documented FIRST/FOLLOW table.
 -- |
 -- | For each `.gram.md`, parse it into a `Grammar` with the self-hosting
--- | parser, compute FIRST/FOLLOW with `Grammark.Table.analyze`, and diff the
+-- | parser, compute FIRST/FOLLOW with `Gramaire.Table.analyze`, and diff the
 -- | result against the `## Generated tables` section read straight out of the
 -- | document. This closes the gap the lr-only `validate-firstfollow.mjs`
 -- | left: the json/calc/readme tables are now computed and checked, not
@@ -22,8 +22,8 @@ import Data.String (Pattern(..), split, trim)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Lr (parse)
-import Grammark.Table (analyze)
+import Gramaire.Lr (parse)
+import Gramaire.Table (analyze)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Test.Assert (assert', assertEqual)

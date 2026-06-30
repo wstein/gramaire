@@ -20,9 +20,9 @@ import Data.Set as Set
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Bootstrap (bootstrapGrammar)
-import Grammark.Syntax (Grammar(..), Rule(..), Alt(..), Sym(..))
-import Grammark.Table (GSym(..), Method(..), analyze, buildTables, buildTablesFor, productions)
+import Gramaire.Bootstrap (bootstrapGrammar)
+import Gramaire.Syntax (Grammar(..), Rule(..), Alt(..), Sym(..))
+import Gramaire.Table (GSym(..), Method(..), analyze, buildTables, buildTablesFor, productions)
 import Test.Assert (assert, assertEqual)
 
 -- An ambiguous grammar: E -> E E | x. Canonical LR(1) cannot resolve the

@@ -1,7 +1,7 @@
 /*
- * Railroad-diagram rendering for Grammark rules.
+ * Railroad-diagram rendering for Gramaire rules.
  *
- * Grammark grammars are flat — each rule is a choice of sequences (no nested
+ * Gramaire grammars are flat — each rule is a choice of sequences (no nested
  * EBNF: optionality and repetition are enumerated as alternatives). That makes
  * the layout a simple stack of horizontal tracks with a fork on each side, so
  * we render it directly rather than pulling in a general railroad engine.

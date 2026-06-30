@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://grammark.dev/spec/cst-schema.json",
-  "title": "grammark-cst",
-  "description": "The generic concrete syntax tree a Grammark recognizer builds with no semantic actions: a branch per reduced production (tagged with its grammark-ir rules[] index) and a token leaf per consumed terminal, children in source order. This is the action-free, portable artifact every backend can emit and any host can walk. cstVersion 0 is draft/unstable and carries no compatibility promise.",
+  "$id": "https://gramaire.dev/spec/cst-schema.json",
+  "title": "gramaire-cst",
+  "description": "The generic concrete syntax tree a Gramaire recognizer builds with no semantic actions: a branch per reduced production (tagged with its gramaire-ir rules[] index) and a token leaf per consumed terminal, children in source order. This is the action-free, portable artifact every backend can emit and any host can walk. cstVersion 0 is draft/unstable and carries no compatibility promise.",
   "type": "object",
   "required": ["cstVersion", "root"],
   "additionalProperties": false,
@@ -16,7 +16,7 @@
       "oneOf": [{ "$ref": "#/$defs/branch" }, { "$ref": "#/$defs/token" }]
     },
     "branch": {
-      "description": "A reduced production. `rule` is the index into grammark-ir grammar.rules; `children` are the right-hand-side nodes in source order (possibly empty only for an epsilon production, which the epsilon-free Core never emits).",
+      "description": "A reduced production. `rule` is the index into gramaire-ir grammar.rules; `children` are the right-hand-side nodes in source order (possibly empty only for an epsilon production, which the epsilon-free Core never emits).",
       "type": "object",
       "required": ["rule", "children"],
       "additionalProperties": false,

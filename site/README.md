@@ -1,6 +1,6 @@
-# Grammark docs site
+# Gramaire docs site
 
-This directory contains the Astro Starlight documentation site for Grammark.
+This directory contains the Astro Starlight documentation site for Gramaire.
 
 ## Develop locally
 

@@ -1,4 +1,4 @@
--- | Every grammar's IR honors the `grammark-ir` contract (`spec/ir-schema.json`).
+-- | Every grammar's IR honors the `gramaire-ir` contract (`spec/ir-schema.json`).
 -- |
 -- | Parses each `.gram.md`, builds the IR, and asserts `validate` reports no
 -- | violations — so an emitter change that breaks an id space or a table
@@ -14,17 +14,17 @@ import Data.Foldable (for_)
 import Data.String (joinWith)
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.IR (buildIR)
-import Grammark.IR.Validate (validate)
-import Grammark.Lr (parse)
-import Grammark.Table (Method(Canonical))
+import Gramaire.IR (buildIR)
+import Gramaire.IR.Validate (validate)
+import Gramaire.Lr (parse)
+import Gramaire.Table (Method(Canonical))
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Test.Assert (assert')
 
 check :: String -> Effect Unit
 check path = do
-  log ("  schema: " <> path <> " conforms to grammark-ir")
+  log ("  schema: " <> path <> " conforms to gramaire-ir")
   md <- readTextFile UTF8 path
   case parse md of
     Left e -> assert' ("could not parse " <> path <> ": " <> e) false

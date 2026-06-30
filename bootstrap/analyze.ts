@@ -1,12 +1,12 @@
 /*
- * FIRST/FOLLOW analysis for the `grammark fmt` table regeneration.
+ * FIRST/FOLLOW analysis for the `gramaire fmt` table regeneration.
  *
- * This is the TypeScript counterpart of `Grammark.Table`'s stage 1, kept
+ * This is the TypeScript counterpart of `Gramaire.Table`'s stage 1, kept
  * deliberately parallel so the two implementations cross-check: the PureScript
  * `Test.FirstFollow` recomputes the same sets from the same grammars and
  * asserts they match the tables fmt writes here.
  *
- * Grammark grammars are epsilon-free (optionality is enumerated, never an
+ * Gramaire grammars are epsilon-free (optionality is enumerated, never an
  * empty alternative), so FIRST of a production is FIRST of its first symbol
  * and FOLLOW needs no nullable bookkeeping. EOF is written `$`.
  */

@@ -1,5 +1,5 @@
 // Live railroad diagrams for the Lab. Reuses the bridge's dependency-free
-// renderer (`bootstrap/railroad.ts`) — the same SVGs `grammark fmt` writes — so
+// renderer (`bootstrap/railroad.ts`) — the same SVGs `gramaire fmt` writes — so
 // the browser and the committed `.gram.md` draw rules identically. Splitting the
 // edited grammar into per-rule blocks is done here; the engine supplies the
 // nonterminal names so terminals and nonterminals colour correctly.
@@ -11,16 +11,16 @@ export interface RuleDiagram {
 }
 
 // Pull each rule's text (head line + alternatives) out of a grammar document in
-// either form: fenced `.gram.md` (```grammark blocks) or the raw fence-free
+// either form: fenced `.gram.md` (```gramaire blocks) or the raw fence-free
 // `.gram` projection (comments, token defs, and precedence stripped).
 function ruleBlocks(
   source: string,
   ruleNames: string[],
 ): { name: string; content: string }[] {
   let body: string;
-  if (source.includes("```grammark")) {
+  if (source.includes("```gramaire")) {
     const blocks: string[] = [];
-    const re = /```grammark[ \t]*(\w*)[^\n]*\n([\s\S]*?)```/g;
+    const re = /```gramaire[ \t]*(\w*)[^\n]*\n([\s\S]*?)```/g;
     let m: RegExpExecArray | null;
     while ((m = re.exec(source))) {
       if (m[1] === "") blocks.push(m[2]!); // plain productions only

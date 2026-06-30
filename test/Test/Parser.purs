@@ -1,4 +1,4 @@
--- | Tests for the generic LR runtime `Grammark.Parser.run`, independent of the
+-- | Tests for the generic LR runtime `Gramaire.Parser.run`, independent of the
 -- | `lr` notation: build tables for a tiny grammar, then drive them.
 module Test.Parser (tests) where
 
@@ -9,10 +9,10 @@ import Data.Array as Array
 import Data.Maybe (Maybe(..), fromMaybe)
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Lexer (Token)
-import Grammark.Parser (run)
-import Grammark.Syntax (Grammar(..), Rule(..), Alt(..), Sym(..))
-import Grammark.Table (buildTables)
+import Gramaire.Lexer (Token)
+import Gramaire.Parser (run)
+import Gramaire.Syntax (Grammar(..), Rule(..), Alt(..), Sym(..))
+import Gramaire.Table (buildTables)
 import Test.Assert (assert, assertEqual)
 
 -- S -> `a` S | `a`. Counting reduce: the value of S is the number of `a`s.

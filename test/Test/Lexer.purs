@@ -1,4 +1,4 @@
--- | Tests for `Grammark.Lexer`: token classes, payload extraction, blank-line
+-- | Tests for `Gramaire.Lexer`: token classes, payload extraction, blank-line
 -- | collapsing, and the error cases.
 module Test.Lexer (tests) where
 
@@ -10,7 +10,7 @@ import Data.Foldable (all, foldl)
 import Data.String.CodeUnits (fromCharArray, length, toCharArray)
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Lexer (Spanned, Token, normalizeNewlines, tokenize, tokenizeSpanned)
+import Gramaire.Lexer (Spanned, Token, normalizeNewlines, tokenize, tokenizeSpanned)
 import Test.Assert (assert, assert', assertEqual)
 
 tk :: String -> String -> Token

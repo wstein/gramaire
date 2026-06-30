@@ -1,6 +1,6 @@
 -- | Lexer self-host oracle (lexer-spec §8). The scanner built from the `lr`
 -- | notation's own `## Tokens` block (read from `grammar/lr.gram.md`) reproduces
--- | the bootstrap `Grammark.Lexer` **token-for-token** — terminals and, thanks
+-- | the bootstrap `Gramaire.Lexer` **token-for-token** — terminals and, thanks
 -- | to capture groups (M5), text — both on a representative snippet and on the
 -- | whole of `lr.gram.md`.
 -- |
@@ -18,12 +18,12 @@ import Data.String (joinWith, trim)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (log)
-import Grammark.Bootstrap (lrTokensSource)
-import Grammark.Conformance.Lexers (tokensBlock)
-import Grammark.Lexer (Token, tokenize)
-import Grammark.Lr (lrBlocks)
-import Grammark.Scanner (ScanItem, buildItems, scan)
-import Grammark.Tokens (parseTokens)
+import Gramaire.Bootstrap (lrTokensSource)
+import Gramaire.Conformance.Lexers (tokensBlock)
+import Gramaire.Lexer (Token, tokenize)
+import Gramaire.Lr (lrBlocks)
+import Gramaire.Scanner (ScanItem, buildItems, scan)
+import Gramaire.Tokens (parseTokens)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Test.Assert (assert')

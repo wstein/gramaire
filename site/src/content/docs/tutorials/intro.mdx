@@ -12,20 +12,20 @@ import {
 } from "@astrojs/starlight/components";
 import Term from "../../../components/Term.astro";
 
-Grammark's whole idea is in its name — _gram + mark_, grammar plus Markdown. A
+Gramaire's whole idea is in its name — _gram + mark_, grammar plus Markdown. A
 `.gram.md` file is a normal Markdown document that renders on GitHub — prose,
 railroad diagrams, FIRST/FOLLOW tables — and is **at the same time** the exact
 input the parser generator reads. Your grammar _is_ your documentation.
 
 This tutorial builds a small calculator grammar in two passes: **Part 1** writes
 a <Term name="recognizer">recognizer</Term> that decides whether input is valid,
-and **Part 2** attaches _actions_ that turn a valid parse into a value. The `grammark` CLI and the
-[Lab](/grammark/lab) run the **same** PureScript core — the Lab is that core
+and **Part 2** attaches _actions_ that turn a valid parse into a value. The `gramaire` CLI and the
+[Lab](/gramaire/lab) run the **same** PureScript core — the Lab is that core
 compiled to WebAssembly-class browser ESM — so a verdict in the browser matches
 the CLI.
 
 <Aside type="tip" title="The Lab runs the real engine">
-  The browser Lab is not a stub: it bundles the compiled Grammark core and lexes
+  The browser Lab is not a stub: it bundles the compiled Gramaire core and lexes
   input from a grammar's literal terminals **and** its token classes (ALL-CAPS
   names like `NUMBER`, declared as `NUMBER : /[0-9]+/`), then parses with the LR
   tables — entirely client-side, with no server round-trip. Your grammar never
@@ -40,7 +40,7 @@ A grammar file is a canonical Markdown document with a fixed structure:
 
 1. **One `# H1`** — the grammar's name.
 
-2. **One `## H2` per nonterminal** — the heading names the rule; a `grammark`
+2. **One `## H2` per nonterminal** — the heading names the rule; a `gramaire`
    fenced block under it holds its productions.
 
 3. **Reserved `## H2` sections** — `Precedence`, `Error messages`, and
@@ -52,7 +52,7 @@ A grammar file is a canonical Markdown document with a fixed structure:
 </Steps>
 
 One file is exactly one grammar: one start symbol, one namespace. Productions
-live in fenced blocks whose info string is `grammark`; everything outside them is
+live in fenced blocks whose info string is `gramaire`; everything outside them is
 documentation that travels with the grammar.
 
 ## 2. Your first rule
@@ -68,7 +68,7 @@ A small arithmetic grammar.
 
 An expression is a sum or difference of terms.
 
-```grammark
+```gramaire
 Expr
   : Expr '+' Term
   | Expr '-' Term
@@ -76,7 +76,7 @@ Expr
 ```
 ````
 
-Reading the `grammark` block:
+Reading the `gramaire` block:
 
 - `Expr` on its own line names the nonterminal; the `:` on the next line begins
   its alternatives.
@@ -86,7 +86,7 @@ Reading the `grammark` block:
   terminals** — the exact text to match.
 - A **mixed-case** name (`Expr`, `Term`) is a nonterminal; an **ALL-CAPS** name
   (`NUMBER`) is a lexer token class. A mixed-case name you never define is a
-  missing rule — Grammark rejects it by name rather than treating it as a phantom
+  missing rule — Gramaire rejects it by name rather than treating it as a phantom
   terminal.
 
 <Aside type="caution" title="Heads vs. fields">
@@ -98,7 +98,7 @@ Reading the `grammark` block:
 
 Add the remaining rules — `Term`, then `Factor` for numbers and parentheses:
 
-```grammark
+```gramaire
 Term
   : Term '*' Factor
   | Term '/' Factor
@@ -116,14 +116,14 @@ ALL-CAPS name bound to a `/regex/`; mark throwaway classes (whitespace) `%skip`:
 ````md
 ## Tokens
 
-```grammark tokens
+```gramaire tokens
 NUMBER : /[0-9]+/
 WS     : /[ \t\r\n]+/   %skip
 ```
 ````
 
-That is the whole recognizer's vocabulary. Grammark renders each rule as a
-**railroad diagram** — the same SVGs `grammark fmt` writes back into your
+That is the whole recognizer's vocabulary. Gramaire renders each rule as a
+**railroad diagram** — the same SVGs `gramaire fmt` writes back into your
 `.gram.md`, so the committed file documents itself. Here is the calculator's
 shape, the stratification visible at a glance:
 
@@ -148,8 +148,8 @@ We will run it in §5; first, two conveniences.
 ## 3. Surface sugar
 
 Writing pure, left-recursive, epsilon-free productions by hand is wordy.
-Grammark gives you sugar that compiles down to that clean core automatically
-(`Grammark.Desugar`), so the table generator never sees a nullable rule.
+Gramaire gives you sugar that compiles down to that clean core automatically
+(`Gramaire.Desugar`), so the table generator never sees a nullable rule.
 
 <CardGrid>
   <Card title="Repetition">
@@ -174,7 +174,7 @@ Grammark gives you sugar that compiles down to that clean core automatically
 
 For example, a statement block is just:
 
-```grammark
+```gramaire
 Block
   : '{' Sep<Stmt, ';'> '}'
 ```
@@ -188,13 +188,13 @@ section to resolve it — earlier declarations bind more loosely:
 ````md
 ## Precedence
 
-```grammark precedence
+```gramaire precedence
 %left '+' '-'
 %left '*' '/'
 ```
 ````
 
-When a build _does_ conflict, Grammark never tells you "conflict in state 7." It
+When a build _does_ conflict, Gramaire never tells you "conflict in state 7." It
 names the competing rules — "shift `+` vs reduce `Expr -> Expr + Expr`" — and it
 can tell you _what kind_ of conflict it is:
 
@@ -207,14 +207,14 @@ can tell you _what kind_ of conflict it is:
   or the GLR engine.
 
 ```sh
-grammark explain-conflict calc.gram.md
+gramaire explain-conflict calc.gram.md
 ```
 
 ## 5. Run the recognizer
 
 That is a complete grammar — and as it stands it is a **recognizer**: it answers
 exactly one question, _does this input fit?_ Paste it into the
-[Lab](/grammark/lab) and try it (this calculator is the Lab's default):
+[Lab](/gramaire/lab) and try it (this calculator is the Lab's default):
 
 - `12 + 3 * 4` → **accepted**
 - `12 +` → **rejected** — a `Term` has to follow `+`
@@ -235,7 +235,7 @@ A recognizer throws its work away. To keep it — to build a number, or an AST �
 attach a host-language **action** between `{%` and `%}`. The default action
 language is **PureScript** (the core's own language):
 
-```grammark
+```gramaire
 Expr
   : Expr '+' Term   {% \l _ r -> Add l r %}
   | Expr '-' Term   {% \l _ r -> Sub l r %}
@@ -258,12 +258,12 @@ we discard with `_`), and the right value.
 If you name your fields, you can skip the lambda entirely — a **bare body** binds
 the field names for you:
 
-```grammark
+```gramaire
 Expr
   : left:Expr '+' right:Term   {% Add left right %}
 ```
 
-Grammark rewrites that to `\left _ right -> Add left right`, so the action reads
+Gramaire rewrites that to `\left _ right -> Add left right`, so the action reads
 in terms of your grammar, not positions.
 
 <Aside title="Actions are data, backends are consumers">
@@ -279,15 +279,15 @@ At the CLI, check the file and emit artifacts from the same grammar:
 
 ```sh
 # verify the file (structure, formatting, no conflicts)
-grammark fmt calc.gram.md
+gramaire fmt calc.gram.md
 
 # emit artifacts from the same grammar
-grammark emit --backend ebnf calc.gram.md   # W3C-style EBNF
-grammark emit --backend ts   calc.gram.md   # a runnable TS parser + Visitor
-grammark emit --backend ir   calc.gram.md   # the grammark-ir JSON
+gramaire emit --backend ebnf calc.gram.md   # W3C-style EBNF
+gramaire emit --backend ts   calc.gram.md   # a runnable TS parser + Visitor
+gramaire emit --backend ir   calc.gram.md   # the gramaire-ir JSON
 ```
 
-`grammark fmt` also writes the railroad diagrams and the FIRST/FOLLOW table back
+`gramaire fmt` also writes the railroad diagrams and the FIRST/FOLLOW table back
 into the document, so the file you commit renders as complete documentation.
 
 ## Where next
@@ -301,11 +301,11 @@ into the document, so the file you commit renders as complete documentation.
   <LinkCard
     title="The IR schema"
     href="../../specs/ir-schema/"
-    description="grammark-ir — the one artifact every backend reads."
+    description="gramaire-ir — the one artifact every backend reads."
   />
   <LinkCard
     title="Open the Lab"
-    href="/grammark/lab"
+    href="/gramaire/lab"
     description="Edit, parse, and inspect grammars live in the browser."
   />
   <LinkCard
