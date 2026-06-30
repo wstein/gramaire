@@ -6,5 +6,12 @@ node_modules/
 /.spago/
 /.spago-lock.json
 
+# Astro docs site
+site/node_modules/
+site/dist/
+site/.astro/
+site/.cache/
+site/.vite/
+
 # Editor / OS
 .DS_Store
