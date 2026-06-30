@@ -104,6 +104,20 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
       <section
         style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
       >
+        <h2>Parse trace</h2>
+        <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
+          The bottom-up LR steps, in order: the engine <strong>shift</strong>s
+          each token onto its stack and <strong>reduce</strong>s by a rule once
+          a right-hand side is complete. Reading the reduces bottom-to-top
+          reconstructs the parse tree.
+        </p>
+        <pre
+          id="trace-output"
+          style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 80px; overflow: auto; font-size: 0.85rem;">—</pre>
+      </section>
+      <section
+        style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
+      >
         <h2>Diagnostics</h2>
         <div id="diagnostics-list" style="display: grid; gap: 0.5rem;"></div>
       </section>
@@ -118,6 +132,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
       const diagnosticsList = document.getElementById("diagnostics-list");
       const statusPill = document.getElementById("status-pill");
       const treeOutput = document.getElementById("tree-output");
+      const traceOutput = document.getElementById("trace-output");
       const conflictsOutput = document.getElementById("conflicts-output");
 
       async function evaluate() {
@@ -136,6 +151,10 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammark-runtime.ts";
           result.tree && result.tree.length > 0
             ? result.tree
             : "— (no parse tree: the input was rejected)";
+        traceOutput.textContent =
+          result.trace && result.trace.length > 0
+            ? result.trace
+            : "— (no trace: the input was rejected)";
         conflictsOutput.textContent =
           result.conflicts && result.conflicts.length > 0
             ? result.conflicts

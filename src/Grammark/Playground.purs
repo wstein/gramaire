@@ -7,7 +7,7 @@
 -- |
 -- | `Result` is a plain record and the argument a plain record, so both cross
 -- | the FFI boundary as ordinary JS objects: `evaluate({ source, input })`
--- | returns `{ ok, accepted, message, diagnostics, rules, tokens, tree,
+-- | returns `{ ok, accepted, message, diagnostics, rules, tokens, tree, trace,
 -- | conflicts }`.
 module Grammark.Playground (Result, evaluate) where
 
@@ -24,7 +24,7 @@ import Grammark.Cst (Cst(..))
 import Grammark.Glr (explainP, forest)
 import Grammark.Lr (parse, precedenceOf)
 import Grammark.Syntax (Grammar(..), Rule(..))
-import Grammark.Table (Method(..), Prod, productions)
+import Grammark.Table (GSym(..), Method(..), Prod, productions)
 import Grammark.Tokens (parseTokens)
 
 type Result =
@@ -35,6 +35,7 @@ type Result =
   , rules :: Array String -- the grammar's nonterminals, in order
   , tokens :: Array String -- the input's lexed token texts
   , tree :: String -- the parse tree (CST), one node per line, "" if rejected
+  , trace :: String -- the LR shift/reduce step sequence, "" if rejected
   , conflicts :: String -- the explain-conflict analysis of the grammar itself
   }
 
@@ -48,6 +49,7 @@ evaluate { source, input } = case parse source of
     , rules: []
     , tokens: []
     , tree: ""
+    , trace: ""
     , conflicts: ""
     }
   Right grammar ->
@@ -74,6 +76,7 @@ evaluate { source, input } = case parse source of
           , rules
           , tokens: []
           , tree: ""
+          , trace: ""
           , conflicts
           }
         Right toks ->
@@ -83,10 +86,14 @@ evaluate { source, input } = case parse source of
             -- unambiguous grammar yields one, an ambiguous one ≥2 (we show the
             -- first and say so). Empty when the input is rejected.
             csts = forest Canonical grammar toks
+            prods = productions grammar
             tree = case Array.head csts of
               Just t ->
-                renderTree (productions grammar) t
+                renderTree prods t
                   <> (if Array.length csts > 1 then "\n\n(ambiguous: " <> show (Array.length csts) <> " parses; showing the first)" else "")
+              Nothing -> ""
+            trace = case Array.head csts of
+              Just t -> renderTrace prods t
               Nothing -> ""
           in
             { ok: true
@@ -100,6 +107,7 @@ evaluate { source, input } = case parse source of
             , rules
             , tokens: map _.text toks
             , tree
+            , trace
             , conflicts
             }
 
@@ -125,3 +133,24 @@ renderTree prods = go 0
       Nothing -> "(start)"
     Token t s -> t <> " " <> show s
   indent depth = joinWith "" (Array.replicate depth "  ")
+
+-- | The LR engine's actual step sequence, recovered from the CST: a bottom-up
+-- | parser shifts each token (a leaf) and reduces each rule (a branch) in
+-- | post-order, so a post-order walk *is* the shift/reduce trace — the rightmost
+-- | derivation in reverse — without instrumenting the driver.
+renderTrace :: Array Prod -> Cst -> String
+renderTrace prods cst = joinWith "\n" (Array.mapWithIndex numbered (steps cst))
+  where
+  steps = case _ of
+    Token t s -> [ "shift  " <> t <> " " <> show s ]
+    Branch p kids -> Array.concatMap steps kids <> [ "reduce " <> prodLabel p ]
+  prodLabel p = case Array.index prods p of
+    Just pr ->
+      pr.lhs <> " -> "
+        <> (if Array.null pr.rhs then "ε" else joinWith " " (map symText pr.rhs))
+    Nothing -> "(accept)"
+  symText = case _ of
+    NonTerm n -> n
+    Term t -> "'" <> t <> "'"
+    EOF -> "$"
+  numbered i s = show (i + 1) <> ". " <> s

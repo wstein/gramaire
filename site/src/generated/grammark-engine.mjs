@@ -3455,7 +3455,7 @@ var foldableMap = {
   },
   foldMap: function(dictMonoid) {
     var mempty2 = mempty(dictMonoid);
-    var append16 = append(dictMonoid.Semigroup0());
+    var append17 = append(dictMonoid.Semigroup0());
     return function(f) {
       var go = function(v) {
         if (v instanceof Leaf) {
@@ -3463,7 +3463,7 @@ var foldableMap = {
         }
         ;
         if (v instanceof Node) {
-          return append16(go(v.value4))(append16(f(v.value3))(go(v.value5)));
+          return append17(go(v.value4))(append17(f(v.value3))(go(v.value5)));
         }
         ;
         throw new Error("Failed pattern match at Data.Map.Internal (line 181, column 10 - line 184, column 28): " + [v.constructor.name]);
@@ -3517,7 +3517,7 @@ var foldableWithIndexMap = {
   },
   foldMapWithIndex: function(dictMonoid) {
     var mempty2 = mempty(dictMonoid);
-    var append16 = append(dictMonoid.Semigroup0());
+    var append17 = append(dictMonoid.Semigroup0());
     return function(f) {
       var go = function(v) {
         if (v instanceof Leaf) {
@@ -3525,7 +3525,7 @@ var foldableWithIndexMap = {
         }
         ;
         if (v instanceof Node) {
-          return append16(go(v.value4))(append16(f(v.value2)(v.value3))(go(v.value5)));
+          return append17(go(v.value4))(append17(f(v.value2)(v.value3))(go(v.value5)));
         }
         ;
         throw new Error("Failed pattern match at Data.Map.Internal (line 201, column 10 - line 204, column 30): " + [v.constructor.name]);
@@ -8559,6 +8559,7 @@ var forest = function(method) {
 var map19 = /* @__PURE__ */ map(functorArray);
 var show8 = /* @__PURE__ */ show(showString);
 var foldMap3 = /* @__PURE__ */ foldMap(foldableArray)(monoidString);
+var append16 = /* @__PURE__ */ append(semigroupArray);
 var show13 = /* @__PURE__ */ show(showInt);
 var eq7 = /* @__PURE__ */ eq(eqOutcome);
 var ruleNamesOf = function(v) {
@@ -8578,14 +8579,14 @@ var renderTree = function(prods) {
         return "(start)";
       }
       ;
-      throw new Error("Failed pattern match at Grammark.Playground (line 123, column 19 - line 125, column 27): " + [v1.constructor.name]);
+      throw new Error("Failed pattern match at Grammark.Playground (line 131, column 19 - line 133, column 27): " + [v1.constructor.name]);
     }
     ;
     if (v instanceof Token) {
       return v.value0 + (" " + show8(v.value1));
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Playground (line 122, column 11 - line 126, column 36): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Playground (line 130, column 11 - line 134, column 36): " + [v.constructor.name]);
   };
   var indent = function(depth) {
     return joinWith("")(replicate(depth)("  "));
@@ -8603,11 +8604,66 @@ var renderTree = function(prods) {
           return "";
         }
         ;
-        throw new Error("Failed pattern match at Grammark.Playground (line 119, column 10 - line 121, column 24): " + [node.constructor.name]);
+        throw new Error("Failed pattern match at Grammark.Playground (line 127, column 10 - line 129, column 24): " + [node.constructor.name]);
       })());
     };
   };
   return go(0);
+};
+var renderTrace = function(prods) {
+  return function(cst) {
+    var symText = function(v) {
+      if (v instanceof NonTerm) {
+        return v.value0;
+      }
+      ;
+      if (v instanceof Term) {
+        return "'" + (v.value0 + "'");
+      }
+      ;
+      if (v instanceof EOF) {
+        return "$";
+      }
+      ;
+      throw new Error("Failed pattern match at Grammark.Playground (line 152, column 13 - line 155, column 15): " + [v.constructor.name]);
+    };
+    var prodLabel = function(p) {
+      var v = index(prods)(p);
+      if (v instanceof Just) {
+        return v.value0.lhs + (" -> " + (function() {
+          var $46 = $$null(v.value0.rhs);
+          if ($46) {
+            return "\u03B5";
+          }
+          ;
+          return joinWith(" ")(map19(symText)(v.value0.rhs));
+        })());
+      }
+      ;
+      if (v instanceof Nothing) {
+        return "(accept)";
+      }
+      ;
+      throw new Error("Failed pattern match at Grammark.Playground (line 147, column 17 - line 151, column 26): " + [v.constructor.name]);
+    };
+    var steps = function(v) {
+      if (v instanceof Token) {
+        return ["shift  " + (v.value0 + (" " + show8(v.value1)))];
+      }
+      ;
+      if (v instanceof Branch) {
+        return append16(concatMap(steps)(v.value1))(["reduce " + prodLabel(v.value0)]);
+      }
+      ;
+      throw new Error("Failed pattern match at Grammark.Playground (line 144, column 11 - line 146, column 80): " + [v.constructor.name]);
+    };
+    var numbered = function(i) {
+      return function(s) {
+        return show13(i + 1 | 0) + (". " + s);
+      };
+    };
+    return joinWith("\n")(mapWithIndex2(numbered)(steps(cst)));
+  };
 };
 var evaluate = function(v) {
   var v1 = parse(v.source);
@@ -8620,6 +8676,7 @@ var evaluate = function(v) {
       rules: [],
       tokens: [],
       tree: "",
+      trace: "",
       conflicts: ""
     };
   }
@@ -8638,14 +8695,14 @@ var evaluate = function(v) {
           return [];
         }
         ;
-        throw new Error("Failed pattern match at Grammark.Playground (line 62, column 23 - line 64, column 23): " + [v3.constructor.name]);
+        throw new Error("Failed pattern match at Grammark.Playground (line 64, column 23 - line 66, column 23): " + [v3.constructor.name]);
       }
       ;
       if (v22 instanceof Nothing) {
         return [];
       }
       ;
-      throw new Error("Failed pattern match at Grammark.Playground (line 61, column 14 - line 65, column 22): " + [v22.constructor.name]);
+      throw new Error("Failed pattern match at Grammark.Playground (line 63, column 14 - line 67, column 22): " + [v22.constructor.name]);
     })();
     var lexer = scannerLexer(defs)(v1.value0);
     var conflicts = explainP(precedenceOf(v.source))(v1.value0);
@@ -8659,18 +8716,32 @@ var evaluate = function(v) {
         rules,
         tokens: [],
         tree: "",
+        trace: "",
         conflicts
       };
     }
     ;
     if (v2 instanceof Right) {
+      var prods = productions(v1.value0);
       var csts = forest(Canonical.value)(v1.value0)(v2.value0);
+      var trace = (function() {
+        var v3 = head(csts);
+        if (v3 instanceof Just) {
+          return renderTrace(prods)(v3.value0);
+        }
+        ;
+        if (v3 instanceof Nothing) {
+          return "";
+        }
+        ;
+        throw new Error("Failed pattern match at Grammark.Playground (line 95, column 21 - line 97, column 28): " + [v3.constructor.name]);
+      })();
       var tree = (function() {
         var v3 = head(csts);
         if (v3 instanceof Just) {
-          return renderTree(productions(v1.value0))(v3.value0) + (function() {
-            var $48 = length(csts) > 1;
-            if ($48) {
+          return renderTree(prods)(v3.value0) + (function() {
+            var $66 = length(csts) > 1;
+            if ($66) {
               return "\n\n(ambiguous: " + (show13(length(csts)) + " parses; showing the first)");
             }
             ;
@@ -8682,7 +8753,7 @@ var evaluate = function(v) {
           return "";
         }
         ;
-        throw new Error("Failed pattern match at Grammark.Playground (line 86, column 20 - line 90, column 28): " + [v3.constructor.name]);
+        throw new Error("Failed pattern match at Grammark.Playground (line 90, column 20 - line 94, column 28): " + [v3.constructor.name]);
       })();
       var accepted = eq7(recognize(lexer)(Canonical.value)(v1.value0)(v.input))(Accept2.value);
       return {
@@ -8707,14 +8778,15 @@ var evaluate = function(v) {
           return v3.text;
         })(v2.value0),
         tree,
+        trace,
         conflicts
       };
     }
     ;
-    throw new Error("Failed pattern match at Grammark.Playground (line 68, column 7 - line 104, column 14): " + [v2.constructor.name]);
+    throw new Error("Failed pattern match at Grammark.Playground (line 70, column 7 - line 112, column 14): " + [v2.constructor.name]);
   }
   ;
-  throw new Error("Failed pattern match at Grammark.Playground (line 42, column 30 - line 104, column 14): " + [v1.constructor.name]);
+  throw new Error("Failed pattern match at Grammark.Playground (line 43, column 30 - line 112, column 14): " + [v1.constructor.name]);
 };
 export {
   evaluate

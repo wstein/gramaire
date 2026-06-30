@@ -11,6 +11,7 @@ export interface GrammarkParseResult {
   message: string;
   diagnostics: string[];
   tree: string;
+  trace: string;
   conflicts: string;
   raw?: string;
 }
@@ -28,6 +29,7 @@ export async function parseGrammarkDocument(
     message: result.message,
     diagnostics: result.diagnostics,
     tree: result.tree,
+    trace: result.trace,
     conflicts: result.conflicts,
     raw: formatReport(result),
   };
