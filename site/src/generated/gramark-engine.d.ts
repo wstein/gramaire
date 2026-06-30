@@ -13,6 +13,16 @@ export interface EngineResult {
   rules: string[];
   /** The input's lexed token texts. */
   tokens: string[];
+  /** The parse tree (CST), one node per line; "" if rejected. */
+  tree: string;
+  /** The LR shift/reduce step sequence; "" if rejected. */
+  trace: string;
+  /** The explain-conflict analysis of the grammar itself. */
+  conflicts: string;
+  /** The parse tree as gramark-cst JSON ({rule,children}|{token,text}); "" if rejected. */
+  cstJson: string;
+  /** Per-production [{label, fields}] JSON — the handler shape for evaluation. */
+  meta: string;
 }
 
 export function evaluate(args: { source: string; input: string }): EngineResult;

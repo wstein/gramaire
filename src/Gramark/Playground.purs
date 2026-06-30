@@ -16,12 +16,16 @@ import Prelude
 import Data.Array as Array
 import Data.Either (Either(..))
 import Data.Foldable (foldMap)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Data.String (joinWith)
+import Data.Tuple (Tuple(..))
 import Gramark.Conformance (Outcome(..), recognize)
 import Gramark.Conformance.Lexers (scannerLexer, tokensBlock)
+import Gramark.Cst (toJson) as Cst
 import Gramark.Cst (Cst(..))
 import Gramark.Glr (explainP, forest)
+import Gramark.IR (IRRef(..), buildIR)
+import Gramark.Json (Json(..), stringify)
 import Gramark.Lr (parse, precedenceOf)
 import Gramark.Syntax (Grammar(..), Rule(..))
 import Gramark.Table (GSym(..), Method(..), Prod, productions)
@@ -37,6 +41,8 @@ type Result =
   , tree :: String -- the parse tree (CST), one node per line, "" if rejected
   , trace :: String -- the LR shift/reduce step sequence, "" if rejected
   , conflicts :: String -- the explain-conflict analysis of the grammar itself
+  , cstJson :: String -- the parse tree as gramark-cst JSON, "" if rejected
+  , meta :: String -- per-production [{label, fields}] JSON (the handler shape)
   }
 
 evaluate :: { source :: String, input :: String } -> Result
@@ -51,6 +57,8 @@ evaluate { source, input } = case parse source of
     , tree: ""
     , trace: ""
     , conflicts: ""
+    , cstJson: ""
+    , meta: "[]"
     }
   Right grammar ->
     let
@@ -66,6 +74,9 @@ evaluate { source, input } = case parse source of
           Left _ -> []
         Nothing -> []
       lexer = scannerLexer defs grammar
+      -- The handler shape: each production's `# Label` and its `name:` fields, so
+      -- an external evaluator can bind semantics by label (see Gramark.Transform).
+      meta = metaJsonOf grammar
     in
       case lexer input of
         Left lexErr ->
@@ -78,6 +89,8 @@ evaluate { source, input } = case parse source of
           , tree: ""
           , trace: ""
           , conflicts
+          , cstJson: ""
+          , meta
           }
         Right toks ->
           let
@@ -95,6 +108,9 @@ evaluate { source, input } = case parse source of
             trace = case Array.head csts of
               Just t -> renderTrace prods t
               Nothing -> ""
+            cstJson = case Array.head csts of
+              Just t -> stringify (Cst.toJson t)
+              Nothing -> ""
           in
             { ok: true
             , accepted
@@ -109,10 +125,31 @@ evaluate { source, input } = case parse source of
             , tree
             , trace
             , conflicts
+            , cstJson
+            , meta
             }
 
 ruleNamesOf :: Grammar -> Array String
 ruleNamesOf (Grammar rules) = map (\(Rule name _ _) -> name) rules
+
+-- | The per-production handler shape as JSON: `[{ label, fields }]`, indexed by
+-- | production id (matching the CST's branch ids). Built from the IR; `"[]"` if
+-- | the grammar is not LR-buildable (the evaluator then just passes structure
+-- | through).
+metaJsonOf :: Grammar -> String
+metaJsonOf grammar = case buildIR Canonical "Lab" grammar of
+  Left _ -> "[]"
+  Right ir -> stringify (JArray (map ruleMeta ir.grammar.rules))
+  where
+  ruleMeta r =
+    JObject
+      [ Tuple "label" (maybe JNull JString r.label)
+      , Tuple "fields" (JArray (map fieldJson r.rhs))
+      ]
+  fieldJson = maybe JNull JString <<< refField
+  refField = case _ of
+    IRRefNT _ f -> f
+    IRRefT _ f -> f
 
 -- | An indented one-node-per-line rendering of a CST, labelling each branch
 -- | with the rule it reduced (`productions` maps the production id to its LHS)

@@ -184,6 +184,51 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramark-runtime.ts";
       <section
         style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
       >
+        <h2>
+          Evaluate <span
+            style="font-size: 0.7rem; color: #b45309; background: #fef3c7; padding: 0.1rem 0.45rem; border-radius: 0.4rem; vertical-align: middle;"
+            >experimental</span
+          >
+        </h2>
+        <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
+          Bind <strong>semantics</strong> without putting host code in the grammar.
+          Each <code># Label</code> maps to a JavaScript handler; children arrive
+          by their <code>name:</code> field. Handlers run
+          <strong>only when you press Run</strong>, in a sandboxed worker (no
+          DOM, no network, 50&nbsp;ms budget) — the live recognition above never
+          evaluates anything. Press <strong>Load calculator example</strong> for a
+          working <code>1 + 2 * 3 = 7</code>.
+        </p>
+        <div
+          style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap;"
+        >
+          <button
+            id="load-calc"
+            type="button"
+            style="font: inherit; padding: 0.35rem 0.7rem; border-radius: 0.5rem; border: 1px solid #d1d5db; background: #f5f6f3; cursor: pointer;"
+            >Load calculator example</button
+          >
+          <button
+            id="run-eval"
+            type="button"
+            style="font: inherit; padding: 0.35rem 0.7rem; border-radius: 0.5rem; border: 1px solid #15b879; background: #ecfdf5; color: #166534; cursor: pointer;"
+            >Run ▶</button
+          >
+          <span
+            id="value-output"
+            style="font-family: ui-monospace, monospace; font-weight: 700; font-size: 1.1rem; color: #16181d;"
+            >—</span
+          >
+        </div>
+        <textarea
+          id="handlers-input"
+          spellcheck="false"
+          style="width: 100%; min-height: 150px; font-family: ui-monospace, monospace; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #d1d5db;"
+        ></textarea>
+      </section>
+      <section
+        style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
+      >
         <h2>Diagnostics</h2>
         <div id="diagnostics-list" style="display: grid; gap: 0.5rem;"></div>
       </section>
@@ -210,6 +255,124 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramark-runtime.ts";
       const traceOutput = document.getElementById("trace-output");
       const conflictsOutput = document.getElementById("conflicts-output");
       const diagramsOutput = document.getElementById("diagrams-output");
+      const handlersInput = document.getElementById("handlers-input");
+      const valueOutput = document.getElementById("value-output");
+      const loadCalc = document.getElementById("load-calc");
+      const runEval = document.getElementById("run-eval");
+
+      // The most recent parse, so the (opt-in) evaluator can fold it on Run.
+      let latest = { cstJson: "", meta: "[]" };
+
+      // The structure-only calculator: a grammar that is pure structure (#Labels
+      // + name: fields) and its semantics as an external JavaScript handler
+      // object. The same grammar would bind to a PureScript record in the tests.
+      const CALC_EVAL = `/**
+ * Calc-eval
+ *
+ * Structure-only arithmetic: each alternative is named with a # Label and its
+ * children with name: fields. The meaning lives in the handler object below,
+ * keyed by those labels -- so the grammar names no host language.
+ */
+
+NUMBER : /[0-9]+(?:\\.[0-9]+)?/
+WS     : /[ \\t\\r\\n]+/   %skip
+
+Expr
+  : left:Expr '+' right:Term   # Add
+  | left:Expr '-' right:Term   # Sub
+  | Term
+
+Term
+  : left:Term '*' right:Factor   # Mul
+  | left:Term '/' right:Factor   # Div
+  | Factor
+
+Factor
+  : '(' inner:Expr ')'   # Paren
+  | value:NUMBER         # Num
+`;
+
+      const CALC_HANDLERS = `{
+  Add: ({ named }) => named.left + named.right,
+  Sub: ({ named }) => named.left - named.right,
+  Mul: ({ named }) => named.left * named.right,
+  Div: ({ named }) => named.left / named.right,
+  Paren: ({ named }) => named.inner,
+  Num: ({ named }) => parseFloat(named.value.text),
+}`;
+      handlersInput.value = CALC_HANDLERS;
+
+      // The sandboxed evaluator: a Worker (no DOM, no network) that evals the
+      // handler object, folds the gramark-cst bottom-up against the engine's
+      // per-production meta (label + named fields), and posts back the value.
+      const WORKER_SRC = `
+        self.onmessage = (e) => {
+          const { cstJson, meta, handlerSrc } = e.data;
+          try {
+            const handlers = (0, eval)("(" + handlerSrc + ")");
+            const m = JSON.parse(meta);
+            const cst = JSON.parse(cstJson);
+            const unwrap = (c) => ("val" in c ? c.val : c.tok);
+            const fold = (node) => {
+              if (node.token !== undefined)
+                return { tok: { terminal: node.token, text: node.text } };
+              const mm = m[node.rule] || { label: null, fields: [] };
+              const kids = node.children.map(fold);
+              const h = mm.label != null ? handlers[mm.label] : undefined;
+              if (h) {
+                const named = {};
+                mm.fields.forEach((f, i) => {
+                  if (f != null && kids[i] !== undefined) named[f] = unwrap(kids[i]);
+                });
+                return { val: h({ named, pos: kids.map(unwrap) }) };
+              }
+              const vals = kids.filter((c) => "val" in c);
+              return { val: vals.length === 1 ? vals[0].val : kids.map(unwrap) };
+            };
+            self.postMessage({ ok: true, value: unwrap(fold(cst)) });
+          } catch (err) {
+            self.postMessage({ ok: false, error: String((err && err.message) || err) });
+          }
+        };
+      `;
+
+      function runHandlers() {
+        if (!latest.cstJson) {
+          valueOutput.textContent = "— (run after an accepted parse)";
+          return;
+        }
+        valueOutput.textContent = "running…";
+        const worker = new Worker(
+          URL.createObjectURL(
+            new Blob([WORKER_SRC], { type: "application/javascript" }),
+          ),
+        );
+        const timer = setTimeout(() => {
+          worker.terminate();
+          valueOutput.textContent = "⏱ timed out (>50 ms)";
+        }, 50);
+        worker.onmessage = (e) => {
+          clearTimeout(timer);
+          worker.terminate();
+          valueOutput.textContent = e.data.ok
+            ? "= " + JSON.stringify(e.data.value)
+            : "⚠ " + e.data.error;
+        };
+        worker.postMessage({
+          cstJson: latest.cstJson,
+          meta: latest.meta,
+          handlerSrc: handlersInput.value,
+        });
+      }
+
+      loadCalc.addEventListener("click", () => {
+        grammarInput.value = CALC_EVAL;
+        inputTest.value = "1 + 2 * 3";
+        handlersInput.value = CALC_HANDLERS;
+        valueOutput.textContent = "— (press Run ▶)";
+        safeEvaluate();
+      });
+      runEval.addEventListener("click", runHandlers);
 
       // Diagram navigation + zoom (event-delegated, so it survives re-renders):
       // clicking a nonterminal node scrolls to that rule's diagram and flashes
@@ -242,6 +405,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramark-runtime.ts";
         diagnosticsList.innerHTML = "";
 
         const result = await parseGramarkDocument(grammarSource, input);
+        latest = { cstJson: result.cstJson, meta: result.meta };
 
         statusPill.textContent = result.success ? "Accepted" : "Rejected";
         statusPill.style.color = result.success ? "#15b879" : "#dc2626";
