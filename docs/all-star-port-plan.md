@@ -210,7 +210,8 @@ How each ANTLR feature maps:
 | `#Label` alternative labels             | Gramaire `# Label` (already shared)                                                |
 | `{ action }` / `{% %}`-equivalent       | Gramaire `{% … %}` action block                                                    |
 | semantic predicate `{ … }?`             | a `{%? … %}` action — the `?` flag tags it a predicate on the IR (D-predicates)   |
-| `~set`, `.` wildcard                    | desugared to explicit token-set alternatives where finite; flagged otherwise      |
+| `~set`, `.` wildcard                    | candidate **core sugar** — desugar to closed-alphabet alternations (D-token-ops)  |
+| non-greedy `*?`                         | ALL(\*)-only (no LR meaning); converter-carried, not core (D-token-ops)           |
 | lexer modes / channels / `fragment`     | `## Tokens` entries + IR lexer metadata (or flagged as unsupported)               |
 | rule args / returns / locals            | carried as opaque IR rule metadata for `emit`, dropped on `import` with a warning |
 
@@ -346,3 +347,29 @@ left-recursion rewrite (Phase 2), not as `{%? %}` blocks. Native authoring of a
 predicate uses the same `{%? %}` convention the converter emits; it is the one
 place ALL(\*)'s power reaches a hand-written grammar — as a convention, never a
 new construct.
+
+### D-token-ops — `.` and `~set` are general-purpose core sugar; non-greedy `*?` is ALL(\*)-only
+
+**Decision.** `.` (any terminal) and `~set` (any terminal not in a set) are
+candidates for **core Gramaire sugar**, not converter-only ANTLR artifacts —
+because Gramaire has a **closed terminal alphabet** (the `## Tokens` classes plus
+the literals the productions use), so both lower to a finite explicit
+alternation over that alphabet, exactly like `X+` / `X*` / `Comma` already do in
+`Gramaire.Desugar`. They then work under **any** strategy (LR and ALL(\*)) with no
+engine change. Non-greedy `*?` does **not** join them: greedy-vs-non-greedy is a
+choice-resolution concept with no meaning in deterministic LR, so it stays
+ALL(\*)/PEG-specific and converter-carried.
+
+**Why.** `.` and `~set` are general parsing ergonomics — error recovery
+(`error : ~';'* ';'`), consume-until, catch-alls — that LR authors want too, and
+the closed alphabet makes them pure desugaring, the mechanism the format already
+embraces. `*?` is the exception precisely because it presumes a
+backtracking/predictive engine.
+
+**Consequence.** Under LR a desugared `.`/`~set` can overlap a specific
+alternative and surface as an ordinary shift/reduce conflict — resolved the LR
+way (precedence, refactor), or naturally disjoint when the alternation is; under
+ALL(\*) ordered alternatives resolve it. (The _lexer_ already has negation via
+regex `[^…]` in `## Tokens`; this decision is about the _parser_ level.) These
+are tracked as future `Gramaire.Desugar` sugar, **independent of the ALL(\*)
+port** — they make plain LR Gramaire better on their own.
