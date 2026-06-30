@@ -17,13 +17,16 @@ railroad diagrams, FIRST/FOLLOW tables — and is **at the same time** the exact
 input the parser generator reads. Your grammar _is_ your documentation.
 
 This tutorial builds a small calculator grammar from scratch, then parses input
-against it. Nothing here is a mock: the [Lab](/grammark/lab) runs the same
-PureScript core as the `grammark` CLI.
+against it. The `grammark` CLI runs the real PureScript core; the
+[Lab](/grammark/lab) is an in-browser **preview** — handy for a quick look, but
+limited (see the note below).
 
-<Aside type="tip" title="Follow along live">
-  Open the [**Lab**](/grammark/lab) in a second tab and paste each snippet as
-  you go — you'll see the parse, the diagnostics, and the result update as you
-  type.
+<Aside type="caution" title="What the Lab can preview">
+  The browser Lab lexes input from a grammar's **literal terminals** (backtick
+  spellings) and recognizes it client-side. It cannot evaluate **token classes**
+  (ALL-CAPS names like `NUMBER`), which need a per-language lexer — for those,
+  use the `grammark` CLI. Wiring the compiled core into the browser is on the
+  [Lab roadmap](../../../../../docs/playground-spec.md).
 </Aside>
 
 ## 1. The shape of a `.gram.md` file
@@ -201,15 +204,12 @@ grammark explain-conflict calc.gram.md
 
 ## 6. Run it
 
-Two feedback loops, same core:
+Two feedback loops:
 
 <Steps>
 
-1. **In the browser.** Paste the grammar into the [Lab](/grammark/lab), type
-   `1 + 2 * 3` as input, and Evaluate — you get accept/reject and the parse,
-   live.
-
-2. **At the CLI.** Check structure, formatting, and conflicts; then emit:
+1. **At the CLI (full evaluation).** Check structure, formatting, and conflicts;
+   then emit:
 
    ```sh
    # verify the file (structure, formatting, no conflicts)
@@ -220,6 +220,11 @@ Two feedback loops, same core:
    grammark emit --backend ts   calc.gram.md   # a runnable TS parser + Visitor
    grammark emit --backend ir   calc.gram.md   # the grammark-ir JSON
    ```
+
+2. **In the browser (preview).** The [Lab](/grammark/lab) gives an instant
+   accept/reject for grammars whose terminals are literals. This calculator uses
+   the `NUMBER` token class, so evaluate it with the CLI above; for a Lab demo,
+   try a literal-only grammar like balanced brackets (the Lab's default).
 
 </Steps>
 

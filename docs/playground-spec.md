@@ -4,10 +4,18 @@
 > build, parse input live, and see _why_ — conflicts, parse trees, ambiguity,
 > generated parsers — with no server and sub-frame feedback.
 
-Status: **draft / north-star**. Tier 0 ships the live edit→evaluate loop that
-exists today; Tiers 1–3 are the roadmap. Every feature here is grounded in a
-capability the Grammark Core already exposes, so the Lab is a thin, honest skin
-over real machinery — never a mock.
+Status: **draft / north-star**. Tiers 1–3 are the roadmap; every feature is
+grounded in a capability the Grammark Core already exposes, so the target Lab is
+a thin skin over real machinery, never a mock.
+
+> **Current state (be honest about it).** The shipping Lab is a limited
+> client-side **preview**: a small TypeScript recognizer (`site/src/lib/`) that
+> lexes input from a grammar's literal terminals and checks balance/structure.
+> It does **not** yet run the compiled PureScript Core, and it cannot evaluate
+> token classes (ALL-CAPS, e.g. `NUM`) — those need a per-language lexer.
+> **Tier 1's first job is to replace that recognizer with the real compiled
+> Core**, after which the rest of this roadmap unlocks. Until then the Lab must
+> say what it is (a preview) and never claim to be the real parser.
 
 ---
 
@@ -130,19 +138,28 @@ keeps the Lab honest:
 Tiers are shipping order. Each feature names the Core capability it rides so it
 can be built without new engine work unless noted.
 
-### Tier 0 — the loop (MVP; largely shipping today)
+### Tier 0 — the loop (MVP; shipping today as a preview)
 
 - **T0.1 Dual editor.** Left: the `.gram.md` grammar. Right: a raw input
   payload. (Today: textareas; Tier 1 upgrades to Monaco.)
-- **T0.2 Evaluate.** Run the input against the grammar via `Grammark.Lr.parse` +
-  the table-driven parser; surface **accept / reject** and the reason.
-- **T0.3 Inline build diagnostics.** Parse / structure / desugar errors shown
-  with their message (already wired through the real Core path).
+- **T0.2 Evaluate (preview).** Today: a client-side recognizer lexes input from
+  the grammar's literal terminals and reports **accept / reject**; grammars that
+  use token classes are declined with a clear message. **Tier 1 replaces this
+  with `Grammark.Lr.parse` + the real table-driven parser** (the honest version
+  of this feature).
+- **T0.3 Inline diagnostics.** Build / evaluation messages surfaced in the UI.
 - **T0.4 Permalink.** Compress `{grammar, input, layout}` into the URL so a state
   is shareable (Flatbars-grade; LZMA + URL-safe base64). Open-from-URL on load.
 
 ### Tier 1 — the workbench
 
+- **T1.0 Real Core in the browser (the keystone).** Compile the PureScript Core
+  to ES modules and run `Grammark.Lr.parse` → desugar → table build → CST in a
+  Web Worker, replacing the TypeScript preview recognizer. Everything else in
+  Tier 1+ depends on this. The Core's FS-freedom guard means the parse path has
+  no `node:fs`, so it bundles for the browser unchanged. (Input lexing for token
+  classes still needs a per-language lexer — ship a small built-in set and/or let
+  the grammar declare one.)
 - **T1.1 Monaco dual-pane** with `.gram.md` highlighting (Markdown + an `lr`
   fenced-block grammar mode), a diagnostics gutter in both panes, and debounced
   re-evaluation on every keystroke (target < 16 ms for small grammars).

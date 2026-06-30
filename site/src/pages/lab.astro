@@ -14,7 +14,12 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammar-lab.ts";
       style="max-width: 1200px; margin: 0 auto; padding: 2rem; font-family: Inter, sans-serif;"
     >
       <h1>Grammark Lab</h1>
-      <p>Live grammar development playground for Grammark.</p>
+      <p>
+        An in-browser preview of grammar evaluation. It lexes input from a
+        grammar's literal terminals; grammars that use token classes (ALL-CAPS,
+        e.g. <code>NUM</code>) need the <code>grammark</code> CLI for full evaluation.
+        Wiring the compiled core into the browser is on the roadmap.
+      </p>
       <div
         style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 1rem; margin-top: 1.5rem;"
       >
@@ -77,8 +82,8 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammar-lab.ts";
         const grammarSource = grammarInput.value;
         const input = inputTest.value;
 
-        statusPill.textContent = "Parsing…";
-        resultOutput.textContent = "Invoking the real Grammark parser…";
+        statusPill.textContent = "Evaluating…";
+        resultOutput.textContent = "Evaluating in the browser…";
         diagnosticsList.innerHTML = "";
 
         const result = await parseGrammarkDocument(grammarSource, input);
@@ -88,7 +93,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/grammar-lab.ts";
           result.message,
           "",
           ...result.diagnostics,
-          result.raw ? `\nIR preview:\n${result.raw.slice(0, 800)}` : "",
+          result.raw ? `\nDetails:\n${result.raw.slice(0, 800)}` : "",
         ].join("\n");
 
         diagnosticsList.innerHTML = "";
