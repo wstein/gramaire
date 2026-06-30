@@ -25,6 +25,7 @@ import Test.Json as Json
 import Test.Lexer as Lexer
 import Test.Parser as Parser
 import Test.Regex as Regex
+import Test.Scanner as Scanner
 import Test.Schema as Schema
 import Test.SelfHost as SelfHost
 import Test.Table as Table
@@ -42,6 +43,8 @@ main = do
   Regex.tests
   log "Test.Tokens"
   Tokens.tests
+  log "Test.Scanner"
+  Scanner.tests
   log "Test.SelfHost"
   SelfHost.tests
   log "Test.FirstFollow"
