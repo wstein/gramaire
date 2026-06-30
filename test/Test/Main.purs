@@ -7,6 +7,7 @@ import Prelude
 import Effect (Effect)
 import Effect.Console (log)
 import Test.Backend.Dot as BackendDot
+import Test.Backend.Antlr as BackendAntlr
 import Test.Backend.Ebnf as BackendEbnf
 import Test.Backend.Registry as BackendRegistry
 import Test.Backend.Ts as BackendTs
@@ -78,6 +79,8 @@ main = do
   IRLexer.tests
   log "Test.Backend.Ebnf"
   BackendEbnf.tests
+  log "Test.Backend.Antlr"
+  BackendAntlr.tests
   log "Test.Backend.Dot"
   BackendDot.tests
   log "Test.Backend.Registry"

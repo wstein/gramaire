@@ -30,9 +30,11 @@ import Effect.Exception (message, try)
 import Gramaire.Backend (Output)
 import Gramaire.Backend.Registry (backends, findBackend)
 import Gramaire.Conformance (Descriptor, calcDescriptor, lrDescriptor, runSuites, summarize)
+import Gramaire.Conformance.Lexers (tokensBlock)
+import Gramaire.Tokens (parseTokens)
 import Gramaire.Diagnostics (renderConflicts)
 import Gramaire.Glr (explainP)
-import Gramaire.IR (buildIRP)
+import Gramaire.IR (IR, attachLexer, buildIRP)
 import Gramaire.Lr (parse, precedenceOf, strip)
 import Gramaire.Syntax (Grammar)
 import Gramaire.Table (Method(Canonical))
@@ -123,7 +125,17 @@ runEmit args = case parseEmit args of
                   ( "emit: " <> file <> " has unresolved LR(1) conflicts:\n\n"
                       <> String.joinWith "\n\n" (renderConflicts g conflicts)
                   )
-              Right ir -> deliver opts.out (b.emit ir)
+              Right ir -> deliver opts.out (b.emit (withLexis md ir))
+
+-- Attach the grammar's `## Tokens` lexis to the IR, if any, so lexer-aware
+-- backends (e.g. ANTLR) can emit token rules. Malformed or absent tokens leave
+-- the IR's literal terminals untouched.
+withLexis :: String -> IR -> IR
+withLexis md ir = case tokensBlock md of
+  Just block -> case parseTokens block of
+    Right defs | not (Array.null defs) -> attachLexer defs ir
+    _ -> ir
+  Nothing -> ir
 
 deliver :: Maybe String -> Array Output -> Effect Unit
 deliver out outputs = case out of

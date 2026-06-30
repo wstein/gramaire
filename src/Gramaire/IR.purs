@@ -41,6 +41,7 @@ module Gramaire.IR
   , buildIR
   , buildIRWithTokens
   , buildIRP
+  , attachLexer
   , toJson
   , serialize
   ) where

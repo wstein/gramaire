@@ -154,7 +154,7 @@ surfaces (spago, the bridge, conformance). Phases 0–2 are the parsing core;
 - **Test:** `examples/calc-prec` parses under `ll-star` with the same tree
   shape LR produces with precedence; a left-recursion unit-test grammar.
 
-### Phase 3 — ANTLR ↔ Gramaire converter (instead of growing Gramaire's syntax)
+### Phase 3 — ANTLR ↔ Gramaire converter (instead of growing Gramaire's syntax) ✅ export half
 
 Gramaire's `.gram.md` syntax **stays exactly as it is** — productions, `{% … %}`
 actions, labels, sugar — and is _not_ grown to absorb ANTLR's predicates, modes,
@@ -162,14 +162,22 @@ channels, or actions. ALL(\*) over a Gramaire grammar already buys
 ordered-alternative + left-recursive parsing (Phases 1–2); the rest of ANTLR's
 surface is reached by **conversion**, not syntax expansion (§4).
 
-- `gramaire import <g.g4>` → `.gram.md`, and `gramaire emit --backend antlr` →
-  `.g4`, both through the IR. ANTLR features Gramaire has no native home for
-  (semantic predicates, rule actions, lexer modes) ride the IR as predicate /
-  action nodes and surface in the converted `.gram.md` as `{% … %}`-style opaque
-  blocks — never by adding new core syntax — or are flagged when they can't
-  round-trip.
-- **Test:** round-trip a small ANTLR grammar (incl. a semantic predicate)
-  through `import` then `emit --backend antlr`; diff the re-exported `.g4`.
+- ✅ **Export** (`gramaire emit --backend antlr`, `Gramaire.Backend.Antlr`): the
+  IR → `.g4` projection — parser rules (lowercased, ANTLR-keyword-suffixed) with
+  literals quoted inline, plus lexer rules whose bodies are the token patterns
+  translated from Gramaire's regex sublanguage to ANTLR lexer notation. The CLI
+  now attaches the grammar's `## Tokens` lexis to the IR so the lexer rules
+  appear (`Test.Backend.Antlr`; `calc`/`json` produce valid combined grammars,
+  ANTLR4 eating the left recursion natively). This is the tractable half:
+  Gramaire's Core is a subset of what ANTLR expresses.
+- ⏳ **Import** (`gramaire import <g.g4>` → `.gram.md`): the hard half. ANTLR
+  features Gramaire has no native home for (semantic predicates, rule actions,
+  lexer modes) would ride the IR as predicate / action nodes and surface as
+  `{% … %}`-style opaque blocks — never by adding new core syntax — or be flagged
+  when they can't round-trip.
+- **Test (import):** round-trip a small ANTLR grammar (incl. a semantic
+  predicate) through `import` then `emit --backend antlr`; diff the re-exported
+  `.g4`.
 
 ### Phase 4 — Adaptive lexer (optional, gated)
 

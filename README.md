@@ -118,6 +118,9 @@ node bin/gramaire.mjs emit examples/json.gram.md
 # render the grammar as EBNF via the `ebnf` format backend
 node bin/gramaire.mjs emit examples/calc.gram.md --backend ebnf
 
+# convert the grammar to an ANTLR4 `.g4` (parser rules + lexer rules)
+node bin/gramaire.mjs emit examples/json.gram.md --backend antlr
+
 # write the artifact into a directory instead of stdout
 node bin/gramaire.mjs emit examples/json.gram.md --backend ebnf --out gen/
 
