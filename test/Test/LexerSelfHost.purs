@@ -18,6 +18,7 @@ import Data.String (joinWith, trim)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (log)
+import Grammark.Bootstrap (lrTokensSource)
 import Grammark.Conformance.Lexers (tokensBlock)
 import Grammark.Lexer (Token, tokenize)
 import Grammark.Lr (lrBlocks)
@@ -59,6 +60,11 @@ tests = do
     Just block -> case parseTokens block of
       Left e -> assert' ("lr tokens should parse: " <> e) false
       Right defs -> do
+        -- Sync guard: the parse path scans with `lrTokensSource` (Bootstrap),
+        -- which must stay equal to the file's `## Tokens` block.
+        log "  lexer self-host: lrTokensSource (Bootstrap) matches lr.gram.md's Tokens block"
+        assert' "bootstrapped lr tokens drifted from lr.gram.md"
+          (parseTokens lrTokensSource == Right defs)
         -- `:` and `|` are the lr notation's implicit literals
         let items = buildItems defs [ ":", "|" ]
         log "  lexer self-host: the scanner reproduces the bootstrap on a snippet (§8)"

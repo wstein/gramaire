@@ -173,14 +173,19 @@ reference token stream byte-for-byte.
 
 ## 8. Self-host
 
-`grammar/lr.gram.md` gains its own `lr tokens` block (§10). `Grammark.Lexer`
-becomes the **bootstrap** lexer (iteration 0), and the lexer generated from that
-block MUST reproduce it — extending the self-host oracle from the parser to the
-scanner: lexing `grammar/lr.gram.md` with the generated lexer MUST yield the same
-token stream as the bootstrap lexer. With capture (M5), reproduction is
-token-for-token (terminal **and** text); without it, only the terminal sequence
-matches. The classification oracle is in place today (`Test.LexerSelfHost`); the
-text oracle follows capture.
+`grammar/lr.gram.md` carries its own `lr tokens` block (§10), and the scanner
+built from it is the **production** lexer for `lr` grammar source: `Grammark.Lr`
+scans with `lrScanItems` (that block plus the implicit `` `:` `` / `` `|` ``
+literals), trimming each `ACTION` body in the consumer (M5). `Grammark.Lexer` is
+now iteration-0 **bootstrap** — kept only as the self-host oracle's reference.
+
+The oracle (`Test.LexerSelfHost`) proves the generated scanner reproduces that
+bootstrap lexer **token-for-token** — terminal _and_ text, thanks to capture
+(M5) — not just on a snippet but across the whole of `grammar/lr.gram.md`; a
+second guard checks the bootstrapped `lrTokensSource` still parses to the same
+classes as the file's block. Because the parse path now scans with the generated
+lexer, the existing parser self-host (`parse(lr.gram.md) == bootstrapGrammar`)
+and the whole grammar corpus are themselves an end-to-end check on it.
 
 ## 9. fmt and structure
 

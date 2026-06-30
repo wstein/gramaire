@@ -10,10 +10,33 @@
 -- |
 -- | Each action string is the exact text between `{%` and `%}` in the
 -- | corresponding rule of `lr.gram.md`, so the equality test is meaningful.
-module Grammark.Bootstrap (bootstrapGrammar) where
+module Grammark.Bootstrap (bootstrapGrammar, lrTokensSource) where
 
 import Data.Maybe (Maybe(..))
+import Data.String (joinWith)
 import Grammark.Syntax (Grammar(..), Rule(..), Alt(..), Sym(..))
+
+-- | The `lr` notation's lexis — the `## Tokens` block of `lr.gram.md`, encoded
+-- | here so the parse path can build its scanner without reading the file. Like
+-- | `bootstrapGrammar`, this is the bootstrapped twin of the source: a sync
+-- | guard (Test.LexerSelfHost) checks it still parses to the same token classes
+-- | as the file's block.
+lrTokensSource :: String
+lrTokensSource = joinWith "\n"
+  [ "WS       : /[ \\t]+/                       %skip"
+  , "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/      %external(layout)"
+  , "ATTR     : /#\\[([A-Za-z_][A-Za-z0-9_]*)\\]/"
+  , "IDENT    : /[A-Za-z_][A-Za-z0-9_]*/"
+  , "TERM_LIT : /`([^`]+)`/"
+  , "ACTION   : /\\{%((?:[^%]|%[^}])*)%\\}/"
+  , "LABEL    : /#[ \\t]*([A-Za-z_][A-Za-z0-9_]*)/"
+  , "PLUS     : \"+\""
+  , "STAR     : \"*\""
+  , "QUESTION : \"?\""
+  , "LANGLE   : \"<\""
+  , "RANGLE   : \">\""
+  , "COMMA    : \",\""
+  ]
 
 bootstrapGrammar :: Grammar
 bootstrapGrammar = Grammar
