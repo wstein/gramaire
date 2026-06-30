@@ -118,7 +118,7 @@ reduce p kids = case p, kids of
   _, _ -> VErr ("unexpected reduce shape for production " <> show p)
 
 -- | Extract the contents of every ```grammark fenced block — the rule blocks, not
--- | `lr precedence` / `lr errors` — from a `.gram.md` document, in order.
+-- | `grammark precedence` / `grammark errors` — from a `.gram.md` document, in order.
 lrBlocks :: String -> Array String
 lrBlocks md =
   (foldl scan { inside: false, cur: [], blocks: [] } (split (Pattern "\n") md)).blocks
