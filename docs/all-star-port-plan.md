@@ -8,7 +8,7 @@ parsing strategy** alongside the existing LR(1)/LALR/IELR/GLR stack.
 
 This is deliberately additive. Gramaire's identity — _the grammar is lint-clean
 Markdown, self-hosting, narrow-waist IR_ — does not change. ALL(\*) becomes a
-selectable engine (`%strategy ll-star`) that the same `.gram.md` front end, IR,
+selectable engine (a build-time `--strategy ll-star`) that the same `.gram.md` front end, IR,
 and backend SPI feed, the way LR and GLR already coexist.
 
 ## 1. Why ALL(\*), and how it fits
@@ -35,9 +35,11 @@ with `ST`/`Ref`, not a free lunch (§7).
 engine. ALL(\*) is opt-in per grammar. The narrow waist holds: both engines emit
 into / read from `gramaire-ir`; a backend that can't run a given strategy says so
 via the SPI rather than failing late. **Gramaire's `.gram.md` syntax does not
-grow** to absorb ANTLR's surface (predicates, modes, `~`/`.`) — including its
-`{% … %}` actions, it stays as-is; ANTLR interop is a **converter** (§4), so the
-format never becomes a second ANTLR.
+grow** to absorb ANTLR's _strategy-specific_ surface (semantic predicates,
+lexer modes, non-greedy `*?`) — including its `{% … %}` actions, it stays as-is;
+ANTLR interop is a **converter** (§4). General-purpose token operations (`.`,
+`~set`) are a separate question — candidate core sugar, not an ANTLR import
+(D-token-ops).
 
 ## 2. The machinery to port
 
@@ -268,7 +270,7 @@ Principles kept:
 
 1. **Phase 0 ✅** — the ATN model + `buildAtn`, proven on `calc`/`json`
    (`Gramaire.Atn`, `Test.Atn`).
-2. Phase 1 — SLL prediction behind a hidden `%strategy ll-star` flag; prove
+2. Phase 1 — SLL prediction behind a hidden `--strategy ll-star` flag; prove
    accept/reject parity with LR on the whole corpus. **This is the keystone — if
    SLL prediction matches LR on the corpus, the engine is real.**
 3. Phase 2 (left recursion) — unlock the "write it the obvious way" demo.
