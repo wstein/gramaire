@@ -18,14 +18,16 @@ module Grammark.Lr
 import Prelude
 
 import Data.Array as Array
-import Data.Either (Either(..))
+import Data.Either (Either(..), fromRight)
 import Data.Foldable (foldl)
 import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..), joinWith, split, trim)
-import Grammark.Bootstrap (bootstrapGrammar)
+import Grammark.Bootstrap (bootstrapGrammar, lrTokensSource)
 import Grammark.Desugar (desugar)
 import Grammark.Diagnostics (checkDefined)
-import Grammark.Lexer (Token, normalizeNewlines, tokenize)
+import Grammark.Lexer (Token, normalizeNewlines)
+import Grammark.Scanner (ScanItem, buildItems, hasError, scan)
+import Grammark.Tokens (parseTokens)
 import Grammark.Parser (run)
 import Grammark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 import Grammark.Table (Method(..), buildTablesFor)
@@ -49,7 +51,7 @@ tokenVal :: Token -> SemVal
 tokenVal tok = case tok.terminal of
   "IDENT" -> VStr tok.text
   "TERM_LIT" -> VStr tok.text
-  "ACTION" -> VStr tok.text
+  "ACTION" -> VStr (trim tok.text)
   "LABEL" -> VStr tok.text
   "ATTR" -> VStr tok.text
   _ -> VIgnore -- NL, `:`, `|`
@@ -103,6 +105,14 @@ lrBlocks md =
     else if trim line == "```lr" then acc { inside = true, cur = [] }
     else acc
 
+-- | The production lexer for `lr` grammar source: the scanner built from the
+-- | notation's own `## Tokens` block (`lrTokensSource`), with `:` and `|` as
+-- | the implicit literals. The hand-written `Grammark.Lexer` is now only the
+-- | self-host oracle's reference (Test.LexerSelfHost proves the two agree
+-- | token-for-token on all of lr.gram.md).
+lrScanItems :: Array ScanItem
+lrScanItems = buildItems (fromRight [] (parseTokens lrTokensSource)) [ ":", "|" ]
+
 -- | Parse a `.gram.md` document's `lr` blocks into a `Grammar`, using the
 -- | tables generated from the `lr` grammar itself (`bootstrapGrammar`) by the
 -- | given method. The trailing newline lets the final rule's `AltTail` close
@@ -111,15 +121,15 @@ parseWith :: Method -> String -> Either String Grammar
 parseWith method md =
   let
     src = joinWith "\n" (lrBlocks md) <> "\n"
+    raw = scan lrScanItems src
   in
-    case tokenize src of
-      Left e -> Left (show e)
-      Right raw -> case buildTablesFor method bootstrapGrammar of
-        Left _ -> Left "internal: the lr grammar is not parseable by this method"
-        Right table -> case run table tokenVal reduce (normalizeNewlines raw) of
-          Left e -> Left (show e)
-          Right (VGrammar g) -> desugar g >>= checkDefined
-          Right _ -> Left "parse did not yield a Grammar"
+    if hasError raw then Left "lexical error in grammar source"
+    else case buildTablesFor method bootstrapGrammar of
+      Left _ -> Left "internal: the lr grammar is not parseable by this method"
+      Right table -> case run table tokenVal reduce (normalizeNewlines raw) of
+        Left e -> Left (show e)
+        Right (VGrammar g) -> desugar g >>= checkDefined
+        Right _ -> Left "parse did not yield a Grammar"
 
 -- | Parse using canonical LR(1) tables.
 parse :: String -> Either String Grammar
