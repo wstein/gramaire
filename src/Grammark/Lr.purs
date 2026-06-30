@@ -13,6 +13,7 @@ module Grammark.Lr
   , parse
   , parseWith
   , strip
+  , toFenced
   , tokenVal
   ) where
 
@@ -20,9 +21,9 @@ import Prelude
 
 import Data.Array as Array
 import Data.Either (Either(..), fromRight)
-import Data.Foldable (foldl)
+import Data.Foldable (all, any, foldl)
 import Data.Maybe (Maybe(..), isJust)
-import Data.String (Pattern(..), joinWith, split, stripPrefix, trim)
+import Data.String (Pattern(..), contains, indexOf, joinWith, split, stripPrefix, take, trim)
 import Data.String.CodeUnits (charAt, fromCharArray, length, slice, toCharArray)
 import Grammark.Bootstrap (bootstrapGrammar, lrTokensSource)
 import Grammark.Desugar (desugar)
@@ -129,29 +130,96 @@ lrBlocks md =
     else if trim line == "```grammark" then acc { inside = true, cur = [] }
     else acc
 
--- | The raw `.gram` projection (ADR D36): every ` ```grammark `* fenced block
--- | (productions, tokens, precedence, errors) kept with its fences, all prose,
--- | headings, and diagrams dropped. It is a DERIVED, non-authoritative export —
--- | the `.gram.md` stays the source of truth — and `parse (strip md) == parse md`
--- | (Test.Strip), so the projection carries exactly the grammar the parser sees.
-strip :: String -> String
-strip md =
-  let
-    blocks = (foldl step { inside: false, cur: [], blocks: [] } (split (Pattern "\n") md)).blocks
-  in
-    joinWith "\n\n" blocks <> "\n"
+-- | Every ` ```grammark `* fenced block with its info suffix — `""` for the
+-- | production blocks, `"tokens"` / `"precedence"` / `"errors"` for the sidecars
+-- | — in document order.
+grammarkBlocks :: String -> Array { info :: String, content :: String }
+grammarkBlocks md =
+  (foldl step { inside: false, info: "", cur: [], out: [] } (split (Pattern "\n") md)).out
   where
   step acc line =
     if acc.inside then
       if trim line == "```" then
-        acc
-          { inside = false
-          , blocks = Array.snoc acc.blocks (joinWith "\n" (Array.snoc acc.cur line))
-          }
+        acc { inside = false, out = Array.snoc acc.out { info: acc.info, content: joinWith "\n" acc.cur } }
       else acc { cur = Array.snoc acc.cur line }
-    else if isJust (stripPrefix (Pattern "```grammark") (trim line)) then
-      acc { inside = true, cur = [ line ] }
-    else acc
+    else case stripPrefix (Pattern "```grammark") (trim line) of
+      Just rest -> acc { inside = true, info = trim rest, cur = [] }
+      Nothing -> acc
+
+-- | The raw `.gram` projection (ADR D36): a FENCE-FREE, marker-free export that
+-- | follows ANTLR's design. Lexer/token classes are ALL-CAPS `NAME : pattern`
+-- | one-liners; parser rules are Mixed-case `Name`-on-its-own-line productions;
+-- | the two are intermixed and told apart **by case** — exactly how Grammark
+-- | already reads them. `%left` / `%right` precedence declarations are kept
+-- | (they self-identify); error messages are dropped (a docs/runtime concern,
+-- | not grammar, as in ANTLR). Prose, headings, and diagrams are dropped. It is
+-- | DERIVED and non-authoritative — `.gram.md` stays the source of truth — and
+-- | `parse (strip md) == parse md` (Test.Strip), since `toFenced` reads it back.
+strip :: String -> String
+strip md =
+  let
+    blocks = grammarkBlocks md
+    pick info = joinWith "\n\n" (map _.content (Array.filter (\b -> b.info == info) blocks))
+    parts = Array.filter (_ /= "") [ pick "tokens", pick "", pick "precedence" ]
+  in
+    joinWith "\n\n" parts <> "\n"
+
+-- | Read a fence-free `.gram` projection back to the fenced form the parser
+-- | expects (a no-op on already-fenced `.gram.md`). ALL-CAPS `NAME :` lines are
+-- | token-class definitions (the lexis); `%left` / `%right` lines are dropped
+-- | (precedence is not modelled by the core yet); everything else is the
+-- | productions.
+toFenced :: String -> String
+toFenced src =
+  if contains (Pattern "```grammark") src then src
+  else
+    let
+      ls = split (Pattern "\n") src
+      tokenLines = Array.filter isTokenDef ls
+      prodLines = Array.filter (\l -> not (isTokenDef l) && not (isPrecDecl l)) ls
+      block info body =
+        let
+          trimmed = trimBlankEnds body
+        in
+          if Array.null trimmed then []
+          else [ "```grammark" <> info <> "\n" <> joinWith "\n" trimmed <> "\n```" ]
+    in
+      joinWith "\n\n" (block " tokens" tokenLines <> block "" prodLines)
+
+-- Drop leading and trailing all-blank lines (internal blanks, which separate
+-- rules, are kept) so a re-fenced block does not start with a stray `NL`.
+trimBlankEnds :: Array String -> Array String
+trimBlankEnds =
+  dropBlank >>> Array.reverse >>> dropBlank >>> Array.reverse
+  where
+  dropBlank = Array.dropWhile (\l -> trim l == "")
+
+-- A token-class definition line: an ALL-CAPS name then `:` on one unindented
+-- line (`INT : /[0-9]+/`). A production head is a Mixed-case name on its OWN
+-- line with the `:` on the next, so it never matches.
+isTokenDef :: String -> Boolean
+isTokenDef l =
+  charAt 0 l /= Just ' ' && charAt 0 l /= Just '\t'
+    && case indexOf (Pattern ":") l of
+      Nothing -> false
+      Just i -> isUpperName (trim (take i l))
+
+isUpperName :: String -> Boolean
+isUpperName name =
+  not (contains (Pattern " ") name)
+    && all classChar (toCharArray name)
+    && case charAt 0 name of
+      Just c -> c >= 'A' && c <= 'Z'
+      Nothing -> false
+  where
+  classChar c = (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'
+
+isPrecDecl :: String -> Boolean
+isPrecDecl l =
+  let
+    t = trim l
+  in
+    any (\p -> isJust (stripPrefix (Pattern p) t)) [ "%left ", "%right ", "%nonassoc " ]
 
 -- | The production lexer for `lr` grammar source: the scanner built from the
 -- | notation's own `## Tokens` block (`lrTokensSource`), with `:` and `|` as
@@ -168,7 +236,7 @@ lrScanItems = buildItems (fromRight [] (parseTokens lrTokensSource)) [ ":", "|" 
 parseWith :: Method -> String -> Either String Grammar
 parseWith method md =
   let
-    src = joinWith "\n" (lrBlocks md) <> "\n"
+    src = joinWith "\n" (lrBlocks (toFenced md)) <> "\n"
     raw = scan lrScanItems src
   in
     if hasError raw then Left "lexical error in grammar source"
