@@ -43,6 +43,7 @@ data SemVal
   | VIgnore
   | VSym Sym
   | VSyms (Array Sym)
+  | VGroupBody (Array (Array Sym))
   | VMaybeStr (Maybe String)
   | VAlt Alt
   | VAlts (Array Alt)
@@ -111,10 +112,16 @@ reduce p kids = case p, kids of
   20, [ VStr t, _ ] -> VSym (Opt (Lit t)) -- Sym : TERM_LIT QUESTION
   21, [ VStr name, _, VSyms args, _ ] -> VSym (Macro name args) -- Sym : IDENT LANGLE Args RANGLE
   22, [ VStr name, _, VSym s ] -> VSym (Field name s) -- Sym : IDENT `:` Sym
-  23, [ VSym s ] -> VSyms [ s ] -- Args : Sym
-  24, [ VSyms as, _, VSym s ] -> VSyms (Array.snoc as s) -- Args : Args COMMA Sym
-  25, [ VStr a ] -> VMaybeStr (Just a) -- Action : ACTION
-  26, [ VStr l ] -> VMaybeStr (Just l) -- Label : LABEL
+  23, [ _, VGroupBody g, _ ] -> VSym (Group g) -- Sym : `(` GroupBody `)`
+  24, [ _, VGroupBody g, _, _ ] -> VSym (Rep (Group g)) -- Sym : `(` GroupBody `)` PLUS
+  25, [ _, VGroupBody g, _, _ ] -> VSym (Star (Group g)) -- Sym : `(` GroupBody `)` STAR
+  26, [ _, VGroupBody g, _, _ ] -> VSym (Opt (Group g)) -- Sym : `(` GroupBody `)` QUESTION
+  27, [ VSym s ] -> VSyms [ s ] -- Args : Sym
+  28, [ VSyms as, _, VSym s ] -> VSyms (Array.snoc as s) -- Args : Args COMMA Sym
+  29, [ VStr a ] -> VMaybeStr (Just a) -- Action : ACTION
+  30, [ VStr l ] -> VMaybeStr (Just l) -- Label : LABEL
+  31, [ VSyms syms ] -> VGroupBody [ syms ] -- GroupBody : SymList
+  32, [ VGroupBody alts, _, VSyms syms ] -> VGroupBody (Array.snoc alts syms) -- GroupBody : GroupBody `|` SymList
   _, _ -> VErr ("unexpected reduce shape for production " <> show p)
 
 -- | Extract the contents of every ```gramark fenced block — the rule blocks, not
@@ -322,7 +329,7 @@ decomment ls = Array.reverse (foldl step { inBlock: false, out: [] } ls).out
 -- | self-host oracle's reference (Test.LexerSelfHost proves the two agree
 -- | token-for-token on all of lr.grmk.md).
 lrScanItems :: Array ScanItem
-lrScanItems = buildItems (fromRight [] (parseTokens lrTokensSource)) [ ":", "|" ]
+lrScanItems = buildItems (fromRight [] (parseTokens lrTokensSource)) [ ":", "|", "(", ")" ]
 
 -- | Parse a `.grmk.md` document's `lr` blocks into a `Grammar`, using the
 -- | tables generated from the `lr` grammar itself (`bootstrapGrammar`) by the

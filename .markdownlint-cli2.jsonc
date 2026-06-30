@@ -47,7 +47,8 @@
     //   MD047                : single trailing newline.
   },
   // Honour .gitignore so build output (output/, .spago/) and node_modules —
-  // which contain third-party Markdown — are never linted.
+  // which contain third-party Markdown — are never linted. `vendor/` holds
+  // third-party submodules (e.g. antlr-ng), tracked but not ours to lint.
   "gitignore": true,
-  "ignores": ["**/node_modules/**"],
+  "ignores": ["**/node_modules/**", "vendor/**"],
 }

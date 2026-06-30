@@ -36,9 +36,70 @@ import Data.Tuple (Tuple(..))
 import Gramark.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 
 -- | Run the surface passes in order: fold `#[inline]` nonterminals into their
--- | use sites (D28), then lower the remaining EBNF/macro/field sugar.
+-- | use sites (D28), hoist each parenthesised `( … )` group to a fresh rule,
+-- | then lower the remaining EBNF/macro/field sugar.
 desugar :: Grammar -> Either String Grammar
-desugar g = inlineExpand g >>= sugarDesugar
+desugar g = inlineExpand g <#> groupHoist >>= sugarDesugar
+
+-- | Replace every `Group [ a | b | … ]` with a reference to a fresh nonterminal
+-- | whose alternatives are `a`, `b`, … — so `( A B )* C` becomes `__group_0* C`
+-- | with `__group_0 : A B`, and the rest of desugaring proceeds on the
+-- | group-free grammar. Groups nest (inside `Rep`/`Star`/`Opt`/`Field`, and
+-- | inside one another), so the walk is recursive and emits a worklist of new
+-- | rules; the `__group_N` names cannot clash with mixed-case user rules
+-- | because of the leading underscores.
+groupHoist :: Grammar -> Grammar
+groupHoist (Grammar rules) =
+  let
+    final = foldl onRule { counter: 0, emitted: [], kept: [] } rules
+  in
+    Grammar (final.kept <> final.emitted)
+  where
+  onRule st (Rule lhs attrs alts) =
+    let
+      r = mapAccum st (\s alt -> hoistAlt s alt) alts
+    in
+      r.st { kept = Array.snoc r.st.kept (Rule lhs attrs r.out) }
+
+  hoistAlt st (Alt syms label action) =
+    let
+      r = mapAccum st hoistSym syms
+    in
+      { st: r.st, out: Alt r.out label action }
+
+  hoistSym st = case _ of
+    Group alts ->
+      let
+        name = "__group_" <> show st.counter
+        st1 = st { counter = st.counter + 1 }
+        -- lower the group's own alternatives (their syms may contain groups too)
+        r = mapAccum st1 (\s symList -> mapAccum s hoistSym symList) alts
+        newRule = Rule name [] (map (\g -> Alt g Nothing Nothing) r.out)
+      in
+        { st: r.st { emitted = Array.snoc r.st.emitted newRule }, out: Ref name }
+    Rep s -> wrapped st Rep s
+    Star s -> wrapped st Star s
+    Opt s -> wrapped st Opt s
+    Field f s -> wrapped st (Field f) s
+    other -> { st, out: other }
+
+  wrapped st con s =
+    let
+      r = hoistSym st s
+    in
+      { st: r.st, out: con r.out }
+
+-- A left fold that also threads an accumulator state, returning the mapped
+-- array and the final state (a tiny `mapAccumL` specialised to our records).
+mapAccum
+  :: forall st a b
+   . st
+  -> (st -> a -> { st :: st, out :: b })
+  -> Array a
+  -> { st :: st, out :: Array b }
+mapAccum st0 f =
+  foldl (\acc a -> let r = f acc.st a in { st: r.st, out: Array.snoc acc.out r.out })
+    { st: st0, out: [] }
 
 sugarDesugar :: Grammar -> Either String Grammar
 sugarDesugar (Grammar rules) = do
@@ -197,6 +258,7 @@ baseName = case _ of
   Opt s -> baseName s <> "_opt"
   Macro name _ -> name
   Field _ s -> baseName s
+  Group _ -> "group"
 
 -- | Normalize an action: a `\…->` lambda is left as is; a bare body becomes a
 -- | lambda whose parameter per right-hand symbol is its `name:` field (D28) or
@@ -326,3 +388,4 @@ deepRefs = case _ of
   Opt s -> deepRefs s
   Field _ s -> deepRefs s
   Macro _ args -> Array.concatMap deepRefs args
+  Group alts -> Array.concatMap (Array.concatMap deepRefs) alts

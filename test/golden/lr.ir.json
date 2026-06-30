@@ -42,6 +42,10 @@
       {
         "id": 9,
         "name": "Label"
+      },
+      {
+        "id": 10,
+        "name": "GroupBody"
       }
     ],
     "precedence": [],
@@ -84,7 +88,7 @@
             "ref": "nt"
           },
           {
-            "id": 7,
+            "id": 9,
             "ref": "t"
           },
           {
@@ -101,19 +105,19 @@
         "lhs": 2,
         "rhs": [
           {
-            "id": 2,
-            "ref": "t"
-          },
-          {
             "id": 4,
             "ref": "t"
           },
           {
-            "id": 7,
+            "id": 6,
             "ref": "t"
           },
           {
-            "id": 0,
+            "id": 9,
+            "ref": "t"
+          },
+          {
+            "id": 2,
             "ref": "t"
           },
           {
@@ -130,15 +134,15 @@
         "lhs": 2,
         "rhs": [
           {
-            "id": 4,
+            "id": 6,
             "ref": "t"
           },
           {
-            "id": 7,
+            "id": 9,
             "ref": "t"
           },
           {
-            "id": 0,
+            "id": 2,
             "ref": "t"
           },
           {
@@ -172,7 +176,7 @@
             "ref": "nt"
           },
           {
-            "id": 13,
+            "id": 15,
             "ref": "t"
           },
           {
@@ -287,7 +291,7 @@
         "lhs": 6,
         "rhs": [
           {
-            "id": 4,
+            "id": 6,
             "ref": "t"
           }
         ]
@@ -300,7 +304,7 @@
         "lhs": 6,
         "rhs": [
           {
-            "id": 12,
+            "id": 14,
             "ref": "t"
           }
         ]
@@ -313,11 +317,11 @@
         "lhs": 6,
         "rhs": [
           {
-            "id": 4,
+            "id": 6,
             "ref": "t"
           },
           {
-            "id": 8,
+            "id": 10,
             "ref": "t"
           }
         ]
@@ -330,11 +334,11 @@
         "lhs": 6,
         "rhs": [
           {
-            "id": 12,
+            "id": 14,
             "ref": "t"
           },
           {
-            "id": 8,
+            "id": 10,
             "ref": "t"
           }
         ]
@@ -347,11 +351,11 @@
         "lhs": 6,
         "rhs": [
           {
-            "id": 4,
+            "id": 6,
             "ref": "t"
           },
           {
-            "id": 11,
+            "id": 13,
             "ref": "t"
           }
         ]
@@ -364,11 +368,11 @@
         "lhs": 6,
         "rhs": [
           {
-            "id": 12,
+            "id": 14,
             "ref": "t"
           },
           {
-            "id": 11,
+            "id": 13,
             "ref": "t"
           }
         ]
@@ -381,11 +385,11 @@
         "lhs": 6,
         "rhs": [
           {
-            "id": 4,
+            "id": 6,
             "ref": "t"
           },
           {
-            "id": 9,
+            "id": 11,
             "ref": "t"
           }
         ]
@@ -398,11 +402,11 @@
         "lhs": 6,
         "rhs": [
           {
-            "id": 12,
+            "id": 14,
             "ref": "t"
           },
           {
-            "id": 9,
+            "id": 11,
             "ref": "t"
           }
         ]
@@ -415,11 +419,11 @@
         "lhs": 6,
         "rhs": [
           {
-            "id": 4,
+            "id": 6,
             "ref": "t"
           },
           {
-            "id": 6,
+            "id": 8,
             "ref": "t"
           },
           {
@@ -427,7 +431,7 @@
             "ref": "nt"
           },
           {
-            "id": 10,
+            "id": 12,
             "ref": "t"
           }
         ]
@@ -440,11 +444,11 @@
         "lhs": 6,
         "rhs": [
           {
-            "id": 4,
+            "id": 6,
             "ref": "t"
           },
           {
-            "id": 0,
+            "id": 2,
             "ref": "t"
           },
           {
@@ -455,9 +459,105 @@
       },
       {
         "actions": {
-          "purescript": "\\s -> [s]"
+          "purescript": "\\_ g _ -> Group g"
         },
         "id": 23,
+        "lhs": 6,
+        "rhs": [
+          {
+            "id": 0,
+            "ref": "t"
+          },
+          {
+            "id": 10,
+            "ref": "nt"
+          },
+          {
+            "id": 1,
+            "ref": "t"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\_ g _ _ -> Rep (Group g)"
+        },
+        "id": 24,
+        "lhs": 6,
+        "rhs": [
+          {
+            "id": 0,
+            "ref": "t"
+          },
+          {
+            "id": 10,
+            "ref": "nt"
+          },
+          {
+            "id": 1,
+            "ref": "t"
+          },
+          {
+            "id": 10,
+            "ref": "t"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\_ g _ _ -> Star (Group g)"
+        },
+        "id": 25,
+        "lhs": 6,
+        "rhs": [
+          {
+            "id": 0,
+            "ref": "t"
+          },
+          {
+            "id": 10,
+            "ref": "nt"
+          },
+          {
+            "id": 1,
+            "ref": "t"
+          },
+          {
+            "id": 13,
+            "ref": "t"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\_ g _ _ -> Opt (Group g)"
+        },
+        "id": 26,
+        "lhs": 6,
+        "rhs": [
+          {
+            "id": 0,
+            "ref": "t"
+          },
+          {
+            "id": 10,
+            "ref": "nt"
+          },
+          {
+            "id": 1,
+            "ref": "t"
+          },
+          {
+            "id": 11,
+            "ref": "t"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\s -> [s]"
+        },
+        "id": 27,
         "lhs": 7,
         "rhs": [
           {
@@ -470,7 +570,7 @@
         "actions": {
           "purescript": "\\as _ s -> snoc as s"
         },
-        "id": 24,
+        "id": 28,
         "lhs": 7,
         "rhs": [
           {
@@ -478,7 +578,7 @@
             "ref": "nt"
           },
           {
-            "id": 3,
+            "id": 5,
             "ref": "t"
           },
           {
@@ -491,11 +591,11 @@
         "actions": {
           "purescript": "\\a -> Just a"
         },
-        "id": 25,
+        "id": 29,
         "lhs": 8,
         "rhs": [
           {
-            "id": 1,
+            "id": 3,
             "ref": "t"
           }
         ]
@@ -504,12 +604,46 @@
         "actions": {
           "purescript": "\\l -> Just l"
         },
-        "id": 26,
+        "id": 30,
         "lhs": 9,
         "rhs": [
           {
-            "id": 5,
+            "id": 7,
             "ref": "t"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\syms -> [syms]"
+        },
+        "id": 31,
+        "lhs": 10,
+        "rhs": [
+          {
+            "id": 5,
+            "ref": "nt"
+          }
+        ]
+      },
+      {
+        "actions": {
+          "purescript": "\\alts _ syms -> snoc alts syms"
+        },
+        "id": 32,
+        "lhs": 10,
+        "rhs": [
+          {
+            "id": 10,
+            "ref": "nt"
+          },
+          {
+            "id": 15,
+            "ref": "t"
+          },
+          {
+            "id": 5,
+            "ref": "nt"
           }
         ]
       }
@@ -519,70 +653,80 @@
       {
         "id": 0,
         "kind": "literal",
-        "spelling": ":"
+        "spelling": "("
       },
       {
         "id": 1,
-        "kind": "class",
-        "name": "ACTION"
+        "kind": "literal",
+        "spelling": ")"
       },
       {
         "id": 2,
-        "kind": "class",
-        "name": "ATTR"
+        "kind": "literal",
+        "spelling": ":"
       },
       {
         "id": 3,
         "kind": "class",
-        "name": "COMMA"
+        "name": "ACTION"
       },
       {
         "id": 4,
         "kind": "class",
-        "name": "IDENT"
+        "name": "ATTR"
       },
       {
         "id": 5,
         "kind": "class",
-        "name": "LABEL"
+        "name": "COMMA"
       },
       {
         "id": 6,
         "kind": "class",
-        "name": "LANGLE"
+        "name": "IDENT"
       },
       {
         "id": 7,
         "kind": "class",
-        "name": "NL"
+        "name": "LABEL"
       },
       {
         "id": 8,
         "kind": "class",
-        "name": "PLUS"
+        "name": "LANGLE"
       },
       {
         "id": 9,
         "kind": "class",
-        "name": "QUESTION"
+        "name": "NL"
       },
       {
         "id": 10,
         "kind": "class",
-        "name": "RANGLE"
+        "name": "PLUS"
       },
       {
         "id": 11,
         "kind": "class",
-        "name": "STAR"
+        "name": "QUESTION"
       },
       {
         "id": 12,
         "kind": "class",
-        "name": "TERM_LIT"
+        "name": "RANGLE"
       },
       {
         "id": 13,
+        "kind": "class",
+        "name": "STAR"
+      },
+      {
+        "id": 14,
+        "kind": "class",
+        "name": "TERM_LIT"
+      },
+      {
+        "id": 15,
         "kind": "literal",
         "spelling": "|"
       }
@@ -598,7 +742,7 @@
               "shift": 4
             },
             "on": {
-              "id": 2,
+              "id": 4,
               "ref": "t"
             }
           },
@@ -607,7 +751,7 @@
               "shift": 5
             },
             "on": {
-              "id": 4,
+              "id": 6,
               "ref": "t"
             }
           }
@@ -634,7 +778,7 @@
               "reduce": 1
             },
             "on": {
-              "id": 7,
+              "id": 9,
               "ref": "t"
             }
           },
@@ -656,7 +800,7 @@
               "shift": 6
             },
             "on": {
-              "id": 7,
+              "id": 9,
               "ref": "t"
             }
           },
@@ -678,7 +822,7 @@
               "shift": 7
             },
             "on": {
-              "id": 4,
+              "id": 6,
               "ref": "t"
             }
           }
@@ -692,7 +836,7 @@
               "shift": 8
             },
             "on": {
-              "id": 7,
+              "id": 9,
               "ref": "t"
             }
           }
@@ -706,7 +850,7 @@
               "shift": 4
             },
             "on": {
-              "id": 2,
+              "id": 4,
               "ref": "t"
             }
           },
@@ -715,7 +859,7 @@
               "shift": 5
             },
             "on": {
-              "id": 4,
+              "id": 6,
               "ref": "t"
             }
           }
@@ -729,7 +873,7 @@
               "shift": 10
             },
             "on": {
-              "id": 7,
+              "id": 9,
               "ref": "t"
             }
           }
@@ -743,7 +887,7 @@
               "shift": 11
             },
             "on": {
-              "id": 0,
+              "id": 2,
               "ref": "t"
             }
           }
@@ -757,7 +901,7 @@
               "reduce": 2
             },
             "on": {
-              "id": 7,
+              "id": 9,
               "ref": "t"
             }
           },
@@ -779,7 +923,7 @@
               "shift": 12
             },
             "on": {
-              "id": 0,
+              "id": 2,
               "ref": "t"
             }
           }
@@ -793,7 +937,7 @@
               "shift": 17
             },
             "on": {
-              "id": 4,
+              "id": 0,
               "ref": "t"
             }
           },
@@ -802,7 +946,16 @@
               "shift": 18
             },
             "on": {
-              "id": 12,
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 19
+            },
+            "on": {
+              "id": 14,
               "ref": "t"
             }
           }
@@ -816,7 +969,7 @@
               "shift": 17
             },
             "on": {
-              "id": 4,
+              "id": 0,
               "ref": "t"
             }
           },
@@ -825,7 +978,16 @@
               "shift": 18
             },
             "on": {
-              "id": 12,
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 19
+            },
+            "on": {
+              "id": 14,
               "ref": "t"
             }
           }
@@ -839,7 +1001,7 @@
               "reduce": 5
             },
             "on": {
-              "id": 7,
+              "id": 9,
               "ref": "t"
             }
           },
@@ -848,7 +1010,7 @@
               "reduce": 5
             },
             "on": {
-              "id": 13,
+              "id": 15,
               "ref": "t"
             }
           },
@@ -870,16 +1032,16 @@
               "reduce": 4
             },
             "on": {
-              "id": 7,
+              "id": 9,
               "ref": "t"
             }
           },
           {
             "action": {
-              "shift": 20
+              "shift": 21
             },
             "on": {
-              "id": 13,
+              "id": 15,
               "ref": "t"
             }
           },
@@ -901,7 +1063,7 @@
               "reduce": 11
             },
             "on": {
-              "id": 1,
+              "id": 0,
               "ref": "t"
             }
           },
@@ -910,7 +1072,7 @@
               "reduce": 11
             },
             "on": {
-              "id": 4,
+              "id": 3,
               "ref": "t"
             }
           },
@@ -919,7 +1081,7 @@
               "reduce": 11
             },
             "on": {
-              "id": 5,
+              "id": 6,
               "ref": "t"
             }
           },
@@ -937,7 +1099,7 @@
               "reduce": 11
             },
             "on": {
-              "id": 12,
+              "id": 9,
               "ref": "t"
             }
           },
@@ -946,7 +1108,16 @@
               "reduce": 11
             },
             "on": {
-              "id": 13,
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 11
+            },
+            "on": {
+              "id": 15,
               "ref": "t"
             }
           },
@@ -965,19 +1136,10 @@
         "entries": [
           {
             "action": {
-              "shift": 24
-            },
-            "on": {
-              "id": 1,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
               "shift": 17
             },
             "on": {
-              "id": 4,
+              "id": 0,
               "ref": "t"
             }
           },
@@ -986,16 +1148,7 @@
               "shift": 25
             },
             "on": {
-              "id": 5,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 10
-            },
-            "on": {
-              "id": 7,
+              "id": 3,
               "ref": "t"
             }
           },
@@ -1004,7 +1157,16 @@
               "shift": 18
             },
             "on": {
-              "id": 12,
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 26
+            },
+            "on": {
+              "id": 7,
               "ref": "t"
             }
           },
@@ -1013,7 +1175,25 @@
               "reduce": 10
             },
             "on": {
-              "id": 13,
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 19
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 10
+            },
+            "on": {
+              "id": 15,
               "ref": "t"
             }
           },
@@ -1032,7 +1212,7 @@
         "entries": [
           {
             "action": {
-              "shift": 26
+              "shift": 30
             },
             "on": {
               "id": 0,
@@ -1041,10 +1221,42 @@
           },
           {
             "action": {
+              "shift": 31
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 32
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 17
+      },
+      {
+        "entries": [
+          {
+            "action": {
               "reduce": 13
             },
             "on": {
-              "id": 1,
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 33
+            },
+            "on": {
+              "id": 2,
               "ref": "t"
             }
           },
@@ -1053,22 +1265,13 @@
               "reduce": 13
             },
             "on": {
-              "id": 4,
+              "id": 3,
               "ref": "t"
             }
           },
           {
             "action": {
               "reduce": 13
-            },
-            "on": {
-              "id": 5,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 27
             },
             "on": {
               "id": 6,
@@ -1086,7 +1289,7 @@
           },
           {
             "action": {
-              "shift": 28
+              "shift": 34
             },
             "on": {
               "id": 8,
@@ -1095,7 +1298,7 @@
           },
           {
             "action": {
-              "shift": 29
+              "reduce": 13
             },
             "on": {
               "id": 9,
@@ -1104,7 +1307,16 @@
           },
           {
             "action": {
-              "shift": 30
+              "shift": 35
+            },
+            "on": {
+              "id": 10,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 36
             },
             "on": {
               "id": 11,
@@ -1113,16 +1325,7 @@
           },
           {
             "action": {
-              "reduce": 13
-            },
-            "on": {
-              "id": 12,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 13
+              "shift": 37
             },
             "on": {
               "id": 13,
@@ -1134,98 +1337,22 @@
               "reduce": 13
             },
             "on": {
-              "ref": "eof"
-            }
-          }
-        ],
-        "state": 17
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 14
-            },
-            "on": {
-              "id": 1,
+              "id": 14,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 14
+              "reduce": 13
             },
             "on": {
-              "id": 4,
+              "id": 15,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 14
-            },
-            "on": {
-              "id": 5,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 14
-            },
-            "on": {
-              "id": 7,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 31
-            },
-            "on": {
-              "id": 8,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 32
-            },
-            "on": {
-              "id": 9,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 33
-            },
-            "on": {
-              "id": 11,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 14
-            },
-            "on": {
-              "id": 12,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 14
-            },
-            "on": {
-              "id": 13,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 14
+              "reduce": 13
             },
             "on": {
               "ref": "eof"
@@ -1238,7 +1365,34 @@
         "entries": [
           {
             "action": {
-              "reduce": 3
+              "reduce": 14
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
             },
             "on": {
               "id": 7,
@@ -1247,7 +1401,34 @@
           },
           {
             "action": {
-              "shift": 20
+              "reduce": 14
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 38
+            },
+            "on": {
+              "id": 10,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 39
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 40
             },
             "on": {
               "id": 13,
@@ -1256,7 +1437,25 @@
           },
           {
             "action": {
-              "reduce": 3
+              "reduce": 14
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
             },
             "on": {
               "ref": "eof"
@@ -1269,20 +1468,28 @@
         "entries": [
           {
             "action": {
-              "shift": 17
+              "reduce": 3
             },
             "on": {
-              "id": 4,
+              "id": 9,
               "ref": "t"
             }
           },
           {
             "action": {
-              "shift": 18
+              "shift": 21
             },
             "on": {
-              "id": 12,
+              "id": 15,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 3
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1292,28 +1499,29 @@
         "entries": [
           {
             "action": {
-              "reduce": 9
+              "shift": 17
             },
             "on": {
-              "id": 7,
+              "id": 0,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 9
+              "shift": 18
             },
             "on": {
-              "id": 13,
+              "id": 6,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 9
+              "shift": 19
             },
             "on": {
-              "ref": "eof"
+              "id": 14,
+              "ref": "t"
             }
           }
         ],
@@ -1323,34 +1531,25 @@
         "entries": [
           {
             "action": {
-              "shift": 24
+              "reduce": 9
             },
             "on": {
-              "id": 1,
+              "id": 9,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 8
+              "reduce": 9
             },
             "on": {
-              "id": 7,
+              "id": 15,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 8
-            },
-            "on": {
-              "id": 13,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 8
+              "reduce": 9
             },
             "on": {
               "ref": "eof"
@@ -1363,61 +1562,34 @@
         "entries": [
           {
             "action": {
-              "reduce": 12
+              "shift": 25
             },
             "on": {
-              "id": 1,
+              "id": 3,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 12
+              "reduce": 8
             },
             "on": {
-              "id": 4,
+              "id": 9,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 12
+              "reduce": 8
             },
             "on": {
-              "id": 5,
+              "id": 15,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 12
-            },
-            "on": {
-              "id": 7,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 12
-            },
-            "on": {
-              "id": 12,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 12
-            },
-            "on": {
-              "id": 13,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 12
+              "reduce": 8
             },
             "on": {
               "ref": "eof"
@@ -1430,7 +1602,34 @@
         "entries": [
           {
             "action": {
-              "reduce": 25
+              "reduce": 12
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
             },
             "on": {
               "id": 7,
@@ -1439,16 +1638,34 @@
           },
           {
             "action": {
-              "reduce": 25
+              "reduce": 12
             },
             "on": {
-              "id": 13,
+              "id": 9,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 25
+              "reduce": 12
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
             },
             "on": {
               "ref": "eof"
@@ -1461,34 +1678,25 @@
         "entries": [
           {
             "action": {
-              "reduce": 26
+              "reduce": 29
             },
             "on": {
-              "id": 1,
+              "id": 9,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 26
+              "reduce": 29
             },
             "on": {
-              "id": 7,
+              "id": 15,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 26
-            },
-            "on": {
-              "id": 13,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 26
+              "reduce": 29
             },
             "on": {
               "ref": "eof"
@@ -1501,20 +1709,37 @@
         "entries": [
           {
             "action": {
-              "shift": 17
+              "reduce": 30
             },
             "on": {
-              "id": 4,
+              "id": 3,
               "ref": "t"
             }
           },
           {
             "action": {
-              "shift": 18
+              "reduce": 30
             },
             "on": {
-              "id": 12,
+              "id": 9,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 30
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 30
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -1524,19 +1749,19 @@
         "entries": [
           {
             "action": {
-              "shift": 39
+              "shift": 43
             },
             "on": {
-              "id": 4,
+              "id": 1,
               "ref": "t"
             }
           },
           {
             "action": {
-              "shift": 40
+              "shift": 44
             },
             "on": {
-              "id": 12,
+              "id": 15,
               "ref": "t"
             }
           }
@@ -1547,7 +1772,16 @@
         "entries": [
           {
             "action": {
-              "reduce": 15
+              "reduce": 11
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 11
             },
             "on": {
               "id": 1,
@@ -1556,55 +1790,29 @@
           },
           {
             "action": {
-              "reduce": 15
+              "reduce": 11
             },
             "on": {
-              "id": 4,
+              "id": 6,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 15
+              "reduce": 11
             },
             "on": {
-              "id": 5,
+              "id": 14,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 15
+              "reduce": 11
             },
             "on": {
-              "id": 7,
+              "id": 15,
               "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 15
-            },
-            "on": {
-              "id": 12,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 15
-            },
-            "on": {
-              "id": 13,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 15
-            },
-            "on": {
-              "ref": "eof"
             }
           }
         ],
@@ -1614,7 +1822,16 @@
         "entries": [
           {
             "action": {
-              "reduce": 19
+              "shift": 30
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 31
             },
             "on": {
               "id": 1,
@@ -1623,55 +1840,29 @@
           },
           {
             "action": {
-              "reduce": 19
+              "shift": 31
             },
             "on": {
-              "id": 4,
+              "id": 6,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 19
+              "shift": 32
             },
             "on": {
-              "id": 5,
+              "id": 14,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 19
+              "reduce": 31
             },
             "on": {
-              "id": 7,
+              "id": 15,
               "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 19
-            },
-            "on": {
-              "id": 12,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 19
-            },
-            "on": {
-              "id": 13,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 19
-            },
-            "on": {
-              "ref": "eof"
             }
           }
         ],
@@ -1681,64 +1872,29 @@
         "entries": [
           {
             "action": {
-              "reduce": 17
+              "shift": 30
             },
             "on": {
-              "id": 1,
+              "id": 0,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 17
+              "shift": 31
             },
             "on": {
-              "id": 4,
+              "id": 6,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 17
+              "shift": 32
             },
             "on": {
-              "id": 5,
+              "id": 14,
               "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 17
-            },
-            "on": {
-              "id": 7,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 17
-            },
-            "on": {
-              "id": 12,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 17
-            },
-            "on": {
-              "id": 13,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 17
-            },
-            "on": {
-              "ref": "eof"
             }
           }
         ],
@@ -1748,383 +1904,7 @@
         "entries": [
           {
             "action": {
-              "reduce": 16
-            },
-            "on": {
-              "id": 1,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 16
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 16
-            },
-            "on": {
-              "id": 5,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 16
-            },
-            "on": {
-              "id": 7,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 16
-            },
-            "on": {
-              "id": 12,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 16
-            },
-            "on": {
-              "id": 13,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 16
-            },
-            "on": {
-              "ref": "eof"
-            }
-          }
-        ],
-        "state": 31
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 20
-            },
-            "on": {
-              "id": 1,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 20
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 20
-            },
-            "on": {
-              "id": 5,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 20
-            },
-            "on": {
-              "id": 7,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 20
-            },
-            "on": {
-              "id": 12,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 20
-            },
-            "on": {
-              "id": 13,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 20
-            },
-            "on": {
-              "ref": "eof"
-            }
-          }
-        ],
-        "state": 32
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 18
-            },
-            "on": {
-              "id": 1,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 18
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 18
-            },
-            "on": {
-              "id": 5,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 18
-            },
-            "on": {
-              "id": 7,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 18
-            },
-            "on": {
-              "id": 12,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 18
-            },
-            "on": {
-              "id": 13,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 18
-            },
-            "on": {
-              "ref": "eof"
-            }
-          }
-        ],
-        "state": 33
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 6
-            },
-            "on": {
-              "id": 7,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 6
-            },
-            "on": {
-              "id": 13,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 6
-            },
-            "on": {
-              "ref": "eof"
-            }
-          }
-        ],
-        "state": 34
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 7
-            },
-            "on": {
-              "id": 7,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 7
-            },
-            "on": {
-              "id": 13,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 7
-            },
-            "on": {
-              "ref": "eof"
-            }
-          }
-        ],
-        "state": 35
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 22
-            },
-            "on": {
-              "id": 1,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 22
-            },
-            "on": {
-              "id": 4,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 22
-            },
-            "on": {
-              "id": 5,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 22
-            },
-            "on": {
-              "id": 7,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 22
-            },
-            "on": {
-              "id": 12,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 22
-            },
-            "on": {
-              "id": 13,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 22
-            },
-            "on": {
-              "ref": "eof"
-            }
-          }
-        ],
-        "state": 36
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "shift": 41
-            },
-            "on": {
-              "id": 3,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 42
-            },
-            "on": {
-              "id": 10,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 37
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 23
-            },
-            "on": {
-              "id": 3,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 23
-            },
-            "on": {
-              "id": 10,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 38
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "shift": 43
+              "reduce": 13
             },
             "on": {
               "id": 0,
@@ -2136,43 +1916,7 @@
               "reduce": 13
             },
             "on": {
-              "id": 3,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 44
-            },
-            "on": {
-              "id": 6,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 45
-            },
-            "on": {
-              "id": 8,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "shift": 46
-            },
-            "on": {
-              "id": 9,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 13
-            },
-            "on": {
-              "id": 10,
+              "id": 1,
               "ref": "t"
             }
           },
@@ -2181,21 +1925,16 @@
               "shift": 47
             },
             "on": {
-              "id": 11,
+              "id": 2,
               "ref": "t"
             }
-          }
-        ],
-        "state": 39
-      },
-      {
-        "entries": [
+          },
           {
             "action": {
-              "reduce": 14
+              "reduce": 13
             },
             "on": {
-              "id": 3,
+              "id": 6,
               "ref": "t"
             }
           },
@@ -2213,15 +1952,6 @@
               "shift": 49
             },
             "on": {
-              "id": 9,
-              "ref": "t"
-            }
-          },
-          {
-            "action": {
-              "reduce": 14
-            },
-            "on": {
               "id": 10,
               "ref": "t"
             }
@@ -2234,6 +1964,630 @@
               "id": 11,
               "ref": "t"
             }
+          },
+          {
+            "action": {
+              "shift": 51
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 13
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 13
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 31
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 52
+            },
+            "on": {
+              "id": 10,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 53
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 54
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 32
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 17
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 18
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 19
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 33
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 58
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 59
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 60
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 34
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 35
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 36
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 37
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 38
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 39
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "ref": "eof"
+            }
           }
         ],
         "state": 40
@@ -2242,20 +2596,28 @@
         "entries": [
           {
             "action": {
-              "shift": 39
+              "reduce": 6
             },
             "on": {
-              "id": 4,
+              "id": 9,
               "ref": "t"
             }
           },
           {
             "action": {
-              "shift": 40
+              "reduce": 6
             },
             "on": {
-              "id": 12,
+              "id": 15,
               "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 6
+            },
+            "on": {
+              "ref": "eof"
             }
           }
         ],
@@ -2265,7 +2627,182 @@
         "entries": [
           {
             "action": {
-              "reduce": 21
+              "reduce": 7
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 7
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 7
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 42
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 61
+            },
+            "on": {
+              "id": 10,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 62
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 63
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 43
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 30
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 31
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 32
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 44
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
             },
             "on": {
               "id": 1,
@@ -2274,10 +2811,1161 @@
           },
           {
             "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 12
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 45
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 65
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 44
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 46
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 30
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 31
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 32
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 47
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 58
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 59
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 60
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 48
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 15
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 49
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 19
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 50
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 17
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 51
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 16
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 52
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 20
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 53
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 18
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 54
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 55
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 68
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 69
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 56
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 27
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 27
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 57
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 30
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 31
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 32
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 58
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 71
+            },
+            "on": {
+              "id": 2,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 13
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 72
+            },
+            "on": {
+              "id": 8,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 73
+            },
+            "on": {
+              "id": 10,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 74
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 13
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 75
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 59
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 76
+            },
+            "on": {
+              "id": 10,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 77
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 14
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 78
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 60
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 24
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 24
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 24
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 24
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 24
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 24
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 24
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 24
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 61
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 62
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "id": 7,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "id": 9,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "ref": "eof"
+            }
+          }
+        ],
+        "state": 63
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 30
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 32
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 31
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 32
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 32
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 64
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 79
+            },
+            "on": {
+              "id": 10,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 80
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 81
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 65
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 66
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 68
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 82
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 67
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 58
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 59
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 60
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 68
+      },
+      {
+        "entries": [
+          {
+            "action": {
               "reduce": 21
             },
             "on": {
-              "id": 4,
+              "id": 0,
               "ref": "t"
             }
           },
@@ -2286,7 +3974,16 @@
               "reduce": 21
             },
             "on": {
-              "id": 5,
+              "id": 3,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 21
+            },
+            "on": {
+              "id": 6,
               "ref": "t"
             }
           },
@@ -2304,7 +4001,7 @@
               "reduce": 21
             },
             "on": {
-              "id": 12,
+              "id": 9,
               "ref": "t"
             }
           },
@@ -2313,7 +4010,16 @@
               "reduce": 21
             },
             "on": {
-              "id": 13,
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 21
+            },
+            "on": {
+              "id": 15,
               "ref": "t"
             }
           },
@@ -2326,53 +4032,94 @@
             }
           }
         ],
-        "state": 42
+        "state": 69
       },
       {
         "entries": [
           {
             "action": {
-              "shift": 39
+              "shift": 84
             },
             "on": {
-              "id": 4,
+              "id": 1,
               "ref": "t"
             }
           },
           {
             "action": {
-              "shift": 40
+              "shift": 44
             },
             "on": {
-              "id": 12,
+              "id": 15,
               "ref": "t"
             }
           }
         ],
-        "state": 43
+        "state": 70
       },
       {
         "entries": [
           {
             "action": {
-              "shift": 39
+              "shift": 58
             },
             "on": {
-              "id": 4,
+              "id": 0,
               "ref": "t"
             }
           },
           {
             "action": {
-              "shift": 40
+              "shift": 59
             },
             "on": {
-              "id": 12,
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 60
+            },
+            "on": {
+              "id": 14,
               "ref": "t"
             }
           }
         ],
-        "state": 44
+        "state": 71
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 58
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 59
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 60
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 72
       },
       {
         "entries": [
@@ -2381,7 +4128,7 @@
               "reduce": 15
             },
             "on": {
-              "id": 3,
+              "id": 5,
               "ref": "t"
             }
           },
@@ -2390,12 +4137,12 @@
               "reduce": 15
             },
             "on": {
-              "id": 10,
+              "id": 12,
               "ref": "t"
             }
           }
         ],
-        "state": 45
+        "state": 73
       },
       {
         "entries": [
@@ -2404,7 +4151,7 @@
               "reduce": 19
             },
             "on": {
-              "id": 3,
+              "id": 5,
               "ref": "t"
             }
           },
@@ -2413,12 +4160,12 @@
               "reduce": 19
             },
             "on": {
-              "id": 10,
+              "id": 12,
               "ref": "t"
             }
           }
         ],
-        "state": 46
+        "state": 74
       },
       {
         "entries": [
@@ -2427,7 +4174,7 @@
               "reduce": 17
             },
             "on": {
-              "id": 3,
+              "id": 5,
               "ref": "t"
             }
           },
@@ -2436,12 +4183,12 @@
               "reduce": 17
             },
             "on": {
-              "id": 10,
+              "id": 12,
               "ref": "t"
             }
           }
         ],
-        "state": 47
+        "state": 75
       },
       {
         "entries": [
@@ -2450,7 +4197,7 @@
               "reduce": 16
             },
             "on": {
-              "id": 3,
+              "id": 5,
               "ref": "t"
             }
           },
@@ -2459,12 +4206,12 @@
               "reduce": 16
             },
             "on": {
-              "id": 10,
+              "id": 12,
               "ref": "t"
             }
           }
         ],
-        "state": 48
+        "state": 76
       },
       {
         "entries": [
@@ -2473,7 +4220,7 @@
               "reduce": 20
             },
             "on": {
-              "id": 3,
+              "id": 5,
               "ref": "t"
             }
           },
@@ -2482,12 +4229,12 @@
               "reduce": 20
             },
             "on": {
-              "id": 10,
+              "id": 12,
               "ref": "t"
             }
           }
         ],
-        "state": 49
+        "state": 77
       },
       {
         "entries": [
@@ -2496,7 +4243,7 @@
               "reduce": 18
             },
             "on": {
-              "id": 3,
+              "id": 5,
               "ref": "t"
             }
           },
@@ -2505,12 +4252,12 @@
               "reduce": 18
             },
             "on": {
-              "id": 10,
+              "id": 12,
               "ref": "t"
             }
           }
         ],
-        "state": 50
+        "state": 78
       },
       {
         "entries": [
@@ -2519,7 +4266,7 @@
               "reduce": 24
             },
             "on": {
-              "id": 3,
+              "id": 0,
               "ref": "t"
             }
           },
@@ -2528,58 +4275,139 @@
               "reduce": 24
             },
             "on": {
-              "id": 10,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 51
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "reduce": 22
-            },
-            "on": {
-              "id": 3,
+              "id": 1,
               "ref": "t"
             }
           },
           {
             "action": {
-              "reduce": 22
+              "reduce": 24
             },
             "on": {
-              "id": 10,
-              "ref": "t"
-            }
-          }
-        ],
-        "state": 52
-      },
-      {
-        "entries": [
-          {
-            "action": {
-              "shift": 41
-            },
-            "on": {
-              "id": 3,
+              "id": 6,
               "ref": "t"
             }
           },
           {
             "action": {
-              "shift": 54
+              "reduce": 24
             },
             "on": {
-              "id": 10,
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 24
+            },
+            "on": {
+              "id": 15,
               "ref": "t"
             }
           }
         ],
-        "state": 53
+        "state": 79
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 80
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "id": 0,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "id": 15,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 81
       },
       {
         "entries": [
@@ -2588,7 +4416,7 @@
               "reduce": 21
             },
             "on": {
-              "id": 3,
+              "id": 0,
               "ref": "t"
             }
           },
@@ -2597,12 +4425,250 @@
               "reduce": 21
             },
             "on": {
-              "id": 10,
+              "id": 1,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 21
+            },
+            "on": {
+              "id": 6,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 21
+            },
+            "on": {
+              "id": 14,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 21
+            },
+            "on": {
+              "id": 15,
               "ref": "t"
             }
           }
         ],
-        "state": 54
+        "state": 82
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 28
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 28
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 83
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 87
+            },
+            "on": {
+              "id": 10,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 88
+            },
+            "on": {
+              "id": 11,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 23
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 89
+            },
+            "on": {
+              "id": 13,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 84
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 22
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 85
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "shift": 68
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "shift": 90
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 86
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 24
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 24
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 87
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 26
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 88
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 25
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 89
+      },
+      {
+        "entries": [
+          {
+            "action": {
+              "reduce": 21
+            },
+            "on": {
+              "id": 5,
+              "ref": "t"
+            }
+          },
+          {
+            "action": {
+              "reduce": 21
+            },
+            "on": {
+              "id": 12,
+              "ref": "t"
+            }
+          }
+        ],
+        "state": 90
       }
     ],
     "algorithm": "canonical-lr1",
@@ -2662,7 +4728,7 @@
           },
           {
             "nonterminal": 3,
-            "to": 19
+            "to": 20
           },
           {
             "nonterminal": 6,
@@ -2679,15 +4745,15 @@
         "entries": [
           {
             "nonterminal": 8,
-            "to": 21
-          },
-          {
-            "nonterminal": 9,
             "to": 22
           },
           {
-            "nonterminal": 6,
+            "nonterminal": 9,
             "to": 23
+          },
+          {
+            "nonterminal": 6,
+            "to": 24
           }
         ],
         "state": 16
@@ -2695,8 +4761,25 @@
       {
         "entries": [
           {
+            "nonterminal": 10,
+            "to": 27
+          },
+          {
+            "nonterminal": 6,
+            "to": 28
+          },
+          {
+            "nonterminal": 5,
+            "to": 29
+          }
+        ],
+        "state": 17
+      },
+      {
+        "entries": [
+          {
             "nonterminal": 4,
-            "to": 34
+            "to": 41
           },
           {
             "nonterminal": 6,
@@ -2707,71 +4790,158 @@
             "to": 16
           }
         ],
-        "state": 20
+        "state": 21
       },
       {
         "entries": [
           {
             "nonterminal": 8,
-            "to": 35
+            "to": 42
           }
         ],
-        "state": 22
+        "state": 23
       },
       {
         "entries": [
           {
             "nonterminal": 6,
-            "to": 36
+            "to": 45
           }
         ],
-        "state": 26
+        "state": 29
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 10,
+            "to": 46
+          },
+          {
+            "nonterminal": 6,
+            "to": 28
+          },
+          {
+            "nonterminal": 5,
+            "to": 29
+          }
+        ],
+        "state": 30
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 6,
+            "to": 55
+          }
+        ],
+        "state": 33
       },
       {
         "entries": [
           {
             "nonterminal": 7,
-            "to": 37
+            "to": 56
           },
           {
             "nonterminal": 6,
-            "to": 38
+            "to": 57
           }
         ],
-        "state": 27
+        "state": 34
       },
       {
         "entries": [
           {
             "nonterminal": 6,
-            "to": 51
-          }
-        ],
-        "state": 41
-      },
-      {
-        "entries": [
-          {
-            "nonterminal": 6,
-            "to": 52
-          }
-        ],
-        "state": 43
-      },
-      {
-        "entries": [
-          {
-            "nonterminal": 7,
-            "to": 53
+            "to": 28
           },
           {
-            "nonterminal": 6,
-            "to": 38
+            "nonterminal": 5,
+            "to": 64
           }
         ],
         "state": 44
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 6,
+            "to": 66
+          }
+        ],
+        "state": 47
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 7,
+            "to": 67
+          },
+          {
+            "nonterminal": 6,
+            "to": 57
+          }
+        ],
+        "state": 48
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 10,
+            "to": 70
+          },
+          {
+            "nonterminal": 6,
+            "to": 28
+          },
+          {
+            "nonterminal": 5,
+            "to": 29
+          }
+        ],
+        "state": 58
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 6,
+            "to": 45
+          }
+        ],
+        "state": 64
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 6,
+            "to": 83
+          }
+        ],
+        "state": 68
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 6,
+            "to": 85
+          }
+        ],
+        "state": 71
+      },
+      {
+        "entries": [
+          {
+            "nonterminal": 7,
+            "to": 86
+          },
+          {
+            "nonterminal": 6,
+            "to": 57
+          }
+        ],
+        "state": 72
       }
     ],
-    "stateCount": 55
+    "stateCount": 91
   }
 }

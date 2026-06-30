@@ -88,6 +88,10 @@ bootstrapGrammar = Grammar
       , Alt [ Ref "IDENT", Ref "LANGLE", Ref "Args", Ref "RANGLE" ] Nothing
           (Just "\\name _ args _ -> Macro name args")
       , Alt [ Ref "IDENT", Lit ":", Ref "Sym" ] Nothing (Just "\\name _ s -> Field name s")
+      , Alt [ Lit "(", Ref "GroupBody", Lit ")" ] Nothing (Just "\\_ g _ -> Group g")
+      , Alt [ Lit "(", Ref "GroupBody", Lit ")", Ref "PLUS" ] Nothing (Just "\\_ g _ _ -> Rep (Group g)")
+      , Alt [ Lit "(", Ref "GroupBody", Lit ")", Ref "STAR" ] Nothing (Just "\\_ g _ _ -> Star (Group g)")
+      , Alt [ Lit "(", Ref "GroupBody", Lit ")", Ref "QUESTION" ] Nothing (Just "\\_ g _ _ -> Opt (Group g)")
       ]
 
   , Rule "Args" []
@@ -100,4 +104,9 @@ bootstrapGrammar = Grammar
 
   , Rule "Label" []
       [ Alt [ Ref "LABEL" ] Nothing (Just "\\l -> Just l") ]
+
+  , Rule "GroupBody" []
+      [ Alt [ Ref "SymList" ] Nothing (Just "\\syms -> [syms]")
+      , Alt [ Ref "GroupBody", Lit "|", Ref "SymList" ] Nothing (Just "\\alts _ syms -> snoc alts syms")
+      ]
   ]

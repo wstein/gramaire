@@ -69,13 +69,14 @@ expectedFirst = Map.fromFoldable
   [ Tuple "Grammar" (set [ t "ATTR", t "IDENT" ])
   , Tuple "RuleList" (set [ t "ATTR", t "IDENT" ])
   , Tuple "Rule" (set [ t "ATTR", t "IDENT" ])
-  , Tuple "Body" (set [ t "IDENT", t "TERM_LIT" ])
-  , Tuple "Alt" (set [ t "IDENT", t "TERM_LIT" ])
-  , Tuple "SymList" (set [ t "IDENT", t "TERM_LIT" ])
-  , Tuple "Sym" (set [ t "IDENT", t "TERM_LIT" ])
-  , Tuple "Args" (set [ t "IDENT", t "TERM_LIT" ])
+  , Tuple "Body" (set [ t "IDENT", t "TERM_LIT", t "(" ])
+  , Tuple "Alt" (set [ t "IDENT", t "TERM_LIT", t "(" ])
+  , Tuple "SymList" (set [ t "IDENT", t "TERM_LIT", t "(" ])
+  , Tuple "Sym" (set [ t "IDENT", t "TERM_LIT", t "(" ])
+  , Tuple "Args" (set [ t "IDENT", t "TERM_LIT", t "(" ])
   , Tuple "Action" (set [ t "ACTION" ])
   , Tuple "Label" (set [ t "LABEL" ])
+  , Tuple "GroupBody" (set [ t "IDENT", t "TERM_LIT", t "(" ])
   ]
 
 -- | FOLLOW sets documented in `grammar/lr.grmk.md` (`$` is `EOF`).
@@ -86,19 +87,20 @@ expectedFollow = Map.fromFoldable
   , Tuple "Rule" (set [ t "NL", EOF ])
   , Tuple "Body" (set [ t "NL", t "|", EOF ])
   , Tuple "Alt" (set [ t "NL", t "|", EOF ])
-  , Tuple "SymList" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT", t "|", EOF ])
-  , Tuple "Sym" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT", t "RANGLE", t "COMMA", t "|", EOF ])
+  , Tuple "SymList" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT", t "|", t "(", t ")", EOF ])
+  , Tuple "Sym" (set [ t "LABEL", t "ACTION", t "NL", t "IDENT", t "TERM_LIT", t "RANGLE", t "COMMA", t "|", t "(", t ")", EOF ])
   , Tuple "Args" (set [ t "RANGLE", t "COMMA" ])
   , Tuple "Action" (set [ t "NL", t "|", EOF ])
   , Tuple "Label" (set [ t "ACTION", t "NL", t "|", EOF ])
+  , Tuple "GroupBody" (set [ t ")", t "|" ])
   ]
 
 tests :: Effect Unit
 tests = do
   let a = analyze bootstrapGrammar
 
-  log "  table: bootstrapGrammar flattens to 27 productions"
-  assertEqual { actual: length (productions bootstrapGrammar), expected: 27 }
+  log "  table: bootstrapGrammar flattens to 33 productions"
+  assertEqual { actual: length (productions bootstrapGrammar), expected: 33 }
 
   log "  table: start symbol is Grammar"
   assertEqual { actual: a.start, expected: "Grammar" }

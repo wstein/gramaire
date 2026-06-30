@@ -53,6 +53,7 @@ lrConMap = Map.fromFoldable
   , Tuple "Args" "VSyms"
   , Tuple "Action" "VMaybeStr"
   , Tuple "Label" "VMaybeStr"
+  , Tuple "GroupBody" "VGroupBody"
   , Tuple "IDENT" "VStr"
   , Tuple "TERM_LIT" "VStr"
   , Tuple "ACTION" "VStr"
@@ -98,8 +99,8 @@ header arrayImport =
         <> arrayImport
         <>
           [ "import Data.Maybe (Maybe(Just, Nothing))"
-          , "import Gramark.Lr (SemVal(VGrammar, VRules, VRule, VAlts, VAlt, VSyms, VSym, VMaybeStr, VStr, VErr))"
-          , "import Gramark.Syntax (Alt(Alt), Grammar(Grammar), Rule(Rule), Sym(Ref, Lit, Rep, Star, Opt, Macro, Field))"
+          , "import Gramark.Lr (SemVal(VGrammar, VRules, VRule, VAlts, VAlt, VSyms, VSym, VGroupBody, VMaybeStr, VStr, VErr))"
+          , "import Gramark.Syntax (Alt(Alt), Grammar(Grammar), Rule(Rule), Sym(Ref, Lit, Rep, Star, Opt, Macro, Field, Group))"
           , ""
           , "reduce :: Int -> Array SemVal -> SemVal"
           , "reduce p kids = case p, kids of"
