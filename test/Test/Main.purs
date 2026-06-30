@@ -32,6 +32,7 @@ import Test.JsonSelfHost as JsonSelfHost
 import Test.Lexer as Lexer
 import Test.Literals as Literals
 import Test.Ll as Ll
+import Test.LexerAtn as LexerAtn
 import Test.LexerSelfHost as LexerSelfHost
 import Test.Parser as Parser
 import Test.Regex as Regex
@@ -50,6 +51,8 @@ main = do
   Lexer.tests
   log "Test.Literals"
   Literals.tests
+  log "Test.LexerAtn"
+  LexerAtn.tests
   log "Test.LexerSelfHost"
   LexerSelfHost.tests
   log "Test.Parser"
