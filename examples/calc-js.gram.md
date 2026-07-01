@@ -1,6 +1,7 @@
 # Calc-js
 
-An arithmetic calculator that evaluates its own input — a demonstration of inline `{% … %}` actions.
+An arithmetic calculator that evaluates its own input — a demonstration
+of inline `{% … %}` actions.
 
 ## General settings
 
