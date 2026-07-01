@@ -43,10 +43,14 @@ object CstView:
     s.foreach {
       case '"'  => sb.append("\\\"")
       case '\\' => sb.append("\\\\")
+      case '\b' => sb.append("\\b")
+      case '\f' => sb.append("\\f")
       case '\n' => sb.append("\\n")
       case '\r' => sb.append("\\r")
       case '\t' => sb.append("\\t")
-      case c    => sb.append(c)
+      // JSON.stringify escapes remaining control chars (U+0000–U+001F) as \u00XX.
+      case c if c < ' ' => sb.append("\\u%04x".format(c.toInt))
+      case c            => sb.append(c)
     }
     sb.append("\"").toString
 
