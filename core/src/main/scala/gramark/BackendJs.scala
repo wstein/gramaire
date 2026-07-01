@@ -26,10 +26,10 @@ object BackendJs:
     }
     sb.append("\"").toString
 
-  // `Desugar.normalizeAction` wraps a bare action body in a PureScript
-  // binder `\params -> body` so PureScript codegen can bind the
-  // children. For a JS host that wrapper is inert: recover the user's
-  // action by dropping the synthesized binder.
+  // `Desugar.normalizeAction` wraps a bare action body in a positional
+  // lambda binder `\params -> body` (the field-per-symbol parameter
+  // convention every backend can parse). For a JS host that wrapper is
+  // inert: recover the user's action by dropping the synthesized binder.
   private def unwrapBinder(code: String): String =
     val trimmed = code.trim
     if !trimmed.startsWith("\\") then trimmed

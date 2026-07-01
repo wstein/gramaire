@@ -1,18 +1,16 @@
 package gramark
 
-// The Scala-retargeted half of the self-hosting proof (the migration
-// plan's deferred task): `CodegenScala` emits a genuinely callable,
-// compiled Scala module (`gramark.generated.LrReduce`) instead of just
-// PureScript source text to diff.
+// The Scala-retargeted half of the self-hosting proof: `CodegenScala`
+// emits a genuinely callable, compiled Scala module
+// (`gramark.generated.LrReduce`) instead of just source text to diff.
 //
-// Two checks, mirroring `Test.Codegen.purs` exactly:
+// Two checks:
 //   1. Drift lock — the committed `generated/LrReduce.scala` matches a
 //      fresh generation from `CodegenScala`'s own Scala-syntax action
 //      profile (`CodegenScala.lrActionsScala`, not `bootstrapGrammar`'s
-//      `.action` field, which stays PureScript text so every existing
-//      PureScript-oracle test — `CodegenSuite`, `SelfHostSuite` — keeps
-//      passing unmodified, and `grammar/lr.grmk.md`, still read by the
-//      live PureScript self-hosting proof, stays untouched).
+//      `.action` field, which stays legacy lambda-syntax text so
+//      `SelfHostSuite`'s parser-oracle check keeps passing unmodified,
+//      and `grammar/lr.grmk.md` stays untouched).
 //   2. Oracle — the SAME real `grammar/lr.grmk.md` document, parsed with
 //      the SAME table built from `bootstrapGrammar`, but driven by the
 //      *generated* Scala reduce instead of `Lr.reduce`'s hand-written

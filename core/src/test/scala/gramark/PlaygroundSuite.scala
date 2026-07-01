@@ -2,8 +2,9 @@ package gramark
 
 // The browser playground's entry point (Phase 1.8): `Playground.evaluate` is
 // what `playground/js`'s thin `@JSExportTopLevel` wrapper calls directly, so
-// these are the ground-truth behavioral checks (no PureScript precedent
-// exists — the original was only ever checked via the site's bundle diff).
+// these are the ground-truth behavioral checks (no prior-implementation
+// precedent exists — the original was only ever checked via the site's
+// bundle diff).
 class PlaygroundSuite extends munit.FunSuite:
 
   private val calcJs =

@@ -25,7 +25,7 @@ object GramarkCheck:
   // entirely).
   private val expectedTail: Vector[String] = Vector("Error messages", "Generated tables")
 
-  // ---- Domain types (mirror the TypeScript/PureScript ADTs) -------------
+  // ---- Domain types (mirror the prior TypeScript/reference-implementation ADTs) -------------
 
   final case class Block(
       info: String, // full info string, e.g. "gramark precedence"

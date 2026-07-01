@@ -21,9 +21,10 @@ object Cst:
     */
   def cstReduce(prod: Int, kids: Vector[Cst]): Cst = Cst.Branch(prod, kids)
 
-  // Mirrors PureScript's `Show String` (quote + escape) — a golden-format
-  // contract, not just debug convenience, so it is spelled out explicitly
-  // rather than relying on Scala's derived `toString`.
+  // Mirrors the reference implementation's string-escaping format (quote
+  // + escape) — a golden-format contract, not just debug convenience, so
+  // it is spelled out explicitly rather than relying on Scala's derived
+  // `toString`.
   def showString(s: String): String =
     val sb = StringBuilder("\"")
     s.foreach {

@@ -87,7 +87,7 @@ class BackendGoldenSuite extends munit.FunSuite:
             assert(js.contains("export function evaluate(cst)"), "exports the evaluate driver")
             assert(
               !js.contains("{%") && !js.contains("\\_"),
-              "carries no PureScript binder or {% %} delimiters into the host module"
+              "carries no source lambda-binder or {% %} action-delimiter syntax into the host module"
             )
             assertEquals(js, readFile("test/golden/calc-js.js"))
   }

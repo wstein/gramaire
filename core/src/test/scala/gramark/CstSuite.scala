@@ -30,7 +30,7 @@ class CstSuite extends munit.FunSuite:
     )
   }
 
-  test("render escapes text like PureScript's Show String") {
+  test("render escapes text like a canonical Show-string format") {
     assertEquals(Cst.render(Cst.Token("STR", "a\"b\\c")), """STR "a\"b\\c"""")
   }
 

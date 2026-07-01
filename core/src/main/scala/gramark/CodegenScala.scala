@@ -12,13 +12,14 @@ package gramark
 // The Scala action bodies below are a hand-derived profile — production
 // id -> Scala-arrow-syntax action text, mirroring `Lr.reduce`'s own
 // case-for-case logic (not `bootstrapGrammar`'s `.action` field, which
-// stays PureScript-lambda text carried over from the original grammar
+// stays legacy lambda-syntax text carried over from the original grammar
 // notation, and is compared byte-for-byte against `grammar/lr.grmk.md`'s
 // own embedded actions by `SelfHostSuite` — so it can't change).
-// Originally ported alongside a PureScript-emitting sibling (`Codegen`)
-// during the PureScript-to-Scala migration; that sibling and its
-// drift-lock test were retired at cutover once nothing read PureScript
-// source anymore — this module was always the one real consumers use.
+// Originally paired with a sibling code generator (`Codegen`) targeting
+// the prior reference implementation's own host language; that sibling
+// and its drift-lock test were retired at cutover once that reference
+// implementation was fully removed — this module was always the one
+// real consumers use.
 object CodegenScala:
 
   /** Where the generated module is written and read back from. */
@@ -54,7 +55,7 @@ object CodegenScala:
   /** The `lr` grammar's semantic actions, in Scala-arrow syntax, keyed by production id (the same
     * order `bootstrapGrammar`'s rules/alts flatten to). Mirrors `Gramark.Lr.reduce`'s own
     * case-for-case logic exactly — a hand-derived, independent Scala profile, not a rewrite of
-    * `Bootstrap.bootstrapGrammar`'s PureScript-syntax `.action` field.
+    * `Bootstrap.bootstrapGrammar`'s legacy lambda-syntax `.action` field.
     */
   val lrActionsScala: Map[Int, String] = Map(
     0 -> "(rs) => Grammar(rs)", // Grammar : RuleList

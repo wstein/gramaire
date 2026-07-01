@@ -22,8 +22,9 @@ object Outcome:
       case Reject => "reject"
 
 // A test case: a name, an input snippet, and the expected outcome.
-// (Named `TestVector`, not `Vector`, to avoid colliding with the
-// collection type — PureScript's module calls this `Vector`.)
+// (Named `TestVector`, not `Vector`, to avoid colliding with Scala's own
+// collection type — the prior reference implementation had no such
+// name clash.)
 final case class TestVector(name: String, input: String, expect: Outcome)
 
 // A corpus entry: a named language given by its grammar, its input
