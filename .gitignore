@@ -1,11 +1,6 @@
 # Node (bootstrap bridge)
 node_modules/
 
-# PureScript / Spago build output
-/output/
-/.spago/
-/.spago-lock.json
-
 # Astro docs site
 site/node_modules/
 site/dist/

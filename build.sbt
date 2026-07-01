@@ -1,7 +1,7 @@
 import org.scalajs.linker.interface.ModuleKind
 
-// Pinned explicitly, bumped deliberately — same discipline as spago.yaml's
-// registry pin on the PureScript side.
+// Pinned explicitly, bumped deliberately — the same discipline the prior
+// reference implementation's own package manifest applied to its registry pin.
 ThisBuild / scalaVersion := "3.4.2"
 ThisBuild / organization := "de.wstein.gramaire"
 ThisBuild / versionScheme := Some("early-semver")
@@ -27,9 +27,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
 lazy val coreJS = core.js
 lazy val coreJVM = core.jvm
 
-// The Scala.js entry point consumed by the site — replaces the PureScript
-// `Gramaire.Playground` bundle. Kept separate from `core` so `@JSExport`
-// annotations don't pollute the cross-platform module's public API.
+// The Scala.js entry point consumed by the site — replaces the prior
+// reference implementation's `Gramaire.Playground` bundle. Kept separate
+// from `core` so `@JSExport` annotations don't pollute the cross-platform
+// module's public API.
 lazy val playground = project
   .in(file("playground/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -99,8 +100,9 @@ lazy val engineWorker = project
     },
   )
 
-// The unified native/JVM `gramaire` CLI — replaces PureScript's Cli.purs +
-// Codegen/Main.purs and the TypeScript bootstrap/gramaire-check.ts bridge.
+// The unified native/JVM `gramaire` CLI — replaces the prior reference
+// implementation's Cli.purs + Codegen/Main.purs and the TypeScript
+// bootstrap/gramaire-check.ts bridge.
 lazy val cli = project
   .in(file("cli/jvm"))
   .dependsOn(coreJVM)

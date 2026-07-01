@@ -10,5 +10,6 @@ addSbtPlugin("com.github.sbt" % "sbt-native-packager" % "1.10.4")
 addSbtPlugin("org.scalameta" % "sbt-native-image" % "0.3.4")
 
 // Formatting: version pinned here (not just in CI YAML), same discipline
-// as purs-tidy's pinned invocation on the PureScript side.
+// the prior reference implementation applied to its own formatter's
+// pinned invocation.
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.2")
