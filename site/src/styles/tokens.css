@@ -1,0 +1,84 @@
+/*
+ * Gramaire design tokens — ported verbatim from the gold-standard handoff
+ * (design/gramark-site-handoff/README.md → "Design Tokens"; see
+ * design/README.md for the gold-standard boundary this file honors).
+ *
+ * This is the single palette authority for the whole site. Starlight's
+ * --sl-* variables alias into these tokens (starlight-bridge.css); Tailwind
+ * v4's @theme (tailwind-theme.css) does the same. Never hand-duplicate a
+ * color literal anywhere else — add or change it here only.
+ */
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: local("IBM Plex Sans");
+  font-display: swap;
+}
+
+:root {
+  --font-ui:
+    "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: light;
+
+  --bg: #ffffff;
+  --bg-1: #f5faf7;
+  --bg-2: #edf5f0;
+  --bg-3: #e0efe7;
+  --fg: #16181d;
+  --fg-secondary: #1f3a31;
+  --fg-muted: #566860;
+  --fg-faint: #7d8d85;
+  --border: #dde9e3;
+  --border-strong: #c6dbd0;
+  --accent: #0a8f63;
+  --accent-2: #066b4a;
+  --node: #15b879;
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, var(--bg));
+  --accent-softer: color-mix(in srgb, var(--accent) 8%, var(--bg));
+  --t-nonterm: var(--accent);
+  --t-term: #b4530a;
+  --t-action: #6f42c1;
+  --t-op: #7d8d85;
+  --t-comment: #7d8d85;
+  --out-bg: #0c130f;
+  --out-fg: #e8f1ec;
+
+  --radius: 6px;
+  --radius-lg: 10px;
+  --shadow-card:
+    0 1px 2px rgba(22, 24, 29, 0.04), 0 8px 26px -16px rgba(10, 143, 99, 0.28);
+  --shadow-pop:
+    0 16px 40px -12px rgba(22, 24, 29, 0.18), 0 0 0 1px rgba(22, 24, 29, 0.05);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0e1512;
+  --bg-1: #131c18;
+  --bg-2: #1a2620;
+  --bg-3: #24332b;
+  --fg: #eaf2ed;
+  --fg-secondary: #c2d4ca;
+  --fg-muted: #8ea298;
+  --fg-faint: #73877e;
+  --border: #25332c;
+  --border-strong: #38493f;
+  --accent: #34d399;
+  --accent-2: #6ee7b7;
+  --node: #15b879;
+  --t-nonterm: var(--accent);
+  --t-term: #f0a868;
+  --t-action: #c4a8ec;
+  --t-op: #73877e;
+  --t-comment: #73877e;
+  --out-bg: #080d0a;
+  --out-fg: #e8f1ec;
+  --shadow-card:
+    0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px -16px rgba(0, 0, 0, 0.5);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+}

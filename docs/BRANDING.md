@@ -1,10 +1,11 @@
 # Gramaire — brand
 
 > Regenerated from the Claude Design handoff ("Gramaire branding enhancement").
-> This document is the source of truth (the Astro site that used to host the
-> live tokens and mark/wordmark components has been removed; a rebuild should
-> re-derive them from the specs below). The static assets in
-> [brand/](../brand/) are for READMEs and social tiles.
+> This document is the source of truth. The Astro + Starlight rebuild that
+> re-derives these tokens live is underway at [`site/`](../site/); the
+> gold-standard interactive mock it's built from is mirrored, frozen, at
+> [`design/gramark-site-handoff/`](../design/gramark-site-handoff/). The
+> static assets in [brand/](../brand/) are for READMEs and social tiles.
 
 ## The idea
 
@@ -17,20 +18,25 @@ alternatives — exactly what Gramaire turns a grammar into. The accent is a
 
 ## Logomark
 
-A railroad production rule in a 96×96 box (stroke 7.5, round caps):
+A railroad production rule in a 96×96 box (stroke 6, round caps). Geometry
+matches the gold-standard mock's rendered component exactly
+(`design/gramark-site-handoff/GramaireMark.dc.html`) — no terminal dots:
 
-- **entry track** — a dot at `(11,48)` + line to `(28,48)`
-- **rule node** — a stadium `rect x26 y30 w36 h36 rx18`, fill constant emerald
+- **entry track** — `M 18,48 H 33`
+- **rule node** — a stadium `rect x33 y36 w30 h24 rx12`, fill constant emerald
   `#15b879`, outline in the ink color
-- **fork** — two curves from `(62,48)` to terminal dots at `(85,13)` and
-  `(85,83)`
+- **fork** — two curves from `(63,48)`: `C 70,48 71,31 78,31` and
+  `C 70,48 71,65 78,65`
+- geometry is scaled into the 96×96 box via
+  `matrix(1.3665595,0,0,1.3665595,-17.594856,-17.594856)`
 
-Theme-aware: the ink (tracks, dots, node outline) flips with the theme
-(`#16181d` light / `#f5f6f3` dark); the node fill stays emerald. A
+Theme-aware: the ink (tracks, node outline) flips with the theme
+(`#16181d` light / `#eaf2ed` dark); the node fill stays emerald. A
 white-knockout variant is used only on the filled emerald app/social tile
 (node fill goes transparent). The node is deliberately large so the favicon
 reads cleanly at 16/32/48 px. See
-[brand/gramaire-logomark.svg](../brand/gramaire-logomark.svg).
+[brand/gramaire-logomark.svg](../brand/gramaire-logomark.svg) and
+[site/src/components/Logomark.astro](../site/src/components/Logomark.astro).
 
 ## Wordmark — "Gramaire"
 
