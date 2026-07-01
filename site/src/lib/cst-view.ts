@@ -38,16 +38,24 @@ export function renderCstHtml(
   path = "0",
 ): string {
   if (isLeaf(node)) {
-    return `<div class="cst-leaf"><span class="cst-term">${esc(
-      node.token,
-    )}</span> <span class="cst-text">${esc(JSON.stringify(node.text))}</span></div>`;
+    return (
+      `<div class="cst-leaf" data-path="${path}" role="treeitem" tabindex="-1">` +
+      `<span class="cst-term">${esc(node.token)}</span> ` +
+      `<span class="cst-text">${esc(JSON.stringify(node.text))}</span></div>`
+    );
   }
   const name = nameOf(node, prodLhs);
   const isCollapsed = collapsed.has(path);
-  const glyph = node.children.length === 0 ? "" : isCollapsed ? "▶" : "▼";
+  const hasKids = node.children.length > 0;
+  const glyph = !hasKids ? "" : isCollapsed ? "▶" : "▼";
+  // role=treeitem + aria-expanded so a screen reader announces the node and
+  // its fold state; tabindex=-1 makes it programmatically focusable for the
+  // roving keyboard nav the Lab wires on the enclosing role=tree.
   const head =
-    `<div class="cst-head" data-path="${path}">` +
-    `<span class="cst-toggle">${glyph}</span>` +
+    `<div class="cst-head" data-path="${path}" role="treeitem"` +
+    (hasKids ? ` aria-expanded="${!isCollapsed}"` : "") +
+    ` tabindex="-1">` +
+    `<span class="cst-toggle" aria-hidden="true">${glyph}</span>` +
     `<span class="cst-name">${esc(name)}</span>` +
     (isCollapsed
       ? ` <span class="cst-count">… ${node.children.length}</span>`
@@ -55,7 +63,7 @@ export function renderCstHtml(
     `</div>`;
   const kids = isCollapsed
     ? ""
-    : `<div class="cst-kids">${node.children
+    : `<div class="cst-kids" role="group">${node.children
         .map((c, i) => renderCstHtml(c, prodLhs, collapsed, `${path}.${i}`))
         .join("")}</div>`;
   return `<div class="cst-branch">${head}${kids}</div>`;
