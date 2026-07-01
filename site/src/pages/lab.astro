@@ -1,722 +1,599 @@
 ---
+// The Gramark Lab — the Claude Design mock's centerpiece, rebuilt on the REAL
+// engine (the compiled PureScript `Gramark.Playground`, via gramark-runtime).
+// Layout per the mock: a brand topbar, a draggable grammar/input split, a
+// ten-tab analysis drawer, and a status strip. Every tab is backed by a real
+// engine field — never the prototype's stand-in JS parser (see the design
+// handoff's "read this first" rule). Diagrams come from bootstrap/railroad.ts
+// via diagrams.ts; evaluation runs the engine-baked evaluate(cst) in a
+// sandboxed Worker.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import "../styles/custom.css";
+import BrandTopbar from "../components/BrandTopbar.astro";
 import { getDefaultGrammar, getDefaultInput } from "../lib/gramark-runtime.ts";
-import GramarkMark from "../components/GramarkMark.astro";
-import GramarkWordmark from "../components/GramarkWordmark.astro";
-import "@fontsource/ibm-plex-sans/400.css";
-import "@fontsource/ibm-plex-sans/500.css";
-import "@fontsource/ibm-plex-sans/600.css";
-import "@fontsource/ibm-plex-sans/700.css";
-import "@fontsource/ibm-plex-mono/400.css";
-import "@fontsource/ibm-plex-mono/500.css";
+import { SHOWCASE } from "../lib/demo-grammars.ts";
+
+const base = import.meta.env.BASE_URL;
+
+// The example presets. `json` is read from the repo's real example at build
+// time (Node fs runs in the .astro frontmatter), so the Lab ships the same
+// grammar the CLI conformance-tests — not a hand-written stand-in.
+// Resolved from the site dir (cwd during `astro dev`/`build`), not
+// import.meta.url — the bundled frontmatter chunk moves under dist/.
+const jsonGrammar = readFileSync(
+  resolve(process.cwd(), "../examples/json.grmk.md"),
+  "utf8",
+);
+const EXAMPLES = {
+  calc: { grammar: getDefaultGrammar(), input: getDefaultInput() },
+  json: { grammar: jsonGrammar, input: '{"ok": [1, true, null]}' },
+  lr: { grammar: SHOWCASE, input: "" },
+};
+
+const TABS = [
+  "Result",
+  "Evaluate",
+  "Tokens",
+  "Grammar analysis",
+  "Parse tree",
+  "Parse trace",
+  "LR walk",
+  "All parses",
+  "Diagnostics",
+  "Lowered Core",
+];
 ---
 
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link
-      rel="icon"
-      type="image/svg+xml"
-      href={`${import.meta.env.BASE_URL}favicon.svg`}
-    />
+    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
     <title>Gramark Lab</title>
+    <script is:inline>
+      (() => {
+        try {
+          const stored = localStorage.getItem("starlight-theme");
+          document.documentElement.dataset.theme =
+            stored === "light" || stored === "dark"
+              ? stored
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+        } catch (e) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <BrandTopbar active="lab" />
+
+    <main class="lab" data-base={base}>
+      <!-- a) Editor split -->
+      <div class="split" id="split">
+        <section class="pane grammar-pane" style="flex-basis: 55%">
+          <header class="pane-hd">
+            <span class="pane-label">grammar</span>
+            <div class="examples">
+              <button type="button" class="ex active" data-ex="calc"
+                >calc</button
+              >
+              <button type="button" class="ex" data-ex="json">json</button>
+              <button type="button" class="ex" data-ex="lr">lr</button>
+            </div>
+            <span class="filename" id="filename">calc.grmk.md</span>
+          </header>
+          <textarea id="grammar" class="editor" spellcheck="false"
+            >{EXAMPLES.calc.grammar}</textarea
+          >
+        </section>
+
+        <div class="grip" id="grip" role="separator" aria-label="Resize panes">
+        </div>
+
+        <section class="pane input-pane" style="flex-basis: 45%">
+          <header class="pane-hd">
+            <span class="pane-label">input</span>
+            <label class="start-wrap"
+              >start
+              <select
+                id="start"
+                class="start-select"
+                disabled
+                title="The parse starts from the grammar's first nonterminal. A selectable start rule needs an engine `start` override (roadmap)."
+              ></select>
+            </label>
+            <span class="status-glyph" id="status-glyph">·</span>
+          </header>
+          <textarea id="input" class="editor" spellcheck="false"
+            >{EXAMPLES.calc.input}</textarea
+          >
+        </section>
+      </div>
+
+      <!-- horizontal separator: editor split ↕ analysis drawer -->
+      <div
+        class="vgrip"
+        id="vgrip"
+        role="separator"
+        aria-label="Resize editor and drawer"
+      >
+      </div>
+
+      <!-- b) Analysis drawer -->
+      <div class="drawer">
+        <div class="tabbar" id="tabbar">
+          {
+            TABS.map((t, i) => (
+              <button
+                type="button"
+                class:list={["tab", { active: i === 0 }]}
+                data-tab={t}
+              >
+                {t}
+              </button>
+            ))
+          }
+        </div>
+        <div class="drawer-body" id="drawer-body">…</div>
+      </div>
+
+      <!-- c) Status strip -->
+      <div class="status-strip" id="status-strip">
+        <span id="ss-verdict">ready</span>
+        <span id="ss-method">Canonical(1) · start —</span>
+        <span id="ss-check">gramark --check · —</span>
+      </div>
+    </main>
+
     <style is:global>
-      /* This page stands outside the Starlight layout, so it doesn't inherit
-         custom.css's tokens — define the ones GramarkMark/GramarkWordmark
-         need directly. Matches docs/BRANDING.md; the Lab has no dark-mode
-         toggle today, so only the light values are defined. */
-      :root {
-        --gramark-fg: #16181d;
-        --sl-color-accent: #15b879;
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font-ui);
+      }
+      .lab {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 54px);
+      }
+      /* a) split */
+      .split {
+        display: flex;
+        min-height: 60px;
+        flex: 1 1 50%;
+        overflow: hidden;
+      }
+      /* Horizontal separator between the editor split and the analysis drawer,
+         so their vertical ratio is draggable (row-resize). */
+      .vgrip {
+        flex: 0 0 7px;
+        cursor: row-resize;
+        background: var(--border);
+      }
+      .vgrip:hover {
+        background: var(--accent);
+      }
+      .pane {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        overflow: hidden;
+      }
+      .pane-hd {
+        height: 40px;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0 0.75rem;
+        background: var(--bg-1);
+        border-bottom: 1px solid var(--border);
+        flex: 0 0 auto;
+      }
+      .pane-label {
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        color: var(--fg-faint);
+      }
+      .examples {
+        display: flex;
+        gap: 0.25rem;
+      }
+      .ex {
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        padding: 0.15rem 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--bg-2);
+        color: var(--fg-muted);
+        cursor: pointer;
+      }
+      .ex.active {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .filename {
+        margin-left: auto;
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        color: var(--fg-faint);
+      }
+      .start-wrap {
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        color: var(--fg-faint);
+        margin-left: auto;
+      }
+      .start-select {
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        background: var(--bg-2);
+        color: var(--fg);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        padding: 0.1rem 0.3rem;
+      }
+      /* Honest inert control: the engine always parses from the declared start
+         rule, so the picker shows it but does not pretend to be selectable. */
+      .start-select:disabled {
+        opacity: 0.85;
+        cursor: not-allowed;
+        color: var(--fg-muted);
+      }
+      .status-glyph {
+        font-family: var(--font-mono);
+        font-weight: 700;
+      }
+      .editor {
+        flex: 1 1 auto;
+        border: 0;
+        resize: none;
+        padding: 0.75rem;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        line-height: 22px;
+        outline: none;
+        tab-size: 2;
+      }
+      .grip {
+        flex: 0 0 7px;
+        cursor: col-resize;
+        background: var(--border);
+      }
+      .grip:hover {
+        background: var(--accent);
+      }
+      /* b) drawer */
+      .drawer {
+        flex: 1 1 50%;
+        display: flex;
+        flex-direction: column;
+        border-top: 1px solid var(--border);
+        min-height: 60px;
+        overflow: hidden;
+      }
+      .tabbar {
+        display: flex;
+        gap: 0;
+        overflow-x: auto;
+        background: var(--bg-1);
+        border-bottom: 1px solid var(--border);
+        flex: 0 0 auto;
+      }
+      .tab {
+        font-family: var(--font-mono);
+        font-size: 0.76rem;
+        white-space: nowrap;
+        padding: 0.5rem 0.7rem;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--fg-muted);
+        cursor: pointer;
+      }
+      .tab:hover {
+        color: var(--fg);
+      }
+      .tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+      .drawer-body {
+        flex: 1 1 auto;
+        overflow: auto;
+        padding: 0.85rem 1rem;
+        font-size: 0.85rem;
+      }
+      /* c) status strip */
+      .status-strip {
+        flex: 0 0 auto;
+        display: flex;
+        gap: 1.5rem;
+        padding: 0.35rem 1rem;
+        background: var(--out-bg);
+        color: var(--out-fg);
+        font-family: var(--font-mono);
+        font-size: 12px;
       }
 
-      /* Railroad-diagram navigation + zoom (the SVGs are injected at runtime,
-         so these must be global, not scoped). */
+      /* shared drawer widgets */
+      .banner {
+        padding: 0.6rem 0.8rem;
+        border-radius: var(--radius);
+        font-family: var(--font-mono);
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+      }
+      .banner.ok {
+        background: var(--accent-softer);
+        color: var(--accent);
+        border: 1px solid var(--border);
+      }
+      .banner.no {
+        background: color-mix(in srgb, #dc2626 10%, var(--bg));
+        color: #dc2626;
+        border: 1px solid color-mix(in srgb, #dc2626 30%, var(--bg));
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+      }
+      .chip {
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        padding: 0.1rem 0.45rem;
+        border-radius: var(--radius);
+        background: var(--bg-2);
+        border: 1px solid var(--border);
+      }
+      .lab-table {
+        border-collapse: collapse;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        width: 100%;
+      }
+      .lab-table th,
+      .lab-table td {
+        text-align: left;
+        padding: 0.2rem 0.6rem;
+        border-bottom: 1px solid var(--border);
+      }
+      .lab-table th {
+        color: var(--fg-faint);
+        font-weight: 600;
+      }
+      pre.raw {
+        background: var(--bg-1);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.6rem 0.8rem;
+        overflow: auto;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        white-space: pre-wrap;
+      }
+      .seg {
+        display: inline-flex;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        overflow: hidden;
+        margin-bottom: 0.75rem;
+      }
+      .seg button {
+        font-family: var(--font-mono);
+        font-size: 0.76rem;
+        padding: 0.25rem 0.7rem;
+        border: 0;
+        background: var(--bg-2);
+        color: var(--fg-muted);
+        cursor: pointer;
+      }
+      .seg button.active {
+        background: var(--accent);
+        color: #fff;
+      }
+      .rule-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+        margin: 0.5rem 0;
+      }
+      .rule-chip {
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        padding: 0.1rem 0.5rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--bg-2);
+        color: var(--fg-muted);
+        cursor: pointer;
+      }
+      .rule-chip.active {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
       .rr-figure {
         margin: 0;
         overflow: auto;
         cursor: zoom-in;
-        border-radius: 0.5rem;
-        transition: background-color 0.2s;
-        background-color: transparent;
       }
       .rr-figure svg {
         max-width: 100%;
         height: auto;
       }
-      .rr-figure.zoomed {
-        cursor: zoom-out;
-      }
       .rr-figure.zoomed svg {
         max-width: none;
       }
-      .rr-figure.rr-flash {
-        background-color: #d1fae5;
-      }
-      a.rr-nav {
-        cursor: pointer;
-      }
-      a.rr-nav:hover rect.rr-nonterm {
-        fill: #d1fae5;
-      }
       .rr-figure figcaption {
-        font-family:
-          "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
-          monospace;
-        font-size: 1.05rem;
-        font-weight: 700;
-        color: #16181d;
-        margin-bottom: 0.4rem;
-      }
-
-      /* Draggable editor/input splitter. */
-      .editor-split {
-        --split: 55%;
-        display: flex;
-        gap: 0;
-        margin-top: 1.5rem;
-        align-items: stretch;
-      }
-      .editor-split > .editor-pane {
-        border: 1px solid #e5e7eb;
-        border-radius: 0.75rem;
-        padding: 1rem;
-        min-width: 0;
-      }
-      .editor-split > .editor-pane:first-child {
-        flex: 0 0 calc(var(--split) - 4px);
-      }
-      .editor-split > .editor-pane:last-child {
-        flex: 1 1 auto;
-      }
-      .split-grip {
-        flex: 0 0 8px;
-        margin: 0 2px;
-        cursor: col-resize;
-        border-radius: 4px;
-        background: #e5e7eb;
-        position: relative;
-      }
-      .split-grip:hover,
-      .split-grip.dragging {
-        background: #15b879;
-      }
-
-      /* Tabbed analysis drawer. */
-      .lab-tabs {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.25rem;
-        border-bottom: 1px solid #e5e7eb;
-        margin-bottom: 1rem;
-      }
-      .lab-tab {
-        font: inherit;
-        font-size: 0.9rem;
-        cursor: pointer;
-        background: transparent;
-        border: none;
-        padding: 0.55rem 0.85rem;
-        color: #566860;
-        border-bottom: 2px solid transparent;
-      }
-      .lab-tab.active {
-        color: #15b879;
+        font-family: var(--font-mono);
         font-weight: 600;
-        border-bottom-color: #15b879;
-      }
-      .lab-panel[hidden] {
-        display: none;
-      }
-      .lab-muted {
-        font-size: 0.85rem;
-        color: #6b7280;
-      }
-
-      /* Foldable CST tree (Parse tree, All parses tabs). */
-      .cst-tree {
-        font-family: "IBM Plex Mono", ui-monospace, monospace;
-        font-size: 0.85rem;
-        line-height: 1.6;
-      }
-      .cst-row {
-        display: flex;
-        align-items: baseline;
-        gap: 0.4rem;
-        padding: 0.1rem 0;
-      }
-      .cst-branch {
-        padding-left: 1.1rem;
-      }
-      .cst-branch > .cst-row:first-child {
-        padding-left: 0;
-        margin-left: -1.1rem;
-      }
-      .cst-toggle,
-      .cst-gutter {
-        color: #15b879;
-        width: 0.9rem;
-        flex: none;
-        text-align: center;
-        cursor: pointer;
-        user-select: none;
-      }
-      .cst-gutter {
-        color: #9ca3af;
-        cursor: default;
-      }
-      .cst-rule {
-        color: #15b879;
-        font-weight: 600;
-      }
-      .cst-token {
-        color: #b45309;
-        background: #fef3c7;
-        border-radius: 4px;
-        padding: 0 0.35rem;
-      }
-      .cst-text {
-        color: #566860;
-      }
-      .cst-count {
-        color: #9ca3af;
-        font-size: 0.8rem;
-      }
-
-      /* Tokens tab. */
-      .tokens-table {
-        border-collapse: collapse;
-        font-family: "IBM Plex Mono", ui-monospace, monospace;
-        font-size: 0.85rem;
-        width: 100%;
-      }
-      .tokens-table th,
-      .tokens-table td {
-        text-align: left;
-        padding: 0.3rem 0.6rem;
-        border-bottom: 1px solid #e5e7eb;
-      }
-      .tokens-table .tok-idx {
-        color: #9ca3af;
-        width: 2.5rem;
-      }
-
-      /* Method switch + All parses tab. */
-      .method-switch {
-        display: inline-flex;
-        gap: 2px;
-        background: #edf5f0;
-        border-radius: 8px;
-        padding: 2px;
-        margin-bottom: 0.75rem;
-      }
-      .method-btn {
-        font: inherit;
-        font-family: "IBM Plex Mono", ui-monospace, monospace;
-        font-size: 0.8rem;
-        border: none;
-        cursor: pointer;
-        padding: 0.3rem 0.7rem;
-        border-radius: 6px;
-        background: transparent;
-        color: #566860;
-      }
-      .method-btn.active {
-        background: #ffffff;
-        color: #15b879;
-        font-weight: 600;
-      }
-      .amb-banner {
-        display: inline-block;
-        font-size: 0.85rem;
-        font-weight: 600;
-        padding: 0.4rem 0.7rem;
-        border-radius: 6px;
-        margin-bottom: 0.5rem;
-      }
-      .amb-banner.amb-ok {
-        color: #15b879;
-        background: #ecfdf5;
-      }
-      .amb-banner.amb-warn {
-        color: #b45309;
-        background: #fef3c7;
-      }
-      .amb-parse {
-        border: 1px solid #e5e7eb;
-        border-radius: 0.5rem;
-        padding: 0.6rem 0.75rem;
-        margin-top: 0.6rem;
-      }
-      .amb-parse-label {
-        font-family: "IBM Plex Mono", ui-monospace, monospace;
-        font-size: 0.75rem;
-        color: #9ca3af;
+        color: var(--accent);
         margin-bottom: 0.3rem;
       }
-
-      .copy-lisp-btn {
-        font: inherit;
-        font-size: 0.8rem;
-        padding: 0.3rem 0.65rem;
-        border-radius: 0.4rem;
-        border: 1px solid #d1d5db;
-        background: #f5f6f3;
-        color: #16181d;
+      /* CST tree */
+      .cst-branch {
+        margin-left: 0.9rem;
+      }
+      .cst-head {
         cursor: pointer;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+      }
+      .cst-toggle {
+        display: inline-block;
+        width: 1rem;
+        color: var(--fg-faint);
+      }
+      .cst-name {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .cst-count {
+        color: var(--fg-faint);
+      }
+      .cst-kids {
+        border-left: 1px solid var(--border);
+      }
+      .cst-leaf {
+        margin-left: 1.9rem;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+      }
+      .cst-head:focus-visible,
+      .cst-leaf:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        border-radius: 3px;
+      }
+      .cst-tree:focus {
+        outline: none;
+      }
+      .cst-term {
+        color: var(--t-term);
+      }
+      .cst-text {
+        color: var(--fg-muted);
+      }
+      .btn-sm {
+        font-family: var(--font-mono);
+        font-size: 0.76rem;
+        padding: 0.2rem 0.6rem;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        background: var(--bg-1);
+        color: var(--fg);
+        cursor: pointer;
+        margin-bottom: 0.5rem;
+      }
+      .btn-sm:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .muted {
+        color: var(--fg-faint);
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+      }
+      .walk-ctl {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.6rem;
+      }
+      .walk-step {
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 3px;
+      }
+      .walk-step.cur {
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 600;
       }
     </style>
-  </head>
-  <body>
-    <main
-      style="max-width: 1200px; margin: 0 auto; padding: 2rem; font-family: 'IBM Plex Sans', sans-serif;"
-    >
-      <h1
-        style="margin: 0 0 0.5rem; font-size: inherit; font-weight: inherit; display: flex; align-items: center; gap: 0.6rem;"
-      >
-        <a
-          href={import.meta.env.BASE_URL}
-          style="display: flex; align-items: center; gap: 0.5rem; text-decoration: none;"
-        >
-          <GramarkMark style="width: 1.9rem; height: 1.9rem; flex: none;" />
-          <GramarkWordmark style="height: 1.35rem; width: auto;" />
-        </a>
-        <span style="color: #6b7280; font-weight: 500; font-size: 1.1rem;"
-          >Lab</span
-        >
-      </h1>
-      <p>
-        Grammar evaluation in your browser, running the real Gramark engine (the
-        compiled PureScript core). It lexes input from the grammar's literal
-        terminals <em>and</em> any token classes (ALL-CAPS names like
-        <code>NUMBER</code> declared as <code>NUMBER : /[0-9]+/</code> — in a
-        <code>## Tokens</code> block, or as bare lines in the raw <code
-          >.grmk</code
-        > form shown here), then parses with the LR tables — the same verdict the
-        <code>gramark</code> CLI gives. Edits re-evaluate live.
-      </p>
-      <p style="font-size: 0.85rem; color: #6b7280; margin-top: -0.5rem;">
-        <strong>What's live:</strong> lexing, LR parsing, and the accept/reject verdict,
-        all client-side — your grammar never leaves the page. This is the same engine
-        the CLI ships, not a stub or a server.
-      </p>
-      <div class="editor-split" id="editor-split">
-        <section class="editor-pane">
-          <h2>Grammar editor</h2>
-          <textarea
-            id="grammar-input"
-            style="width: 100%; min-height: 260px; font-family: 'IBM Plex Mono', ui-monospace, monospace; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #d1d5db;"
-            >{getDefaultGrammar()}</textarea
-          >
-          <div
-            style="margin-top: 0.75rem; display: flex; gap: 0.5rem; align-items: center;"
-          >
-            <span style="font-size: 0.95rem; color: #6b7280;"
-              >Result (live):</span
-            >
-            <span
-              id="status-pill"
-              style="font-size: 0.95rem; font-weight: 600; color: #15b879;"
-              >Ready</span
-            >
-          </div>
-        </section>
-        <div
-          class="split-grip"
-          id="split-grip"
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize grammar and input editors"
-        >
-        </div>
-        <section class="editor-pane">
-          <h2>Input</h2>
-          <textarea
-            id="input-test"
-            style="width: 100%; min-height: 120px; font-family: 'IBM Plex Mono', ui-monospace, monospace; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #d1d5db;"
-            >{getDefaultInput()}</textarea
-          >
-        </section>
-      </div>
-      <section
-        style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
-      >
-        <h2>Railroad diagrams</h2>
-        <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
-          One per rule, drawn live from the grammar above — the same SVGs <code
-            >gramark fmt</code
-          > writes back into a <code>.grmk.md</code>. <strong
-            >Click a nonterminal</strong
-          >
-          to jump to its rule's diagram; <strong>click a diagram</strong> to zoom
-          it to full size.
-        </p>
-        <div
-          id="diagrams-output"
-          style="display: grid; gap: 0.75rem; overflow: auto;"
-        >
-          —
-        </div>
-      </section>
 
-      <section
-        style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
-      >
-        <div class="lab-tabs" role="tablist">
-          <button
-            type="button"
-            class="lab-tab active"
-            data-tab="result"
-            role="tab"
-            aria-selected="true">Result</button
-          >
-          <button
-            type="button"
-            class="lab-tab"
-            data-tab="tokens"
-            role="tab"
-            aria-selected="false">Tokens</button
-          >
-          <button
-            type="button"
-            class="lab-tab"
-            data-tab="allparses"
-            role="tab"
-            aria-selected="false">All parses</button
-          >
-          <button
-            type="button"
-            class="lab-tab"
-            data-tab="analysis"
-            role="tab"
-            aria-selected="false">Grammar analysis</button
-          >
-          <button
-            type="button"
-            class="lab-tab"
-            data-tab="tree"
-            role="tab"
-            aria-selected="false">Parse tree</button
-          >
-          <button
-            type="button"
-            class="lab-tab"
-            data-tab="trace"
-            role="tab"
-            aria-selected="false">Parse trace</button
-          >
-          <button
-            type="button"
-            class="lab-tab"
-            data-tab="evaluate"
-            role="tab"
-            aria-selected="false">Evaluate</button
-          >
-          <button
-            type="button"
-            class="lab-tab"
-            data-tab="diagnostics"
-            role="tab"
-            aria-selected="false">Diagnostics</button
-          >
-        </div>
+    <script>
+      import { parseGramarkDocument } from "../lib/gramark-runtime.ts";
+      import type { GramarkMethod } from "../lib/gramark-runtime.ts";
+      import { parseInWorker } from "../lib/engine-client.ts";
+      import { renderDiagrams, grammarProductions } from "../lib/diagrams.ts";
+      import { computeFirstFollow } from "../lib/first-follow.ts";
+      import { toLisp, renderCstHtml, type Cst } from "../lib/cst-view.ts";
+      import { readLabLink } from "../lib/lab-link.ts";
 
-        <div class="lab-panel" data-panel="result">
-          <pre
-            id="result-output"
-            style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 120px; overflow: auto;">Waiting for evaluation…</pre>
-        </div>
+      const EXAMPLES: Record<string, { grammar: string; input: string }> =
+        JSON.parse(document.getElementById("lab-examples")!.textContent!);
 
-        <div class="lab-panel" data-panel="tokens" hidden>
-          <p class="lab-muted" style="margin-top: 0;">
-            The input's lexed token stream, in order — hover-linking to the
-            parse tree and grammar source is planned but not yet built (needs
-            source spans threaded through the scanner).
-          </p>
-          <div id="tokens-output"></div>
-        </div>
+      const $ = <T extends HTMLElement>(id: string) =>
+        document.getElementById(id) as T;
+      const grammarEl = $<HTMLTextAreaElement>("grammar");
+      const inputEl = $<HTMLTextAreaElement>("input");
+      const startEl = $<HTMLSelectElement>("start");
+      const bodyEl = $("drawer-body");
+      const filenameEl = $("filename");
 
-        <div class="lab-panel" data-panel="allparses" hidden>
-          <p class="lab-muted" style="margin-top: 0;">
-            Every derivation <code>Gramark.Glr.forest</code> finds for the current
-            input under the selected table-construction method. An unambiguous grammar
-            shows exactly one; an ambiguous one shows every tree, so you can see <em
-              >why</em
-            > it's ambiguous instead of just a state number.
-          </p>
-          <div id="method-switch-output"></div>
-          <div id="allparses-output"></div>
-        </div>
+      type Result = Awaited<ReturnType<typeof parseGramarkDocument>>;
+      const state = {
+        method: "Canonical" as GramarkMethod,
+        tab: "Result",
+        focusRule: "",
+        collapsed: new Set<string>(),
+        lrStep: 0,
+        result: null as Result | null,
+      };
+      // The CST tree-path last focused, so keyboard nav survives the re-render
+      // that an expand/collapse triggers.
+      let treeFocusPath: string | null = null;
 
-        <div class="lab-panel" data-panel="analysis" hidden>
-          <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
-            Conflict report for the grammar itself (independent of the input):
-            whether it is conflict-free, an <em>LALR artifact</em>, <em
-              >resolved by declaration</em
-            > (your <code>%left</code>/<code>%right</code> lines clear it), or a
-            <em>genuine</em> conflict — compared across all three methods regardless
-            of which one is selected in the All parses tab. The same as <code
-              >gramark explain-conflict</code
-            >.
-          </p>
-          <pre
-            id="conflicts-output"
-            style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 60px; overflow: auto; font-size: 0.85rem;">—</pre>
-        </div>
-
-        <div class="lab-panel" data-panel="tree" hidden>
-          <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
-            The concrete syntax tree the engine built — every rule it reduced
-            and token it matched. Click a rule name to fold/unfold its subtree.
-            Watch precedence in the shape: in <code>1 + 2 * 3</code>, the <code
-              >2 * 3</code
-            > sits in one <code>Term</code> below the
-            <code>+</code>.
-          </p>
-          <button type="button" id="copy-lisp" class="copy-lisp-btn"
-            >copy LISP</button
-          >
-          <div id="tree-output" style="margin-top: 0.5rem;">—</div>
-        </div>
-
-        <div class="lab-panel" data-panel="trace" hidden>
-          <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
-            The bottom-up LR steps, in order: the engine <strong>shift</strong>s
-            each token onto its stack and <strong>reduce</strong>s by a rule
-            once a right-hand side is complete. Reading the reduces
-            bottom-to-top reconstructs the parse tree.
-          </p>
-          <pre
-            id="trace-output"
-            style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 80px; overflow: auto; font-size: 0.85rem;">—</pre>
-        </div>
-
-        <div class="lab-panel" data-panel="evaluate" hidden>
-          <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
-            <span
-              style="font-size: 0.7rem; color: #b45309; background: #fef3c7; padding: 0.1rem 0.45rem; border-radius: 0.4rem; vertical-align: middle;"
-              >experimental</span
-            >
-            The grammar's inline <code>&#123;% … %&#125;</code> actions <em
-              >are</em
-            > the semantics. With <code>%lang javascript</code> declared, the engine
-            bakes them into one self-contained <code>evaluate(cst)</code> — the very
-            module that runs here. Children arrive <strong>positionally</strong
-            >:
-            <code>(l, _, r) => l + r</code>. It runs <strong
-              >only when you press Run</strong
-            >, in a sandboxed worker (no DOM, no network, 50&nbsp;ms budget) —
-            the live recognition above never evaluates anything. The default
-            grammar computes <code>(4 - 1) * 3 + 2 = 11</code>.
-          </p>
-          <div
-            style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap;"
-          >
-            <button
-              id="run-eval"
-              type="button"
-              style="font: inherit; padding: 0.35rem 0.7rem; border-radius: 0.5rem; border: 1px solid #15b879; background: #ecfdf5; color: #166534; cursor: pointer;"
-              >Evaluate ▶</button
-            >
-            <span
-              id="value-output"
-              style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-weight: 700; font-size: 1.1rem; color: #16181d;"
-              >—</span
-            >
-          </div>
-        </div>
-
-        <div class="lab-panel" data-panel="diagnostics" hidden>
-          <div id="diagnostics-list" style="display: grid; gap: 0.5rem;"></div>
-        </div>
-      </section>
-
-      <footer
-        style="margin-top: 1.5rem; padding: 0.75rem 1rem; border: 1px solid #cdeee0; background: #f0fbf6; border-radius: 0.75rem; font-size: 0.85rem; color: #166534;"
-      >
-        🔒 <strong>Private by construction.</strong> Everything on this page — lexing,
-        parsing, the tree, the trace — runs in your browser via the bundled engine.
-        Your grammar and input are never uploaded; there is no backend to send them
-        to, unlike web labs that execute your grammar on a shared server.
-      </footer>
-    </main>
-
-    <script type="module">
-      import { parseGramarkDocument } from "/src/lib/gramark-runtime.ts";
-      import { renderDiagrams } from "/src/lib/diagrams.ts";
-      import { renderCstTree, toggleFold } from "/src/lib/cst-view.ts";
-      import { renderTokensTable } from "/src/lib/tokens-view.ts";
-      import { cstJsonToLisp, copyToClipboard } from "/src/lib/lisp.ts";
-      import { renderMethodSwitch, METHODS } from "/src/lib/method-switch.ts";
-      import { renderAmbiguityView } from "/src/lib/ambiguity-view.ts";
-      import { decodeLabHash } from "/src/lib/lab-link.ts";
-
-      const grammarInput = document.getElementById("grammar-input");
-      const inputTest = document.getElementById("input-test");
-      const resultOutput = document.getElementById("result-output");
-      const diagnosticsList = document.getElementById("diagnostics-list");
-      const statusPill = document.getElementById("status-pill");
-      const treeOutput = document.getElementById("tree-output");
-      const traceOutput = document.getElementById("trace-output");
-      const conflictsOutput = document.getElementById("conflicts-output");
-      const diagramsOutput = document.getElementById("diagrams-output");
-      const tokensOutput = document.getElementById("tokens-output");
-      const methodSwitchOutput = document.getElementById(
-        "method-switch-output",
-      );
-      const allParsesOutput = document.getElementById("allparses-output");
-      const copyLispBtn = document.getElementById("copy-lisp");
-      const valueOutput = document.getElementById("value-output");
-      const runEval = document.getElementById("run-eval");
-
-      // The most recent parse, so the (opt-in) evaluator can run it on Evaluate,
-      // the Parse tree / All parses tabs can re-render on fold, and copy-LISP
-      // can read the current tree without re-parsing.
-      let latest = { cstJson: "", allCstJson: [], prodLhs: [], evalJs: "" };
-      let selectedMethod = "Canonical";
-      const treeCollapsed = new Set();
-      const ambCollapsedByParse = new Map();
-
-      // --- Tab switching ---------------------------------------------------
-      const tabs = Array.from(document.querySelectorAll(".lab-tab"));
-      const panels = Array.from(document.querySelectorAll(".lab-panel"));
-      function selectTab(name) {
-        for (const tab of tabs) {
-          const on = tab.dataset.tab === name;
-          tab.classList.toggle("active", on);
-          tab.setAttribute("aria-selected", String(on));
-        }
-        for (const panel of panels) {
-          panel.hidden = panel.dataset.panel !== name;
-        }
+      // Preload from an Open-in-Lab link (private hash or ?grammar= preset).
+      const link = readLabLink(window.location);
+      if (link.preset && EXAMPLES[link.preset]) {
+        grammarEl.value = EXAMPLES[link.preset].grammar;
+        inputEl.value = EXAMPLES[link.preset].input;
       }
-      for (const tab of tabs) {
-        tab.addEventListener("click", () => selectTab(tab.dataset.tab));
-      }
+      if (link.grammar != null) grammarEl.value = link.grammar;
+      if (link.input != null) inputEl.value = link.input;
 
-      // --- Draggable editor/input splitter -----------------------------------
-      const editorSplit = document.getElementById("editor-split");
-      const splitGrip = document.getElementById("split-grip");
-      splitGrip.addEventListener("mousedown", (event) => {
-        event.preventDefault();
-        splitGrip.classList.add("dragging");
-        const rect = editorSplit.getBoundingClientRect();
-        const onMove = (moveEvent) => {
-          let pct = ((moveEvent.clientX - rect.left) / rect.width) * 100;
-          pct = Math.max(28, Math.min(72, pct));
-          editorSplit.style.setProperty("--split", pct + "%");
-        };
-        const onUp = () => {
-          splitGrip.classList.remove("dragging");
-          window.removeEventListener("mousemove", onMove);
-          window.removeEventListener("mouseup", onUp);
-        };
-        window.addEventListener("mousemove", onMove);
-        window.addEventListener("mouseup", onUp);
-      });
+      // --- escape + small helpers
+      const esc = (s: string) =>
+        s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-      // --- Parse tree fold handling (event-delegated: the tree is
-      // re-rendered on every keystroke, so listeners must survive that) ----
-      treeOutput.addEventListener("click", (event) => {
-        const toggle = event.target.closest("[data-toggle-path]");
-        if (!toggle) return;
-        toggleFold(treeCollapsed, toggle.dataset.togglePath);
-        treeOutput.innerHTML = renderCstTree(
-          latest.cstJson,
-          latest.prodLhs,
-          treeCollapsed,
-        );
-      });
-      copyLispBtn.addEventListener("click", async () => {
-        const lisp = cstJsonToLisp(latest.cstJson, latest.prodLhs);
-        if (!lisp) return;
-        const ok = await copyToClipboard(lisp);
-        copyLispBtn.textContent = ok ? "✓ copied" : "⚠ copy failed";
-        setTimeout(() => (copyLispBtn.textContent = "copy LISP"), 1400);
-      });
-
-      allParsesOutput.addEventListener("click", (event) => {
-        const toggle = event.target.closest("[data-toggle-path]");
-        if (!toggle) return;
-        const parseIdx = Number(
-          toggle.closest(".amb-parse")?.dataset.parseIndex ?? "0",
-        );
-        const collapsed = ambCollapsedByParse.get(parseIdx) ?? new Set();
-        ambCollapsedByParse.set(parseIdx, collapsed);
-        toggleFold(collapsed, toggle.dataset.togglePath);
-        renderAllParsesTab();
-      });
-
-      function renderAllParsesTab() {
-        methodSwitchOutput.innerHTML = renderMethodSwitch(selectedMethod);
-        allParsesOutput.innerHTML = renderAmbiguityView(
-          latest.allCstJson,
-          latest.prodLhs,
-          latest.accepted,
-          ambCollapsedByParse,
-        );
-      }
-      methodSwitchOutput?.addEventListener("click", async (event) => {
-        const btn = event.target.closest("[data-method]");
-        if (!btn) return;
-        selectedMethod = btn.dataset.method;
-        ambCollapsedByParse.clear();
-        await evaluate();
-      });
-
-      // Diagram navigation + zoom (event-delegated, so it survives re-renders):
-      // clicking a nonterminal node scrolls to that rule's diagram and flashes
-      // it; clicking anywhere else on a diagram toggles a zoomed (natural-size)
-      // view, since real grammars produce wide diagrams.
-      diagramsOutput.addEventListener("click", (event) => {
-        const nav = event.target.closest("a.rr-nav");
-        if (nav) {
-          event.preventDefault();
-          const target = document.getElementById(
-            nav.getAttribute("href").slice(1),
-          );
-          if (target) {
-            target.scrollIntoView({ behavior: "smooth", block: "center" });
-            target.classList.add("rr-flash");
-            setTimeout(() => target.classList.remove("rr-flash"), 900);
-          }
-          return;
-        }
-        const figure = event.target.closest(".rr-figure");
-        if (figure) figure.classList.toggle("zoomed");
-      });
-
-      // The sandboxed evaluator: a Worker (no DOM, no network) that loads the
-      // engine-generated `evaluate(cst)` module — the single source of truth for
-      // evaluation, baked from the grammar's own inline actions — and runs it on
-      // the parse tree. The `export` is stripped so it loads as a plain function.
+      // --- Sandboxed evaluator (Worker, no DOM/network, 50 ms budget) ---
       const WORKER_SRC = `
         self.onmessage = (e) => {
           const { cstJson, evalSrc } = e.data;
           try {
             const make = new Function(
               evalSrc.replace("export function evaluate", "function evaluate") +
-                "; return evaluate;",
-            );
-            const value = make()(JSON.parse(cstJson));
-            self.postMessage({ ok: true, value });
+                "; return evaluate;");
+            self.postMessage({ ok: true, value: make()(JSON.parse(cstJson)) });
           } catch (err) {
             self.postMessage({ ok: false, error: String((err && err.message) || err) });
           }
-        };
-      `;
-
-      function runEvaluator() {
-        if (!latest.cstJson) {
-          valueOutput.textContent = "— (evaluate after an accepted parse)";
+        };`;
+      function runEval(target: HTMLElement) {
+        const r = state.result;
+        if (!r || !r.cstJson) {
+          target.textContent = "— evaluate after an accepted parse";
           return;
         }
-        if (!latest.evalJs) {
-          valueOutput.textContent =
-            "— (no evaluator: the grammar did not build)";
+        if (!r.evalJs) {
+          target.textContent =
+            "— no evaluator (grammar did not build, or no actions)";
           return;
         }
-        valueOutput.textContent = "running…";
+        target.textContent = "running…";
         const worker = new Worker(
           URL.createObjectURL(
             new Blob([WORKER_SRC], { type: "application/javascript" }),
@@ -724,114 +601,446 @@ import "@fontsource/ibm-plex-mono/500.css";
         );
         const timer = setTimeout(() => {
           worker.terminate();
-          valueOutput.textContent = "⏱ timed out (>50 ms)";
+          target.textContent = "⏱ timed out (>50 ms)";
         }, 50);
         worker.onmessage = (e) => {
           clearTimeout(timer);
           worker.terminate();
-          valueOutput.textContent = e.data.ok
-            ? "= " + JSON.stringify(e.data.value)
-            : "⚠ " + e.data.error;
+          target.textContent = e.data.ok
+            ? `${inputEl.value.trim()} = ${JSON.stringify(e.data.value)}`
+            : `⚠ ${e.data.error}`;
         };
-        worker.postMessage({
-          cstJson: latest.cstJson,
-          evalSrc: latest.evalJs,
-        });
+        worker.postMessage({ cstJson: r.cstJson, evalSrc: r.evalJs });
       }
 
-      runEval.addEventListener("click", runEvaluator);
-
-      async function evaluate() {
-        const grammarSource = grammarInput.value;
-        const input = inputTest.value;
-
-        statusPill.textContent = "Evaluating…";
-        resultOutput.textContent = "Evaluating in the browser…";
-        diagnosticsList.innerHTML = "";
-
-        const result = await parseGramarkDocument(
-          grammarSource,
-          input,
-          selectedMethod,
-        );
-        latest = {
-          cstJson: result.cstJson,
-          allCstJson: result.allCstJson,
-          prodLhs: result.prodLhs,
-          accepted: result.success,
-          evalJs: result.evalJs,
-        };
-        valueOutput.textContent = "— (press Evaluate ▶)";
-
-        statusPill.textContent = result.success ? "Accepted" : "Rejected";
-        statusPill.style.color = result.success ? "#15b879" : "#dc2626";
-        treeOutput.innerHTML =
-          result.cstJson.length > 0
-            ? renderCstTree(result.cstJson, result.prodLhs, treeCollapsed)
-            : "— (no parse tree: the input was rejected)";
-        traceOutput.textContent =
-          result.trace && result.trace.length > 0
-            ? result.trace
-            : "— (no trace: the input was rejected)";
-        conflictsOutput.textContent =
-          result.conflicts && result.conflicts.length > 0
-            ? result.conflicts
-            : "— (grammar did not parse)";
-        tokensOutput.innerHTML = renderTokensTable(result.tokens);
-        renderAllParsesTab();
-        const diagrams = result.rules.length
-          ? renderDiagrams(grammarSource, result.rules)
-          : [];
-        if (diagrams.length === 0) {
-          diagramsOutput.textContent = "— (grammar did not parse)";
-        } else {
-          diagramsOutput.innerHTML = diagrams
+      // --- Tab renderers (each reads the current real-engine Result) ---
+      const renderers: Record<string, (r: Result) => string> = {
+        Result(r) {
+          const cls = r.success ? "ok" : "no";
+          const glyph = r.success ? "✓" : "✕";
+          const chips = r.tokens.length
+            ? `<div class="chips">${r.tokens
+                .map((t) => `<span class="chip">${esc(t)}</span>`)
+                .join("")}</div>`
+            : `<p class="muted">no tokens</p>`;
+          return `<div class="banner ${cls}">${glyph} ${esc(r.message)}</div>${chips}`;
+        },
+        Evaluate() {
+          return `<button type="button" class="btn-sm" id="do-eval">Evaluate ▶</button>
+            <div class="banner ok" id="eval-out" style="font-size:1rem">— press Evaluate ▶</div>
+            <p class="muted">Runs the grammar's inline {% … %} actions bottom-up in a sandboxed Worker (no DOM/network, 50&nbsp;ms budget). The default calc computes (4 - 1) * 3 + 2 = 11.</p>`;
+        },
+        Tokens(r) {
+          if (!r.tokens.length)
+            return `<p class="muted">no tokens (input empty or unlexable)</p>`;
+          const rows = r.tokens
+            .map((t, i) => `<tr><td>${i}</td><td>${esc(t)}</td></tr>`)
+            .join("");
+          return `<table class="lab-table"><thead><tr><th>#</th><th>text</th></tr></thead><tbody>${rows}<tr><td>${r.tokens.length}</td><td>$</td></tr></tbody></table>`;
+        },
+        "Grammar analysis"(r) {
+          const seg = (["Canonical", "LALR", "IELR"] as const)
             .map(
-              (d) =>
-                `<figure id="diagram-${d.name}" class="rr-figure" title="click to zoom"><figcaption>${d.name}</figcaption>${d.svg}</figure>`,
+              (m) =>
+                `<button data-method="${m}" class="${m === state.method ? "active" : ""}">${m}</button>`,
             )
             .join("");
+          const rules = r.rules;
+          if (!state.focusRule || !rules.includes(state.focusRule))
+            state.focusRule = rules[0] ?? "";
+          const chips = rules
+            .map(
+              (n) =>
+                `<span class="rule-chip ${n === state.focusRule ? "active" : ""}" data-rule="${esc(n)}">${esc(n)}</span>`,
+            )
+            .join("");
+          let diagram = `<p class="muted">grammar did not parse</p>`;
+          if (rules.length) {
+            const d = renderDiagrams(grammarEl.value, rules).find(
+              (x) => x.name === state.focusRule,
+            );
+            if (d)
+              diagram = `<figure class="rr-figure" title="click to zoom"><figcaption>${esc(d.name)}</figcaption>${d.svg}</figure>`;
+          }
+          const conflicts = r.conflicts
+            ? `<pre class="raw">${esc(r.conflicts)}</pre>`
+            : `<p class="muted">—</p>`;
+          // FIRST/FOLLOW: derived client-side from the productions (the engine
+          // does not surface these yet). A pure function of the grammar, so it
+          // is honest, not faked.
+          let ff = "";
+          if (rules.length) {
+            const { first, follow, nullable } = computeFirstFollow(
+              grammarProductions(grammarEl.value, rules),
+            );
+            const nul = new Set(nullable);
+            const cell = (xs: string[]) =>
+              xs.length
+                ? xs.map((t) => `<span class="chip">${esc(t)}</span>`).join(" ")
+                : `<span class="muted">∅</span>`;
+            const body = rules
+              .map(
+                (n) =>
+                  `<tr><td>${esc(n)}${nul.has(n) ? ' <span class="muted">(nullable)</span>' : ""}</td><td>${cell(first[n] ?? [])}</td><td>${cell(follow[n] ?? [])}</td></tr>`,
+              )
+              .join("");
+            ff = `<p class="muted" style="margin-top:.75rem">FIRST / FOLLOW (computed from the grammar):</p>
+              <table class="lab-table"><thead><tr><th>rule</th><th>FIRST</th><th>FOLLOW</th></tr></thead><tbody>${body}</tbody></table>`;
+          }
+          return `<div class="seg">${seg}</div>
+            <div class="rule-chips">${chips}</div>${diagram}${ff}
+            <p class="muted" style="margin-top:.75rem">conflict analysis (gramark explain-conflict):</p>${conflicts}`;
+        },
+        "Parse tree"(r) {
+          if (!r.cstJson)
+            return `<p class="muted">no tree (input rejected)</p>`;
+          const node = JSON.parse(r.cstJson) as Cst;
+          const tree = renderCstHtml(node, r.prodLhs, state.collapsed);
+          return `<button type="button" class="btn-sm" id="copy-lisp">copy LISP</button>
+            <div class="cst-tree" role="tree" aria-label="Parse tree">${tree}</div>`;
+        },
+        "Parse trace"(r) {
+          return r.trace
+            ? `<pre class="raw">${esc(r.trace)}</pre>`
+            : `<p class="muted">no trace (input rejected)</p>`;
+        },
+        "LR walk"(r) {
+          const steps = r.trace ? r.trace.split("\n").filter(Boolean) : [];
+          if (!steps.length)
+            return `<p class="muted">no trace to step through</p>`;
+          if (state.lrStep >= steps.length) state.lrStep = steps.length - 1;
+          const cur = state.lrStep;
+          const list = steps
+            .map(
+              (s, i) =>
+                `<div class="walk-step ${i === cur ? "cur" : ""}" data-step="${i}">${esc(s)}</div>`,
+            )
+            .join("");
+          return `<div class="walk-ctl">
+              <button type="button" class="btn-sm" id="walk-first" style="margin:0">⏮</button>
+              <button type="button" class="btn-sm" id="walk-prev" style="margin:0">◀</button>
+              <input type="range" id="walk-slider" min="0" max="${steps.length - 1}" value="${cur}" style="flex:1">
+              <button type="button" class="btn-sm" id="walk-next" style="margin:0">▶</button>
+              <button type="button" class="btn-sm" id="walk-last" style="margin:0">⏭</button>
+              <span class="muted">${cur + 1}/${steps.length}</span>
+            </div>${list}`;
+        },
+        "All parses"(r) {
+          const n = r.allCstJson.length;
+          if (!n) return `<p class="muted">no parse (input rejected)</p>`;
+          const banner =
+            n === 1
+              ? `<div class="banner ok">Unambiguous · 1 parse</div>`
+              : `<div class="banner no" style="background:color-mix(in srgb,#d97706 12%,var(--bg));color:#b45309;border-color:color-mix(in srgb,#d97706 30%,var(--bg))">Ambiguous · ${n} distinct parse trees (an LR(1) conflict would occur)</div>`;
+          const trees = r.allCstJson
+            .map(
+              (j, i) =>
+                `<p class="muted">parse ${i + 1}</p><pre class="raw">${esc(
+                  toLisp(JSON.parse(j) as Cst, r.prodLhs),
+                )}</pre>`,
+            )
+            .join("");
+          return banner + trees;
+        },
+        Diagnostics(r) {
+          const rows: string[] = [];
+          rows.push(
+            `<tr><td>Build</td><td>${r.conflicts.includes("conflict-free") || !r.conflicts ? "✓ ok" : esc(r.conflicts.split("\n")[0] ?? "")}</td></tr>`,
+          );
+          rows.push(
+            `<tr><td>Input parse</td><td>${r.success ? "✓ accepted" : "✕ " + esc(r.message)}</td></tr>`,
+          );
+          for (const d of r.diagnostics)
+            rows.push(`<tr><td>note</td><td>${esc(d)}</td></tr>`);
+          return `<table class="lab-table"><tbody>${rows.join("")}</tbody></table>`;
+        },
+        "Lowered Core"(r) {
+          let meta: Array<{ label: string; fields: unknown[] }> = [];
+          try {
+            meta = JSON.parse(r.meta || "[]");
+          } catch {
+            /* not buildable */
+          }
+          if (!meta.length) return `<p class="muted">grammar did not build</p>`;
+          const start = r.rules[0] ?? "Start";
+          const rows = meta
+            .map((m, i) => `<tr><td>${i}</td><td>${esc(m.label)}</td></tr>`)
+            .join("");
+          return `<p class="muted">augmented start: ⊤ → ${esc(start)} $</p>
+            <table class="lab-table"><thead><tr><th>#</th><th>production (handler label)</th></tr></thead><tbody>${rows}</tbody></table>`;
+        },
+      };
+
+      // --- Render the active tab + wire its tab-local controls ---
+      function renderTab() {
+        const r = state.result;
+        if (!r) {
+          bodyEl.textContent = "…";
+          return;
         }
-        resultOutput.textContent = [
-          result.message,
-          "",
-          ...result.diagnostics,
-          result.raw ? `\nDetails:\n${result.raw.slice(0, 800)}` : "",
-        ].join("\n");
+        bodyEl.innerHTML = (renderers[state.tab] ?? renderers.Result)(r);
 
-        diagnosticsList.innerHTML = "";
-        const items = result.diagnostics.map((message) => ({
-          message,
-          severity: result.success ? "warning" : "error",
-        }));
+        if (state.tab === "Evaluate")
+          $("do-eval")?.addEventListener("click", () => runEval($("eval-out")));
 
-        for (const item of items) {
-          const row = document.createElement("div");
-          row.innerHTML = `<strong>${item.severity.toUpperCase()}</strong>: ${item.message}`;
-          diagnosticsList.appendChild(row);
+        if (state.tab === "Grammar analysis") {
+          bodyEl.querySelectorAll<HTMLElement>("[data-method]").forEach((b) =>
+            b.addEventListener("click", () => {
+              state.method = b.dataset.method as GramarkMethod;
+              reparse();
+            }),
+          );
+          bodyEl.querySelectorAll<HTMLElement>(".rule-chip").forEach((c) =>
+            c.addEventListener("click", () => {
+              state.focusRule = c.dataset.rule ?? "";
+              renderTab();
+            }),
+          );
+          bodyEl.querySelector(".rr-figure")?.addEventListener("click", (e) => {
+            (e.currentTarget as HTMLElement).classList.toggle("zoomed");
+          });
+        }
+
+        if (state.tab === "Parse tree") {
+          const tree = bodyEl.querySelector<HTMLElement>(".cst-tree");
+          const items = () =>
+            tree
+              ? [...tree.querySelectorAll<HTMLElement>('[role="treeitem"]')]
+              : [];
+          const setFocus = (el?: HTMLElement) => {
+            if (!el) return;
+            items().forEach((i) => (i.tabIndex = -1));
+            el.tabIndex = 0;
+            el.focus();
+            treeFocusPath = el.dataset.path ?? null;
+          };
+          const toggle = (p: string) => {
+            state.collapsed.has(p)
+              ? state.collapsed.delete(p)
+              : state.collapsed.add(p);
+            treeFocusPath = p;
+            renderTab(); // rebuilds the tab; focus is restored below on re-entry
+          };
+          // Restore the roving tabstop after a re-render (or seed the first
+          // node as the single tabbable entry point).
+          const list0 = items();
+          const restore = list0.find((i) => i.dataset.path === treeFocusPath);
+          if (restore) {
+            list0.forEach((i) => (i.tabIndex = -1));
+            restore.tabIndex = 0;
+            if (tree?.contains(document.activeElement)) restore.focus();
+          } else if (list0[0]) list0[0].tabIndex = 0;
+
+          bodyEl
+            .querySelectorAll<HTMLElement>(".cst-head")
+            .forEach((h) =>
+              h.addEventListener("click", () => toggle(h.dataset.path!)),
+            );
+
+          // ARIA tree keyboard model: ↑/↓ move, →/← expand/collapse (or move),
+          // Enter/Space toggle.
+          tree?.addEventListener("keydown", (e) => {
+            const list = items();
+            const cur = (
+              document.activeElement as HTMLElement | null
+            )?.closest<HTMLElement>('[role="treeitem"]');
+            let idx = cur ? list.indexOf(cur) : 0;
+            if (idx < 0) idx = 0;
+            const el = list[idx];
+            const expanded = el?.getAttribute("aria-expanded");
+            switch (e.key) {
+              case "ArrowDown":
+                e.preventDefault();
+                setFocus(list[Math.min(idx + 1, list.length - 1)]);
+                break;
+              case "ArrowUp":
+                e.preventDefault();
+                setFocus(list[Math.max(idx - 1, 0)]);
+                break;
+              case "ArrowRight":
+                e.preventDefault();
+                if (expanded === "false" && el?.dataset.path)
+                  toggle(el.dataset.path);
+                else setFocus(list[Math.min(idx + 1, list.length - 1)]);
+                break;
+              case "ArrowLeft":
+                e.preventDefault();
+                if (expanded === "true" && el?.dataset.path)
+                  toggle(el.dataset.path);
+                else setFocus(list[Math.max(idx - 1, 0)]);
+                break;
+              case "Enter":
+              case " ":
+                if (expanded != null && el?.dataset.path) {
+                  e.preventDefault();
+                  toggle(el.dataset.path);
+                }
+                break;
+            }
+          });
+
+          $("copy-lisp")?.addEventListener("click", (e) => {
+            const btn = e.currentTarget as HTMLButtonElement;
+            navigator.clipboard
+              ?.writeText(toLisp(JSON.parse(r.cstJson) as Cst, r.prodLhs))
+              .then(() => {
+                btn.textContent = "✓ copied";
+                setTimeout(() => (btn.textContent = "copy LISP"), 1400);
+              });
+          });
+        }
+
+        if (state.tab === "LR walk") {
+          const steps = r.trace ? r.trace.split("\n").filter(Boolean) : [];
+          const set = (n: number) => {
+            state.lrStep = Math.max(0, Math.min(steps.length - 1, n));
+            renderTab();
+          };
+          $("walk-first")?.addEventListener("click", () => set(0));
+          $("walk-prev")?.addEventListener("click", () =>
+            set(state.lrStep - 1),
+          );
+          $("walk-next")?.addEventListener("click", () =>
+            set(state.lrStep + 1),
+          );
+          $("walk-last")?.addEventListener("click", () =>
+            set(steps.length - 1),
+          );
+          $<HTMLInputElement>("walk-slider")?.addEventListener("input", (e) =>
+            set(Number((e.target as HTMLInputElement).value)),
+          );
         }
       }
 
-      // Evaluation is live: it re-runs as you edit the grammar or the input, so
-      // the result pill always reflects the current text (no button to press).
-      function safeEvaluate() {
-        evaluate().catch((error) => {
-          statusPill.textContent = "Error";
-          statusPill.style.color = "#dc2626";
-          resultOutput.textContent =
-            error instanceof Error ? error.message : String(error);
+      // --- Status strip + start-rule picker + input status glyph ---
+      function paintStatus(r: Result) {
+        const start = r.rules[0] ?? "—";
+        $("ss-verdict").textContent = r.success ? "✓ accepted" : "✕ rejected";
+        $("ss-method").textContent = `${r.method}(1) · start ${start}`;
+        const clean = !r.conflicts || r.conflicts.includes("conflict-free");
+        $("ss-check").textContent =
+          `gramark --check · ${clean ? "clean" : "conflicts"}`;
+        const glyph = $("status-glyph");
+        glyph.textContent = r.success ? "✓" : "✕";
+        glyph.style.color = r.success ? "var(--accent)" : "#dc2626";
+        // Start-rule picker: populated from the grammar's rules (declared start
+        // first). Informational until the engine takes a start override.
+        if (startEl.dataset.rules !== r.rules.join(",")) {
+          startEl.dataset.rules = r.rules.join(",");
+          startEl.innerHTML = r.rules
+            .map((n) => `<option>${esc(n)}</option>`)
+            .join("");
+        }
+      }
+
+      // --- The one parse per (grammar, input, method), shared by every tab.
+      // Runs in a Web Worker (engine-client) so table construction never
+      // blocks the UI; latest-wins by sequence number drops stale results. ---
+      let seq = 0;
+      async function reparse() {
+        const mine = ++seq;
+        const r = await parseInWorker(
+          grammarEl.value,
+          inputEl.value,
+          state.method,
+        );
+        if (mine !== seq) return; // a newer edit already superseded this one
+        state.result = r;
+        paintStatus(r);
+        renderTab();
+      }
+      const safeReparse = () =>
+        reparse().catch((e) => {
+          bodyEl.innerHTML = `<div class="banner no">engine error: ${esc(String(e))}</div>`;
         });
-      }
-      // A grammar handed off from an embedded GrammarTryout ("Open in Lab ↗")
-      // arrives in the URL hash — seed the editors from it before the first
-      // evaluation, so the Lab opens on exactly what the reader was editing.
-      const handoff = decodeLabHash(location.hash);
-      if (handoff.grammar != null) grammarInput.value = handoff.grammar;
-      if (handoff.input != null) inputTest.value = handoff.input;
+      // Debounce editor keystrokes so a fast typist queues at most one parse in
+      // flight per idle gap (the worker handles messages serially).
+      let debounce = 0;
+      const debouncedReparse = () => {
+        clearTimeout(debounce);
+        debounce = window.setTimeout(safeReparse, 80);
+      };
 
-      grammarInput.addEventListener("input", safeEvaluate);
-      inputTest.addEventListener("input", safeEvaluate);
-      safeEvaluate();
+      // --- Wiring: editors, tabs, example presets, draggable grip ---
+      grammarEl.addEventListener("input", debouncedReparse);
+      inputEl.addEventListener("input", debouncedReparse);
+
+      document.querySelectorAll<HTMLElement>(".tab").forEach((t) =>
+        t.addEventListener("click", () => {
+          document
+            .querySelectorAll(".tab")
+            .forEach((x) => x.classList.remove("active"));
+          t.classList.add("active");
+          state.tab = t.dataset.tab!;
+          renderTab();
+        }),
+      );
+
+      document.querySelectorAll<HTMLElement>(".ex").forEach((b) =>
+        b.addEventListener("click", () => {
+          const ex = EXAMPLES[b.dataset.ex!];
+          if (!ex) return;
+          document
+            .querySelectorAll(".ex")
+            .forEach((x) => x.classList.remove("active"));
+          b.classList.add("active");
+          grammarEl.value = ex.grammar;
+          inputEl.value = ex.input;
+          filenameEl.textContent = `${b.dataset.ex}.grmk.md`;
+          state.collapsed.clear();
+          state.focusRule = "";
+          safeReparse();
+        }),
+      );
+
+      // Draggable splitter (clamp 28–72%).
+      const split = $("split");
+      const grip = $("grip");
+      const gPane = split.querySelector<HTMLElement>(".grammar-pane")!;
+      const iPane = split.querySelector<HTMLElement>(".input-pane")!;
+      let dragging = false;
+      grip.addEventListener("mousedown", (e) => {
+        dragging = true;
+        e.preventDefault();
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (!dragging) return;
+        const rect = split.getBoundingClientRect();
+        let pct = ((e.clientX - rect.left) / rect.width) * 100;
+        pct = Math.max(28, Math.min(72, pct));
+        gPane.style.flexBasis = pct + "%";
+        iPane.style.flexBasis = 100 - pct + "%";
+      });
+      window.addEventListener("mouseup", () => (dragging = false));
+
+      // Horizontal separator: drag the editor/drawer vertical ratio (clamp
+      // 15–85% of their combined height).
+      const drawer = document.querySelector<HTMLElement>(".drawer")!;
+      const vgrip = $("vgrip");
+      let vdragging = false;
+      vgrip.addEventListener("mousedown", (e) => {
+        vdragging = true;
+        e.preventDefault();
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (!vdragging) return;
+        // Pixel model: fix the editor's height, let the drawer (flex-grow)
+        // take the rest. Deterministic — no basis/grow tug-of-war. Clamp so
+        // each keeps a usable minimum.
+        const top = split.getBoundingClientRect().top;
+        const total = drawer.getBoundingClientRect().bottom - top;
+        const px = Math.max(60, Math.min(total - 60, e.clientY - top));
+        split.style.flex = "0 0 " + px + "px";
+      });
+      window.addEventListener("mouseup", () => (vdragging = false));
+
+      safeReparse();
     </script>
+
+    <script
+      type="application/json"
+      id="lab-examples"
+      set:html={JSON.stringify(EXAMPLES)}
+    />
   </body>
 </html>

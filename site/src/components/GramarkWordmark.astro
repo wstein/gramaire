@@ -1,47 +1,47 @@
 ---
-// The Gramark wordmark: "Gra" in ink, a split-stem "m" (the hinge where
-// _gram_mar and _mark_(down) overlap — half ink, half emerald, hard-stop),
-// "ark" in emerald. The split is a linearGradient with two 50%-offset hard
-// stops applied as the "m" tspan's fill; because SVG gradients default to
-// `gradientUnits="objectBoundingBox"`, the 50/50 split is computed against
-// the "m" glyph's own actual rendered bounding box — no hand-measured pixel
-// offsets, so it stays correct across browsers/fonts without drift. See
-// docs/BRANDING.md.
+// The Gramark wordmark — treatment "02 · Split stem" from the handoff. The
+// name is a portmanteau (grammar + Markdown) whose single shared middle `m`
+// is the brand hinge: `Gra` inks in `--fg`, `ark` in `--accent`, and the `m`
+// is bisected left-half `--fg` / right-half `--accent` by a hard-stop text
+// gradient. One weight/size throughout (IBM Plex Sans 700, tight tracking).
 interface Props {
-  [attr: string]: unknown;
+  size?: string;
+  class?: string;
 }
-
-const { ...rest } = Astro.props as Props;
-const gradId = "gramark-m-split-" + Math.random().toString(36).slice(2, 8);
+const { size = "1.25rem", class: klass } = Astro.props;
 ---
 
-<svg
-  viewBox="0 0 190 44"
-  xmlns="http://www.w3.org/2000/svg"
-  role="img"
-  aria-label="Gramark"
-  style="display:block"
-  {...rest}
->
-  <title>Gramark</title>
-  <defs>
-    <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="var(--gramark-fg)"></stop>
-      <stop offset="50%" stop-color="var(--gramark-fg)"></stop>
-      <stop offset="50%" stop-color="var(--sl-color-accent)"></stop>
-      <stop offset="100%" stop-color="var(--sl-color-accent)"></stop>
-    </linearGradient>
-  </defs>
-  <text
-    x="0"
-    y="33"
-    font-family="'IBM Plex Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
-    font-size="34"
-    font-weight="700"
-    letter-spacing="-1"
+<span class:list={["gramark-wordmark", klass]} style={`--wm-size: ${size}`}>
+  <span class="wm-gra">Gra</span><span class="wm-m">m</span><span class="wm-ark"
+    >ark</span
   >
-    <tspan fill="var(--gramark-fg)">Gra</tspan><tspan fill={`url(#${gradId})`}
-      >m</tspan
-    ><tspan fill="var(--sl-color-accent)">ark</tspan>
-  </text>
-</svg>
+</span>
+
+<style>
+  .gramark-wordmark {
+    font-family: var(--font-ui, "IBM Plex Sans", sans-serif);
+    font-weight: 700;
+    font-size: var(--wm-size);
+    letter-spacing: -0.04em;
+    line-height: 1;
+    white-space: nowrap;
+    display: inline-flex;
+  }
+  .wm-gra {
+    color: var(--gramark-fg, var(--fg, #16181d));
+  }
+  .wm-ark {
+    color: var(--accent, #0a8f63);
+  }
+  .wm-m {
+    background: linear-gradient(
+      90deg,
+      var(--gramark-fg, var(--fg, #16181d)) 0 50%,
+      var(--accent, #0a8f63) 50% 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+</style>

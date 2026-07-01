@@ -97,11 +97,11 @@ function formatReport(result: {
 // productions carry inline `{% … %}` actions. The `%lang javascript` setting
 // (the `## General settings` block in the fenced form) declares those actions as
 // JavaScript, so the engine bakes them into one `evaluate(cst)` the Lab runs in
-// its sandbox. Each action gets its children as a namedtuple `c` — here read
-// positionally (`c[0]`, `c[2]`); a `name:` field would also allow `c.left`. The
-// same engine reads this as it reads a fenced `.grmk.md` — `toFenced` re-fences
-// it and `decomment` skips the comments — so the preview lexes NUMBER natively.
-const DEFAULT_GRAMAR = `/**
+// its sandbox. Each action gets its children as a namedtuple `c` — read by the
+// lowercased symbol name (`c.expr`, `c.term`), or positionally. The same engine
+// reads this as it reads a fenced `.grmk.md` — `toFenced` re-fences it and
+// `decomment` skips the comments — so the preview lexes NUMBER natively.
+const DEFAULT_GRAMMAR = `/**
  * Calc-js
  *
  * An arithmetic calculator that evaluates its own input — a demonstration
@@ -134,7 +134,7 @@ Factor
 const DEFAULT_INPUT = "(4 - 1) * 3 + 2";
 
 export function getDefaultGrammar(): string {
-  return DEFAULT_GRAMAR;
+  return DEFAULT_GRAMMAR;
 }
 
 export function getDefaultInput(): string {

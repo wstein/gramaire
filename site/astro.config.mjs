@@ -12,10 +12,12 @@ export default defineConfig({
     starlight({
       title: "Gramark",
       description: "Grammars that render themselves.",
-      // Wire the brand favicon into every Starlight page (the standalone
-      // landing and Lab set their own <link>). `fileWithBase` inside Starlight
-      // prepends the deploy base, so this still resolves under `/gramark/` in CI.
+      // Brand mark on every page: the refined railroad logomark. The option is
+      // base-prefixed internally, so it still resolves under `/gramark/` in CI.
       favicon: "/favicon.svg",
+      // Override the title slot with the split-stem wordmark lockup (Starlight's
+      // built-in `logo`/`title` can't render the two-color wordmark).
+      components: { SiteTitle: "./src/components/SiteTitle.astro" },
       // `gramark` (Gramark's production blocks) has no Shiki grammar; render
       // it as plain monospace text — matching how GitHub shows the same fences.
       expressiveCode: { shiki: { langAlias: { gramark: "text" } } },
@@ -36,13 +38,6 @@ export default defineConfig({
         { label: "Lab", link: "/lab" },
       ],
       customCss: ["./src/styles/custom.css"],
-      // Starlight's built-in `logo` option only accepts a single static
-      // image, which would force a light/dark file pair back into
-      // existence — override the slot instead so the header renders the
-      // theme-reactive GramarkMark/GramarkWordmark components.
-      components: {
-        SiteTitle: "./src/components/SiteTitle.astro",
-      },
     }),
   ],
 });

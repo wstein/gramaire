@@ -1,31 +1,16 @@
 ---
-// The Gramark landing page — a standalone Astro page (outside Starlight's
-// chrome, like /lab) implementing the "Gramark Site" design: a hero, a live
-// "one file · edit the source" grammar → railroad showcase, three capability
-// tiles, and a light/dark toggle that shares Starlight's `starlight-theme`
-// storage key so the theme carries across to the docs pages.
-import GramarkMark from "../components/GramarkMark.astro";
-import GramarkWordmark from "../components/GramarkWordmark.astro";
-import "@fontsource/ibm-plex-sans/400.css";
-import "@fontsource/ibm-plex-sans/500.css";
-import "@fontsource/ibm-plex-sans/600.css";
-import "@fontsource/ibm-plex-sans/700.css";
-import "@fontsource/ibm-plex-mono/400.css";
-import "@fontsource/ibm-plex-mono/500.css";
+// The Gramark landing — a standalone splash page outside Starlight's chrome
+// (like /lab), implementing the Claude Design mock's Landing: a sticky brand
+// topbar, a centered hero, the live "one file · edit the source" grammar →
+// railroad showcase driven by the real engine, three capability tiles, and a
+// footer. The theme toggle shares Starlight's `starlight-theme` key so a choice
+// here carries across to the docs pages.
+import "../styles/custom.css";
+import BrandTopbar from "../components/BrandTopbar.astro";
+import LiveGrammar from "../components/LiveGrammar.astro";
+import { SHOWCASE } from "../lib/demo-grammars.ts";
 
 const base = import.meta.env.BASE_URL;
-
-// A compact, self-contained grammar the showcase seeds with: valid on its own
-// (literal terminals, no token-class block), so the real engine parses it and
-// draws both rules' railroad diagrams live.
-const SHOWCASE_GRAMMAR = `Expr
-  : Expr '+' Term
-  | Term
-
-Term
-  : Term '*' 'num'
-  | 'num'
-`;
 ---
 
 <!doctype html>
@@ -41,7 +26,7 @@ Term
     />
     <script is:inline>
       // No-flash theme: honour a stored choice, else the OS preference. Shares
-      // Starlight's `starlight-theme` key so a toggle here persists to the docs.
+      // Starlight's `starlight-theme` key so the topbar toggle persists to docs.
       (() => {
         try {
           const stored = localStorage.getItem("starlight-theme");
@@ -53,545 +38,226 @@ Term
                 : "light";
           document.documentElement.dataset.theme = theme;
         } catch (e) {
-          /* localStorage blocked — fall through to the light default */
+          document.documentElement.dataset.theme = "light";
         }
       })();
     </script>
-    <style is:global>
-      :root {
-        --font-ui:
-          "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
-        --font-mono:
-          "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-        color-scheme: light;
-        --bg: #ffffff;
-        --bg-1: #f5faf7;
-        --bg-2: #edf5f0;
-        --fg: #16181d;
-        --fg-secondary: #1f3a31;
-        --fg-muted: #566860;
-        --fg-faint: #7d8d85;
-        --border: #dde9e3;
-        --border-strong: #c6dbd0;
-        /* UI accent (buttons, headings): a richer green than the brand node,
-           for contrast on white. `--sl-color-accent` stays the brand node so
-           GramarkMark/GramarkWordmark render identically to the rest of the
-           site. `--gramark-fg` is the mark/wordmark ink. */
-        --accent: #0a8f63;
-        --accent-soft: color-mix(in srgb, var(--accent) 8%, var(--bg));
-        --accent-line: color-mix(in srgb, var(--accent) 24%, transparent);
-        --sl-color-accent: #15b879;
-        --gramark-fg: #16181d;
-        --radius: 6px;
-        --radius-lg: 10px;
-        --shadow-card:
-          0 1px 2px rgba(22, 24, 29, 0.04),
-          0 8px 26px -16px rgba(10, 143, 99, 0.28);
-      }
-      html[data-theme="dark"] {
-        color-scheme: dark;
-        --bg: #0e1512;
-        --bg-1: #131c18;
-        --bg-2: #1a2620;
-        --fg: #eaf2ed;
-        --fg-secondary: #c2d4ca;
-        --fg-muted: #8ea298;
-        --fg-faint: #73877e;
-        --border: #25332c;
-        --border-strong: #38493f;
-        --accent: #34d399;
-        --gramark-fg: #eaf2ed;
-        --shadow-card:
-          0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px -16px rgba(0, 0, 0, 0.8);
-      }
-      * {
-        box-sizing: border-box;
-      }
-      html,
+  </head>
+  <body>
+    <BrandTopbar active="home" />
+
+    <main class="landing">
+      <section class="hero">
+        <span class="eyebrow"
+          >LR parser generator · source format is Markdown</span
+        >
+        <h1>
+          Grammars that <span class="accent">render themselves.</span>
+        </h1>
+        <p class="sub">
+          A <code>.grmk.md</code> file is a normal Markdown document — it renders
+          on GitHub as prose, railroad diagrams, and FIRST/FOLLOW tables — and is
+          <strong>at the same time</strong> the exact input the parser generator reads.
+          Your grammar <em>is</em> your documentation.
+        </p>
+        <div class="cta">
+          <a class="btn primary" href={`${base}tutorials/intro/`}
+            >Start the tutorial →</a
+          >
+          <a class="btn ghost" href={`${base}lab`}>Open the Lab</a>
+        </div>
+      </section>
+
+      <section class="showcase">
+        <LiveGrammar
+          grammar={SHOWCASE}
+          caption="one file · live — edit the source"
+        />
+      </section>
+
+      <section class="tiles">
+        <div class="tile">
+          <span class="tile-big">3×</span>
+          <h3>Three table methods</h3>
+          <p>
+            Canonical LR(1), LALR(1), and IELR(1) build from the same automaton
+            — switch and compare conflicts in the Lab.
+          </p>
+        </div>
+        <div class="tile">
+          <span class="tile-big">1 file</span>
+          <h3>Grammar == docs</h3>
+          <p>
+            One <code>.grmk.md</code> renders as documentation and compiles as a grammar.
+            No drift between the two, ever.
+          </p>
+        </div>
+        <div class="tile">
+          <span class="tile-big">closed</span>
+          <h3>Self-hosting</h3>
+          <p>
+            The generator describes its own grammar in Gramark and checks green
+            against itself — the loop is closed.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="foot-links">
+        <a href={`${base}tutorials/intro/`}>Tutorial</a>
+        <a href={`${base}docs/overview/`}>Docs</a>
+        <a href={`${base}lab`}>Lab</a>
+        <a href="https://github.com/wstein/gramark">GitHub ↗</a>
+      </div>
+      <p class="foot-note">Grammars that render themselves.</p>
+    </footer>
+
+    <style>
       body {
         margin: 0;
-      }
-      body {
         background: var(--bg);
         color: var(--fg);
         font-family: var(--font-ui);
-        -webkit-font-smoothing: antialiased;
       }
-      ::selection {
-        background: color-mix(in srgb, var(--accent) 26%, transparent);
-      }
-      a {
-        color: inherit;
-      }
-
-      /* Top bar */
-      .gx-top {
-        display: flex;
-        align-items: center;
-        gap: 18px;
-        padding: 12px 22px;
-        border-bottom: 1px solid var(--border);
-        position: sticky;
-        top: 0;
-        background: var(--bg);
-        z-index: 10;
-      }
-      .gx-brand {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        text-decoration: none;
-      }
-      .gx-nav {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .gx-nav a {
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--fg-muted);
-        text-decoration: none;
-        padding: 7px 11px;
-        border-radius: var(--radius);
-      }
-      .gx-nav a:hover {
-        color: var(--fg);
-        background: var(--bg-2);
-      }
-      .gx-sep {
-        width: 1px;
-        height: 18px;
-        background: var(--border);
-      }
-      .gx-switch {
-        cursor: pointer;
-        width: 46px;
-        height: 25px;
-        border-radius: 999px;
-        background: var(--bg-2);
-        border: 1px solid var(--border-strong);
-        position: relative;
-        flex: none;
-        padding: 0;
-      }
-      .gx-switch span.icon {
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 11px;
-        line-height: 1;
-        color: var(--fg-faint);
-      }
-      .gx-switch .sun {
-        left: 6px;
-      }
-      .gx-switch .moon {
-        right: 6px;
-      }
-      .gx-switch .knob {
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        width: 19px;
-        height: 19px;
-        border-radius: 50%;
-        background: var(--accent);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-        transition: transform 0.22s ease;
-      }
-      html[data-theme="dark"] .gx-switch .knob {
-        transform: translateX(21px);
-      }
-
-      /* Layout */
-      .gx-wrap {
-        max-width: 960px;
+      .landing {
+        max-width: 920px;
         margin: 0 auto;
-        padding: 64px 28px 80px;
+        padding: 2.5rem 1.25rem 3rem;
       }
-      .gx-hero {
+      .hero {
         text-align: center;
+        padding: 2.5rem 0 1.5rem;
       }
-      .gx-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
+      .eyebrow {
+        display: inline-block;
         font-family: var(--font-mono);
-        font-size: 12px;
+        font-size: 0.74rem;
         color: var(--accent);
-        background: var(--accent-soft);
-        border: 1px solid var(--accent-line);
+        background: var(--accent-softer);
+        border: 1px solid var(--border);
+        padding: 0.3rem 0.7rem;
         border-radius: 999px;
-        padding: 6px 13px;
-        margin-bottom: 24px;
+        margin-bottom: 1.25rem;
       }
-      .gx-hero h1 {
-        font-size: 56px;
-        line-height: 1.04;
+      h1 {
+        font-size: 52px;
+        line-height: 1.05;
         letter-spacing: -2px;
         font-weight: 700;
-        margin: 0 auto 20px;
-        max-width: 760px;
+        margin: 0 0 1rem;
       }
-      .gx-hero h1 .accent {
+      h1 .accent {
         color: var(--accent);
       }
-      .gx-hero p.lead {
-        font-size: 18px;
-        line-height: 1.6;
-        color: var(--fg-muted);
+      .sub {
         max-width: 620px;
-        margin: 0 auto 30px;
+        margin: 0 auto;
+        color: var(--fg-muted);
+        font-size: 1.05rem;
+        line-height: 1.6;
       }
-      .gx-cta {
+      .sub code {
+        font-family: var(--font-mono);
+        background: var(--bg-2);
+        padding: 0.05rem 0.35rem;
+        border-radius: var(--radius);
+        font-size: 0.92em;
+      }
+      .cta {
         display: flex;
-        gap: 12px;
+        gap: 0.75rem;
         justify-content: center;
+        margin-top: 1.75rem;
         flex-wrap: wrap;
       }
       .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
         font-weight: 600;
-        font-size: 14.5px;
-        padding: 11px 19px;
+        font-size: 0.95rem;
+        padding: 13px 22px;
         border-radius: var(--radius);
-        cursor: pointer;
         text-decoration: none;
-        white-space: nowrap;
         border: 1px solid transparent;
       }
-      .btn .arrow {
-        font-family: var(--font-mono);
-      }
-      .btn-primary {
+      .btn.primary {
         background: var(--accent);
         color: #fff;
       }
-      .btn-primary:hover {
-        filter: brightness(1.05);
+      .btn.primary:hover {
+        background: var(--accent-2);
       }
-      .btn-ghost {
-        background: transparent;
+      .btn.ghost {
         color: var(--fg-secondary);
         border-color: var(--border-strong);
       }
-      .btn-ghost:hover {
-        background: var(--bg-2);
-      }
-      .btn-chip {
-        padding: 7px 13px;
-        font-size: 12.5px;
-        font-family: var(--font-mono);
-        font-weight: 500;
-        background: var(--accent-soft);
-        color: var(--accent);
-        border-color: var(--accent-line);
-      }
-
-      /* Showcase card */
-      .gx-show {
-        margin-top: 56px;
-        border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-        box-shadow: var(--shadow-card);
-      }
-      .gx-show-hd {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 10px 16px;
-        border-bottom: 1px solid var(--border);
+      .btn.ghost:hover {
         background: var(--bg-1);
       }
-      .gx-show-hd .label {
-        font-family: var(--font-mono);
-        font-size: 11px;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: var(--fg-faint);
-      }
-      .gx-show-grid {
+      .tiles {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-top: 2rem;
       }
-      #showcase-src {
-        border: 0;
-        border-right: 1px solid var(--border);
-        resize: none;
-        padding: 20px 22px;
-        font-family: var(--font-mono);
-        font-size: 13px;
-        line-height: 1.7;
-        background: var(--bg);
-        color: var(--fg-secondary);
-        min-height: 210px;
-        outline: none;
-      }
-      #showcase-src:focus {
-        box-shadow: inset 2px 0 0 var(--accent);
-      }
-      .gx-show-out {
-        padding: 20px 22px;
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-      }
-      .gx-show-out .cap {
-        font-family: var(--font-mono);
-        font-size: 11px;
-        color: var(--fg-faint);
-        margin-bottom: 14px;
-      }
-      #showcase-diagrams {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-        justify-content: center;
-        overflow: auto;
-      }
-
-      /* Railroad SVGs are injected at runtime, so their styling must be global.
-         renderSvg embeds light-theme colours; nudge them for dark mode. */
-      .rr-figure {
-        margin: 0;
-      }
-      .rr-figure svg {
-        max-width: 100%;
-        height: auto;
-      }
-      .rr-figure figcaption {
-        font-family: var(--font-mono);
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--accent);
-        margin-bottom: 4px;
-      }
-      html[data-theme="dark"] .rr-figure .rr-text {
-        fill: var(--fg-secondary);
-      }
-      html[data-theme="dark"] .rr-figure .rr-nonterm {
-        fill: var(--bg-2);
-        stroke: var(--fg-muted);
-      }
-      html[data-theme="dark"] .rr-figure .rr-cap {
-        fill: var(--fg);
-      }
-      html[data-theme="dark"] .rr-figure .rr-track {
-        stroke: var(--fg-faint);
-      }
-
-      /* Tiles */
-      .gx-tiles {
-        display: flex;
-        gap: 14px;
-        flex-wrap: wrap;
-        margin-top: 24px;
-      }
-      .gx-tile {
-        flex: 1;
-        min-width: 180px;
-        border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
-        padding: 20px;
-        background: var(--bg-1);
-      }
-      .gx-tile .big {
-        font-family: var(--font-mono);
-        font-weight: 700;
-        font-size: 28px;
-        letter-spacing: -0.5px;
-        color: var(--accent);
-      }
-      .gx-tile .small {
-        font-size: 13.5px;
-        color: var(--fg-muted);
-        margin-top: 6px;
-        line-height: 1.45;
-      }
-
-      /* Footer */
-      .gx-foot {
-        margin-top: 56px;
-        padding-top: 24px;
-        border-top: 1px solid var(--border);
-        display: flex;
-        gap: 18px;
-        align-items: center;
-        font-family: var(--font-mono);
-        font-size: 12px;
-        color: var(--fg-faint);
-        flex-wrap: wrap;
-      }
-      .gx-foot a {
-        text-decoration: none;
-      }
-      .gx-foot a:hover {
-        color: var(--accent);
-      }
-
-      @media (max-width: 640px) {
-        .gx-hero h1 {
-          font-size: 40px;
-          letter-spacing: -1.4px;
-        }
-        .gx-show-grid {
+      @media (max-width: 720px) {
+        .tiles {
           grid-template-columns: 1fr;
         }
-        #showcase-src {
-          border-right: 0;
-          border-bottom: 1px solid var(--border);
+        h1 {
+          font-size: 40px;
         }
-        .gx-nav a[data-hide-sm] {
-          display: none;
-        }
+      }
+      .tile {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem;
+        background: var(--bg-1);
+      }
+      .tile-big {
+        font-family: var(--font-mono);
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--accent);
+      }
+      .tile h3 {
+        margin: 0.5rem 0 0.35rem;
+        font-size: 1rem;
+      }
+      .tile p {
+        margin: 0;
+        color: var(--fg-muted);
+        font-size: 0.88rem;
+        line-height: 1.5;
+      }
+      .tile code {
+        font-family: var(--font-mono);
+        font-size: 0.85em;
+      }
+      .site-footer {
+        border-top: 1px solid var(--border);
+        padding: 1.5rem 1.25rem 2.5rem;
+        text-align: center;
+      }
+      .foot-links {
+        display: flex;
+        gap: 1.25rem;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .foot-links a {
+        color: var(--fg-muted);
+        text-decoration: none;
+        font-size: 0.9rem;
+      }
+      .foot-links a:hover {
+        color: var(--accent);
+      }
+      .foot-note {
+        margin-top: 0.75rem;
+        color: var(--fg-faint);
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
       }
     </style>
-  </head>
-  <body>
-    <header class="gx-top">
-      <a class="gx-brand" href={base} aria-label="Gramark home">
-        <GramarkMark style="width: 28px; height: 28px; flex: none;" />
-        <GramarkWordmark style="height: 20px; width: auto;" />
-      </a>
-      <div style="flex: 1"></div>
-      <nav class="gx-nav">
-        <a href={`${base}tutorials/intro/`} data-hide-sm>Tutorial</a>
-        <a href={`${base}docs/overview/`} data-hide-sm>Docs</a>
-        <a href={`${base}lab`}>Lab</a>
-      </nav>
-      <div class="gx-sep"></div>
-      <button
-        id="theme-toggle"
-        class="gx-switch"
-        type="button"
-        title="Toggle light / dark"
-        aria-label="Toggle light and dark theme"
-      >
-        <span class="icon sun">☀</span>
-        <span class="icon moon">☾</span>
-        <span class="knob"></span>
-      </button>
-    </header>
-
-    <main class="gx-wrap">
-      <section class="gx-hero">
-        <div class="gx-badge">
-          LR parser generator · source format is Markdown
-        </div>
-        <h1>Grammars that <span class="accent">render themselves.</span></h1>
-        <p class="lead">
-          A <code>.grmk.md</code> file is a normal document that renders on GitHub
-          — prose, railroad diagrams, FIRST/FOLLOW tables — and is at the same time
-          the exact input the generator reads.
-        </p>
-        <div class="gx-cta">
-          <a class="btn btn-primary" href={`${base}tutorials/intro/`}>
-            Start the tutorial <span class="arrow">→</span>
-          </a>
-          <a class="btn btn-ghost" href={`${base}lab`}>Open the Lab</a>
-        </div>
-      </section>
-
-      <section class="gx-show" aria-label="Live grammar example">
-        <div class="gx-show-hd">
-          <span class="label">one file · live — edit the source</span>
-          <a class="btn btn-chip" href={`${base}lab`}>Open in Lab ↗</a>
-        </div>
-        <div class="gx-show-grid">
-          <textarea
-            id="showcase-src"
-            spellcheck="false"
-            aria-label="Grammar source">{SHOWCASE_GRAMMAR}</textarea
-          >
-          <div class="gx-show-out">
-            <div class="cap">renders to ↓</div>
-            <div id="showcase-diagrams">—</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="gx-tiles">
-        <div class="gx-tile">
-          <div class="big">3×</div>
-          <div class="small">
-            parse-table methods — canonical LR(1), LALR(1), IELR(1)
-          </div>
-        </div>
-        <div class="gx-tile">
-          <div class="big">1 file</div>
-          <div class="small">grammar and docs are the same .grmk.md</div>
-        </div>
-        <div class="gx-tile">
-          <div class="big">closed</div>
-          <div class="small">
-            the self-hosting loop — it reads its own notation back
-          </div>
-        </div>
-      </section>
-
-      <footer class="gx-foot">
-        <span>Gramark · Apache-2.0</span>
-        <a href={`${base}docs/overview/`}>Docs</a>
-        <a href={`${base}tutorials/intro/`}>Tutorial</a>
-        <a href={`${base}lab`}>Lab</a>
-        <a href="https://github.com/wstein/grammark">GitHub ↗</a>
-      </footer>
-    </main>
-
-    <script type="module">
-      import { parseGramarkDocument } from "/src/lib/gramark-runtime.ts";
-      import { renderDiagrams } from "/src/lib/diagrams.ts";
-
-      const src = document.getElementById("showcase-src");
-      const out = document.getElementById("showcase-diagrams");
-
-      // Draw one railroad per rule, live, from the real engine's rule list —
-      // the same SVGs `gramark fmt` writes back into a .grmk.md.
-      async function render() {
-        try {
-          const result = await parseGramarkDocument(src.value);
-          const diagrams = result.rules.length
-            ? renderDiagrams(src.value, result.rules)
-            : [];
-          out.innerHTML = diagrams.length
-            ? diagrams
-                .map(
-                  (d) =>
-                    `<figure class="rr-figure"><figcaption>${d.name}</figcaption>${d.svg}</figure>`,
-                )
-                .join("")
-            : "<span style='color:var(--fg-faint);font-family:var(--font-mono);font-size:12px'>keep typing — no rule to draw yet</span>";
-        } catch {
-          out.textContent = "—";
-        }
-      }
-
-      let pending = 0;
-      src.addEventListener("input", () => {
-        clearTimeout(pending);
-        pending = window.setTimeout(render, 160);
-      });
-      render();
-
-      // Theme toggle — shares Starlight's storage key so the choice carries to
-      // the docs pages (and back).
-      const toggle = document.getElementById("theme-toggle");
-      toggle.addEventListener("click", () => {
-        const next =
-          document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-        document.documentElement.dataset.theme = next;
-        try {
-          localStorage.setItem("starlight-theme", next);
-        } catch {
-          /* ignore a blocked localStorage */
-        }
-      });
-    </script>
   </body>
 </html>
