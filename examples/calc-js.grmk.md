@@ -1,16 +1,7 @@
 # Calc-js
 
-A **live** arithmetic calculator: the meaning of each alternative is carried
-inline as a JavaScript `{% … %}` action. The `## General settings` block declares
-`%lang javascript`, so the `js` backend bakes every action into one
-self-contained `evaluate(cst)` module — the very evaluator the Lab runs in its
-sandbox.
-
-Children are passed **positionally** (by index), so an action is just an arrow
-over them: `Expr '+' Term` reduces with `(l, _, r) => l + r` — `l` is the left
-operand's value, `_` the `'+'` token's text (ignored), `r` the right operand. An
-alternative with no action is structurally transparent: its single child passes
-through.
+An arithmetic calculator that evaluates its own input — a demonstration of inline `{% … %}` actions.
+See the grammar-format spec for how an action reads its children.
 
 ## General settings
 
@@ -29,24 +20,30 @@ WS     : /[ \t\r\n]+/   %skip
 
 ```gramark
 Expr
-  : Expr '+' Term   {% (l, _, r) => l + r %}
-  | Expr '-' Term   {% (l, _, r) => l - r %}
+  : Expr '+' Term   {% (c) => c[0] + c[2] %}
+  | Expr '-' Term   {% (c) => c[0] - c[2] %}
   | Term
 ```
+
+![Railroad diagram for the Expr rule](diagrams/calc-js/expr.svg)
 
 ## Term
 
 ```gramark
 Term
-  : Term '*' Factor   {% (l, _, r) => l * r %}
-  | Term '/' Factor   {% (l, _, r) => l / r %}
+  : Term '*' Factor   {% (c) => c[0] * c[2] %}
+  | Term '/' Factor   {% (c) => c[0] / c[2] %}
   | Factor
 ```
+
+![Railroad diagram for the Term rule](diagrams/calc-js/term.svg)
 
 ## Factor
 
 ```gramark
 Factor
-  : '(' Expr ')'   {% (_, e, __) => e %}
-  | NUMBER         {% (n) => parseFloat(n) %}
+  : '(' Expr ')'   {% (c) => c[1] %}
+  | NUMBER         {% (c) => parseFloat(c[0]) %}
 ```
+
+![Railroad diagram for the Factor rule](diagrams/calc-js/factor.svg)

@@ -26,7 +26,9 @@ headings and fenced code blocks whose info string begins with `gramark`.
 - **Grammar name.** The single `# H1`. There MUST be exactly one.
 - **Nonterminal rules.** Every non-reserved `## H2` names a nonterminal; the
   `lr` block beneath it holds that rule's productions.
-- **Reserved `## H2` sections.** `Precedence` (an `lr precedence` block),
+- **Reserved `## H2` sections.** `General settings` (a `gramark settings` block
+  of document-level directives — currently `%lang <host>`, which declares the
+  language of inline `{% … %}` actions), `Precedence` (an `lr precedence` block),
   `Error messages` (an `lr errors` block), and `Generated tables` (the emitted
   FIRST/FOLLOW table). They appear in that order when present.
 - **Presentational headings.** `###` and deeper headings carry no structural
@@ -127,9 +129,14 @@ a build error.
 
 A `name:X` prefix names that right-hand position. The name is carried onto the
 IR's `rhs[].field` and feeds CST accessors and generated visitors; it does not
-change the recognized language. A bare-body action then binds the field names: a
-production `left:NUM '+' right:NUM {% Add left right %}` rewrites to
-`\left _ right -> Add left right`.
+change the recognized language. A bare-body PureScript action then binds the
+field names: a production `left:NUM '+' right:NUM {% Add left right %}` rewrites
+to `\left _ right -> Add left right`.
+
+Under `%lang javascript`, an action instead receives its children as a single
+**namedtuple** `c` — an array read by index (`c[0]`, `c[2]`) or, for a named
+position, by field (`c.left`) or destructuring (`({ left, right }) => …`). The
+field names are the same `rhs[].field` entries; unnamed positions are index-only.
 
 ### 4.5 Inline folding — `#[inline]`
 
@@ -143,11 +150,12 @@ through a wrapper so values still flow.
 A `# Name` label names an alternative. It surfaces in the IR as an optional
 `rules[].label` and drives per-alternative visitor method names and CST accessors.
 
-For a structured AST, **prefer labels over inline `{% … %}` actions** (ADR
+For a host-agnostic AST, **prefer labels over inline `{% … %}` actions** (ADR
 D37). A label like `# MulDiv` generates a typed `MulDiv(children)` method on the
-emitted `Visitor<T>` — exactly ANTLR's `visitMulDiv` pattern, and
-host-language-agnostic. Inline lambdas, by contrast, pin the grammar to one host
-(PureScript). So:
+emitted `Visitor<T>` — exactly ANTLR's `visitMulDiv` pattern — that you implement
+in any target. Inline actions, by contrast, are host source: the `%lang`
+directive declares their language, so a grammar that carries them is tied to that
+host (e.g. `%lang javascript` bakes a self-contained `evaluate(cst)`). So:
 
 ```gramark
 expr
