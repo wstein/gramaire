@@ -203,9 +203,9 @@ generic CST. Bare `{% … %}` is sugar for the **default profile**, which is
 > text with no `%lang` gets no implicit language and no implicit consumer —
 > the IR still records that text (under an `actions` key literally named
 > `"default"` now, not `"purescript"`), but it is opaque, unexecuted payload
-> until a real `%lang` names it. `grammar/lr.grmk.md` and a few `examples/`
-> files still carry bare untagged actions predating `%lang`; that's a
-> migration holdout, not a demonstrated feature.
+> until a real `%lang` names it. `grammar/lr.grmk.md` and the `examples/`
+> grammars were retagged `%lang javascript` with real, executed actions to
+> match — the migration holdout this note originally flagged is fixed.
 
 The `lr` typed-AST profile is the first one built: it is the per-symbol `SemVal`
 constructor map [`Gramark.Codegen`](../src/Gramark/Codegen.purs) consumes to
