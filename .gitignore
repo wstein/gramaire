@@ -13,6 +13,14 @@ site/.astro/
 site/.cache/
 site/.vite/
 
+# sbt / Scala build output
+target/
+project/target/
+project/project/
+.bsp/
+.bloop/
+metals.sbt
+
 # Editor / OS
 .DS_Store
 
