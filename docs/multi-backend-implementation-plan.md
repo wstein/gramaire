@@ -1,5 +1,12 @@
 # Gramark: multi-backend implementation plan
 
+> **Historical.** Written when PureScript was the reference implementation.
+> Its core recommendations — the versioned IR (`gramark-ir`), the six-backend
+> narrow waist (`ir`/`ebnf`/`dot`/`ts`/`antlr`/`js`) — have since shipped,
+> natively in Scala. Retained as the design record of why; treat status
+> tables and language-specific snippets below as a snapshot of that time,
+> not current state.
+
 How Gramark becomes a **format with many backends** rather than a PureScript
 tool with nice docs. The spine is a two-layer spec (a language-neutral Core
 plus per-target action profiles) joined to backends through one versioned

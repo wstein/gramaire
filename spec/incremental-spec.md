@@ -180,14 +180,15 @@ walk(tree)                      -> Cursor          // ordered traversal
 diagnostics(tree)               -> [Diagnostic]    // from Error nodes
 ```
 
-The PureScript first-party runtime mirrors this alongside the existing
-value-producing driver in [`Parser.purs`](../src/Gramark/Parser.purs) (`run`
-folds the tree into semantic values; the CST runtime builds the `Tree` itself):
+The Scala first-party runtime mirrors this alongside the existing
+value-producing driver in
+[`Parser.scala`](../core/src/main/scala/gramark/Parser.scala) (`run` folds the
+tree into semantic values; the CST runtime builds the `Tree` itself):
 
-```purescript
-parse  :: ParseTable -> String -> Tree
-edit   :: ParseTable -> Tree -> Edit -> String -> Tree
-errors :: Tree -> Array Diagnostic
+```scala
+def parse(table: ParseTable, src: String): Tree
+def edit(table: ParseTable, tree: Tree, edit: Edit, src: String): Tree
+def errors(tree: Tree): Vector[Diagnostic]
 ```
 
 `Tree`, `Node`, `Edit`, and `Diagnostic` are defined by this spec; `ParseTable`,
