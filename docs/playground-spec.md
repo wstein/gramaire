@@ -8,14 +8,12 @@ Status: **draft / north-star**. Tiers 1–3 are the roadmap; every feature is
 grounded in a capability the Gramaire Core already exposes, so the target Lab is
 a thin skin over real machinery, never a mock.
 
-> **Current state (be honest about it).** The shipping Lab is a limited
-> client-side **preview**: a small TypeScript recognizer (`site/src/lib/`) that
-> lexes input from a grammar's literal terminals and checks balance/structure.
-> It does **not** yet run the compiled PureScript Core, and it cannot evaluate
-> token classes (ALL-CAPS, e.g. `NUM`) — those need a per-language lexer.
-> **Tier 1's first job is to replace that recognizer with the real compiled
-> Core**, after which the rest of this roadmap unlocks. Until then the Lab must
-> say what it is (a preview) and never claim to be the real parser.
+> **Current state (be honest about it).** Tier 1's keystone has shipped: the
+> Lab runs the real, compiled Scala core (via Scala.js) in the browser, not a
+> TypeScript preview recognizer — the same `Gramaire.Lr.parse` the CLI runs.
+> The rest of this roadmap (Tiers 1's remaining items through Tier 3) tracks
+> which further capabilities have landed; keep this callout current as they
+> ship.
 
 ---
 
@@ -30,8 +28,8 @@ artifact?", "what tree did this input actually produce?" — go unanswered.
 Gramaire Lab answers them, in the browser, as you type. It is best-in-class on
 one axis none of the incumbents own: **the grammar is Markdown**, so the Lab is
 simultaneously a live editor, a rendering documentation preview, and a
-diagnostic oracle. The same PureScript Core that powers the CLI is compiled to
-JavaScript and runs client-side, so there is no round-trip, no upload, and
+diagnostic oracle. The same Scala core that powers the CLI is compiled to
+Scala.js and runs client-side, so there is no round-trip, no upload, and
 nothing to install.
 
 **Design tenets.**
@@ -153,12 +151,13 @@ can be built without new engine work unless noted.
 
 ### Tier 1 — the workbench
 
-- **T1.0 Real Core in the browser (the keystone).** Compile the PureScript Core
-  to ES modules and run `Gramaire.Lr.parse` → desugar → table build → CST in a
-  Web Worker, replacing the TypeScript preview recognizer. Everything else in
-  Tier 1+ depends on this. The Core's FS-freedom guard means the parse path has
-  no `node:fs`, so it bundles for the browser unchanged. (Input lexing for token
-  classes still needs a per-language lexer — ship a small built-in set and/or let
+- **T1.0 Real Core in the browser (the keystone). Shipped.** Compile the Scala
+  Core to Scala.js ES modules and run `Gramaire.Lr.parse` → desugar → table
+  build → CST in a Web Worker, replacing the TypeScript preview recognizer.
+  Everything else in Tier 1+ depends on this. The Core's FS-freedom guard means
+  the parse path has no `node:fs`, so it bundles for the browser unchanged.
+  (Input lexing for token classes still needs a per-language lexer — ship a
+  small built-in set and/or let
   the grammar declare one.)
 - **T1.1 Monaco dual-pane** with `.gram.md` highlighting (Markdown + an `gramaire`
   fenced-block grammar mode), a diagnostics gutter in both panes, and debounced
