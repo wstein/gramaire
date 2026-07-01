@@ -17,6 +17,13 @@ import { renderCstTree, toggleFold } from "./cst-view.ts";
 import { renderTokensTable } from "./tokens-view.ts";
 import { cstJsonToLisp } from "./lisp.ts";
 import { renderAmbiguityView } from "./ambiguity-view.ts";
+import { labGrammarHref, decodeLabHash } from "./lab-link.ts";
+import {
+  CALC_RECOGNIZER,
+  CALC_INPUT,
+  GREETING,
+  GREETING_INPUT,
+} from "./demo-grammars.ts";
 
 const jsonGrammar = readFileSync(
   fileURLToPath(new URL("../../../examples/json.gram.md", import.meta.url)),
@@ -133,6 +140,54 @@ test("the landing showcase grammar parses and draws a railroad per rule", async 
     ["Expr", "Term"],
   );
   assert.match(diagrams[0]!.svg, /^<svg/);
+});
+
+// The GrammarTryout "Open in Lab ↗" link round-trips a grammar (and optional
+// input) through the URL hash; the writer (component) and reader (lab.astro)
+// must agree via lab-link.ts, including multi-line grammars and special chars.
+test("labGrammarHref → decodeLabHash round-trips a grammar and input", () => {
+  const grammar = "Expr\n  : Expr '+' Term\n  | Term\n";
+  const input = "1 + 2 & 3";
+  const href = labGrammarHref("/gramaire/", grammar, input);
+  assert.ok(href.startsWith("/gramaire/lab#"));
+  const decoded = decodeLabHash(href.slice(href.indexOf("#")));
+  assert.equal(decoded.grammar, grammar);
+  assert.equal(decoded.input, input);
+});
+
+test("decodeLabHash omits input when only a grammar was encoded, and is empty for no hash", () => {
+  const href = labGrammarHref("/", "S\n  : 'a'\n");
+  const decoded = decodeLabHash(href.slice(href.indexOf("#")));
+  assert.equal(decoded.grammar, "S\n  : 'a'\n");
+  assert.equal(decoded.input, undefined);
+  assert.deepEqual(decodeLabHash(""), {});
+  assert.deepEqual(decodeLabHash("#"), {});
+});
+
+// The grammars embedded in the docs (docs/overview.mdx) and the tutorial
+// (tutorials/intro.mdx) via <GrammarTryout> — the same constants the pages
+// import — must parse on the real engine, accept their sample input, and draw a
+// railroad per rule, so those pages never render a dead panel or a wrong verdict.
+test("the docs overview tryout grammar accepts its sample and draws its rules", async () => {
+  const result = await parseGramaireDocument(GREETING, GREETING_INPUT);
+  assert.equal(result.success, true);
+  assert.deepEqual(result.rules, ["Greeting", "Name"]);
+  const diagrams = renderDiagrams(GREETING, result.rules);
+  assert.deepEqual(
+    diagrams.map((d) => d.name),
+    ["Greeting", "Name"],
+  );
+});
+
+test("the tutorial tryout grammar accepts its sample and draws every rule", async () => {
+  const result = await parseGramaireDocument(CALC_RECOGNIZER, CALC_INPUT);
+  assert.equal(result.success, true);
+  assert.deepEqual(result.rules, ["Expr", "Term", "Factor"]);
+  const diagrams = renderDiagrams(CALC_RECOGNIZER, result.rules);
+  assert.deepEqual(
+    diagrams.map((d) => d.name),
+    ["Expr", "Term", "Factor"],
+  );
 });
 
 test("renderDiagrams draws one railroad SVG per rule of the default grammar", () => {

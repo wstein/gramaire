@@ -38,3 +38,12 @@ samp {
   font-weight: 700;
   letter-spacing: -0.02em;
 }
+
+/* Railroad diagrams embedded in docs (the tutorial's <figure> SVGs, and the
+   same shapes the GrammarTryout component draws live) read as brand cards. */
+.sl-markdown-content figure img {
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.5rem;
+  background: var(--sl-color-bg);
+  padding: 0.5rem;
+}
