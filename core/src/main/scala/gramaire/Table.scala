@@ -239,6 +239,14 @@ object Table:
   // list), the dot position, and one terminal of lookahead.
   final case class Item(prod: Int, dot: Int, look: GSym)
 
+  // Mirrors PureScript's derived `Ord` for `Item` (prod, then dot, then look).
+  // Reduce actions and reduce/reduce conflict labels are emitted by folding a
+  // state's item set; a plain `Set[Item]` folds in hash order, so we sort first
+  // to keep conflict labels and GLR action-vector order deterministic and equal
+  // to the reference engine.
+  private given Ordering[Item] =
+    Ordering.by[Item, (Int, Int, GSym)](it => (it.prod, it.dot, it.look))
+
   private val acceptName = "$accept"
 
   // Automaton context: the augmented production list (index 0 = accept
@@ -378,7 +386,7 @@ object Table:
                   acc.copy(conflicts = acc.conflicts :+ conflictAt(i, it.look, existing, newProd))
 
     def addReduces(i: Int, acc: Fill, items: Set[Item]): Fill =
-      items.foldLeft(acc)((a, it) => addReduce(i, a, it))
+      items.toVector.sorted.foldLeft(acc)((a, it) => addReduce(i, a, it))
 
     val shifted = st.trans.foldLeft(Fill(Map.empty, Map.empty, Vector.empty)) {
       case (acc, (key, j)) =>
@@ -676,7 +684,7 @@ object Table:
         act: Map[(Int, GSym), Vector[Action]],
         items: Set[Item]
     ): Map[(Int, GSym), Vector[Action]] =
-      items.foldLeft(act)((a, it) => addReduce(i, a, it))
+      items.toVector.sorted.foldLeft(act)((a, it) => addReduce(i, a, it))
 
     val (baseAction, baseGoto) =
       st.trans.foldLeft((Map.empty[(Int, GSym), Vector[Action]], Map.empty[(Int, String), Int])) {

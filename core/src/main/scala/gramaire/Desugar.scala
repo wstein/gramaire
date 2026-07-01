@@ -300,7 +300,11 @@ object Desugar:
       lowered <- g.rules.foldLeft[Either[String, Vector[Rule]]](Right(Vector.empty)) { (acc, r) =>
         for xs <- acc; r2 <- lowerRule(r) yield xs :+ r2
       }
-    yield Grammar(lowered ++ fresh.values.toVector)
+    // Append fresh rules in ascending key order, matching the PureScript
+    // original's `Map.values` over an ordered `Data.Map`. A plain Scala `Map`
+    // iterates in insertion/hash order, which would assign different production
+    // indices (and thus CST/IR/table ids) than the reference engine.
+    yield Grammar(lowered ++ fresh.toVector.sortBy(_._1).map(_._2))
 
   /** Fold every `#[inline]` nonterminal (D28) into its use sites, then drop it.
     */
