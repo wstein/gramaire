@@ -56,6 +56,16 @@
      `currentColor`/`--gramaire-fg` to, so one inline SVG serves both themes. */
   --gramaire-fg: var(--fg);
 
+  /* Railroad-diagram ink (the renderer's `--rr-*` interface). Mapped to the
+     emerald tokens above, which already flip in dark mode — so inline
+     diagrams (LiveGrammar, Lab) stay legible on both themes instead of
+     rendering dark-on-dark. */
+  --rr-track: var(--fg-faint);
+  --rr-ink: var(--fg);
+  --rr-term-fill: var(--bg);
+  --rr-term-stroke: var(--node);
+  --rr-nonterm-fill: var(--bg-2);
+
   /* --- Starlight chrome, re-skinned from the tokens above --- */
   --sl-font: var(--font-ui);
   --sl-font-mono: var(--font-mono);
