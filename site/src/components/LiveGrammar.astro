@@ -11,7 +11,7 @@
 // (a vanilla client `<script>` wires every instance), matching the site's
 // no-UI-framework convention. Usage in .mdx / .astro:
 //   <LiveGrammar grammar={`Expr\n  : Expr '+' Term\n  | Term\n`} input="num" />
-import { labGrammarHref } from "../lib/lab-link.ts";
+import { labGrammarHref } from "../generated/site-glue.mjs";
 
 interface Props {
   /** The seed grammar (`.grmk` projection or fenced `.grmk.md`). */
@@ -206,9 +206,11 @@ const hasInput = input != null;
 </style>
 
 <script>
-  import { parseGramarkDocument } from "../lib/gramark-runtime.ts";
-  import { renderDiagrams } from "../lib/diagrams.ts";
-  import { labGrammarHref } from "../lib/lab-link.ts";
+  import {
+    parseGramarkDocument,
+    renderDiagrams,
+    labGrammarHref,
+  } from "../generated/site-glue.mjs";
 
   function wire(root: HTMLElement) {
     const base = root.dataset.base ?? "/";

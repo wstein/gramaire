@@ -14,8 +14,11 @@ import Term from "../../../components/Term.astro";
 import LiveGrammar from "../../../components/LiveGrammar.astro";
 import OpenInLab from "../../../components/OpenInLab.astro";
 import RuleDiagram from "../../../components/RuleDiagram.astro";
-import { DIGIT, CALC } from "../../../lib/demo-grammars.ts";
-import { getDefaultGrammar } from "../../../lib/gramark-runtime.ts";
+import {
+  DIGIT,
+  CALC,
+  getDefaultGrammar,
+} from "../../../generated/site-glue.mjs";
 
 Gramark's whole idea is in its name — _gram + mark_, grammar plus Markdown. A
 `.grmk.md` file is a normal Markdown document that renders on GitHub — prose,

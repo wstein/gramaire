@@ -34,20 +34,34 @@ object LabLink:
   ): Link =
     js.Dynamic.literal(grammar = grammar, input = input, preset = preset).asInstanceOf[Link]
 
-  // btoa/atob operate on Latin-1; round-trip through encodeURIComponent so any
-  // UTF-8 (the `{% … %}`, the `→`) survives, then make it URL-safe.
+  // btoa/atob are plain JS globals (available in Node 16+ as well as
+  // browsers) — NOT `window.btoa`, which would fail at build time, since
+  // `labGrammarHref`/`labPresetHref` run inside Astro frontmatter (Node SSG),
+  // not just in the browser. They operate on Latin-1; round-trip through
+  // encodeURIComponent so any UTF-8 (the `{% … %}`, the `→`) survives, then
+  // make it URL-safe.
   private def encode(text: String): String =
     val percentEscaped = js.Dynamic.global.encodeURIComponent(text).asInstanceOf[String]
-    val latin1 = "%([0-9A-Fa-f]{2})".r.replaceAllIn(
-      percentEscaped,
-      m => Integer.parseInt(m.group(1), 16).toChar.toString
-    )
-    val b64 = dom.window.btoa(latin1)
+    // Manual scan, not `Regex.replaceAllIn` with a function replacer: Java's
+    // underlying `Matcher.appendReplacement` treats a literal `\` in the
+    // replacement text as an escape character, silently eating it whenever a
+    // percent-escape decodes to a backslash (e.g. the grammar's own `\.`,
+    // `\t`, `\r`, `\n` in a regex token class) — a real bug this caught.
+    val latin1 = StringBuilder()
+    var i = 0
+    while i < percentEscaped.length do
+      if percentEscaped.charAt(i) == '%' && i + 2 < percentEscaped.length then
+        latin1.append(Integer.parseInt(percentEscaped.substring(i + 1, i + 3), 16).toChar)
+        i += 3
+      else
+        latin1.append(percentEscaped.charAt(i))
+        i += 1
+    val b64 = js.Dynamic.global.btoa(latin1.toString).asInstanceOf[String]
     b64.replace("+", "-").replace("/", "_").replaceAll("=+$", "")
 
   private def decode(enc: String): String =
     val b64 = enc.replace("-", "+").replace("_", "/")
-    val bin = dom.window.atob(b64)
+    val bin = js.Dynamic.global.atob(b64).asInstanceOf[String]
     val percentEscaped = bin.map(c => "%" + f"${c.toInt}%02x").mkString
     js.Dynamic.global.decodeURIComponent(percentEscaped).asInstanceOf[String]
 

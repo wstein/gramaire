@@ -257,6 +257,12 @@ jobs:
         # `npm run build:engine` in site/ and commit the regenerated bundle.
         run: npm run check:engine
 
+      - name: Site-glue bundles are up to date (rebuild + no drift)
+        # The site's logic-bearing TypeScript is now Scala.js
+        # (`site-glue`/`engineWorker`, Phase 5). If this fails, run
+        # `npm run build:site-glue` in site/ and commit the regenerated bundles.
+        run: npm run check:site-glue
+
       - name: Check formatting (prettier)
         run: npm run lint
 

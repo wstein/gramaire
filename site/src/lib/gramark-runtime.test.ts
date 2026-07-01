@@ -1,7 +1,13 @@
-// The lab runtime now drives the REAL Gramark engine (the bundled PureScript
-// `Gramark.Playground`), so these tests exercise that bundle end to end:
-// the default grammar, a malformed grammar, and the json example with its own
+// The lab runtime now drives the REAL Gramark engine (the bundled Scala.js
+// `gramark.Playground`, via the site-glue module's `gramark-runtime.mjs`
+// wrapper), so these tests exercise that bundle end to end: the default
+// grammar, a malformed grammar, and the json example with its own
 // `## Tokens` block — the same acceptance the CLI gives.
+//
+// Imports from the COMPILED bundle (`../generated/site-glue.mjs`), not the
+// Scala sources — this is a regression test against what actually ships,
+// mirroring how `gramark-engine.d.ts`'s consumers already test the compiled
+// artifact rather than the PureScript/Scala source directly.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -11,13 +17,18 @@ import {
   parseGramarkDocument,
   getDefaultGrammar,
   getDefaultInput,
-} from "./gramark-runtime.ts";
-import { renderDiagrams } from "./diagrams.ts";
-import { SHOWCASE, DIGIT, LIST, CALC } from "./demo-grammars.ts";
-import { labGrammarHref, readLabLink } from "./lab-link.ts";
-import { toLisp, renderCstHtml, type Cst } from "./cst-view.ts";
-import { grammarProductions } from "./diagrams.ts";
-import { computeFirstFollow } from "./first-follow.ts";
+  renderDiagrams,
+  grammarProductions,
+  computeFirstFollow,
+  SHOWCASE,
+  DIGIT,
+  LIST,
+  CALC,
+  labGrammarHref,
+  readLabLink,
+  toLisp,
+  renderCstHtml,
+} from "../generated/site-glue.mjs";
 
 const jsonGrammar = readFileSync(
   fileURLToPath(new URL("../../../examples/json.grmk.md", import.meta.url)),
@@ -193,19 +204,19 @@ test("the Tutorial §4 Calc seed evaluates its actions", async () => {
 test("lab-link round-trips a grammar + input through the URL hash", () => {
   const href = labGrammarHref("/", CALC, "2 + 3 * 4");
   const hash = href.slice(href.indexOf("#"));
-  const link = readLabLink({ hash, search: "" });
+  const link = readLabLink(hash, "");
   assert.equal(link.grammar, CALC);
   assert.equal(link.input, "2 + 3 * 4");
 });
 
 test("lab-link reads a named preset from the query string", () => {
-  const link = readLabLink({ hash: "", search: "?grammar=calc" });
+  const link = readLabLink("", "?grammar=calc");
   assert.equal(link.preset, "calc");
 });
 
 test("toLisp renders the CST with prodLhs names and leaf text (Parse tree / All parses)", async () => {
   const r = await parseGramarkDocument(getDefaultGrammar(), "1 + 2");
-  const lisp = toLisp(JSON.parse(r.cstJson) as Cst, r.prodLhs);
+  const lisp = toLisp(r.cstJson, r.prodLhs);
   // Nonterminals resolve to names, the '+' leaf survives, no bare #id leaks.
   assert.match(lisp, /^\(Expr /);
   assert.match(lisp, /"\+"/);
@@ -230,9 +241,8 @@ test("FIRST/FOLLOW is computed from the calc grammar's productions", async () =>
 
 test("renderCstHtml is foldable: a collapsed path hides its children", async () => {
   const r = await parseGramarkDocument(getDefaultGrammar(), "1 + 2");
-  const node = JSON.parse(r.cstJson) as Cst;
-  const open = renderCstHtml(node, r.prodLhs, new Set());
-  const folded = renderCstHtml(node, r.prodLhs, new Set(["0"]));
+  const open = renderCstHtml(r.cstJson, r.prodLhs, []);
+  const folded = renderCstHtml(r.cstJson, r.prodLhs, ["0"]);
   assert.match(open, /cst-kids/);
   assert.doesNotMatch(folded, /cst-kids/); // root collapsed → no children rendered
   assert.match(folded, /cst-count/); // shows the "… N" child count instead
