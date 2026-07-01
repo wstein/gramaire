@@ -54,9 +54,6 @@
   // Honour .gitignore so build output (output/, .spago/) and node_modules —
   // which contain third-party Markdown — are never linted. `vendor/` holds
   // third-party submodules (e.g. antlr-ng), tracked but not ours to lint.
-  // `archive/` holds the pre-redesign site/lab/brand kept for side-by-side
-  // reference during the rebuild (tag site-legacy-b23e6a8); it is deleted at
-  // merge and must not fail lint in the meantime.
   "gitignore": true,
-  "ignores": ["**/node_modules/**", "vendor/**", "archive/**"],
+  "ignores": ["**/node_modules/**", "vendor/**"],
 }
