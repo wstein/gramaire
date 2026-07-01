@@ -1,0 +1,60 @@
+---
+// Button/chip, matching the mock's `btn()` helper exactly (three kinds:
+// primary, ghost, chip). Renders an <a> when `href` is given, otherwise an
+// inert <span> for planned-but-not-yet-built destinations (e.g. the Lab) —
+// never a link to a route that doesn't exist yet.
+interface Props {
+  kind: "primary" | "ghost" | "chip";
+  href?: string;
+  title?: string;
+  class?: string;
+}
+const { kind, href, title, class: className } = Astro.props;
+const Tag = href ? "a" : "span";
+---
+
+<Tag
+  href={href}
+  title={title}
+  class={`btn btn--${kind} ${className ?? ""}`.trim()}
+  aria-disabled={href ? undefined : "true"}
+>
+  <slot />
+</Tag>
+
+<style>
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 14.5px;
+    padding: 11px 19px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn--primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn--ghost {
+    background: transparent;
+    color: var(--fg-secondary);
+    border: 1px solid var(--border-strong);
+  }
+  .btn--chip {
+    padding: 7px 13px;
+    font-size: 12.5px;
+    background: var(--accent-softer);
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+    font-family: var(--font-mono);
+    font-weight: 500;
+  }
+  .btn[aria-disabled="true"] {
+    cursor: default;
+    opacity: 0.55;
+  }
+</style>

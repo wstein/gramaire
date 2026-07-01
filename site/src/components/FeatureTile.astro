@@ -1,0 +1,37 @@
+---
+// One of the three home-page feature tiles (mock: `tile(big, small)`).
+interface Props {
+  big: string;
+  small: string;
+}
+const { big, small } = Astro.props;
+---
+
+<div class="tile">
+  <div class="tile__big">{big}</div>
+  <div class="tile__small">{small}</div>
+</div>
+
+<style>
+  .tile {
+    flex: 1;
+    min-width: 180px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    background: var(--bg-1);
+  }
+  .tile__big {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 28px;
+    letter-spacing: -0.5px;
+    color: var(--accent);
+  }
+  .tile__small {
+    font-size: 13.5px;
+    color: var(--fg-muted);
+    margin-top: 6px;
+    line-height: 1.45;
+  }
+</style>
