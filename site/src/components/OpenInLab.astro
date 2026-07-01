@@ -2,7 +2,7 @@
 // A small "Open … in Lab ↗" chip for the docs/spec pages — deep-links the Lab,
 // preloaded with either an inline `grammar` (+ optional `input`) via the private
 // URL hash, or a named `preset` (calc | json | lr) the Lab loads on mount.
-import { labGrammarHref, labPresetHref } from "../lib/lab-link.ts";
+import { labGrammarHref, labPresetHref } from "../generated/site-glue.mjs";
 
 interface Props {
   grammar?: string;

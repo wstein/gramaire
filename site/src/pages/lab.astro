@@ -11,8 +11,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import "../styles/custom.css";
 import BrandTopbar from "../components/BrandTopbar.astro";
-import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
-import { SHOWCASE } from "../lib/demo-grammars.ts";
+import {
+  getDefaultGrammar,
+  getDefaultInput,
+  SHOWCASE,
+} from "../generated/site-glue.mjs";
 
 const base = import.meta.env.BASE_URL;
 
@@ -524,13 +527,17 @@ const TABS = [
     </style>
 
     <script>
-      import { parseGramaireDocument } from "../lib/gramaire-runtime.ts";
-      import type { GramaireMethod } from "../lib/gramaire-runtime.ts";
-      import { parseInWorker } from "../lib/engine-client.ts";
-      import { renderDiagrams, grammarProductions } from "../lib/diagrams.ts";
-      import { computeFirstFollow } from "../lib/first-follow.ts";
-      import { toLisp, renderCstHtml, type Cst } from "../lib/cst-view.ts";
-      import { readLabLink } from "../lib/lab-link.ts";
+      import {
+        parseGramaireDocument,
+        parseInWorker,
+        renderDiagrams,
+        grammarProductions,
+        computeFirstFollow,
+        toLisp,
+        renderCstHtml,
+        readLabLink,
+      } from "../generated/site-glue.mjs";
+      import type { GramaireMethod } from "../generated/site-glue.mjs";
 
       const EXAMPLES: Record<string, { grammar: string; input: string }> =
         JSON.parse(document.getElementById("lab-examples")!.textContent!);
@@ -557,7 +564,7 @@ const TABS = [
       let treeFocusPath: string | null = null;
 
       // Preload from an Open-in-Lab link (private hash or ?grammar= preset).
-      const link = readLabLink(window.location);
+      const link = readLabLink(window.location.hash, window.location.search);
       if (link.preset && EXAMPLES[link.preset]) {
         grammarEl.value = EXAMPLES[link.preset].grammar;
         inputEl.value = EXAMPLES[link.preset].input;
@@ -694,8 +701,9 @@ const TABS = [
         "Parse tree"(r) {
           if (!r.cstJson)
             return `<p class="muted">no tree (input rejected)</p>`;
-          const node = JSON.parse(r.cstJson) as Cst;
-          const tree = renderCstHtml(node, r.prodLhs, state.collapsed);
+          const tree = renderCstHtml(r.cstJson, r.prodLhs, [
+            ...state.collapsed,
+          ]);
           return `<button type="button" class="btn-sm" id="copy-lisp">copy LISP</button>
             <div class="cst-tree" role="tree" aria-label="Parse tree">${tree}</div>`;
         },
@@ -736,7 +744,7 @@ const TABS = [
             .map(
               (j, i) =>
                 `<p class="muted">parse ${i + 1}</p><pre class="raw">${esc(
-                  toLisp(JSON.parse(j) as Cst, r.prodLhs),
+                  toLisp(j, r.prodLhs),
                 )}</pre>`,
             )
             .join("");
@@ -882,7 +890,7 @@ const TABS = [
           $("copy-lisp")?.addEventListener("click", (e) => {
             const btn = e.currentTarget as HTMLButtonElement;
             navigator.clipboard
-              ?.writeText(toLisp(JSON.parse(r.cstJson) as Cst, r.prodLhs))
+              ?.writeText(toLisp(r.cstJson, r.prodLhs))
               .then(() => {
                 btn.textContent = "✓ copied";
                 setTimeout(() => (btn.textContent = "copy LISP"), 1400);

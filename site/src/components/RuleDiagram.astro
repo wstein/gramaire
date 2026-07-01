@@ -4,8 +4,10 @@
 // inks inherit the page theme, so it flips in dark mode — unlike a static
 // <img>, whose SVG can't see the page's CSS variables. Used for the tutorial's
 // reference diagrams.
-import { parseGramaireDocument } from "../lib/gramaire-runtime.ts";
-import { renderDiagrams } from "../lib/diagrams.ts";
+import {
+  parseGramaireDocument,
+  renderDiagrams,
+} from "../generated/site-glue.mjs";
 
 interface Props {
   grammar: string;

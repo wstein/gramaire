@@ -9,9 +9,10 @@
     "preview": "astro preview",
     "deploy": "gh-pages -d dist",
     "test": "tsx --test src/lib/gramaire-runtime.test.ts",
-    "build:engine": "cd .. && sbt playground/fullLinkJS && cp playground/js/target/scala-3.4.2/gramaire-playground-opt/main.js site/src/generated/gramaire-engine.mjs",
+    "build:engine": "cd .. && sbt playground/fullLinkJS && cp playground/js/target/scala-3.4.2/gramaire-playground-opt/main.js site/src/generated/gramaire-engine.mjs && cp playground/js/target/scala-3.4.2/gramaire-playground-opt/main.js.map site/src/generated/gramaire-engine.mjs.map && perl -pi -e 's/main\\.js\\.map/gramaire-engine.mjs.map/' site/src/generated/gramaire-engine.mjs",
     "check:engine": "npm run build:engine && git diff --exit-code src/generated/gramaire-engine.mjs",
-    "build:site-glue": "cd .. && sbt siteGlue/fullLinkJS engineWorker/fullLinkJS && cp site-glue/js/target/scala-3.4.2/gramaire-site-glue-opt/main.js site/src/generated/site-glue.mjs && cp site-glue/worker-js/target/scala-3.4.2/gramaire-engine-worker-opt/main.js site/src/generated/engine-worker.mjs",
+    "build:site-glue": "cd .. && sbt siteGlue/fullLinkJS engineWorker/fullLinkJS && cp site-glue/js/target/scala-3.4.2/gramaire-site-glue-opt/main.js site/src/generated/site-glue.mjs && cp site-glue/js/target/scala-3.4.2/gramaire-site-glue-opt/main.js.map site/src/generated/site-glue.mjs.map && perl -pi -e 's/main\\.js\\.map/site-glue.mjs.map/' site/src/generated/site-glue.mjs && cp site-glue/worker-js/target/scala-3.4.2/gramaire-engine-worker-opt/main.js site/src/generated/engine-worker.mjs && cp site-glue/worker-js/target/scala-3.4.2/gramaire-engine-worker-opt/main.js.map site/src/generated/engine-worker.mjs.map && perl -pi -e 's/main\\.js\\.map/engine-worker.mjs.map/' site/src/generated/engine-worker.mjs",
+    "check:site-glue": "npm run build:site-glue && git diff --exit-code src/generated/site-glue.mjs src/generated/engine-worker.mjs",
     "format": "prettier --write \"src/**/*.{ts,astro,md,mdx}\" \"*.{json,md,mjs}\"",
     "lint": "prettier --check \"src/**/*.{ts,astro,md,mdx}\" \"*.{json,md,mjs}\""
   },
