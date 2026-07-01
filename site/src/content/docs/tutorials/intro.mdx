@@ -11,6 +11,9 @@ import {
   LinkCard,
 } from "@astrojs/starlight/components";
 import Term from "../../../components/Term.astro";
+import LiveGrammar from "../../../components/LiveGrammar.astro";
+import OpenInLab from "../../../components/OpenInLab.astro";
+import { DIGIT, CALC } from "../../../lib/demo-grammars.ts";
 
 Gramaire's whole idea is in its name — _gram + mark_, grammar plus Markdown. A
 `.gram.md` file is a normal Markdown document that renders on GitHub — prose,
@@ -143,7 +146,13 @@ shape, the stratification visible at a glance:
   <figcaption>Expr, Term, and Factor — sums of products of atoms.</figcaption>
 </figure>
 
-We will run it in §5; first, two conveniences.
+A rule draws itself. Here is the smallest possible one — edit it and watch the
+railroad redraw. There is no input box, so there is no verdict: omit the input
+and a live editor is just a diagram of the grammar.
+
+<LiveGrammar grammar={DIGIT} caption="a rule draws itself — edit it" />
+
+We will run the calculator in §5; first, two conveniences.
 
 ## 3. Surface sugar
 
@@ -213,15 +222,19 @@ gramaire explain-conflict calc.gram.md
 ## 5. Run the recognizer
 
 That is a complete grammar — and as it stands it is a **recognizer**: it answers
-exactly one question, _does this input fit?_ Paste it into the
-[Lab](/gramaire/lab) and try it (this calculator is the Lab's default):
+exactly one question, _does this input fit?_ Try it right here — edit either box
+and the real engine re-lexes, re-parses, and redraws live:
+
+<LiveGrammar grammar={CALC} input="2 + 3 * 4" />
 
 - `12 + 3 * 4` → **accepted**
 - `12 +` → **rejected** — a `Term` has to follow `+`
 
-The Lab runs the real engine — the `NUMBER` token class lexes client-side — and
-re-evaluates live as you type, so you can feel the grammar accept and reject
-without leaving the page.
+This is the same PureScript core the CLI runs — the `NUMBER` token class lexes
+client-side — so the verdict here is the verdict `gramaire` gives. Open it in the
+full Lab to see the parse tree, the trace, and the conflict analysis:
+
+<OpenInLab preset="calc" label="Open the calculator in the Lab ↗" />
 
 <Aside type="tip" title="A recognizer is already useful">
   Linters, validators, and syntax highlighters often need nothing more than
