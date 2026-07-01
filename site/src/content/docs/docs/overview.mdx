@@ -3,4 +3,19 @@ title: Overview
 description: Overview of the Gramaire project and documentation hub.
 ---
 
-Gramaire places grammar, documentation, and generated artifacts in one Markdown document. The output contract and the IR schema make the grammar both human-readable and machine-checked, and the new Gramaire Lab turns that pipeline into an interactive browser-based authoring experience backed by the repository's real PureScript parser.
+import GrammarTryout from "../../../components/GrammarTryout.astro";
+import { GREETING, GREETING_INPUT } from "../../../lib/demo-grammars.ts";
+
+Gramaire places grammar, documentation, and generated artifacts in one Markdown document. The output contract and the IR schema make the grammar both human-readable and machine-checked, and the Gramaire Lab turns that pipeline into an interactive browser-based authoring experience backed by the repository's real PureScript parser.
+
+A grammar is just a set of rules — each names a nonterminal and lists its
+productions, the alternatives separated by `|`. Terminals are quoted; a
+mixed-case name is another rule. Edit the grammar below and its railroad
+diagrams redraw; change the input and the accept/reject verdict follows —
+all client-side, on the same engine the CLI ships.
+
+<GrammarTryout grammar={GREETING} input={GREETING_INPUT} />
+
+From here, the [tutorial](/gramaire/tutorials/intro/) builds a real calculator
+grammar step by step, and the [specs](/gramaire/specs/schema-overview/) define
+the `.gram.md` envelope and the IR contract every backend reads.
