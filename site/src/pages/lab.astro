@@ -549,6 +549,7 @@ import "@fontsource/ibm-plex-mono/500.css";
       import { cstJsonToLisp, copyToClipboard } from "/src/lib/lisp.ts";
       import { renderMethodSwitch, METHODS } from "/src/lib/method-switch.ts";
       import { renderAmbiguityView } from "/src/lib/ambiguity-view.ts";
+      import { decodeLabHash } from "/src/lib/lab-link.ts";
 
       const grammarInput = document.getElementById("grammar-input");
       const inputTest = document.getElementById("input-test");
@@ -821,6 +822,13 @@ import "@fontsource/ibm-plex-mono/500.css";
             error instanceof Error ? error.message : String(error);
         });
       }
+      // A grammar handed off from an embedded GrammarTryout ("Open in Lab ↗")
+      // arrives in the URL hash — seed the editors from it before the first
+      // evaluation, so the Lab opens on exactly what the reader was editing.
+      const handoff = decodeLabHash(location.hash);
+      if (handoff.grammar != null) grammarInput.value = handoff.grammar;
+      if (handoff.input != null) inputTest.value = handoff.input;
+
       grammarInput.addEventListener("input", safeEvaluate);
       inputTest.addEventListener("input", safeEvaluate);
       safeEvaluate();
