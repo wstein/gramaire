@@ -1,77 +1,70 @@
-// A foldable rendering of the engine's raw gramaire-cst JSON (branches are
-// `{rule:<production id>, children:[...]}`, leaves are `{token,text}` — see
-// `Gramaire.Cst.toJson`). `rule` is a bare numeric id, not a name, so callers
-// must also pass `prodLhs` (`GramaireParseResult.prodLhs`, indexed the same
-// way) to label branches.
+// Pure renderers over the engine's gramaire-cst JSON — shared by the Lab's
+// Parse-tree tab and its "copy LISP" export, and by the All-parses forest.
+// Framework-free (return HTML/text), matching diagrams.ts's convention, so
+// they are unit-testable without a DOM.
 //
-// Fold state is owned by the caller (a `Set<string>` of collapsed paths, e.g.
-// "0.2.1") rather than kept here, so it survives the live re-parse-on-every-
-// keystroke loop instead of resetting on each render.
-import { escapeHtml } from "./html-utils.ts";
+// CST shape (see gramaire-engine.d.ts): a branch is `{rule, children}` where
+// `prodLhs[rule]` is the LHS nonterminal name; a leaf is `{token, text}`.
 
-export type CstNode =
-  { rule: number; children: CstNode[] } | { token: string; text: string };
+export type Cst =
+  { rule: number; children: Cst[] } | { token: string; text: string };
 
-export function parseCstJson(cstJson: string): CstNode | null {
-  if (!cstJson) return null;
-  try {
-    return JSON.parse(cstJson) as CstNode;
-  } catch {
-    return null;
-  }
+function isLeaf(node: Cst): node is { token: string; text: string } {
+  return "token" in node;
 }
 
-function countLeaves(node: CstNode): number {
-  if ("token" in node) return 1;
-  return node.children.reduce((n, c) => n + countLeaves(c), 0);
+function nameOf(node: { rule: number }, prodLhs: string[]): string {
+  return prodLhs[node.rule] ?? `#${node.rule}`;
 }
 
-function ruleName(prodLhs: string[], rule: number): string {
-  return prodLhs[rule] ?? `#${rule}`;
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/** The tree in LISP form: `(Expr (Term (Factor "1")) "+" (Term …))`. */
+export function toLisp(node: Cst, prodLhs: string[]): string {
+  if (isLeaf(node)) return JSON.stringify(node.text);
+  const kids = node.children.map((c) => toLisp(c, prodLhs));
+  const name = nameOf(node, prodLhs);
+  return kids.length ? `(${name} ${kids.join(" ")})` : `(${name})`;
 }
 
-function renderNode(
-  node: CstNode,
+/** A foldable HTML tree. `collapsed` holds tree-paths whose children are
+ * hidden; paths are stable across a re-parse (keyed by child index), so fold
+ * state survives the live re-render loop. */
+export function renderCstHtml(
+  node: Cst,
   prodLhs: string[],
-  collapsed: ReadonlySet<string>,
-  path: string,
+  collapsed: Set<string>,
+  path = "0",
 ): string {
-  if ("token" in node) {
-    return `<div class="cst-row cst-leaf" data-path="${path}"><span class="cst-gutter">•</span><span class="cst-token">${escapeHtml(node.token)}</span><span class="cst-text">${escapeHtml(JSON.stringify(node.text))}</span></div>`;
+  if (isLeaf(node)) {
+    return (
+      `<div class="cst-leaf" data-path="${path}" role="treeitem" tabindex="-1">` +
+      `<span class="cst-term">${esc(node.token)}</span> ` +
+      `<span class="cst-text">${esc(JSON.stringify(node.text))}</span></div>`
+    );
   }
-  const name = ruleName(prodLhs, node.rule);
+  const name = nameOf(node, prodLhs);
+  const isCollapsed = collapsed.has(path);
   const hasKids = node.children.length > 0;
-  const folded = hasKids && collapsed.has(path);
-  const toggle = hasKids
-    ? `<span class="cst-toggle" data-toggle-path="${path}">${folded ? "▶" : "▼"}</span>`
-    : `<span class="cst-gutter">·</span>`;
-  const countBadge = folded
-    ? `<span class="cst-count">… ${countLeaves(node)} leaves</span>`
-    : "";
-  const kids = folded
+  const glyph = !hasKids ? "" : isCollapsed ? "▶" : "▼";
+  // role=treeitem + aria-expanded so a screen reader announces the node and
+  // its fold state; tabindex=-1 makes it programmatically focusable for the
+  // roving keyboard nav the Lab wires on the enclosing role=tree.
+  const head =
+    `<div class="cst-head" data-path="${path}" role="treeitem"` +
+    (hasKids ? ` aria-expanded="${!isCollapsed}"` : "") +
+    ` tabindex="-1">` +
+    `<span class="cst-toggle" aria-hidden="true">${glyph}</span>` +
+    `<span class="cst-name">${esc(name)}</span>` +
+    (isCollapsed
+      ? ` <span class="cst-count">… ${node.children.length}</span>`
+      : "") +
+    `</div>`;
+  const kids = isCollapsed
     ? ""
-    : node.children
-        .map((c, i) => renderNode(c, prodLhs, collapsed, `${path}.${i}`))
-        .join("");
-  return `<div class="cst-branch"><div class="cst-row" data-path="${path}">${toggle}<span class="cst-rule">${escapeHtml(name)}</span>${countBadge}</div>${kids}</div>`;
-}
-
-/** Render a full foldable tree from one `gramaire-cst` JSON string. Returns ""
- * for an empty/unparseable string (e.g. a rejected input has no `cstJson`). */
-export function renderCstTree(
-  cstJson: string,
-  prodLhs: string[],
-  collapsed: ReadonlySet<string>,
-): string {
-  const root = parseCstJson(cstJson);
-  if (!root) return "";
-  return `<div class="cst-tree">${renderNode(root, prodLhs, collapsed, "0")}</div>`;
-}
-
-/** Toggle a fold path in place (mutates the passed Set) — the caller
- * re-renders afterward. Kept as a pure Set operation so the tree component
- * has no DOM/event dependency of its own. */
-export function toggleFold(collapsed: Set<string>, path: string): void {
-  if (collapsed.has(path)) collapsed.delete(path);
-  else collapsed.add(path);
+    : `<div class="cst-kids" role="group">${node.children
+        .map((c, i) => renderCstHtml(c, prodLhs, collapsed, `${path}.${i}`))
+        .join("")}</div>`;
+  return `<div class="cst-branch">${head}${kids}</div>`;
 }

@@ -1,60 +1,42 @@
-// The grammars embedded in the docs via <GrammarTryout>. Kept in one plain
-// module (not inline in MDX) so their exact source text survives Prettier's
-// MDX pass — which otherwise markdown-escapes `*` and reindents template
-// literals inside JSX — and so the pages and the tests that guard them share
-// one source of truth.
+// The grammars embedded in the Landing showcase and the Tutorial's live
+// editors, in one plain module — not inline in .astro/.mdx — so their exact
+// text survives Prettier's pass and the pages and the test suite share a
+// single source of truth (a page can never drift from what the tests prove).
 
-/** The tutorial's calculator recognizer (§5), in the raw `.gram` projection:
- * ALL-CAPS token classes up top, then the stratified expression rules. */
-export const CALC_RECOGNIZER = `NUMBER : /[0-9]+/
-WS     : /[ \\t\\r\\n]+/   %skip
-
-Expr
+/** Landing hero showcase: self-contained (literal terminals, no token block),
+ * so the real engine parses it and draws both rules' railroads with no input. */
+export const SHOWCASE = `Expr
   : Expr '+' Term
-  | Expr '-' Term
   | Term
 
 Term
-  : Term '*' Factor
-  | Term '/' Factor
-  | Factor
-
-Factor
-  : '(' Expr ')'
-  | NUMBER
+  : Term '*' 'num'
+  | 'num'
 `;
-export const CALC_INPUT = "12 + 3 * 4";
 
-/** A tiny greeting grammar for the docs overview. The `WS %skip` line lets the
- * spaced sample input lex — literal terminals alone can't skip whitespace. */
-export const GREETING = `WS : /[ \\t\\r\\n]+/   %skip
-
-Greeting
-  : 'hello' Name
-
-Name
-  : 'world'
-  | 'gramaire'
-`;
-export const GREETING_INPUT = "hello gramaire";
-
-/** The smallest possible rule, for the tutorial's input-less (diagram-only)
- * demo: a Digit is one of three literal terminals. Edit it — add a `'3'` — and
- * the railroad redraws; with no sample input there is no verdict to show. */
+/** Tutorial §1 — one rule, alternatives: the smallest thing that draws. */
 export const DIGIT = `Digit
-  : '0'
-  | '1'
-  | '2'
+  : '0' | '1' | '2' | '3' | '4'
+  | '5' | '6' | '7' | '8' | '9'
 `;
 
-/** A comma-separated list for the grammar-format spec (§2): it exercises all
- * three symbol kinds the lexical grammar names at once — an ALL-CAPS token
- * class (`NUMBER`), a literal terminal (`','`), and a nonterminal (`List`). */
-export const SPEC_LIST = `NUMBER : /[0-9]+/
+/** Tutorial §3 — recursion becomes a list. */
+export const LIST = `List
+  : List ',' 'item'
+  | 'item'
+`;
+
+/** Tutorial §4 — terminals + semantic actions (the live calculator). */
+export const CALC = `%lang javascript
+
+NUMBER : /[0-9]+(?:\\.[0-9]+)?/
 WS     : /[ \\t\\r\\n]+/   %skip
 
-List
-  : NUMBER
-  | NUMBER ',' List
+Expr
+  : Expr '+' Term   {% (c) => c.expr + c.term %}
+  | Term
+
+Term
+  : Term '*' NUMBER {% (c) => c.term * parseFloat(c.number) %}
+  | NUMBER          {% (c) => parseFloat(c.number) %}
 `;
-export const SPEC_LIST_INPUT = "1, 2, 3";

@@ -1,29 +1,25 @@
 ---
-// Overrides Starlight's default SiteTitle (which only accepts a single static
-// image logo) so the header renders the theme-reactive GramaireMark +
-// GramaireWordmark components instead of a light/dark image pair. See
-// astro.config.mjs's `components.SiteTitle` override.
+// Starlight `SiteTitle` slot override — Starlight's built-in `logo`/`title`
+// options can't render the split-stem wordmark (they take a static image or
+// plain text), so we override the slot with the brand lockup: the railroad
+// logomark + the two-color wordmark, linked home. Base-prefixed so it resolves
+// under `/gramaire/` in CI.
 import GramaireMark from "./GramaireMark.astro";
 import GramaireWordmark from "./GramaireWordmark.astro";
 
-const { siteTitleHref } = Astro.locals.starlightRoute;
+const href = import.meta.env.BASE_URL;
 ---
 
-<a href={siteTitleHref} class="site-title sl-flex">
-  <GramaireMark style="width: 1.6rem; height: 1.6rem; flex: none;" />
-  <GramaireWordmark style="height: 1.15rem; width: auto;" />
+<a href={href} class="site-title gramaire-lockup">
+  <GramaireMark size={26} />
+  <GramaireWordmark size="1.25rem" />
 </a>
 
 <style>
-  @layer starlight.core {
-    .site-title {
-      align-items: center;
-      gap: var(--sl-nav-gap);
-      font-size: var(--sl-text-h4);
-      font-weight: 600;
-      text-decoration: none;
-      white-space: nowrap;
-      min-width: 0;
-    }
+  .gramaire-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
   }
 </style>

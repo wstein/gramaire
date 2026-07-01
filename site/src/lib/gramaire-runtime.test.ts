@@ -13,20 +13,11 @@ import {
   getDefaultInput,
 } from "./gramaire-runtime.ts";
 import { renderDiagrams } from "./diagrams.ts";
-import { renderCstTree, toggleFold } from "./cst-view.ts";
-import { renderTokensTable } from "./tokens-view.ts";
-import { cstJsonToLisp } from "./lisp.ts";
-import { renderAmbiguityView } from "./ambiguity-view.ts";
-import { labGrammarHref, decodeLabHash } from "./lab-link.ts";
-import {
-  CALC_RECOGNIZER,
-  CALC_INPUT,
-  GREETING,
-  GREETING_INPUT,
-  DIGIT,
-  SPEC_LIST,
-  SPEC_LIST_INPUT,
-} from "./demo-grammars.ts";
+import { SHOWCASE, DIGIT, LIST, CALC } from "./demo-grammars.ts";
+import { labGrammarHref, readLabLink } from "./lab-link.ts";
+import { toLisp, renderCstHtml, type Cst } from "./cst-view.ts";
+import { grammarProductions } from "./diagrams.ts";
+import { computeFirstFollow } from "./first-follow.ts";
 
 const jsonGrammar = readFileSync(
   fileURLToPath(new URL("../../../examples/json.gram.md", import.meta.url)),
@@ -121,101 +112,32 @@ test("the default grammar bakes a JS evaluator that computes the sample", async 
   assert.equal(evaluate(JSON.parse(result.cstJson)), 11);
 });
 
-// The landing page (`src/pages/index.astro`) seeds its live showcase with this
-// compact, self-contained grammar; keep it parseable and drawable so the hero
-// never shows an empty "renders to ↓" panel.
-const LANDING_SHOWCASE_GRAMMAR = `Expr
-  : Expr '+' Term
-  | Term
-
-Term
-  : Term '*' 'num'
-  | 'num'
-`;
-
-test("the landing showcase grammar parses and draws a railroad per rule", async () => {
-  const result = await parseGramaireDocument(LANDING_SHOWCASE_GRAMMAR, "num");
-  assert.equal(result.success, true);
-  assert.deepEqual(result.rules, ["Expr", "Term"]);
-  const diagrams = renderDiagrams(LANDING_SHOWCASE_GRAMMAR, result.rules);
-  assert.deepEqual(
-    diagrams.map((d) => d.name),
-    ["Expr", "Term"],
-  );
-  assert.match(diagrams[0]!.svg, /^<svg/);
+test("the engine reports the lexed token stream (Tokens tab / token chips)", async () => {
+  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
+  // WS is %skip, so only the meaningful tokens survive, in source order.
+  assert.deepEqual(result.tokens, ["1", "+", "2"]);
 });
 
-// The GrammarTryout "Open in Lab ↗" link round-trips a grammar (and optional
-// input) through the URL hash; the writer (component) and reader (lab.astro)
-// must agree via lab-link.ts, including multi-line grammars and special chars.
-test("labGrammarHref → decodeLabHash round-trips a grammar and input", () => {
-  const grammar = "Expr\n  : Expr '+' Term\n  | Term\n";
-  const input = "1 + 2 & 3";
-  const href = labGrammarHref("/gramaire/", grammar, input);
-  assert.ok(href.startsWith("/gramaire/lab#"));
-  const decoded = decodeLabHash(href.slice(href.indexOf("#")));
-  assert.equal(decoded.grammar, grammar);
-  assert.equal(decoded.input, input);
+test("the default grammar is unambiguous: exactly one parse in the forest", async () => {
+  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2 * 3");
+  assert.equal(result.allCstJson.length, 1);
+  // The single forest entry matches the primary CST.
+  assert.equal(result.allCstJson[0], result.cstJson);
 });
 
-test("decodeLabHash omits input when only a grammar was encoded, and is empty for no hash", () => {
-  const href = labGrammarHref("/", "S\n  : 'a'\n");
-  const decoded = decodeLabHash(href.slice(href.indexOf("#")));
-  assert.equal(decoded.grammar, "S\n  : 'a'\n");
-  assert.equal(decoded.input, undefined);
-  assert.deepEqual(decodeLabHash(""), {});
-  assert.deepEqual(decodeLabHash("#"), {});
+test("prodLhs resolves the CST's numeric rule ids back to nonterminal names", async () => {
+  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
+  const root = JSON.parse(result.cstJson) as { rule: number };
+  // The root production's LHS is the grammar's start nonterminal, Expr.
+  assert.equal(result.prodLhs[root.rule], "Expr");
 });
 
-// The grammars embedded in the docs (docs/overview.mdx) and the tutorial
-// (tutorials/intro.mdx) via <GrammarTryout> — the same constants the pages
-// import — must parse on the real engine, accept their sample input, and draw a
-// railroad per rule, so those pages never render a dead panel or a wrong verdict.
-test("the docs overview tryout grammar accepts its sample and draws its rules", async () => {
-  const result = await parseGramaireDocument(GREETING, GREETING_INPUT);
-  assert.equal(result.success, true);
-  assert.deepEqual(result.rules, ["Greeting", "Name"]);
-  const diagrams = renderDiagrams(GREETING, result.rules);
-  assert.deepEqual(
-    diagrams.map((d) => d.name),
-    ["Greeting", "Name"],
-  );
-});
-
-test("the tutorial tryout grammar accepts its sample and draws every rule", async () => {
-  const result = await parseGramaireDocument(CALC_RECOGNIZER, CALC_INPUT);
-  assert.equal(result.success, true);
-  assert.deepEqual(result.rules, ["Expr", "Term", "Factor"]);
-  const diagrams = renderDiagrams(CALC_RECOGNIZER, result.rules);
-  assert.deepEqual(
-    diagrams.map((d) => d.name),
-    ["Expr", "Term", "Factor"],
-  );
-});
-
-// The tutorial's diagram-only (input-less) Digit demo: the panel takes no
-// input, so it only needs the grammar to parse and draw — never a verdict.
-test("the tutorial Digit demo draws its rule with no input required", async () => {
-  const result = await parseGramaireDocument(DIGIT, "");
-  assert.deepEqual(result.rules, ["Digit"]);
-  const diagrams = renderDiagrams(DIGIT, result.rules);
-  assert.deepEqual(
-    diagrams.map((d) => d.name),
-    ["Digit"],
-  );
-});
-
-// The grammar-format spec's list demo exercises a token class, a literal, and a
-// nonterminal at once; it must accept its sample and draw its rule.
-test("the spec list tryout grammar accepts its sample and draws its rule", async () => {
-  const result = await parseGramaireDocument(SPEC_LIST, SPEC_LIST_INPUT);
-  assert.equal(result.success, true);
-  assert.deepEqual(result.rules, ["List"]);
-  const diagrams = renderDiagrams(SPEC_LIST, result.rules);
-  assert.deepEqual(
-    diagrams.map((d) => d.name),
-    ["List"],
-  );
+test("the method selector is threaded through and echoed back", async () => {
+  const canonical = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
+  assert.equal(canonical.method, "Canonical");
+  const lalr = await parseGramaireDocument(getDefaultGrammar(), "1 + 2", "LALR");
+  assert.equal(lalr.method, "LALR");
+  assert.equal(lalr.success, true);
 });
 
 test("renderDiagrams draws one railroad SVG per rule of the default grammar", () => {
@@ -228,173 +150,90 @@ test("renderDiagrams draws one railroad SVG per rule of the default grammar", ()
   assert.match(diags[0]!.svg, /Railroad diagram for the Expr rule/);
 });
 
-// The classic dangling `E -> E '+' E | 'num'` grammar: genuinely ambiguous
-// (not just an LALR merge artifact) — "num + num + num" derives both a
-// left- and a right-grouped tree. No `## Tokens`/`## Precedence` section, so
-// nothing resolves the ambiguity; `Gramaire.Glr.forest` should enumerate both.
-const AMBIGUOUS_GRAMMAR = `# Ambig
+// --- Page seeds: the Landing showcase and Tutorial live editors must never
+// ship an empty/broken panel, so prove each seed parses and draws on the real
+// engine before it reaches a page.
 
-## Tokens
-
-\`\`\`gramaire tokens
-WS : /[ \\t\\r\\n]+/   %skip
-\`\`\`
-
-## Expr
-
-\`\`\`gramaire
-Expr
-  : Expr '+' Expr
-  | 'num'
-\`\`\`
-`;
-
-test("the default grammar defaults to the Canonical method and reports one parse", async () => {
-  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
-  assert.equal(result.method, "Canonical");
-  assert.equal(result.allCstJson.length, 1);
-  assert.equal(result.allCstJson[0], result.cstJson);
-});
-
-test("prodLhs maps cstJson's numeric rule ids back to rule names", async () => {
-  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2 * 3");
-  assert.ok(result.prodLhs.length > 0);
-  // Walk the CST and confirm every branch's `rule` id resolves to one of the
-  // grammar's own nonterminals via `prodLhs` (the CST only carries the id).
-  const seen = new Set<string>();
-  const walk = (node: any): void => {
-    if ("rule" in node) {
-      const name = result.prodLhs[node.rule];
-      assert.ok(name, `no prodLhs entry for rule id ${node.rule}`);
-      seen.add(name!);
-      node.children.forEach(walk);
-    }
-  };
-  walk(JSON.parse(result.cstJson));
-  assert.ok(seen.has("Expr"));
-  assert.ok(seen.has("Term"));
-});
-
-test("an explicit method is echoed back on the result", async () => {
-  const canonical = await parseGramaireDocument(
-    getDefaultGrammar(),
-    "1 + 2",
-    "Canonical",
-  );
-  const lalr = await parseGramaireDocument(getDefaultGrammar(), "1 + 2", "LALR");
-  const ielr = await parseGramaireDocument(getDefaultGrammar(), "1 + 2", "IELR");
-  assert.equal(canonical.method, "Canonical");
-  assert.equal(lalr.method, "LALR");
-  assert.equal(ielr.method, "IELR");
-  // The stratified default grammar is unambiguous and conflict-free under
-  // every method, so all three still accept the same input identically.
-  assert.equal(canonical.success, true);
-  assert.equal(lalr.success, true);
-  assert.equal(ielr.success, true);
-});
-
-test("a genuinely ambiguous grammar reports its conflict as genuine, not an LALR artifact", async () => {
-  const result = await parseGramaireDocument(AMBIGUOUS_GRAMMAR, "num");
-  assert.match(result.conflicts, /genuine/i);
-});
-
-test("Gramaire.Glr.forest enumerates every derivation of an ambiguous parse (allCstJson)", async () => {
-  const result = await parseGramaireDocument(
-    AMBIGUOUS_GRAMMAR,
-    "num + num + num",
-  );
-  // `success`/`accepted` comes from the strict single-action recognizer
-  // (`Gramaire.Conformance.recognize`), which requires a conflict-free table
-  // build for the selected method — a genuinely ambiguous grammar therefore
-  // always reports `false` here, independent of the input. The GLR forest
-  // (`allCstJson`) is a separate, more permissive analysis that still finds
-  // every derivation despite the table having a genuine conflict — this is
-  // exactly the case the Lab's ambiguity view exists for, so it must not
-  // gate on `success`.
-  assert.equal(result.success, false);
-  assert.ok(
-    result.allCstJson.length > 1,
-    `expected >1 derivation, got ${result.allCstJson.length}`,
-  );
-  // Each entry is a distinct, independently-parseable CST.
-  const parsed = result.allCstJson.map((json) => JSON.parse(json));
+test("the Landing showcase grammar parses and draws a railroad per rule", async () => {
+  const result = await parseGramaireDocument(SHOWCASE, "");
+  assert.deepEqual(result.rules, ["Expr", "Term"]);
+  const diags = renderDiagrams(SHOWCASE, result.rules);
   assert.deepEqual(
-    new Set(parsed.map((p) => JSON.stringify(p))).size,
-    parsed.length,
+    diags.map((d) => d.name),
+    ["Expr", "Term"],
   );
-  // The first entry is still the one `tree`/`cstJson` are built from.
-  assert.equal(result.allCstJson[0], result.cstJson);
-  assert.match(result.tree, /\(ambiguous: \d+ parses; showing the first\)/);
+  assert.match(diags[0]!.svg, /^<svg/);
 });
 
-test("renderCstTree labels branches with prodLhs names and folds/unfolds a path", async () => {
-  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
-  const open = renderCstTree(result.cstJson, result.prodLhs, new Set());
-  assert.match(open, /cst-rule">Expr</);
-  assert.match(open, /cst-rule">Term</);
-  assert.match(open, /cst-token">NUMBER</);
-
-  // Fold the root: children should disappear behind a leaf-count badge.
-  const collapsed = new Set<string>();
-  toggleFold(collapsed, "0");
-  const folded = renderCstTree(result.cstJson, result.prodLhs, collapsed);
-  assert.match(folded, /cst-count">… \d+ leaves/);
-  assert.doesNotMatch(folded, /cst-token">NUMBER</);
-
-  // Toggling the same path again unfolds it.
-  toggleFold(collapsed, "0");
-  assert.equal(collapsed.size, 0);
+test("the Tutorial §1 Digit seed draws with no input", async () => {
+  const result = await parseGramaireDocument(DIGIT, "");
+  assert.deepEqual(result.rules, ["Digit"]);
+  assert.match(renderDiagrams(DIGIT, result.rules)[0]!.svg, /^<svg/);
 });
 
-test("renderCstTree returns empty for a rejected input (no cstJson)", async () => {
-  const result = await parseGramaireDocument(getDefaultGrammar(), "1 +");
-  assert.equal(renderCstTree(result.cstJson, result.prodLhs, new Set()), "");
+test("the Tutorial §3 List seed accepts a comma-separated list", async () => {
+  // Literal-only grammar (no WS %skip token class), so the fallback lexer does
+  // not skip whitespace — the sample is unspaced, which is what the tutorial
+  // seeds too. Token classes (and skippable WS) arrive in §4.
+  const result = await parseGramaireDocument(LIST, "item,item,item");
+  assert.equal(result.success, true);
+  assert.deepEqual(result.tokens, ["item", ",", "item", ",", "item"]);
 });
 
-test("cstJsonToLisp round-trips the default grammar's tree with rule names and quoted leaves", async () => {
-  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
-  const lisp = cstJsonToLisp(result.cstJson, result.prodLhs);
+test("the Tutorial §4 Calc seed evaluates its actions", async () => {
+  const result = await parseGramaireDocument(CALC, "2 + 3 * 4");
+  assert.equal(result.success, true);
+  const evaluate = new Function(
+    result.evalJs.replace(/export\s+function\s+evaluate/, "function evaluate") +
+      "\nreturn evaluate;",
+  )();
+  assert.equal(evaluate(JSON.parse(result.cstJson)), 14);
+});
+
+test("lab-link round-trips a grammar + input through the URL hash", () => {
+  const href = labGrammarHref("/", CALC, "2 + 3 * 4");
+  const hash = href.slice(href.indexOf("#"));
+  const link = readLabLink({ hash, search: "" });
+  assert.equal(link.grammar, CALC);
+  assert.equal(link.input, "2 + 3 * 4");
+});
+
+test("lab-link reads a named preset from the query string", () => {
+  const link = readLabLink({ hash: "", search: "?grammar=calc" });
+  assert.equal(link.preset, "calc");
+});
+
+test("toLisp renders the CST with prodLhs names and leaf text (Parse tree / All parses)", async () => {
+  const r = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
+  const lisp = toLisp(JSON.parse(r.cstJson) as Cst, r.prodLhs);
+  // Nonterminals resolve to names, the '+' leaf survives, no bare #id leaks.
   assert.match(lisp, /^\(Expr /);
-  assert.match(lisp, /"1"/);
-  assert.match(lisp, /"2"/);
+  assert.match(lisp, /"\+"/);
+  assert.doesNotMatch(lisp, /#\d/);
 });
 
-test("renderTokensTable renders one row per lexed token, indexed from 0", async () => {
-  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
-  assert.deepEqual(result.tokens, ["1", "+", "2"]);
-  const table = renderTokensTable(result.tokens);
-  assert.match(table, /<td class="tok-idx">0<\/td>/);
-  assert.match(table, /&quot;1&quot;/);
-  assert.match(table, /&quot;\+&quot;/);
-});
-
-test("renderTokensTable reports emptiness distinctly from a real token list", () => {
-  assert.match(renderTokensTable([]), /no tokens yet/);
-});
-
-test("renderAmbiguityView reports 'Unambiguous' for a single parse", async () => {
-  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
-  const view = renderAmbiguityView(
-    result.allCstJson,
-    result.prodLhs,
-    result.success,
-    new Map(),
+test("FIRST/FOLLOW is computed from the calc grammar's productions", async () => {
+  const { rules } = await parseGramaireDocument(getDefaultGrammar());
+  const { first, follow } = computeFirstFollow(
+    grammarProductions(getDefaultGrammar(), rules),
   );
-  assert.match(view, /Unambiguous · 1 parse/);
+  // Every calc rule begins with either '(' or a NUMBER.
+  for (const n of ["Expr", "Term", "Factor"]) {
+    assert.deepEqual(first[n]!.slice().sort(), ["(", "NUMBER"]);
+  }
+  // The start symbol Expr is followed by end-of-input and the operators that
+  // can come after a full expression.
+  assert.ok(follow["Expr"]!.includes("$"));
+  assert.ok(follow["Expr"]!.includes("+"));
+  assert.ok(follow["Factor"]!.includes("*")); // a Factor can be followed by *
 });
 
-test("renderAmbiguityView reports 'Ambiguous' with a rejected-but-parsed note when success is false", async () => {
-  const result = await parseGramaireDocument(
-    AMBIGUOUS_GRAMMAR,
-    "num + num + num",
-  );
-  assert.equal(result.success, false);
-  const view = renderAmbiguityView(
-    result.allCstJson,
-    result.prodLhs,
-    result.success,
-    new Map(),
-  );
-  assert.match(view, /Ambiguous · 2 distinct parse trees/);
-  assert.match(view, /still enumerates every derivation/);
+test("renderCstHtml is foldable: a collapsed path hides its children", async () => {
+  const r = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
+  const node = JSON.parse(r.cstJson) as Cst;
+  const open = renderCstHtml(node, r.prodLhs, new Set());
+  const folded = renderCstHtml(node, r.prodLhs, new Set(["0"]));
+  assert.match(open, /cst-kids/);
+  assert.doesNotMatch(folded, /cst-kids/); // root collapsed → no children rendered
+  assert.match(folded, /cst-count/); // shows the "… N" child count instead
 });

@@ -26,7 +26,7 @@ var replicatePolyfill = function(count, value) {
   return result;
 };
 var replicateImpl = typeof Array.prototype.fill === "function" ? replicateFill : replicatePolyfill;
-var fromFoldableImpl = /* @__PURE__ */ (function() {
+var fromFoldableImpl = /* @__PURE__ */ function() {
   function Cons2(head2, tail) {
     this.head = head2;
     this.tail = tail;
@@ -50,7 +50,7 @@ var fromFoldableImpl = /* @__PURE__ */ (function() {
   return function(foldr3, xs) {
     return listToArray(foldr3(curryCons)(emptyList)(xs));
   };
-})();
+}();
 var length = function(xs) {
   return xs.length;
 };
@@ -98,7 +98,7 @@ var concat = function(xss) {
 var filterImpl = function(f, xs) {
   return xs.filter(f);
 };
-var sortByImpl = /* @__PURE__ */ (function() {
+var sortByImpl = /* @__PURE__ */ function() {
   function mergeFromTo(compare4, fromOrdering, xs1, xs2, from, to) {
     var mid;
     var i;
@@ -139,7 +139,7 @@ var sortByImpl = /* @__PURE__ */ (function() {
     mergeFromTo(compare4, fromOrdering, out, xs.slice(0), 0, xs.length);
     return out;
   };
-})();
+}();
 var sliceImpl = function(s, e, l) {
   return l.slice(s, e);
 };
@@ -218,13 +218,13 @@ var $$const = function(a) {
 var unit = void 0;
 
 // ../output/Type.Proxy/index.js
-var $$Proxy = /* @__PURE__ */ (function() {
+var $$Proxy = /* @__PURE__ */ function() {
   function $$Proxy2() {
   }
   ;
   $$Proxy2.value = new $$Proxy2();
   return $$Proxy2;
-})();
+}();
 
 // ../output/Data.Functor/index.js
 var map = function(dict) {
@@ -530,27 +530,27 @@ var notEq = function(dictEq) {
 };
 
 // ../output/Data.Ordering/index.js
-var LT = /* @__PURE__ */ (function() {
+var LT = /* @__PURE__ */ function() {
   function LT2() {
   }
   ;
   LT2.value = new LT2();
   return LT2;
-})();
-var GT = /* @__PURE__ */ (function() {
+}();
+var GT = /* @__PURE__ */ function() {
   function GT2() {
   }
   ;
   GT2.value = new GT2();
   return GT2;
-})();
-var EQ = /* @__PURE__ */ (function() {
+}();
+var EQ = /* @__PURE__ */ function() {
   function EQ2() {
   }
   ;
   EQ2.value = new EQ2();
   return EQ2;
-})();
+}();
 var eqOrdering = {
   eq: function(v) {
     return function(v1) {
@@ -612,14 +612,14 @@ var ringInt = {
 // ../output/Data.Ord/index.js
 var eqRec2 = /* @__PURE__ */ eqRec();
 var notEq2 = /* @__PURE__ */ notEq(eqOrdering);
-var ordString = /* @__PURE__ */ (function() {
+var ordString = /* @__PURE__ */ function() {
   return {
     compare: ordStringImpl(LT.value)(EQ.value)(GT.value),
     Eq0: function() {
       return eqString;
     }
   };
-})();
+}();
 var ordRecordNil = {
   compareRecord: function(v) {
     return function(v1) {
@@ -632,22 +632,22 @@ var ordRecordNil = {
     return eqRowNil;
   }
 };
-var ordInt = /* @__PURE__ */ (function() {
+var ordInt = /* @__PURE__ */ function() {
   return {
     compare: ordIntImpl(LT.value)(EQ.value)(GT.value),
     Eq0: function() {
       return eqInt;
     }
   };
-})();
-var ordChar = /* @__PURE__ */ (function() {
+}();
+var ordChar = /* @__PURE__ */ function() {
   return {
     compare: ordCharImpl(LT.value)(EQ.value)(GT.value),
     Eq0: function() {
       return eqChar;
     }
   };
-})();
+}();
 var compareRecord = function(dict) {
   return dict.compareRecord;
 };
@@ -704,7 +704,7 @@ var ordArray = function(dictOrd) {
   var compare32 = compare(dictOrd);
   var eqArray2 = eqArray(dictOrd.Eq0());
   return {
-    compare: /* @__PURE__ */ (function() {
+    compare: /* @__PURE__ */ function() {
       var toDelta = function(x) {
         return function(y) {
           var v = compare32(x)(y);
@@ -728,7 +728,7 @@ var ordArray = function(dictOrd) {
           return compare2(0)(ordArrayImpl(toDelta)(xs)(ys));
         };
       };
-    })(),
+    }(),
     Eq0: function() {
       return eqArray2;
     }
@@ -858,14 +858,14 @@ var show = function(dict) {
 
 // ../output/Data.Maybe/index.js
 var identity2 = /* @__PURE__ */ identity(categoryFn);
-var Nothing = /* @__PURE__ */ (function() {
+var Nothing = /* @__PURE__ */ function() {
   function Nothing2() {
   }
   ;
   Nothing2.value = new Nothing2();
   return Nothing2;
-})();
-var Just = /* @__PURE__ */ (function() {
+}();
+var Just = /* @__PURE__ */ function() {
   function Just2(value0) {
     this.value0 = value0;
   }
@@ -874,7 +874,7 @@ var Just = /* @__PURE__ */ (function() {
     return new Just2(value0);
   };
   return Just2;
-})();
+}();
 var showMaybe = function(dictShow) {
   var show10 = show(dictShow);
   return {
@@ -988,7 +988,7 @@ var bindMaybe = {
 };
 
 // ../output/Data.Either/index.js
-var Left = /* @__PURE__ */ (function() {
+var Left = /* @__PURE__ */ function() {
   function Left2(value0) {
     this.value0 = value0;
   }
@@ -997,8 +997,8 @@ var Left = /* @__PURE__ */ (function() {
     return new Left2(value0);
   };
   return Left2;
-})();
-var Right = /* @__PURE__ */ (function() {
+}();
+var Right = /* @__PURE__ */ function() {
   function Right2(value0) {
     this.value0 = value0;
   }
@@ -1007,7 +1007,7 @@ var Right = /* @__PURE__ */ (function() {
     return new Right2(value0);
   };
   return Right2;
-})();
+}();
 var functorEither = {
   map: function(f) {
     return function(m) {
@@ -1080,14 +1080,14 @@ var bindEither = {
     return applyEither;
   }
 };
-var applicativeEither = /* @__PURE__ */ (function() {
+var applicativeEither = /* @__PURE__ */ function() {
   return {
     pure: Right.create,
     Apply0: function() {
       return applyEither;
     }
   };
-})();
+}();
 
 // ../output/Data.EuclideanRing/foreign.js
 var intDegree = function(x) {
@@ -1337,7 +1337,7 @@ var foldlArray = function(f) {
 };
 
 // ../output/Data.Tuple/index.js
-var Tuple = /* @__PURE__ */ (function() {
+var Tuple = /* @__PURE__ */ function() {
   function Tuple2(value0, value1) {
     this.value0 = value0;
     this.value1 = value1;
@@ -1349,7 +1349,7 @@ var Tuple = /* @__PURE__ */ (function() {
     };
   };
   return Tuple2;
-})();
+}();
 var snd = function(v) {
   return v.value1;
 };
@@ -1580,7 +1580,7 @@ var functorWithIndexArray = {
 };
 
 // ../output/Data.Traversable/foreign.js
-var traverseArrayImpl = /* @__PURE__ */ (function() {
+var traverseArrayImpl = /* @__PURE__ */ function() {
   function array1(a) {
     return [a];
   }
@@ -1627,7 +1627,7 @@ var traverseArrayImpl = /* @__PURE__ */ (function() {
       };
     };
   };
-})();
+}();
 
 // ../output/Data.Traversable/index.js
 var identity3 = /* @__PURE__ */ identity(categoryFn);
@@ -1729,14 +1729,14 @@ var fromJust4 = /* @__PURE__ */ fromJust();
 var when2 = /* @__PURE__ */ when(applicativeST);
 var notEq3 = /* @__PURE__ */ notEq(eqOrdering);
 var append2 = /* @__PURE__ */ append(semigroupArray);
-var updateAt = /* @__PURE__ */ (function() {
+var updateAt = /* @__PURE__ */ function() {
   return runFn5(_updateAt)(Just.create)(Nothing.value);
-})();
+}();
 var unsafeIndex = function() {
   return runFn2(unsafeIndexImpl);
 };
 var unsafeIndex1 = /* @__PURE__ */ unsafeIndex();
-var uncons = /* @__PURE__ */ (function() {
+var uncons = /* @__PURE__ */ function() {
   return runFn3(unconsImpl)($$const(Nothing.value))(function(x) {
     return function(xs) {
       return new Just({
@@ -1745,7 +1745,7 @@ var uncons = /* @__PURE__ */ (function() {
       });
     };
   });
-})();
+}();
 var sortBy = function(comp) {
   return runFn3(sortByImpl)(comp)(function(v) {
     if (v instanceof GT) {
@@ -1795,9 +1795,9 @@ var $$null = function(xs) {
   return length(xs) === 0;
 };
 var mapWithIndex2 = /* @__PURE__ */ mapWithIndex(functorWithIndexArray);
-var index = /* @__PURE__ */ (function() {
+var index = /* @__PURE__ */ function() {
   return runFn4(indexImpl)(Just.create)(Nothing.value);
-})();
+}();
 var last = function(xs) {
   return index(xs)(length(xs) - 1 | 0);
 };
@@ -1884,23 +1884,23 @@ var nubBy = function(comp) {
     }
     ;
     if (v instanceof Just) {
-      return map1(snd)(sortWith1(fst)((function __do() {
+      return map1(snd)(sortWith1(fst)(function __do() {
         var result = unsafeThaw(singleton2(v.value0))();
         foreach(indexedAndSorted)(function(v1) {
           return function __do2() {
-            var lst = map22(/* @__PURE__ */ (function() {
+            var lst = map22(/* @__PURE__ */ function() {
               var $183 = function($185) {
                 return fromJust4(last($185));
               };
               return function($184) {
                 return snd($183($184));
               };
-            })())(unsafeFreeze(result))();
+            }())(unsafeFreeze(result))();
             return when2(notEq3(comp(lst)(v1.value1))(EQ.value))($$void2(push(v1)(result)))();
           };
         })();
         return unsafeFreeze(result)();
-      })()));
+      }()));
     }
     ;
     throw new Error("Failed pattern match at Data.Array (line 1115, column 17 - line 1123, column 28): " + [v.constructor.name]);
@@ -1913,12 +1913,12 @@ var fromFoldable = function(dictFoldable) {
   return runFn2(fromFoldableImpl)(foldr(dictFoldable));
 };
 var foldl2 = /* @__PURE__ */ foldl(foldableArray);
-var findMap = /* @__PURE__ */ (function() {
+var findMap = /* @__PURE__ */ function() {
   return runFn4(findMapImpl)(Nothing.value)(isJust);
-})();
-var findIndex = /* @__PURE__ */ (function() {
+}();
+var findIndex = /* @__PURE__ */ function() {
   return runFn4(findIndexImpl)(Just.create)(Nothing.value);
-})();
+}();
 var find2 = function(f) {
   return function(xs) {
     return map4(unsafeIndex1(xs))(findIndex(f)(xs));
@@ -1963,34 +1963,34 @@ var cons = function(x) {
 };
 var concatMap = /* @__PURE__ */ flip(/* @__PURE__ */ bind(bindArray));
 var mapMaybe = function(f) {
-  return concatMap((function() {
+  return concatMap(function() {
     var $189 = maybe([])(singleton2);
     return function($190) {
       return $189(f($190));
     };
-  })());
+  }());
 };
 var catMaybes = /* @__PURE__ */ mapMaybe(/* @__PURE__ */ identity(categoryFn));
 var any2 = /* @__PURE__ */ runFn2(anyImpl);
 var nubByEq = function(eq23) {
   return function(xs) {
-    return (function __do() {
+    return function __do() {
       var arr = newSTArray();
       foreach(xs)(function(x) {
         return function __do2() {
-          var e = map22((function() {
+          var e = map22(function() {
             var $194 = any2(function(v) {
               return eq23(v)(x);
             });
             return function($195) {
               return !$194($195);
             };
-          })())(unsafeFreeze(arr))();
+          }())(unsafeFreeze(arr))();
           return when2(e)($$void2(push(x)(arr)))();
         };
       })();
       return unsafeFreeze(arr)();
-    })();
+    }();
   };
 };
 var all2 = /* @__PURE__ */ runFn2(allImpl);
@@ -2128,7 +2128,7 @@ var enumChar = {
     return ordChar;
   }
 };
-var boundedEnumChar = /* @__PURE__ */ (function() {
+var boundedEnumChar = /* @__PURE__ */ function() {
   return {
     cardinality: toCharCode(top1) - toCharCode(bottom1) | 0,
     toEnum: charToEnum,
@@ -2140,7 +2140,7 @@ var boundedEnumChar = /* @__PURE__ */ (function() {
       return enumChar;
     }
   };
-})();
+}();
 
 // ../output/Data.String.CodeUnits/foreign.js
 var fromCharArray = function(a) {
@@ -2228,18 +2228,18 @@ var stripPrefix = function(v) {
     return Nothing.value;
   };
 };
-var indexOf = /* @__PURE__ */ (function() {
+var indexOf = /* @__PURE__ */ function() {
   return _indexOf(Just.create)(Nothing.value);
-})();
+}();
 var contains = function(pat) {
   var $23 = indexOf(pat);
   return function($24) {
     return isJust($23($24));
   };
 };
-var charAt2 = /* @__PURE__ */ (function() {
+var charAt2 = /* @__PURE__ */ function() {
   return _charAt(Just.create)(Nothing.value);
-})();
+}();
 
 // ../output/Data.String.CodePoints/index.js
 var fromEnum2 = /* @__PURE__ */ fromEnum(boundedEnumChar);
@@ -2321,12 +2321,12 @@ var indexOf2 = function(p) {
     })(indexOf(p)(s));
   };
 };
-var fromCharCode2 = /* @__PURE__ */ (function() {
+var fromCharCode2 = /* @__PURE__ */ function() {
   var $75 = toEnumWithDefaults(boundedEnumChar)(bottom(boundedChar))(top(boundedChar));
   return function($76) {
     return singleton3($75($76));
   };
-})();
+}();
 var singletonFallback = function(v) {
   if (v <= 65535) {
     return fromCharCode2(v);
@@ -2420,14 +2420,14 @@ var foldableWithIndexArray = {
 };
 
 // ../output/Data.List.Types/index.js
-var Nil = /* @__PURE__ */ (function() {
+var Nil = /* @__PURE__ */ function() {
   function Nil2() {
   }
   ;
   Nil2.value = new Nil2();
   return Nil2;
-})();
-var Cons = /* @__PURE__ */ (function() {
+}();
+var Cons = /* @__PURE__ */ function() {
   function Cons2(value0, value1) {
     this.value0 = value0;
     this.value1 = value1;
@@ -2439,11 +2439,11 @@ var Cons = /* @__PURE__ */ (function() {
     };
   };
   return Cons2;
-})();
+}();
 var foldableList = {
   foldr: function(f) {
     return function(b) {
-      var rev = (function() {
+      var rev = function() {
         var go = function($copy_v) {
           return function($copy_v1) {
             var $tco_var_v = $copy_v;
@@ -2472,7 +2472,7 @@ var foldableList = {
           };
         };
         return go(Nil.value);
-      })();
+      }();
       var $284 = foldl(foldableList)(flip(f))(b);
       return function($285) {
         return $284(rev($285));
@@ -2655,14 +2655,14 @@ var $runtime_lazy2 = function(name, moduleName, init) {
     return val;
   };
 };
-var Leaf = /* @__PURE__ */ (function() {
+var Leaf = /* @__PURE__ */ function() {
   function Leaf2() {
   }
   ;
   Leaf2.value = new Leaf2();
   return Leaf2;
-})();
-var Node = /* @__PURE__ */ (function() {
+}();
+var Node = /* @__PURE__ */ function() {
   function Node2(value0, value1, value2, value3, value4, value5) {
     this.value0 = value0;
     this.value1 = value1;
@@ -2686,15 +2686,15 @@ var Node = /* @__PURE__ */ (function() {
     };
   };
   return Node2;
-})();
-var IterLeaf = /* @__PURE__ */ (function() {
+}();
+var IterLeaf = /* @__PURE__ */ function() {
   function IterLeaf2() {
   }
   ;
   IterLeaf2.value = new IterLeaf2();
   return IterLeaf2;
-})();
-var IterEmit = /* @__PURE__ */ (function() {
+}();
+var IterEmit = /* @__PURE__ */ function() {
   function IterEmit2(value0, value1, value2) {
     this.value0 = value0;
     this.value1 = value1;
@@ -2709,8 +2709,8 @@ var IterEmit = /* @__PURE__ */ (function() {
     };
   };
   return IterEmit2;
-})();
-var IterNode = /* @__PURE__ */ (function() {
+}();
+var IterNode = /* @__PURE__ */ function() {
   function IterNode2(value0, value1) {
     this.value0 = value0;
     this.value1 = value1;
@@ -2722,15 +2722,15 @@ var IterNode = /* @__PURE__ */ (function() {
     };
   };
   return IterNode2;
-})();
-var IterDone = /* @__PURE__ */ (function() {
+}();
+var IterDone = /* @__PURE__ */ function() {
   function IterDone2() {
   }
   ;
   IterDone2.value = new IterDone2();
   return IterDone2;
-})();
-var IterNext = /* @__PURE__ */ (function() {
+}();
+var IterNext = /* @__PURE__ */ function() {
   function IterNext2(value0, value1, value2) {
     this.value0 = value0;
     this.value1 = value1;
@@ -2745,8 +2745,8 @@ var IterNext = /* @__PURE__ */ (function() {
     };
   };
   return IterNext2;
-})();
-var Split = /* @__PURE__ */ (function() {
+}();
+var Split = /* @__PURE__ */ function() {
   function Split2(value0, value1, value2) {
     this.value0 = value0;
     this.value1 = value1;
@@ -2761,8 +2761,8 @@ var Split = /* @__PURE__ */ (function() {
     };
   };
   return Split2;
-})();
-var SplitLast = /* @__PURE__ */ (function() {
+}();
+var SplitLast = /* @__PURE__ */ function() {
   function SplitLast2(value0, value1, value2) {
     this.value0 = value0;
     this.value1 = value1;
@@ -2777,7 +2777,7 @@ var SplitLast = /* @__PURE__ */ (function() {
     };
   };
   return SplitLast2;
-})();
+}();
 var unsafeNode = function(k, v, l, r) {
   if (l instanceof Leaf) {
     if (r instanceof Leaf) {
@@ -2797,14 +2797,14 @@ var unsafeNode = function(k, v, l, r) {
     }
     ;
     if (r instanceof Node) {
-      return new Node(1 + (function() {
+      return new Node(1 + function() {
         var $280 = l.value0 > r.value0;
         if ($280) {
           return l.value0;
         }
         ;
         return r.value0;
-      })() | 0, (1 + l.value1 | 0) + r.value1 | 0, k, v, l, r);
+      }() | 0, (1 + l.value1 | 0) + r.value1 | 0, k, v, l, r);
     }
     ;
     throw new Error("Failed pattern match at Data.Map.Internal (line 708, column 5 - line 712, column 68): " + [r.constructor.name]);
@@ -2812,9 +2812,9 @@ var unsafeNode = function(k, v, l, r) {
   ;
   throw new Error("Failed pattern match at Data.Map.Internal (line 700, column 32 - line 712, column 68): " + [l.constructor.name]);
 };
-var toMapIter = /* @__PURE__ */ (function() {
+var toMapIter = /* @__PURE__ */ function() {
   return flip(IterNode.create)(IterLeaf.value);
-})();
+}();
 var stepWith = function(f) {
   return function(next) {
     return function(done) {
@@ -2866,7 +2866,7 @@ var singleton6 = function(k) {
     return new Node(1, 1, k, v, Leaf.value, Leaf.value);
   };
 };
-var unsafeBalancedNode = /* @__PURE__ */ (function() {
+var unsafeBalancedNode = /* @__PURE__ */ function() {
   var height = function(v) {
     if (v instanceof Leaf) {
       return 0;
@@ -2926,7 +2926,7 @@ var unsafeBalancedNode = /* @__PURE__ */ (function() {
     ;
     throw new Error("Failed pattern match at Data.Map.Internal (line 717, column 40 - line 738, column 34): " + [l.constructor.name]);
   };
-})();
+}();
 var $lazy_unsafeSplit = /* @__PURE__ */ $runtime_lazy2("unsafeSplit", "Data.Map.Internal", function() {
   return function(comp, k, m) {
     if (m instanceof Leaf) {
@@ -3113,7 +3113,7 @@ var lookup = function(dictOrd) {
     return go;
   };
 };
-var iterMapL = /* @__PURE__ */ (function() {
+var iterMapL = /* @__PURE__ */ function() {
   var go = function($copy_iter) {
     return function($copy_v) {
       var $tco_var_iter = $copy_iter;
@@ -3148,19 +3148,19 @@ var iterMapL = /* @__PURE__ */ (function() {
     };
   };
   return go;
-})();
+}();
 var stepAscCps = /* @__PURE__ */ stepWith(iterMapL);
-var stepAsc = /* @__PURE__ */ (function() {
+var stepAsc = /* @__PURE__ */ function() {
   return stepAscCps(function(k, v, next) {
     return new IterNext(k, v, next);
   })($$const(IterDone.value));
-})();
+}();
 var eqMapIter = function(dictEq) {
   var eq13 = eq(dictEq);
   return function(dictEq1) {
     var eq23 = eq(dictEq1);
     return {
-      eq: /* @__PURE__ */ (function() {
+      eq: /* @__PURE__ */ function() {
         var go = function($copy_a) {
           return function($copy_b) {
             var $tco_var_a = $copy_a;
@@ -3196,18 +3196,18 @@ var eqMapIter = function(dictEq) {
           };
         };
         return go;
-      })()
+      }()
     };
   };
 };
-var stepUnfoldr = /* @__PURE__ */ (function() {
+var stepUnfoldr = /* @__PURE__ */ function() {
   var step = function(k, v, next) {
     return new Just(new Tuple(new Tuple(k, v), next));
   };
   return stepAscCps(step)(function(v) {
     return Nothing.value;
   });
-})();
+}();
 var toUnfoldable = function(dictUnfoldable) {
   var $784 = unfoldr(dictUnfoldable)(stepUnfoldr);
   return function($785) {
@@ -3430,7 +3430,7 @@ var foldableWithIndexMap = {
     return foldableMap;
   }
 };
-var keys = /* @__PURE__ */ (function() {
+var keys = /* @__PURE__ */ function() {
   return foldrWithIndex(foldableWithIndexMap)(function(k) {
     return function(v) {
       return function(acc) {
@@ -3438,10 +3438,10 @@ var keys = /* @__PURE__ */ (function() {
       };
     };
   })(Nil.value);
-})();
-var values = /* @__PURE__ */ (function() {
+}();
+var values = /* @__PURE__ */ function() {
   return foldr(foldableMap)(Cons.create)(Nil.value);
-})();
+}();
 var findMax = function($copy_v) {
   var $tco_done = false;
   var $tco_result;
@@ -3502,9 +3502,9 @@ var eqMap = function(dictEq) {
     };
   };
 };
-var empty2 = /* @__PURE__ */ (function() {
+var empty2 = /* @__PURE__ */ function() {
   return Leaf.value;
-})();
+}();
 var fromFoldable2 = function(dictOrd) {
   var insert12 = insert(dictOrd);
   return function(dictFoldable) {
@@ -3673,15 +3673,15 @@ var map7 = function(dictOrd) {
 };
 
 // ../output/Data.Map/index.js
-var keys2 = /* @__PURE__ */ (function() {
+var keys2 = /* @__PURE__ */ function() {
   var $38 = $$void(functorMap);
   return function($39) {
     return fromMap($38($39));
   };
-})();
+}();
 
 // ../output/Gramaire.Syntax/index.js
-var Ref = /* @__PURE__ */ (function() {
+var Ref = /* @__PURE__ */ function() {
   function Ref2(value0) {
     this.value0 = value0;
   }
@@ -3690,8 +3690,8 @@ var Ref = /* @__PURE__ */ (function() {
     return new Ref2(value0);
   };
   return Ref2;
-})();
-var Lit = /* @__PURE__ */ (function() {
+}();
+var Lit = /* @__PURE__ */ function() {
   function Lit3(value0) {
     this.value0 = value0;
   }
@@ -3700,8 +3700,8 @@ var Lit = /* @__PURE__ */ (function() {
     return new Lit3(value0);
   };
   return Lit3;
-})();
-var Rep = /* @__PURE__ */ (function() {
+}();
+var Rep = /* @__PURE__ */ function() {
   function Rep2(value0) {
     this.value0 = value0;
   }
@@ -3710,8 +3710,8 @@ var Rep = /* @__PURE__ */ (function() {
     return new Rep2(value0);
   };
   return Rep2;
-})();
-var Star = /* @__PURE__ */ (function() {
+}();
+var Star = /* @__PURE__ */ function() {
   function Star3(value0) {
     this.value0 = value0;
   }
@@ -3720,8 +3720,8 @@ var Star = /* @__PURE__ */ (function() {
     return new Star3(value0);
   };
   return Star3;
-})();
-var Opt = /* @__PURE__ */ (function() {
+}();
+var Opt = /* @__PURE__ */ function() {
   function Opt2(value0) {
     this.value0 = value0;
   }
@@ -3730,8 +3730,8 @@ var Opt = /* @__PURE__ */ (function() {
     return new Opt2(value0);
   };
   return Opt2;
-})();
-var Macro = /* @__PURE__ */ (function() {
+}();
+var Macro = /* @__PURE__ */ function() {
   function Macro2(value0, value1) {
     this.value0 = value0;
     this.value1 = value1;
@@ -3743,8 +3743,8 @@ var Macro = /* @__PURE__ */ (function() {
     };
   };
   return Macro2;
-})();
-var Field = /* @__PURE__ */ (function() {
+}();
+var Field = /* @__PURE__ */ function() {
   function Field2(value0, value1) {
     this.value0 = value0;
     this.value1 = value1;
@@ -3756,8 +3756,8 @@ var Field = /* @__PURE__ */ (function() {
     };
   };
   return Field2;
-})();
-var Group = /* @__PURE__ */ (function() {
+}();
+var Group = /* @__PURE__ */ function() {
   function Group2(value0) {
     this.value0 = value0;
   }
@@ -3766,15 +3766,15 @@ var Group = /* @__PURE__ */ (function() {
     return new Group2(value0);
   };
   return Group2;
-})();
-var Any = /* @__PURE__ */ (function() {
+}();
+var Any = /* @__PURE__ */ function() {
   function Any2() {
   }
   ;
   Any2.value = new Any2();
   return Any2;
-})();
-var Not = /* @__PURE__ */ (function() {
+}();
+var Not = /* @__PURE__ */ function() {
   function Not2(value0) {
     this.value0 = value0;
   }
@@ -3783,8 +3783,8 @@ var Not = /* @__PURE__ */ (function() {
     return new Not2(value0);
   };
   return Not2;
-})();
-var Alt = /* @__PURE__ */ (function() {
+}();
+var Alt = /* @__PURE__ */ function() {
   function Alt3(value0, value1, value2) {
     this.value0 = value0;
     this.value1 = value1;
@@ -3799,8 +3799,8 @@ var Alt = /* @__PURE__ */ (function() {
     };
   };
   return Alt3;
-})();
-var Rule = /* @__PURE__ */ (function() {
+}();
+var Rule = /* @__PURE__ */ function() {
   function Rule2(value0, value1, value2) {
     this.value0 = value0;
     this.value1 = value1;
@@ -3815,7 +3815,7 @@ var Rule = /* @__PURE__ */ (function() {
     };
   };
   return Rule2;
-})();
+}();
 
 // ../output/Gramaire.Desugar/index.js
 var elem3 = /* @__PURE__ */ elem2(eqString);
@@ -3850,7 +3850,7 @@ var wildcardLower = function(v) {
     return "";
   };
   var subSyms = function(s) {
-    return cons(s)((function() {
+    return cons(s)(function() {
       if (s instanceof Rep) {
         return subSyms(s.value0);
       }
@@ -3880,7 +3880,7 @@ var wildcardLower = function(v) {
       }
       ;
       return [];
-    })());
+    }());
   };
   var notInSet = function(set) {
     return function(t) {
@@ -4409,7 +4409,7 @@ var baseName = function(v) {
 };
 var sugarDesugar = function(v) {
   var subSyms = function(s) {
-    return cons(s)((function() {
+    return cons(s)(function() {
       if (s instanceof Rep) {
         return subSyms(s.value0);
       }
@@ -4431,7 +4431,7 @@ var sugarDesugar = function(v) {
       }
       ;
       return [];
-    })());
+    }());
   };
   var sepRule = function(key) {
     return function(x) {
@@ -4707,12 +4707,12 @@ var sugarDesugar = function(v) {
     return traverse2(build)(map8(assign(v1.value0))(bools(length(filter(optStar)(v1.value0)))));
   };
   var lowerRule = function(v1) {
-    return map12((function() {
+    return map12(function() {
       var $339 = Rule.create(v1.value0)(v1.value1);
       return function($340) {
         return $339(concat($340));
       };
-    })())(traverse2(enumerateAlt)(v1.value2));
+    }())(traverse2(enumerateAlt)(v1.value2));
   };
   return bind2(collectFresh)(function(fresh) {
     return bind2(traverse2(lowerRule)(v))(function(lowered) {
@@ -4735,14 +4735,14 @@ var mod3 = /* @__PURE__ */ mod(euclideanRingInt);
 var foldMap3 = /* @__PURE__ */ foldMap(foldableArray)(monoidString);
 var map13 = /* @__PURE__ */ map(functorArray);
 var sortWith2 = /* @__PURE__ */ sortWith(ordString);
-var JNull = /* @__PURE__ */ (function() {
+var JNull = /* @__PURE__ */ function() {
   function JNull2() {
   }
   ;
   JNull2.value = new JNull2();
   return JNull2;
-})();
-var JBool = /* @__PURE__ */ (function() {
+}();
+var JBool = /* @__PURE__ */ function() {
   function JBool2(value0) {
     this.value0 = value0;
   }
@@ -4751,8 +4751,8 @@ var JBool = /* @__PURE__ */ (function() {
     return new JBool2(value0);
   };
   return JBool2;
-})();
-var JInt = /* @__PURE__ */ (function() {
+}();
+var JInt = /* @__PURE__ */ function() {
   function JInt2(value0) {
     this.value0 = value0;
   }
@@ -4761,8 +4761,8 @@ var JInt = /* @__PURE__ */ (function() {
     return new JInt2(value0);
   };
   return JInt2;
-})();
-var JString = /* @__PURE__ */ (function() {
+}();
+var JString = /* @__PURE__ */ function() {
   function JString2(value0) {
     this.value0 = value0;
   }
@@ -4771,8 +4771,8 @@ var JString = /* @__PURE__ */ (function() {
     return new JString2(value0);
   };
   return JString2;
-})();
-var JArray = /* @__PURE__ */ (function() {
+}();
+var JArray = /* @__PURE__ */ function() {
   function JArray2(value0) {
     this.value0 = value0;
   }
@@ -4781,8 +4781,8 @@ var JArray = /* @__PURE__ */ (function() {
     return new JArray2(value0);
   };
   return JArray2;
-})();
-var JObject = /* @__PURE__ */ (function() {
+}();
+var JObject = /* @__PURE__ */ function() {
   function JObject2(value0) {
     this.value0 = value0;
   }
@@ -4791,7 +4791,7 @@ var JObject = /* @__PURE__ */ (function() {
     return new JObject2(value0);
   };
   return JObject2;
-})();
+}();
 var encodeString = function(s) {
   var hexDigit2 = function(n) {
     return fromMaybe("0")(charAt2(n)("0123456789abcdef"));
@@ -4830,7 +4830,7 @@ var encodeString = function(s) {
   };
   return '"' + (foldMap3(esc)(toCharArray(s)) + '"');
 };
-var stringify = /* @__PURE__ */ (function() {
+var stringify = /* @__PURE__ */ function() {
   var block = function(indent) {
     return function(open) {
       return function(close) {
@@ -4888,7 +4888,7 @@ var stringify = /* @__PURE__ */ (function() {
     };
   };
   return go("");
-})();
+}();
 
 // ../output/Gramaire.Table/index.js
 var lookup3 = /* @__PURE__ */ lookup(ordString);
@@ -4942,28 +4942,28 @@ var ordRecord1 = /* @__PURE__ */ ordRecord2(/* @__PURE__ */ ordRecordCons2(dotIs
 var ordSet2 = /* @__PURE__ */ ordSet(ordRecord1);
 var lookup32 = /* @__PURE__ */ lookup(ordSet2);
 var insert42 = /* @__PURE__ */ insert(ordSet2);
-var Canonical = /* @__PURE__ */ (function() {
+var Canonical = /* @__PURE__ */ function() {
   function Canonical2() {
   }
   ;
   Canonical2.value = new Canonical2();
   return Canonical2;
-})();
-var LALR = /* @__PURE__ */ (function() {
+}();
+var LALR = /* @__PURE__ */ function() {
   function LALR2() {
   }
   ;
   LALR2.value = new LALR2();
   return LALR2;
-})();
-var IELR = /* @__PURE__ */ (function() {
+}();
+var IELR = /* @__PURE__ */ function() {
   function IELR2() {
   }
   ;
   IELR2.value = new IELR2();
   return IELR2;
-})();
-var NonTerm = /* @__PURE__ */ (function() {
+}();
+var NonTerm = /* @__PURE__ */ function() {
   function NonTerm2(value0) {
     this.value0 = value0;
   }
@@ -4972,8 +4972,8 @@ var NonTerm = /* @__PURE__ */ (function() {
     return new NonTerm2(value0);
   };
   return NonTerm2;
-})();
-var Term = /* @__PURE__ */ (function() {
+}();
+var Term = /* @__PURE__ */ function() {
   function Term2(value0) {
     this.value0 = value0;
   }
@@ -4982,15 +4982,15 @@ var Term = /* @__PURE__ */ (function() {
     return new Term2(value0);
   };
   return Term2;
-})();
-var EOF = /* @__PURE__ */ (function() {
+}();
+var EOF = /* @__PURE__ */ function() {
   function EOF2() {
   }
   ;
   EOF2.value = new EOF2();
   return EOF2;
-})();
-var ShiftReduce = /* @__PURE__ */ (function() {
+}();
+var ShiftReduce = /* @__PURE__ */ function() {
   function ShiftReduce2(value0) {
     this.value0 = value0;
   }
@@ -4999,8 +4999,8 @@ var ShiftReduce = /* @__PURE__ */ (function() {
     return new ShiftReduce2(value0);
   };
   return ShiftReduce2;
-})();
-var ReduceReduce = /* @__PURE__ */ (function() {
+}();
+var ReduceReduce = /* @__PURE__ */ function() {
   function ReduceReduce2(value0) {
     this.value0 = value0;
   }
@@ -5009,29 +5009,29 @@ var ReduceReduce = /* @__PURE__ */ (function() {
     return new ReduceReduce2(value0);
   };
   return ReduceReduce2;
-})();
-var LeftA = /* @__PURE__ */ (function() {
+}();
+var LeftA = /* @__PURE__ */ function() {
   function LeftA2() {
   }
   ;
   LeftA2.value = new LeftA2();
   return LeftA2;
-})();
-var RightA = /* @__PURE__ */ (function() {
+}();
+var RightA = /* @__PURE__ */ function() {
   function RightA2() {
   }
   ;
   RightA2.value = new RightA2();
   return RightA2;
-})();
-var NonA = /* @__PURE__ */ (function() {
+}();
+var NonA = /* @__PURE__ */ function() {
   function NonA2() {
   }
   ;
   NonA2.value = new NonA2();
   return NonA2;
-})();
-var Shift = /* @__PURE__ */ (function() {
+}();
+var Shift = /* @__PURE__ */ function() {
   function Shift2(value0) {
     this.value0 = value0;
   }
@@ -5040,8 +5040,8 @@ var Shift = /* @__PURE__ */ (function() {
     return new Shift2(value0);
   };
   return Shift2;
-})();
-var Reduce = /* @__PURE__ */ (function() {
+}();
+var Reduce = /* @__PURE__ */ function() {
   function Reduce2(value0) {
     this.value0 = value0;
   }
@@ -5050,14 +5050,14 @@ var Reduce = /* @__PURE__ */ (function() {
     return new Reduce2(value0);
   };
   return Reduce2;
-})();
-var Accept = /* @__PURE__ */ (function() {
+}();
+var Accept = /* @__PURE__ */ function() {
   function Accept3() {
   }
   ;
   Accept3.value = new Accept3();
   return Accept3;
-})();
+}();
 var startSymbol = function(v) {
   return maybe("")(function(v1) {
     return v1.value0;
@@ -5246,7 +5246,7 @@ var productions = function(v) {
   };
   return concatMap(ruleProds)(v);
 };
-var lastTermOf = /* @__PURE__ */ (function() {
+var lastTermOf = /* @__PURE__ */ function() {
   var pick = function(acc) {
     return function(s) {
       if (s instanceof Term) {
@@ -5257,7 +5257,7 @@ var lastTermOf = /* @__PURE__ */ (function() {
     };
   };
   return foldl2(pick)(Nothing.value);
-})();
+}();
 var prodPrecedence = function(ctx) {
   return function(i) {
     return bind3(lastTermOf(rhsOf(ctx)(i)))(function(t) {
@@ -5633,14 +5633,14 @@ var refineOnce = function(ctx) {
         };
         var sigOf = function(c) {
           var b = blk(c);
-          var marker = (function() {
+          var marker = function() {
             var $288 = fromMaybe(false)(lookup1(b)(inadeqOf));
             if ($288) {
               return c;
             }
             ;
             return b;
-          })();
+          }();
           return new Tuple(marker, map9(succBlk(c))(symbols));
         };
         return renumber(map9(sigOf)(ids));
@@ -5769,14 +5769,14 @@ var fillGlr = function(ctx) {
               return act;
             }
             ;
-            return push2(new Tuple(i, it.look))((function() {
+            return push2(new Tuple(i, it.look))(function() {
               var $316 = it.prod === 0;
               if ($316) {
                 return Accept.value;
               }
               ;
               return new Reduce(it.prod - 1 | 0);
-            })())(act);
+            }())(act);
           };
         };
       };
@@ -5873,14 +5873,14 @@ var fillTables = function(ctx) {
             ;
             var newProd = it.prod - 1 | 0;
             var key = new Tuple(i, it.look);
-            var act = (function() {
+            var act = function() {
               var $330 = it.prod === 0;
               if ($330) {
                 return Accept.value;
               }
               ;
               return new Reduce(it.prod - 1 | 0);
-            })();
+            }();
             var v = lookup4(key)(acc.action);
             if (v instanceof Nothing) {
               return {
@@ -6214,7 +6214,7 @@ var buildGlrTablesFor = function(method) {
     var a = analyze(g);
     var ctx = mkCtx(emptyPrec)(a);
     var canonical = buildStates(ctx);
-    var states = (function() {
+    var states = function() {
       if (method instanceof Canonical) {
         return canonical;
       }
@@ -6228,7 +6228,7 @@ var buildGlrTablesFor = function(method) {
       }
       ;
       throw new Error("Failed pattern match at Gramaire.Table (line 682, column 12 - line 685, column 36): " + [method.constructor.name]);
-    })();
+    }();
     return fillGlr(ctx)(states)(a.prods);
   };
 };
@@ -6238,7 +6238,7 @@ var buildTablesForP = function(prec) {
       var a = analyze(g);
       var ctx = mkCtx(prec)(a);
       var canonical = buildStates(ctx);
-      var states = (function() {
+      var states = function() {
         if (method instanceof Canonical) {
           return canonical;
         }
@@ -6252,7 +6252,7 @@ var buildTablesForP = function(prec) {
         }
         ;
         throw new Error("Failed pattern match at Gramaire.Table (line 651, column 12 - line 654, column 36): " + [method.constructor.name]);
-      })();
+      }();
       return fillTables(ctx)(states)(a.prods);
     };
   };
@@ -6274,7 +6274,7 @@ var bind1 = /* @__PURE__ */ bind(bindEither);
 var notEq1 = /* @__PURE__ */ notEq(/* @__PURE__ */ eqMaybe(eqChar));
 var show22 = /* @__PURE__ */ show(/* @__PURE__ */ showMaybe(showChar));
 var show32 = /* @__PURE__ */ show(showInt);
-var One = /* @__PURE__ */ (function() {
+var One = /* @__PURE__ */ function() {
   function One2(value0) {
     this.value0 = value0;
   }
@@ -6283,8 +6283,8 @@ var One = /* @__PURE__ */ (function() {
     return new One2(value0);
   };
   return One2;
-})();
-var Range = /* @__PURE__ */ (function() {
+}();
+var Range = /* @__PURE__ */ function() {
   function Range2(value0, value1) {
     this.value0 = value0;
     this.value1 = value1;
@@ -6296,15 +6296,15 @@ var Range = /* @__PURE__ */ (function() {
     };
   };
   return Range2;
-})();
-var Empty = /* @__PURE__ */ (function() {
+}();
+var Empty = /* @__PURE__ */ function() {
   function Empty2() {
   }
   ;
   Empty2.value = new Empty2();
   return Empty2;
-})();
-var Lit2 = /* @__PURE__ */ (function() {
+}();
+var Lit2 = /* @__PURE__ */ function() {
   function Lit3(value0) {
     this.value0 = value0;
   }
@@ -6313,15 +6313,15 @@ var Lit2 = /* @__PURE__ */ (function() {
     return new Lit3(value0);
   };
   return Lit3;
-})();
-var AnyChar = /* @__PURE__ */ (function() {
+}();
+var AnyChar = /* @__PURE__ */ function() {
   function AnyChar2() {
   }
   ;
   AnyChar2.value = new AnyChar2();
   return AnyChar2;
-})();
-var Class = /* @__PURE__ */ (function() {
+}();
+var Class = /* @__PURE__ */ function() {
   function Class2(value0, value1) {
     this.value0 = value0;
     this.value1 = value1;
@@ -6333,8 +6333,8 @@ var Class = /* @__PURE__ */ (function() {
     };
   };
   return Class2;
-})();
-var Concat = /* @__PURE__ */ (function() {
+}();
+var Concat = /* @__PURE__ */ function() {
   function Concat2(value0) {
     this.value0 = value0;
   }
@@ -6343,8 +6343,8 @@ var Concat = /* @__PURE__ */ (function() {
     return new Concat2(value0);
   };
   return Concat2;
-})();
-var Alt2 = /* @__PURE__ */ (function() {
+}();
+var Alt2 = /* @__PURE__ */ function() {
   function Alt3(value0) {
     this.value0 = value0;
   }
@@ -6353,8 +6353,8 @@ var Alt2 = /* @__PURE__ */ (function() {
     return new Alt3(value0);
   };
   return Alt3;
-})();
-var Star2 = /* @__PURE__ */ (function() {
+}();
+var Star2 = /* @__PURE__ */ function() {
   function Star3(value0) {
     this.value0 = value0;
   }
@@ -6363,8 +6363,8 @@ var Star2 = /* @__PURE__ */ (function() {
     return new Star3(value0);
   };
   return Star3;
-})();
-var Capture = /* @__PURE__ */ (function() {
+}();
+var Capture = /* @__PURE__ */ function() {
   function Capture2(value0) {
     this.value0 = value0;
   }
@@ -6373,7 +6373,7 @@ var Capture = /* @__PURE__ */ (function() {
     return new Capture2(value0);
   };
   return Capture2;
-})();
+}();
 var swapCase = function(c) {
   if (c >= "a" && c <= "z") {
     return fromMaybe(c)(fromCharCode3(toCharCode2(c) - 32 | 0));
@@ -6421,7 +6421,7 @@ var hexDigit = function(c) {
   ;
   throw new Error("Failed pattern match at Gramaire.Regex (line 239, column 1 - line 239, column 30): " + [c.constructor.name]);
 };
-var countCaptures = /* @__PURE__ */ (function() {
+var countCaptures = /* @__PURE__ */ function() {
   var sum2 = foldl6(add2)(0);
   return function(v) {
     if (v instanceof Capture) {
@@ -6442,7 +6442,7 @@ var countCaptures = /* @__PURE__ */ (function() {
     ;
     return 0;
   };
-})();
+}();
 var ciMatch = function(caseless) {
   return function(p) {
     return function(x) {
@@ -6881,14 +6881,14 @@ var pClass = function(chars) {
         };
       };
     };
-    var v = (function() {
+    var v = function() {
       var v1 = at(chars)(pos);
       if (v1 instanceof Just && v1.value0 === "^") {
         return new Tuple(true, pos + 1 | 0);
       }
       ;
       return new Tuple(false, pos);
-    })();
+    }();
     return go([])(v.value1)(v.value0);
   };
 };
@@ -7133,7 +7133,7 @@ var bind12 = /* @__PURE__ */ bind(bindMaybe);
 var pure3 = /* @__PURE__ */ pure(applicativeEither);
 var traverse3 = /* @__PURE__ */ traverse(traversableArray)(applicativeEither);
 var map11 = /* @__PURE__ */ map(functorArray);
-var Exact = /* @__PURE__ */ (function() {
+var Exact = /* @__PURE__ */ function() {
   function Exact2(value0) {
     this.value0 = value0;
   }
@@ -7142,8 +7142,8 @@ var Exact = /* @__PURE__ */ (function() {
     return new Exact2(value0);
   };
   return Exact2;
-})();
-var Regex = /* @__PURE__ */ (function() {
+}();
+var Regex = /* @__PURE__ */ function() {
   function Regex2(value0, value1) {
     this.value0 = value0;
     this.value1 = value1;
@@ -7155,8 +7155,8 @@ var Regex = /* @__PURE__ */ (function() {
     };
   };
   return Regex2;
-})();
-var words = /* @__PURE__ */ (function() {
+}();
+var words = /* @__PURE__ */ function() {
   var $116 = filter(function(v) {
     return v !== "";
   });
@@ -7164,7 +7164,7 @@ var words = /* @__PURE__ */ (function() {
   return function($118) {
     return $116($117($118));
   };
-})();
+}();
 var validateName = function(name) {
   var isUpper = function(c) {
     return c >= "A" && c <= "Z";
@@ -7304,13 +7304,13 @@ var parseDefinition = function(s) {
   if (v instanceof Just && v.value0 === "/") {
     return bind5(readDelimited("/")(false)(drop3(1)(s)))(function(v1) {
       var iflag = take3(1)(v1.value1) === "i";
-      var rest$prime = trim((function() {
+      var rest$prime = trim(function() {
         if (iflag) {
           return drop3(1)(v1.value1);
         }
         ;
         return v1.value1;
-      })());
+      }());
       var v2 = parseRegex(v1.value0);
       if (v2 instanceof Left) {
         return new Left("invalid pattern /" + (v1.value0 + ("/: " + v2.value0)));
@@ -7335,7 +7335,7 @@ var externalPass = function(w) {
     return stripSuffix(")")(inner);
   });
 };
-var parseModifiers = /* @__PURE__ */ (function() {
+var parseModifiers = /* @__PURE__ */ function() {
   var go = function($copy_acc) {
     return function($copy_ws) {
       var $tco_var_acc = $copy_acc;
@@ -7445,7 +7445,7 @@ var parseModifiers = /* @__PURE__ */ (function() {
     external: Nothing.value,
     caseless: false
   });
-})();
+}();
 var parseLine = function(line) {
   var v = splitFirstColon(line);
   if (v instanceof Nothing) {
@@ -7494,7 +7494,7 @@ var fromFoldable13 = /* @__PURE__ */ fromFoldable3(foldableArray)(ordString);
 var insertWith12 = /* @__PURE__ */ insertWith(ordString);
 var disj2 = /* @__PURE__ */ disj(heytingAlgebraBoolean);
 var member13 = /* @__PURE__ */ member2(ordString);
-var IRLiteral = /* @__PURE__ */ (function() {
+var IRLiteral = /* @__PURE__ */ function() {
   function IRLiteral2(value0, value1) {
     this.value0 = value0;
     this.value1 = value1;
@@ -7506,8 +7506,8 @@ var IRLiteral = /* @__PURE__ */ (function() {
     };
   };
   return IRLiteral2;
-})();
-var IRClass = /* @__PURE__ */ (function() {
+}();
+var IRClass = /* @__PURE__ */ function() {
   function IRClass2(value0, value1) {
     this.value0 = value0;
     this.value1 = value1;
@@ -7519,8 +7519,8 @@ var IRClass = /* @__PURE__ */ (function() {
     };
   };
   return IRClass2;
-})();
-var IRRefNT = /* @__PURE__ */ (function() {
+}();
+var IRRefNT = /* @__PURE__ */ function() {
   function IRRefNT2(value0, value1) {
     this.value0 = value0;
     this.value1 = value1;
@@ -7532,8 +7532,8 @@ var IRRefNT = /* @__PURE__ */ (function() {
     };
   };
   return IRRefNT2;
-})();
-var IRRefT = /* @__PURE__ */ (function() {
+}();
+var IRRefT = /* @__PURE__ */ function() {
   function IRRefT2(value0, value1) {
     this.value0 = value0;
     this.value1 = value1;
@@ -7545,8 +7545,8 @@ var IRRefT = /* @__PURE__ */ (function() {
     };
   };
   return IRRefT2;
-})();
-var OnTerm = /* @__PURE__ */ (function() {
+}();
+var OnTerm = /* @__PURE__ */ function() {
   function OnTerm2(value0) {
     this.value0 = value0;
   }
@@ -7555,15 +7555,15 @@ var OnTerm = /* @__PURE__ */ (function() {
     return new OnTerm2(value0);
   };
   return OnTerm2;
-})();
-var OnEof = /* @__PURE__ */ (function() {
+}();
+var OnEof = /* @__PURE__ */ function() {
   function OnEof2() {
   }
   ;
   OnEof2.value = new OnEof2();
   return OnEof2;
-})();
-var ActShift = /* @__PURE__ */ (function() {
+}();
+var ActShift = /* @__PURE__ */ function() {
   function ActShift2(value0) {
     this.value0 = value0;
   }
@@ -7572,8 +7572,8 @@ var ActShift = /* @__PURE__ */ (function() {
     return new ActShift2(value0);
   };
   return ActShift2;
-})();
-var ActReduce = /* @__PURE__ */ (function() {
+}();
+var ActReduce = /* @__PURE__ */ function() {
   function ActReduce2(value0) {
     this.value0 = value0;
   }
@@ -7582,14 +7582,14 @@ var ActReduce = /* @__PURE__ */ (function() {
     return new ActReduce2(value0);
   };
   return ActReduce2;
-})();
-var ActAccept = /* @__PURE__ */ (function() {
+}();
+var ActAccept = /* @__PURE__ */ function() {
   function ActAccept2() {
   }
   ;
   ActAccept2.value = new ActAccept2();
   return ActAccept2;
-})();
+}();
 var withActionLang = function(v) {
   return function(v1) {
     if (v instanceof Nothing) {
@@ -7659,9 +7659,9 @@ var effectiveFields = function(g) {
     var autoBase = function(v) {
       if (v instanceof IRRefNT) {
         return map17(function($443) {
-          return toLower((function(v12) {
+          return toLower(function(v12) {
             return v12.name;
-          })($443));
+          }($443));
         })(find2(function(n) {
           return n.id === v.value0;
         })(g.nonterminals));
@@ -7734,7 +7734,7 @@ var assembleTables = function(algorithm) {
           })(toUnfoldable6(m));
         };
         var gotoList = toUnfoldable6(table["goto"]);
-        var gotoByState = (function() {
+        var gotoByState = function() {
           var step = function(m) {
             return function(v) {
               return insertWith4(append4)(v.value0.value0)([{
@@ -7744,9 +7744,9 @@ var assembleTables = function(algorithm) {
             };
           };
           return foldl7(step)(empty2)(gotoList);
-        })();
+        }();
         var actionList = toUnfoldable6(table.action);
-        var stateCount = (function() {
+        var stateCount = function() {
           var shiftTarget = function(v) {
             if (v.value1 instanceof Shift) {
               return new Just(v.value1.value0);
@@ -7762,7 +7762,7 @@ var assembleTables = function(algorithm) {
             return v.value1;
           })(gotoList))));
           return 1 + foldl7(max4)(-1 | 0)(allStates) | 0;
-        })();
+        }();
         var actOf = function(v) {
           if (v instanceof Shift) {
             return new ActShift(v.value0);
@@ -7778,7 +7778,7 @@ var assembleTables = function(algorithm) {
           ;
           throw new Error("Failed pattern match at Gramaire.IR (line 474, column 11 - line 477, column 24): " + [v.constructor.name]);
         };
-        var actionByState = (function() {
+        var actionByState = function() {
           var step = function(m) {
             return function(v) {
               return insertWith4(append4)(v.value0.value0)([{
@@ -7788,7 +7788,7 @@ var assembleTables = function(algorithm) {
             };
           };
           return foldl7(step)(empty2)(actionList);
-        })();
+        }();
         return {
           algorithm,
           stateCount,
@@ -7841,15 +7841,15 @@ var buildIRP = function(prec) {
             };
           };
         })(ntNames);
-        var allSyms = (function() {
+        var allSyms = function() {
           var altSyms = function(v12) {
             return v12.value0;
           };
           return concatMap(function(v12) {
             return concatMap(altSyms)(v12.value2);
           })(v);
-        })();
-        var termLiteralMap = (function() {
+        }();
+        var termLiteralMap = function() {
           var perSym = function(m) {
             return function(v12) {
               if (v12 instanceof Lit) {
@@ -7901,7 +7901,7 @@ var buildIRP = function(prec) {
             };
           };
           return foldl7(perSym)(empty2)(allSyms);
-        })();
+        }();
         var termEntries = mapWithIndex2(function(i) {
           return function(v12) {
             return {
@@ -7917,7 +7917,7 @@ var buildIRP = function(prec) {
         var termId = function(s) {
           return fromMaybe(-1 | 0)(lookup6(s)(termIdMap));
         };
-        var irPrecedence = (function() {
+        var irPrecedence = function() {
           var grouped = foldl7(function(m) {
             return function(v12) {
               return insertWith4(append4)(v12.value1.level)([{
@@ -7945,20 +7945,20 @@ var buildIRP = function(prec) {
             return {
               level: v12.value0,
               assoc: maybe("left")(function($444) {
-                return assocStr((function(v2) {
+                return assocStr(function(v2) {
                   return v2.assoc;
-                })($444));
+                }($444));
               })(head(v12.value1)),
               terminals: map16(function($445) {
-                return termId((function(v2) {
+                return termId(function(v2) {
                   return v2.term;
-                })($445));
+                }($445));
               })(v12.value1)
             };
           };
           return map16(toLevel)(toUnfoldable6(grouped));
-        })();
-        var irRules = (function() {
+        }();
+        var irRules = function() {
           var withField = function(f) {
             return function(v12) {
               if (v12 instanceof IRRefNT) {
@@ -8027,7 +8027,7 @@ var buildIRP = function(prec) {
                 lhs: ntId(v12.value0),
                 rhs: map16(toRef)(v12.value1.value0),
                 label: v12.value1.value1,
-                actions: (function() {
+                actions: function() {
                   if (v12.value1.value2 instanceof Just) {
                     return [new Tuple("purescript", v12.value1.value2.value0)];
                   }
@@ -8037,7 +8037,7 @@ var buildIRP = function(prec) {
                   }
                   ;
                   throw new Error("Failed pattern match at Gramaire.IR (line 397, column 18 - line 399, column 24): " + [v12.value1.value2.constructor.name]);
-                })()
+                }()
               };
             };
           };
@@ -8047,7 +8047,7 @@ var buildIRP = function(prec) {
             })(v12.value2);
           })(v);
           return mapWithIndex2(toRule)(flat);
-        })();
+        }();
         var terminals = map16(function(e) {
           if (e.isLiteral) {
             return new IRLiteral(e.id, e.str);
@@ -8169,9 +8169,9 @@ var emit = function(ir) {
 
 // ../output/Gramaire.Bootstrap/index.js
 var lrTokensSource = /* @__PURE__ */ joinWith("\n")(["WS       : /[ \\t]+/                       %skip", "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/      %external(layout)", "ATTR     : /#\\[([A-Za-z_][A-Za-z0-9_]*)\\]/", "IDENT    : /[A-Za-z_][A-Za-z0-9_]*/", `TERM_LIT : /'(?:[^'\\\\]|\\\\.)*'|"(?:[^"\\\\]|\\\\.)*"/`, "ACTION   : /\\{%((?:[^%]|%[^}])*)%\\}/", "LABEL    : /#[ \\t]*([A-Za-z_][A-Za-z0-9_]*)/", 'PLUS     : "+"', 'STAR     : "*"', 'QUESTION : "?"', 'LANGLE   : "<"', 'RANGLE   : ">"', 'COMMA    : ","']);
-var bootstrapGrammar = /* @__PURE__ */ (function() {
+var bootstrapGrammar = /* @__PURE__ */ function() {
   return [new Rule("Grammar", [], [new Alt([new Ref("RuleList")], Nothing.value, new Just("\\rs -> Grammar rs"))]), new Rule("RuleList", [], [new Alt([new Ref("Rule")], Nothing.value, new Just("\\r -> [r]")), new Alt([new Ref("RuleList"), new Ref("NL"), new Ref("Rule")], Nothing.value, new Just("\\rs _ r -> snoc rs r"))]), new Rule("Rule", [], [new Alt([new Ref("ATTR"), new Ref("IDENT"), new Ref("NL"), new Lit(":"), new Ref("Body")], Nothing.value, new Just("\\attr lhs _ _ alts -> Rule lhs [ attr ] alts")), new Alt([new Ref("IDENT"), new Ref("NL"), new Lit(":"), new Ref("Body")], Nothing.value, new Just("\\lhs _ _ alts -> Rule lhs [] alts"))]), new Rule("Body", [], [new Alt([new Ref("Alt")], Nothing.value, new Just("\\a -> [a]")), new Alt([new Ref("Body"), new Lit("|"), new Ref("Alt")], Nothing.value, new Just("\\bs _ a -> snoc bs a"))]), new Rule("Alt", [], [new Alt([new Ref("SymList"), new Ref("Label"), new Ref("Action")], Nothing.value, new Just("\\syms lbl act -> Alt syms lbl act")), new Alt([new Ref("SymList"), new Ref("Label")], Nothing.value, new Just("\\syms lbl -> Alt syms lbl Nothing")), new Alt([new Ref("SymList"), new Ref("Action")], Nothing.value, new Just("\\syms act -> Alt syms Nothing act")), new Alt([new Ref("SymList")], Nothing.value, new Just("\\syms -> Alt syms Nothing Nothing"))]), new Rule("SymList", [], [new Alt([new Ref("Sym")], Nothing.value, new Just("\\s -> [s]")), new Alt([new Ref("SymList"), new Ref("Sym")], Nothing.value, new Just("\\ss s -> snoc ss s"))]), new Rule("Sym", [], [new Alt([new Ref("IDENT")], Nothing.value, new Just("\\i -> Ref i")), new Alt([new Ref("TERM_LIT")], Nothing.value, new Just("\\t -> Lit t")), new Alt([new Ref("IDENT"), new Ref("PLUS")], Nothing.value, new Just("\\i _ -> Rep (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("PLUS")], Nothing.value, new Just("\\t _ -> Rep (Lit t)")), new Alt([new Ref("IDENT"), new Ref("STAR")], Nothing.value, new Just("\\i _ -> Star (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("STAR")], Nothing.value, new Just("\\t _ -> Star (Lit t)")), new Alt([new Ref("IDENT"), new Ref("QUESTION")], Nothing.value, new Just("\\i _ -> Opt (Ref i)")), new Alt([new Ref("TERM_LIT"), new Ref("QUESTION")], Nothing.value, new Just("\\t _ -> Opt (Lit t)")), new Alt([new Ref("IDENT"), new Ref("LANGLE"), new Ref("Args"), new Ref("RANGLE")], Nothing.value, new Just("\\name _ args _ -> Macro name args")), new Alt([new Ref("IDENT"), new Lit(":"), new Ref("Sym")], Nothing.value, new Just("\\name _ s -> Field name s")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")")], Nothing.value, new Just("\\_ g _ -> Group g")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")"), new Ref("PLUS")], Nothing.value, new Just("\\_ g _ _ -> Rep (Group g)")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")"), new Ref("STAR")], Nothing.value, new Just("\\_ g _ _ -> Star (Group g)")), new Alt([new Lit("("), new Ref("GroupBody"), new Lit(")"), new Ref("QUESTION")], Nothing.value, new Just("\\_ g _ _ -> Opt (Group g)")), new Alt([new Ref("Atom")], Nothing.value, new Just("\\a -> a")), new Alt([new Ref("Atom"), new Ref("PLUS")], Nothing.value, new Just("\\a _ -> Rep a")), new Alt([new Ref("Atom"), new Ref("STAR")], Nothing.value, new Just("\\a _ -> Star a")), new Alt([new Ref("Atom"), new Ref("QUESTION")], Nothing.value, new Just("\\a _ -> Opt a"))]), new Rule("Args", [], [new Alt([new Ref("Sym")], Nothing.value, new Just("\\s -> [s]")), new Alt([new Ref("Args"), new Ref("COMMA"), new Ref("Sym")], Nothing.value, new Just("\\as _ s -> snoc as s"))]), new Rule("Action", [], [new Alt([new Ref("ACTION")], Nothing.value, new Just("\\a -> Just a"))]), new Rule("Label", [], [new Alt([new Ref("LABEL")], Nothing.value, new Just("\\l -> Just l"))]), new Rule("GroupBody", [], [new Alt([new Ref("SymList")], Nothing.value, new Just("\\syms -> [syms]")), new Alt([new Ref("GroupBody"), new Lit("|"), new Ref("SymList")], Nothing.value, new Just("\\alts _ syms -> snoc alts syms"))]), new Rule("Atom", [], [new Alt([new Lit(".")], Nothing.value, new Just("\\_ -> Any")), new Alt([new Lit("~"), new Ref("NotArg")], Nothing.value, new Just("\\_ s -> Not s"))]), new Rule("NotArg", [], [new Alt([new Ref("SetItem")], Nothing.value, new Just("\\i -> [i]")), new Alt([new Lit("("), new Ref("SetBody"), new Lit(")")], Nothing.value, new Just("\\_ s _ -> s"))]), new Rule("SetBody", [], [new Alt([new Ref("SetItem")], Nothing.value, new Just("\\i -> [i]")), new Alt([new Ref("SetBody"), new Lit("|"), new Ref("SetItem")], Nothing.value, new Just("\\s _ i -> snoc s i"))]), new Rule("SetItem", [], [new Alt([new Ref("IDENT")], Nothing.value, new Just("\\i -> Ref i")), new Alt([new Ref("TERM_LIT")], Nothing.value, new Just("\\t -> Lit t"))])];
-})();
+}();
 
 // ../output/Gramaire.Lexer/index.js
 var map20 = /* @__PURE__ */ map(functorMaybe);
@@ -8276,14 +8276,14 @@ var prodName = function(prods) {
   return function(i) {
     var v = index(prods)(i);
     if (v instanceof Just) {
-      return v.value0.lhs + (" -> " + (function() {
+      return v.value0.lhs + (" -> " + function() {
         var $33 = $$null(v.value0.rhs);
         if ($33) {
           return "\u03B5";
         }
         ;
         return joinWith(" ")(map21(sym)(v.value0.rhs));
-      })());
+      }());
     }
     ;
     if (v instanceof Nothing) {
@@ -8331,14 +8331,14 @@ var checkDefined = function(g) {
     return new Right(g);
   }
   ;
-  return new Left("undefined nonterminal" + ((function() {
+  return new Left("undefined nonterminal" + (function() {
     var $48 = length(v) === 1;
     if ($48) {
       return " ";
     }
     ;
     return "s ";
-  })() + (joinWith(", ")(map21(function(n) {
+  }() + (joinWith(", ")(map21(function(n) {
     return "`" + (n + "`");
   })(v)) + ": a mixed-case name must be defined by some rule (an ALL-CAPS name is a lexer token class).")));
 };
@@ -8349,7 +8349,7 @@ var show1 = /* @__PURE__ */ show(showInt);
 var ordTuple3 = /* @__PURE__ */ ordTuple(ordInt);
 var lookup7 = /* @__PURE__ */ lookup(/* @__PURE__ */ ordTuple3(ordString));
 var lookup12 = /* @__PURE__ */ lookup(/* @__PURE__ */ ordTuple3(ordSymbol));
-var UnexpectedToken = /* @__PURE__ */ (function() {
+var UnexpectedToken = /* @__PURE__ */ function() {
   function UnexpectedToken2(value0) {
     this.value0 = value0;
   }
@@ -8358,8 +8358,8 @@ var UnexpectedToken = /* @__PURE__ */ (function() {
     return new UnexpectedToken2(value0);
   };
   return UnexpectedToken2;
-})();
-var UnexpectedEnd = /* @__PURE__ */ (function() {
+}();
+var UnexpectedEnd = /* @__PURE__ */ function() {
   function UnexpectedEnd2(value0) {
     this.value0 = value0;
   }
@@ -8368,8 +8368,8 @@ var UnexpectedEnd = /* @__PURE__ */ (function() {
     return new UnexpectedEnd2(value0);
   };
   return UnexpectedEnd2;
-})();
-var InternalError = /* @__PURE__ */ (function() {
+}();
+var InternalError = /* @__PURE__ */ function() {
   function InternalError2(value0) {
     this.value0 = value0;
   }
@@ -8378,7 +8378,7 @@ var InternalError = /* @__PURE__ */ (function() {
     return new InternalError2(value0);
   };
   return InternalError2;
-})();
+}();
 var showParseError = {
   show: function(v) {
     if (v instanceof UnexpectedToken) {
@@ -8440,7 +8440,7 @@ var run3 = function(table) {
             function $tco_loop(st, pos) {
               var state = fromMaybe(0)(head(st.states));
               var mtok = index(input)(pos);
-              var look = (function() {
+              var look = function() {
                 if (mtok instanceof Just) {
                   return new Term(mtok.value0.terminal);
                 }
@@ -8450,7 +8450,7 @@ var run3 = function(table) {
                 }
                 ;
                 throw new Error("Failed pattern match at Gramaire.Parser (line 61, column 14 - line 63, column 23): " + [mtok.constructor.name]);
-              })();
+              }();
               var v = lookup12(new Tuple(state, look))(table.action);
               if (v instanceof Just && v.value0 instanceof Shift) {
                 if (mtok instanceof Just) {
@@ -8619,13 +8619,13 @@ var scan = function(items) {
                 text: slice3(v.value0.span.textStart)(v.value0.span.textEnd)
               };
               $tco_var_pos = v.value0.span.end;
-              $copy_acc = (function() {
+              $copy_acc = function() {
                 if (v.value0.item.skip) {
                   return acc;
                 }
                 ;
                 return cons(tok)(acc);
-              })();
+              }();
               return;
             }
             ;
@@ -8754,7 +8754,7 @@ var append14 = /* @__PURE__ */ append(semigroupArray);
 var show12 = /* @__PURE__ */ show(showParseError);
 var bind6 = /* @__PURE__ */ bind(bindEither);
 var map110 = /* @__PURE__ */ map(functorMaybe);
-var VStr = /* @__PURE__ */ (function() {
+var VStr = /* @__PURE__ */ function() {
   function VStr2(value0) {
     this.value0 = value0;
   }
@@ -8763,15 +8763,15 @@ var VStr = /* @__PURE__ */ (function() {
     return new VStr2(value0);
   };
   return VStr2;
-})();
-var VIgnore = /* @__PURE__ */ (function() {
+}();
+var VIgnore = /* @__PURE__ */ function() {
   function VIgnore2() {
   }
   ;
   VIgnore2.value = new VIgnore2();
   return VIgnore2;
-})();
-var VSym = /* @__PURE__ */ (function() {
+}();
+var VSym = /* @__PURE__ */ function() {
   function VSym2(value0) {
     this.value0 = value0;
   }
@@ -8780,8 +8780,8 @@ var VSym = /* @__PURE__ */ (function() {
     return new VSym2(value0);
   };
   return VSym2;
-})();
-var VSyms = /* @__PURE__ */ (function() {
+}();
+var VSyms = /* @__PURE__ */ function() {
   function VSyms2(value0) {
     this.value0 = value0;
   }
@@ -8790,8 +8790,8 @@ var VSyms = /* @__PURE__ */ (function() {
     return new VSyms2(value0);
   };
   return VSyms2;
-})();
-var VGroupBody = /* @__PURE__ */ (function() {
+}();
+var VGroupBody = /* @__PURE__ */ function() {
   function VGroupBody2(value0) {
     this.value0 = value0;
   }
@@ -8800,8 +8800,8 @@ var VGroupBody = /* @__PURE__ */ (function() {
     return new VGroupBody2(value0);
   };
   return VGroupBody2;
-})();
-var VMaybeStr = /* @__PURE__ */ (function() {
+}();
+var VMaybeStr = /* @__PURE__ */ function() {
   function VMaybeStr2(value0) {
     this.value0 = value0;
   }
@@ -8810,8 +8810,8 @@ var VMaybeStr = /* @__PURE__ */ (function() {
     return new VMaybeStr2(value0);
   };
   return VMaybeStr2;
-})();
-var VAlt = /* @__PURE__ */ (function() {
+}();
+var VAlt = /* @__PURE__ */ function() {
   function VAlt2(value0) {
     this.value0 = value0;
   }
@@ -8820,8 +8820,8 @@ var VAlt = /* @__PURE__ */ (function() {
     return new VAlt2(value0);
   };
   return VAlt2;
-})();
-var VAlts = /* @__PURE__ */ (function() {
+}();
+var VAlts = /* @__PURE__ */ function() {
   function VAlts2(value0) {
     this.value0 = value0;
   }
@@ -8830,8 +8830,8 @@ var VAlts = /* @__PURE__ */ (function() {
     return new VAlts2(value0);
   };
   return VAlts2;
-})();
-var VRule = /* @__PURE__ */ (function() {
+}();
+var VRule = /* @__PURE__ */ function() {
   function VRule2(value0) {
     this.value0 = value0;
   }
@@ -8840,8 +8840,8 @@ var VRule = /* @__PURE__ */ (function() {
     return new VRule2(value0);
   };
   return VRule2;
-})();
-var VRules = /* @__PURE__ */ (function() {
+}();
+var VRules = /* @__PURE__ */ function() {
   function VRules2(value0) {
     this.value0 = value0;
   }
@@ -8850,8 +8850,8 @@ var VRules = /* @__PURE__ */ (function() {
     return new VRules2(value0);
   };
   return VRules2;
-})();
-var VGrammar = /* @__PURE__ */ (function() {
+}();
+var VGrammar = /* @__PURE__ */ function() {
   function VGrammar2(value0) {
     this.value0 = value0;
   }
@@ -8860,8 +8860,8 @@ var VGrammar = /* @__PURE__ */ (function() {
     return new VGrammar2(value0);
   };
   return VGrammar2;
-})();
-var VErr = /* @__PURE__ */ (function() {
+}();
+var VErr = /* @__PURE__ */ function() {
   function VErr2(value0) {
     this.value0 = value0;
   }
@@ -8870,8 +8870,8 @@ var VErr = /* @__PURE__ */ (function() {
     return new VErr2(value0);
   };
   return VErr2;
-})();
-var $$unescape = /* @__PURE__ */ (function() {
+}();
+var $$unescape = /* @__PURE__ */ function() {
   var go = function(cs) {
     var v = uncons(cs);
     if (v instanceof Nothing) {
@@ -8900,7 +8900,7 @@ var $$unescape = /* @__PURE__ */ (function() {
   return function($282) {
     return fromCharArray(go(toCharArray($282)));
   };
-})();
+}();
 var unquoteLit = function(s) {
   var inner = slice2(1)(length2(s) - 1 | 0)(s);
   var v = charAt2(0)(s);
@@ -8914,14 +8914,14 @@ var unquoteLit = function(s) {
   ;
   return s;
 };
-var trimBlankEnds = /* @__PURE__ */ (function() {
+var trimBlankEnds = /* @__PURE__ */ function() {
   var dropBlank = dropWhile(function(l) {
     return trim(l) === "";
   });
   return function($283) {
     return reverse(dropBlank(reverse(dropBlank($283))));
   };
-})();
+}();
 var tokenVal = function(tok) {
   if (tok.terminal === "IDENT") {
     return new VStr(tok.text);
@@ -9202,7 +9202,7 @@ var isUpperName = function(name) {
   var classChar2 = function(c) {
     return c >= "A" && c <= "Z" || (c >= "0" && c <= "9" || c === "_");
   };
-  return !contains(" ")(name) && (all3(classChar2)(toCharArray(name)) && (function() {
+  return !contains(" ")(name) && (all3(classChar2)(toCharArray(name)) && function() {
     var v = charAt2(0)(name);
     if (v instanceof Just) {
       return v.value0 >= "A" && v.value0 <= "Z";
@@ -9213,10 +9213,10 @@ var isUpperName = function(name) {
     }
     ;
     throw new Error("Failed pattern match at Gramaire.Lr (line 312, column 8 - line 314, column 23): " + [v.constructor.name]);
-  })());
+  }());
 };
 var isTokenDef = function(l) {
-  return notEq13(charAt2(0)(l))(new Just(" ")) && (notEq13(charAt2(0)(l))(new Just("	")) && (function() {
+  return notEq13(charAt2(0)(l))(new Just(" ")) && (notEq13(charAt2(0)(l))(new Just("	")) && function() {
     var v = indexOf2(":")(l);
     if (v instanceof Nothing) {
       return false;
@@ -9227,7 +9227,7 @@ var isTokenDef = function(l) {
     }
     ;
     throw new Error("Failed pattern match at Gramaire.Lr (line 304, column 8 - line 306, column 46): " + [v.constructor.name]);
-  })());
+  }());
 };
 var isSettingDecl = function(l) {
   return isJust(stripPrefix("%lang ")(trim(l)));
@@ -9405,9 +9405,9 @@ var parseWith = function(method) {
     throw new Error("Failed pattern match at Gramaire.Lr (line 367, column 10 - line 372, column 56): " + [v.constructor.name]);
   };
 };
-var parse = /* @__PURE__ */ (function() {
+var parse = /* @__PURE__ */ function() {
   return parseWith(Canonical.value);
-})();
+}();
 var actionLangOf = function(md) {
   var langLine = function(line) {
     return map110(trim)(stripPrefix("%lang ")(trim(line)));
@@ -9521,7 +9521,7 @@ var scannerLexer = function(defs) {
 
 // ../output/Gramaire.Cst/index.js
 var map25 = /* @__PURE__ */ map(functorArray);
-var Branch = /* @__PURE__ */ (function() {
+var Branch = /* @__PURE__ */ function() {
   function Branch2(value0, value1) {
     this.value0 = value0;
     this.value1 = value1;
@@ -9533,8 +9533,8 @@ var Branch = /* @__PURE__ */ (function() {
     };
   };
   return Branch2;
-})();
-var Token = /* @__PURE__ */ (function() {
+}();
+var Token = /* @__PURE__ */ function() {
   function Token2(value0, value1) {
     this.value0 = value0;
     this.value1 = value1;
@@ -9546,7 +9546,7 @@ var Token = /* @__PURE__ */ (function() {
     };
   };
   return Token2;
-})();
+}();
 var toJson = function(v) {
   if (v instanceof Branch) {
     return new JObject([new Tuple("rule", new JInt(v.value0)), new Tuple("children", new JArray(map25(toJson)(v.value1)))]);
@@ -9561,26 +9561,26 @@ var toJson = function(v) {
 var cstToken = function(t) {
   return new Token(t.terminal, t.text);
 };
-var cstReduce = /* @__PURE__ */ (function() {
+var cstReduce = /* @__PURE__ */ function() {
   return Branch.create;
-})();
+}();
 
 // ../output/Gramaire.Conformance/index.js
 var show7 = /* @__PURE__ */ show(showParseError);
-var Accept2 = /* @__PURE__ */ (function() {
+var Accept2 = /* @__PURE__ */ function() {
   function Accept3() {
   }
   ;
   Accept3.value = new Accept3();
   return Accept3;
-})();
-var Reject = /* @__PURE__ */ (function() {
+}();
+var Reject = /* @__PURE__ */ function() {
   function Reject2() {
   }
   ;
   Reject2.value = new Reject2();
   return Reject2;
-})();
+}();
 var parseCst = function(lexer) {
   return function(method) {
     return function(g) {
@@ -9644,7 +9644,7 @@ var lookup8 = /* @__PURE__ */ lookup(/* @__PURE__ */ ordTuple4(ordString));
 var lookup13 = /* @__PURE__ */ lookup(/* @__PURE__ */ ordTuple4(ordSymbol));
 var explainP = function(prec) {
   return function(g) {
-    var ncp = (function() {
+    var ncp = function() {
       var v = buildTablesForP(prec)(Canonical.value)(g);
       if (v instanceof Left) {
         return length(v.value0);
@@ -9655,9 +9655,9 @@ var explainP = function(prec) {
       }
       ;
       throw new Error("Failed pattern match at Gramaire.Glr (line 155, column 9 - line 157, column 17): " + [v.constructor.name]);
-    })();
+    }();
     var hasPrec = !isEmpty(prec.terms);
-    var genuineConflicts = (function() {
+    var genuineConflicts = function() {
       var v = buildTablesForP(prec)(Canonical.value)(g);
       if (v instanceof Left) {
         return renderConflicts(g)(v.value0);
@@ -9668,7 +9668,7 @@ var explainP = function(prec) {
       }
       ;
       throw new Error("Failed pattern match at Gramaire.Glr (line 182, column 22 - line 184, column 18): " + [v.constructor.name]);
-    })();
+    }();
     var count = function(m) {
       var v = buildTablesFor(m)(g);
       if (v instanceof Left) {
@@ -9684,20 +9684,20 @@ var explainP = function(prec) {
     var nc = count(Canonical.value);
     var ni = count(IELR.value);
     var nl = count(LALR.value);
-    var verdict = (function() {
+    var verdict = function() {
       if (nc === 0 && nl === 0) {
         return ["verdict: conflict-free \u2014 the grammar is LALR(1)."];
       }
       ;
       if (nc === 0) {
-        return ["verdict: LALR artifact \u2014 " + (show8(nl) + (" conflict(s) under LALR(1) that canonical LR(1) resolves" + (function() {
+        return ["verdict: LALR artifact \u2014 " + (show8(nl) + (" conflict(s) under LALR(1) that canonical LR(1) resolves" + function() {
           var $35 = ni === 0;
           if ($35) {
             return " (and so does IELR(1)).";
           }
           ;
           return ".";
-        })())), "         the grammar is LR(1); build it with IELR(1) for a compact conflict-free table."];
+        }())), "         the grammar is LR(1); build it with IELR(1) for a compact conflict-free table."];
       }
       ;
       if (ncp === 0) {
@@ -9705,26 +9705,26 @@ var explainP = function(prec) {
       }
       ;
       if (otherwise) {
-        return append15(["verdict: genuine \u2014 " + (show8(ncp) + (" conflict(s) persist under canonical LR(1)" + ((function() {
+        return append15(["verdict: genuine \u2014 " + (show8(ncp) + (" conflict(s) persist under canonical LR(1)" + (function() {
           if (hasPrec) {
             return " even with the declared precedence";
           }
           ;
           return "";
-        })() + "; the grammar is not LR(1)"))), "         (ambiguous, or in need of a refactor, more precedence, or the GLR driver). conflicts:"])(map26(function(c) {
+        }() + "; the grammar is not LR(1)"))), "         (ambiguous, or in need of a refactor, more precedence, or the GLR driver). conflicts:"])(map26(function(c) {
           return "  " + c;
         })(genuineConflicts));
       }
       ;
       throw new Error("Failed pattern match at Gramaire.Glr (line 159, column 3 - line 180, column 52): ");
-    })();
-    return joinWith("\n")(append15(["conflicts by method: canonical LR(1) = " + (show8(nc) + (", LALR(1) = " + (show8(nl) + (", IELR(1) = " + (show8(ni) + (function() {
+    }();
+    return joinWith("\n")(append15(["conflicts by method: canonical LR(1) = " + (show8(nc) + (", LALR(1) = " + (show8(nl) + (", IELR(1) = " + (show8(ni) + function() {
       if (hasPrec) {
         return ", canonical + declared precedence = " + show8(ncp);
       }
       ;
       return "";
-    })())))))])(verdict));
+    }())))))])(verdict));
   };
 };
 var budget = 2e5;
@@ -9934,7 +9934,7 @@ var renderTree = function(prods) {
   };
   var go = function(depth) {
     return function(node) {
-      return indent(depth) + (label(node) + (function() {
+      return indent(depth) + (label(node) + function() {
         if (node instanceof Branch) {
           return foldMap4(function(k) {
             return "\n" + go(depth + 1 | 0)(k);
@@ -9946,7 +9946,7 @@ var renderTree = function(prods) {
         }
         ;
         throw new Error("Failed pattern match at Gramaire.Playground (line 219, column 10 - line 221, column 24): " + [node.constructor.name]);
-      })());
+      }());
     };
   };
   return go(0);
@@ -9971,14 +9971,14 @@ var renderTrace = function(prods) {
     var prodLabel = function(p) {
       var v = index(prods)(p);
       if (v instanceof Just) {
-        return v.value0.lhs + (" -> " + (function() {
+        return v.value0.lhs + (" -> " + function() {
           var $55 = $$null(v.value0.rhs);
           if ($55) {
             return "\u03B5";
           }
           ;
           return joinWith(" ")(map27(symText)(v.value0.rhs));
-        })());
+        }());
       }
       ;
       if (v instanceof Nothing) {
@@ -10044,12 +10044,12 @@ var metaJsonOf = function(grammar) {
     ;
     throw new Error("Failed pattern match at Gramaire.Playground (line 205, column 14 - line 207, column 20): " + [v2.constructor.name]);
   };
-  var fieldJson = (function() {
+  var fieldJson = function() {
     var $99 = maybe(JNull.value)(JString.create);
     return function($100) {
       return $99(refField($100));
     };
-  })();
+  }();
   var ruleMeta = function(r) {
     return new JObject([new Tuple("label", maybe(JNull.value)(JString.create)(r.label)), new Tuple("fields", new JArray(map27(fieldJson)(r.rhs)))]);
   };
@@ -10105,7 +10105,7 @@ var evaluate = function(v) {
     var rules = ruleNamesOf(v1.value0);
     var meta = metaJsonOf(v1.value0);
     var evalJs = evalJsOf(v.source)(v1.value0);
-    var defs = (function() {
+    var defs = function() {
       var v22 = tokensBlock(v.source);
       if (v22 instanceof Just) {
         var v3 = parseTokens(v22.value0);
@@ -10125,7 +10125,7 @@ var evaluate = function(v) {
       }
       ;
       throw new Error("Failed pattern match at Gramaire.Playground (line 101, column 18 - line 105, column 26): " + [v22.constructor.name]);
-    })();
+    }();
     var lexer = scannerLexer(defs)(v1.value0);
     var conflicts = explainP(precedenceOf(v.source))(v1.value0);
     var v2 = lexer(v.input);
@@ -10154,7 +10154,7 @@ var evaluate = function(v) {
     if (v2 instanceof Right) {
       var prods = productions(v1.value0);
       var csts = forest(tableMethod)(v1.value0)(v2.value0);
-      var trace = (function() {
+      var trace = function() {
         var v3 = head(csts);
         if (v3 instanceof Just) {
           return renderTrace(prods)(v3.value0);
@@ -10165,18 +10165,18 @@ var evaluate = function(v) {
         }
         ;
         throw new Error("Failed pattern match at Gramaire.Playground (line 149, column 25 - line 151, column 32): " + [v3.constructor.name]);
-      })();
-      var tree = (function() {
+      }();
+      var tree = function() {
         var v3 = head(csts);
         if (v3 instanceof Just) {
-          return renderTree(prods)(v3.value0) + (function() {
+          return renderTree(prods)(v3.value0) + function() {
             var $88 = length(csts) > 1;
             if ($88) {
               return "\n\n(ambiguous: " + (show13(length(csts)) + " parses; showing the first)");
             }
             ;
             return "";
-          })();
+          }();
         }
         ;
         if (v3 instanceof Nothing) {
@@ -10184,8 +10184,8 @@ var evaluate = function(v) {
         }
         ;
         throw new Error("Failed pattern match at Gramaire.Playground (line 144, column 24 - line 148, column 32): " + [v3.constructor.name]);
-      })();
-      var cstJson = (function() {
+      }();
+      var cstJson = function() {
         var v3 = head(csts);
         if (v3 instanceof Just) {
           return stringify(toJson(v3.value0));
@@ -10196,7 +10196,7 @@ var evaluate = function(v) {
         }
         ;
         throw new Error("Failed pattern match at Gramaire.Playground (line 153, column 27 - line 155, column 32): " + [v3.constructor.name]);
-      })();
+      }();
       var allCstJson = map27(function(t) {
         return stringify(toJson(t));
       })(csts);
@@ -10204,20 +10204,20 @@ var evaluate = function(v) {
       return {
         ok: true,
         accepted,
-        message: (function() {
+        message: function() {
           if (accepted) {
             return "The input matched the grammar.";
           }
           ;
           return "The input did not match the grammar.";
-        })(),
-        diagnostics: (function() {
+        }(),
+        diagnostics: function() {
           if (accepted) {
             return ["Accepted by the Gramaire engine."];
           }
           ;
           return ["The input did not match the grammar."];
-        })(),
+        }(),
         rules,
         tokens: map27(function(v3) {
           return v3.text;
