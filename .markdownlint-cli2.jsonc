@@ -33,6 +33,11 @@
     "MD024": { "siblings_only": true }, // a heading text may repeat under
     // different parent sections
 
+    // MD060 table-column-style: disabled because ADR rationale cells in
+    // docs/ run hundreds of characters — aligning pipes to header widths
+    // is not feasible, and the rule is not load-bearing for rendering.
+    "MD060": false,
+
     // --- KEPT AT DEFAULT (load-bearing — do not disable) ----------------
     // These stay on via "default": true and must never be turned off:
     //   MD033 no-inline-html : GitHub sanitizes raw HTML, and this rule is
