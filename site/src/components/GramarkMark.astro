@@ -33,13 +33,13 @@ const nodeFill = knockout ? "transparent" : "var(--node, #15b879)";
   style={`color: var(--gramark-fg, currentColor)`}
 >
   <!-- entry track -->
-  <path d="M11 48 H28" />
-  <circle cx="11" cy="48" r="5" fill={ink} stroke="none" />
+  <path d="M11 48 H28"></path>
+  <circle cx="11" cy="48" r="5" fill={ink} stroke="none"></circle>
   <!-- fork up / down -->
-  <path d="M62 48 C72 48 73 13 85 13" />
-  <path d="M62 48 C72 48 73 83 85 83" />
-  <circle cx="85" cy="13" r="5" fill={ink} stroke="none" />
-  <circle cx="85" cy="83" r="5" fill={ink} stroke="none" />
+  <path d="M62 48 C72 48 73 13 85 13"></path>
+  <path d="M62 48 C72 48 73 83 85 83"></path>
+  <circle cx="85" cy="13" r="5" fill={ink} stroke="none"></circle>
+  <circle cx="85" cy="83" r="5" fill={ink} stroke="none"></circle>
   <!-- rule node -->
-  <rect x="26" y="30" width="36" height="36" rx="18" fill={nodeFill} />
+  <rect x="26" y="30" width="36" height="36" rx="18" fill={nodeFill}></rect>
 </svg>

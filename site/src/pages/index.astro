@@ -1,0 +1,263 @@
+---
+// The Gramark landing — a standalone splash page outside Starlight's chrome
+// (like /lab), implementing the Claude Design mock's Landing: a sticky brand
+// topbar, a centered hero, the live "one file · edit the source" grammar →
+// railroad showcase driven by the real engine, three capability tiles, and a
+// footer. The theme toggle shares Starlight's `starlight-theme` key so a choice
+// here carries across to the docs pages.
+import "../styles/custom.css";
+import BrandTopbar from "../components/BrandTopbar.astro";
+import LiveGrammar from "../components/LiveGrammar.astro";
+import { SHOWCASE } from "../lib/demo-grammars.ts";
+
+const base = import.meta.env.BASE_URL;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+    <title>Gramark — grammars that render themselves</title>
+    <meta
+      name="description"
+      content="An LR parser generator whose source format is Markdown. A .grmk.md file renders on GitHub — prose, railroad diagrams, FIRST/FOLLOW tables — and is the exact input the generator reads."
+    />
+    <script is:inline>
+      // No-flash theme: honour a stored choice, else the OS preference. Shares
+      // Starlight's `starlight-theme` key so the topbar toggle persists to docs.
+      (() => {
+        try {
+          const stored = localStorage.getItem("starlight-theme");
+          const theme =
+            stored === "light" || stored === "dark"
+              ? stored
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.dataset.theme = theme;
+        } catch (e) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <BrandTopbar active="home" />
+
+    <main class="landing">
+      <section class="hero">
+        <span class="eyebrow"
+          >LR parser generator · source format is Markdown</span
+        >
+        <h1>
+          Grammars that <span class="accent">render themselves.</span>
+        </h1>
+        <p class="sub">
+          A <code>.grmk.md</code> file is a normal Markdown document — it renders
+          on GitHub as prose, railroad diagrams, and FIRST/FOLLOW tables — and is
+          <strong>at the same time</strong> the exact input the parser generator reads.
+          Your grammar <em>is</em> your documentation.
+        </p>
+        <div class="cta">
+          <a class="btn primary" href={`${base}tutorials/intro/`}
+            >Start the tutorial →</a
+          >
+          <a class="btn ghost" href={`${base}lab`}>Open the Lab</a>
+        </div>
+      </section>
+
+      <section class="showcase">
+        <LiveGrammar
+          grammar={SHOWCASE}
+          caption="one file · live — edit the source"
+        />
+      </section>
+
+      <section class="tiles">
+        <div class="tile">
+          <span class="tile-big">3×</span>
+          <h3>Three table methods</h3>
+          <p>
+            Canonical LR(1), LALR(1), and IELR(1) build from the same automaton
+            — switch and compare conflicts in the Lab.
+          </p>
+        </div>
+        <div class="tile">
+          <span class="tile-big">1 file</span>
+          <h3>Grammar == docs</h3>
+          <p>
+            One <code>.grmk.md</code> renders as documentation and compiles as a grammar.
+            No drift between the two, ever.
+          </p>
+        </div>
+        <div class="tile">
+          <span class="tile-big">closed</span>
+          <h3>Self-hosting</h3>
+          <p>
+            The generator describes its own grammar in Gramark and checks green
+            against itself — the loop is closed.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="foot-links">
+        <a href={`${base}tutorials/intro/`}>Tutorial</a>
+        <a href={`${base}docs/overview/`}>Docs</a>
+        <a href={`${base}lab`}>Lab</a>
+        <a href="https://github.com/wstein/gramark">GitHub ↗</a>
+      </div>
+      <p class="foot-note">Grammars that render themselves.</p>
+    </footer>
+
+    <style>
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font-ui);
+      }
+      .landing {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 2.5rem 1.25rem 3rem;
+      }
+      .hero {
+        text-align: center;
+        padding: 2.5rem 0 1.5rem;
+      }
+      .eyebrow {
+        display: inline-block;
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        color: var(--accent);
+        background: var(--accent-softer);
+        border: 1px solid var(--border);
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        margin-bottom: 1.25rem;
+      }
+      h1 {
+        font-size: 52px;
+        line-height: 1.05;
+        letter-spacing: -2px;
+        font-weight: 700;
+        margin: 0 0 1rem;
+      }
+      h1 .accent {
+        color: var(--accent);
+      }
+      .sub {
+        max-width: 620px;
+        margin: 0 auto;
+        color: var(--fg-muted);
+        font-size: 1.05rem;
+        line-height: 1.6;
+      }
+      .sub code {
+        font-family: var(--font-mono);
+        background: var(--bg-2);
+        padding: 0.05rem 0.35rem;
+        border-radius: var(--radius);
+        font-size: 0.92em;
+      }
+      .cta {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: center;
+        margin-top: 1.75rem;
+        flex-wrap: wrap;
+      }
+      .btn {
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding: 13px 22px;
+        border-radius: var(--radius);
+        text-decoration: none;
+        border: 1px solid transparent;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+      }
+      .btn.primary:hover {
+        background: var(--accent-2);
+      }
+      .btn.ghost {
+        color: var(--fg-secondary);
+        border-color: var(--border-strong);
+      }
+      .btn.ghost:hover {
+        background: var(--bg-1);
+      }
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-top: 2rem;
+      }
+      @media (max-width: 720px) {
+        .tiles {
+          grid-template-columns: 1fr;
+        }
+        h1 {
+          font-size: 40px;
+        }
+      }
+      .tile {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem;
+        background: var(--bg-1);
+      }
+      .tile-big {
+        font-family: var(--font-mono);
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--accent);
+      }
+      .tile h3 {
+        margin: 0.5rem 0 0.35rem;
+        font-size: 1rem;
+      }
+      .tile p {
+        margin: 0;
+        color: var(--fg-muted);
+        font-size: 0.88rem;
+        line-height: 1.5;
+      }
+      .tile code {
+        font-family: var(--font-mono);
+        font-size: 0.85em;
+      }
+      .site-footer {
+        border-top: 1px solid var(--border);
+        padding: 1.5rem 1.25rem 2.5rem;
+        text-align: center;
+      }
+      .foot-links {
+        display: flex;
+        gap: 1.25rem;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .foot-links a {
+        color: var(--fg-muted);
+        text-decoration: none;
+        font-size: 0.9rem;
+      }
+      .foot-links a:hover {
+        color: var(--accent);
+      }
+      .foot-note {
+        margin-top: 0.75rem;
+        color: var(--fg-faint);
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+      }
+    </style>
+  </body>
+</html>
