@@ -9,7 +9,7 @@
     "preview": "astro preview",
     "deploy": "gh-pages -d dist",
     "test": "tsx --test src/lib/gramaire-runtime.test.ts",
-    "build:engine": "cd .. && spago build && cd site && esbuild ../output/Gramaire.Playground/index.js --bundle --format=esm --platform=browser --outfile=src/generated/gramaire-engine.mjs",
+    "build:engine": "cd .. && sbt playground/fullLinkJS && cp playground/js/target/scala-3.4.2/gramaire-playground-opt/main.js site/src/generated/gramaire-engine.mjs",
     "check:engine": "npm run build:engine && git diff --exit-code src/generated/gramaire-engine.mjs",
     "format": "prettier --write \"src/**/*.{ts,astro,md,mdx}\" \"*.{json,md,mjs}\"",
     "lint": "prettier --check \"src/**/*.{ts,astro,md,mdx}\" \"*.{json,md,mjs}\""
@@ -22,7 +22,6 @@
     "gh-pages": "^6.0.0"
   },
   "devDependencies": {
-    "esbuild": "^0.24.0",
     "prettier": "^3.5.0",
     "prettier-plugin-astro": "^0.14.1",
     "tsx": "^4.19.2"
