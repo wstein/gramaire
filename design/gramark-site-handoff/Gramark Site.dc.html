@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+  :root{
+    --font-ui:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    color-scheme:light;
+    --bg:#ffffff; --bg-1:#f5faf7; --bg-2:#edf5f0; --bg-3:#e0efe7;
+    --fg:#16181d; --fg-secondary:#1f3a31; --fg-muted:#566860; --fg-faint:#7d8d85;
+    --border:#dde9e3; --border-strong:#c6dbd0;
+    --accent:#0a8f63; --accent-2:#066b4a; --node:#15b879;
+    --accent-soft:color-mix(in srgb,var(--accent) 16%,var(--bg));
+    --accent-softer:color-mix(in srgb,var(--accent) 8%,var(--bg));
+    --t-nonterm:var(--accent); --t-term:#b4530a; --t-action:#6f42c1; --t-op:#7d8d85; --t-comment:#7d8d85;
+    --out-bg:#0c130f; --out-fg:#e8f1ec;
+    --radius:6px; --radius-lg:10px;
+    --shadow-card:0 1px 2px rgba(22,24,29,.04),0 8px 26px -16px rgba(10,143,99,.28);
+  }
+  [data-theme="dark"]{
+    color-scheme:dark;
+    --bg:#0e1512; --bg-1:#131c18; --bg-2:#1a2620; --bg-3:#24332b;
+    --fg:#eaf2ed; --fg-secondary:#c2d4ca; --fg-muted:#8ea298; --fg-faint:#73877e;
+    --border:#25332c; --border-strong:#38493f;
+    --accent:#34d399; --accent-2:#6ee7b7; --node:#15b879;
+    --t-nonterm:var(--accent); --t-term:#f0a868; --t-action:#c4a8ec; --t-op:#73877e; --t-comment:#73877e;
+    --out-bg:#080d0a; --out-fg:#e8f1ec;
+    --shadow-card:0 1px 2px rgba(0,0,0,.4),0 10px 30px -16px rgba(0,0,0,.8);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);font-family:var(--font-ui);-webkit-font-smoothing:antialiased;color:var(--fg)}
+  ::selection{background:color-mix(in srgb,var(--accent) 26%,transparent)}
+  .gx-switch-knob{transition:transform .22s ease}
+  [data-theme="dark"] .gx-switch-knob{transform:translateX(21px)}
+  textarea.gx-src{outline:none}
+  textarea.gx-src:focus{box-shadow:inset 2px 0 0 var(--accent)}
+  .gx-scroll::-webkit-scrollbar{width:10px;height:10px}
+  .gx-scroll::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:6px}
+  .gx-scroll::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+
+<div style="height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font-family:var(--font-ui)">
+  <div style="display:flex;align-items:center;gap:18px;padding:12px 22px;border-bottom:1px solid var(--border);flex:none;z-index:10">
+    <div onClick="{{ goHome }}" style="display:flex;align-items:center;gap:9px;cursor:pointer">
+      <dc-import name="GramaireMark" hint-size="28px,28px" style="display:block;width:28px;height:28px"></dc-import>
+      <div style="font-size: 21px; width: 83px; height: 28px"><dc-import name="GramaireWordmark" hint-size="118px,22px" style="font-size: 19px"></dc-import></div>
+    </div>
+    <div style="flex:1"></div>
+    {{ navItems }}
+    <div style="width:1px;height:18px;background:var(--border)"></div>
+    <div onClick="{{ toggleTheme }}" title="Toggle light / dark" class="gx-switch" style="cursor:pointer;width:46px;height:25px;border-radius:999px;background:var(--bg-2);border:1px solid var(--border-strong);position:relative;flex:none">
+      <span style="position:absolute;left:6px;top:50%;transform:translateY(-50%);font-size:11px;line-height:1;color:var(--fg-faint)">☀</span>
+      <span style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:10px;line-height:1;color:var(--fg-faint)">☾</span>
+      <span class="gx-switch-knob" style="position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.35)"></span>
+    </div>
+  </div>
+  <div style="flex:1;min-height:0;display:flex;flex-direction:column">{{ pageContent }}</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Theme&quot;}}">
+const EXAMPLES = {
+  calc: { file:"calc.gram.md", input:"2 + 3 * 4", text:
+`/**
+ * Calc-js
+ *
+ * An arithmetic calculator that evaluates its own input —
+ * a demonstration of inline \`{% … %}\` actions.
+ */
+
+%lang javascript
+
+NUMBER : /[0-9]+(?:\\.[0-9]+)?/
+WS     : /[ \\t\\r\\n]+/   %skip
+
+Expr
+  : Expr '+' Term   {% (c) => c.expr + c.term %}
+  | Expr '-' Term   {% (c) => c.expr - c.term %}
+  | Term
+
+Term
+  : Term '*' Factor   {% (c) => c.term * c.factor %}
+  | Term '/' Factor   {% (c) => c.term / c.factor %}
+  | Factor
+
+Factor
+  : '(' Expr ')'  {% (c) => c.expr %}
+  | NUMBER        {% (c) => parseFloat(c.number) %}
+` },
+  json: { file:"json.gram.md", input:"{ string : number }", text:
+`# JSON (RFC 8259), condensed
+
+Value
+  : Object
+  | Array
+  | \`string\`
+  | \`number\`
+  | \`true\`
+  | \`false\`
+  | \`null\`
+
+Object
+  : \`{\` Members \`}\`
+
+Members
+  : Pair
+  | Pair \`,\` Members
+
+Pair
+  : \`string\` \`:\` Value
+
+Array
+  : \`[\` Elements \`]\`
+
+Elements
+  : Value
+  | Value \`,\` Elements
+` },
+  lr: { file:"lr.gram.md", input:"name : sym sym", text:
+`# lr — Gramaire's own notation, condensed
+
+Rule
+  : Name Alts
+
+Name
+  : \`name\`
+
+Alts
+  : \`:\` Seq
+  | \`|\` Seq
+
+Seq
+  : Symbol Seq
+  | Symbol
+
+Symbol
+  : \`sym\`
+` },
+};
+
+const TUT = [
+  { title:"1 · One rule, a few choices",
+    body:"A grammar is a set of rules. Each rule names a nonterminal and lists its productions — the alternatives, separated by | . Here a Digit is one of three literals (terminals are wrapped in `backticks`). Edit it — add a 3 — and the railroad redraws.",
+    seed:`Digit\n  : \`0\`\n  | \`1\`\n  | \`2\`\n`, focus:"Digit", ex:null },
+  { title:"2 · Sequencing symbols",
+    body:"Put symbols in a row to require them in order. A Pair is two Digits, one after another — the diagram becomes a straight track through both boxes. Nonterminals (Digit) are clickable boxes; terminals are pills.",
+    seed:`Pair\n  : Digit Digit\n\nDigit\n  : \`0\`\n  | \`1\`\n`, focus:"Pair", ex:null },
+  { title:"3 · Recursion makes lists",
+    body:"A rule can refer to itself. Digits is a Digit followed by more Digits, or a single Digit — that recursion is how grammars express “one or more.” Gramaire builds IELR(1) tables, so left- or right-recursion is fine.",
+    seed:`Digits\n  : Digit Digits\n  | Digit\n\nDigit\n  : \`0\`\n  | \`1\`\n`, focus:"Digits", ex:null },
+  { title:"4 · Terminals & semantic actions",
+    body:"Between {% and %} you attach a semantic action — raw code carried verbatim to codegen. It never affects the diagram. This is the classic expression grammar; open it in the Lab to explore FIRST/FOLLOW across every rule.",
+    seed:`Expr\n  : Expr \`+\` Term   {% Add %}\n  | Term\n\nTerm\n  : \`num\`\n`, focus:"Expr", ex:"calc" },
+];
+
+const DOCS = [
+  { id:"overview", label:"Overview" },
+  { id:"format", label:"The .gram.md format" },
+  { id:"fences", label:"lr fences" },
+  { id:"ff", label:"FIRST / FOLLOW" },
+  { id:"cli", label:"CLI" },
+];
+
+class Component extends DCLogic {
+  state = {
+    page:'home', theme:'light', docSection:'overview',
+    labExample:'calc', labText:EXAMPLES.calc.text, labRule:'Expr', labInput:EXAMPLES.calc.input, labTab:'result', labMethod:'IELR',
+    homeText: 'Expr\n  : Expr `+` Term   {% Add %}\n  | Expr `-` Term   {% Sub %}\n  | Term\n',
+    labSplit:55, hoverTok:-1, collapsed:{}, labStart:'', labStep:0, hoverRule:'', copied:false,
+    tutStep:0, tutTexts:{0:TUT[0].seed,1:TUT[1].seed,2:TUT[2].seed,3:TUT[3].seed},
+  };
+  componentDidMount(){ this.applyTheme(); }
+  applyTheme(){ try{ document.documentElement.setAttribute('data-theme', this.state.theme); }catch(e){} }
+  toggleTheme = () => this.setState(s=>({theme:s.theme==='dark'?'light':'dark'}), ()=>this.applyTheme());
+  setPage = (p) => this.setState({page:p});
+  goHome = () => this.setState({page:'home'});
+  setDoc = (id) => this.setState({docSection:id});
+  setTutStep = (i) => this.setState({tutStep:i});
+  onTutInput = (i,v) => this.setState(s=>({tutTexts:{...s.tutTexts,[i]:v}}));
+  openInLab = (text, rule, input) => { const rules=this.parse(text); const r = rule && rules.some(x=>x.name===rule)?rule:(rules[0]?rules[0].name:''); let key=''; let inp = input!=null?input:''; for(const k in EXAMPLES){ if(EXAMPLES[k].text===text){ key=k; if(input==null) inp=EXAMPLES[k].input; } } this.setState({page:'lab', labExample:key, labText:text, labRule:r, labInput:inp, labTab:'result', labStart:''}); };
+  loadExample = (name) => { const ex=EXAMPLES[name]; if(!ex)return; const rules=this.parse(ex.text); this.setState({labExample:name, labText:ex.text, labRule:rules[0]?rules[0].name:'', labInput:ex.input, labStart:''}); };
+  onLabInput = (e) => { const text=e.target.value; const rules=this.parse(text); const ok=rules.some(r=>r.name===this.state.labRule); this.setState({labText:text, labExample:'', labRule:ok?this.state.labRule:(rules[0]?rules[0].name:'')}); };
+  onLabInputText = (e) => this.setState({labInput:e.target.value});
+  setLabTab = (t) => this.setState({labTab:t});
+  setLabMethod = (m) => this.setState({labMethod:m});
+  setLabStart = (e) => this.setState({labStart:e.target.value});
+  setLabStep = (n) => this.setState({labStep:n});
+  buildWalk(tr){ let stack=[],cursor=0; const steps=[];
+    tr.forEach(s=>{ if(s.kind==='shift'){ const before=stack.slice(); stack.push('`'+s.text+'`'); steps.push({action:'shift',sym:'`'+s.text+'`',cursor,after:stack.slice()}); cursor++; }
+      else { const k=s.rhs.length; const before=stack.slice(); stack.splice(stack.length-k,k); stack.push(s.rule); steps.push({action:'reduce',rule:s.rule,rhs:s.rhs,cursor,after:stack.slice(),popped:k}); } });
+    steps.push({action:'accept',cursor,after:stack.slice()});
+    return steps;
+  }
+  selectLabRule = (name) => this.setState({labRule:name});
+  onHomeInput = (e) => this.setState({homeText:e.target.value});
+  setHover = (i) => { if(this.state.hoverTok!==i) this.setState({hoverTok:i}); };
+  setHoverRule = (r) => { if(this.state.hoverRule!==r) this.setState({hoverRule:r}); };
+  ruleLines(text, rn){ const lines=(text||'').split('\n'); const out=[];
+    for(let i=0;i<lines.length;i++){ const tt=lines[i].trim(); if(!tt||tt[0]==='#'||tt[0]===':'||tt[0]==='|') continue;
+      if(tt.split(/\s+/)[0]===rn){ out.push(i); for(let j=i+1;j<lines.length;j++){ const t2=lines[j].trim(); if(t2 && (t2[0]===':'||t2[0]==='|')) out.push(j); else break; } break; } }
+    return out;
+  }
+  startDrag = (e) => { e.preventDefault(); const el=this._splitRef; const move=(ev)=>{ if(!el) return; const r=el.getBoundingClientRect(); let p=((ev.clientX-r.left)/r.width)*100; p=Math.max(28,Math.min(72,p)); this.setState({labSplit:p}); }; const up=()=>{ window.removeEventListener('mousemove',move); window.removeEventListener('mouseup',up); }; window.addEventListener('mousemove',move); window.addEventListener('mouseup',up); };
+  indexLeaves = (node,c) => { c=c||{n:0}; if(node.leaf!=null){ node.idx=c.n++; return c.n; } node.kids.forEach(k=>this.indexLeaves(k,c)); return c.n; };
+  _diagRow(kind,title,desc,RED){ const R=React; const col=kind==='err'?RED:kind==='warn'?'#b4530a':'var(--accent)'; const ic=kind==='err'?'✕':kind==='warn'?'!':'✓';
+    return R.createElement('div',{key:title,style:{display:'flex',gap:'12px',alignItems:'flex-start',padding:'12px 14px',border:'1px solid var(--border)',borderRadius:'8px',background:'var(--bg-1)'}},[
+      R.createElement('span',{key:'i',style:{width:'20px',height:'20px',flex:'none',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',color:'#fff',background:col}},ic),
+      R.createElement('div',{key:'t'},[R.createElement('div',{key:'a',style:{fontWeight:600,fontSize:'13px'}},title),R.createElement('div',{key:'b',style:{fontSize:'12.5px',color:'var(--fg-muted)',marginTop:'2px',fontFamily:'var(--font-mono)'}},desc)])]);
+  }
+
+  tokenizeProd(body){
+    const toks=[]; const re=/'([^']*)'|`([^`]*)`|(\S+)/g; let m;
+    while((m=re.exec(body))!==null){
+      if(m[1]!=null) toks.push({type:'t',text:m[1]});
+      else if(m[2]!=null) toks.push({type:'t',text:m[2]});
+      else toks.push({type:'nt',text:m[3]});
+    }
+    return toks;
+  }
+  parse(text){
+    let src=(text||'').replace(/\/\*[\s\S]*?\*\//g,'');
+    const lines=src.split('\n'); const rules=[]; let cur=null; const lexRules=[]; let lang=null;
+    for(const raw of lines){
+      const t=raw.trim(); if(!t) continue;
+      if(t.slice(0,2)==='//'||t[0]==='#') continue;
+      if(t[0]==='%'){ const lm=t.match(/^%lang\s+(\w+)/); if(lm) lang=lm[1]; continue; }
+      if(t[0]===':'||t[0]==='|'){ if(!cur)continue;
+        let action=null; const am=t.match(/\{%([\s\S]*?)%\}/); if(am) action=am[1].trim();
+        const body=t.slice(1).replace(/\{%[\s\S]*?%\}/g,'').trim();
+        const toks=this.tokenizeProd(body);
+        if(toks.length){ toks.action=action; cur.alts.push(toks); }
+        continue;
+      }
+      const lx=t.match(/^([A-Za-z_][\w]*)\s*:\s*\/(.+)\/\s*(%skip)?\s*$/);
+      if(lx){ lexRules.push({name:lx[1],regex:lx[2],skip:!!lx[3]}); continue; }
+      cur={name:t.split(/\s+/)[0], alts:[]}; rules.push(cur);
+    }
+    rules._lex=lexRules; rules._lang=lang;
+    return rules;
+  }
+  analyze(rules){
+    const map={}; const names=new Set(); rules.forEach(r=>{map[r.name]=r;names.add(r.name);});
+    const isNT=(tok)=>tok.type==='nt'&&names.has(tok.text);
+    const fc={}; const first=(name,seen)=>{ if(fc[name])return fc[name]; seen=seen||new Set(); if(seen.has(name))return new Set(); seen.add(name);
+      const out=new Set(); const r=map[name]; if(r) r.alts.forEach(a=>{ const s=a[0]; if(!s)return; if(isNT(s)) first(s.text,seen).forEach(x=>out.add(x)); else out.add(s.text); }); fc[name]=out; return out; };
+    const firstOf=(tok)=> isNT(tok)?first(tok.text):new Set([tok.text]);
+    names.forEach(n=>first(n));
+    const follow={}; names.forEach(n=>follow[n]=new Set()); if(rules[0]) follow[rules[0].name].add('$');
+    for(let p=0;p<8;p++){ rules.forEach(r=>r.alts.forEach(a=>{ for(let i=0;i<a.length;i++){ const s=a[i]; if(!isNT(s))continue; if(i<a.length-1) firstOf(a[i+1]).forEach(x=>follow[s.text].add(x)); else follow[r.name].forEach(x=>follow[s.text].add(x)); } })); }
+    const terms=new Set(); rules.forEach(r=>r.alts.forEach(a=>a.forEach(t=>{ if(!isNT(t)) terms.add(t.text); })));
+    return {map,names,isNT,first,follow,terms,rules};
+  }
+  tokW(tok){ const l=(tok.text||'').length; return tok.type==='t'?Math.max(28,l*8+16):Math.max(46,l*8+20); }
+  nodeEl(tok,x,y,w,key,info,onPick){
+    const R=React;
+    if(tok.type==='t') return R.createElement('g',{key},[
+      R.createElement('rect',{key:'r',x,y:y-14,width:w,height:28,rx:14,fill:'var(--bg-2)',stroke:'var(--border-strong)',strokeWidth:1.5}),
+      R.createElement('text',{key:'t',x:x+w/2,y,textAnchor:'middle',dominantBaseline:'central',fill:'var(--t-term)',fontFamily:"'IBM Plex Mono', monospace",fontSize:13,fontWeight:600},tok.text)]);
+    const known=info&&info.names.has(tok.text)&&onPick;
+    return R.createElement('g',{key,style:{cursor:known?'pointer':'default'},onClick:known?()=>onPick(tok.text):undefined},[
+      R.createElement('rect',{key:'r',x,y:y-15,width:w,height:30,rx:6,fill:'color-mix(in srgb, var(--accent) 8%, var(--bg))',stroke:'var(--accent)',strokeWidth:1.6}),
+      R.createElement('text',{key:'t',x:x+w/2,y,textAnchor:'middle',dominantBaseline:'central',fill:'var(--accent)',fontFamily:"'IBM Plex Mono', monospace",fontSize:13,fontWeight:600},tok.text)]);
+  }
+  buildDiagram(rule,info,onPick){
+    const R=React;
+    if(!rule||!rule.alts.length) return R.createElement('div',{style:{color:'var(--fg-faint)',fontFamily:'var(--font-mono)',fontSize:'12px'}},'no productions');
+    const gap=18,lead=14,stroke='var(--fg-faint)';
+    const rows=rule.alts.map(alt=>{ let x=0; const nodes=alt.map(tok=>{const w=this.tokW(tok);const n={x,w,tok};x+=w+gap;return n;}); return {nodes,contentW:Math.max(0,x-gap)}; });
+    const maxC=Math.max(40,...rows.map(r=>r.contentW));
+    const LX=46,contentX=LX+lead,RX=contentX+maxC+lead,startX=16,endX=RX+30,W=endX+14;
+    const rowH=52,topY=28,H=topY+(rows.length-1)*rowH+26; const kids=[];
+    const line=(d,key)=>R.createElement('path',{key,d,fill:'none',stroke,strokeWidth:1.6,strokeLinecap:'round'});
+    rows.forEach((row,i)=>{ const y=topY+i*rowH; let prevR=null;
+      row.nodes.forEach((n,j)=>{ const nx=contentX+n.x;
+        if(j===0){ if(i===0) kids.push(line(`M${startX} ${y} H${nx}`,`ld${i}`)); else kids.push(line(`M${LX} ${topY} V${y-9} Q${LX} ${y} ${LX+9} ${y} H${nx}`,`ld${i}`)); }
+        else kids.push(line(`M${prevR} ${y} H${nx}`,`c${i}-${j}`));
+        kids.push(this.nodeEl(n.tok,nx,y,n.w,`n${i}-${j}`,info,onPick)); prevR=nx+n.w; });
+      if(prevR===null) prevR=(i===0?startX:LX+9);
+      if(i===0) kids.push(line(`M${prevR} ${y} H${endX}`,`tl${i}`)); else kids.push(line(`M${prevR} ${y} H${RX-9} Q${RX} ${y} ${RX} ${y-9} V${topY}`,`tl${i}`));
+    });
+    kids.push(R.createElement('circle',{key:'s',cx:startX,cy:topY,r:4,fill:'var(--accent)'}));
+    kids.push(R.createElement('circle',{key:'e',cx:endX,cy:topY,r:4,fill:'var(--accent)'}));
+    return R.createElement('svg',{viewBox:`0 0 ${W} ${H}`,style:{display:'block',width:'100%',maxWidth:W+'px',height:'auto'}},kids);
+  }
+
+  // ---------- shared UI helpers ----------
+  btn(label,onClick,kind){
+    const R=React; const base={display:'inline-flex',alignItems:'center',gap:'8px',fontWeight:600,fontSize:'14.5px',padding:'11px 19px',borderRadius:'var(--radius)',cursor:'pointer',textDecoration:'none',whiteSpace:'nowrap'};
+    const styles = kind==='primary'?{...base,background:'var(--accent)',color:'#fff'}
+      : kind==='ghost'?{...base,background:'transparent',color:'var(--fg-secondary)',border:'1px solid var(--border-strong)'}
+      : {...base,padding:'7px 13px',fontSize:'12.5px',background:'var(--accent-softer)',color:'var(--accent)',border:'1px solid color-mix(in srgb,var(--accent) 26%,transparent)',fontFamily:'var(--font-mono)',fontWeight:500};
+    return R.createElement('span',{onClick,style:styles},label);
+  }
+  codeBlock(text,small){
+    const R=React; const lines=text.split('\n');
+    return R.createElement('pre',{style:{margin:0,fontFamily:'var(--font-mono)',fontSize:(small?12.5:13.5)+'px',lineHeight:1.7,whiteSpace:'pre-wrap',color:'var(--fg-secondary)'}},
+      lines.map((ln,i)=>R.createElement('div',{key:i},this.hl(ln))));
+  }
+  hl(line){
+    const R=React; if(/^\s*#/.test(line)) return R.createElement('span',{style:{color:'var(--t-comment)'}},line);
+    const parts=[]; const re=/(`[^`]*`)|(\{%[\s\S]*?%\})|(^[A-Za-z_][\w]*)|([:|])|(\s+)|([^\s`:|]+)/g; let m,k=0;
+    while((m=re.exec(line))!==null){
+      if(m[1]) parts.push(R.createElement('span',{key:k++,style:{color:'var(--t-term)'}},m[1]));
+      else if(m[2]) parts.push(R.createElement('span',{key:k++,style:{color:'var(--t-action)'}},m[2]));
+      else if(m[3]) parts.push(R.createElement('span',{key:k++,style:{color:'var(--accent)',fontWeight:600}},m[3]));
+      else if(m[4]) parts.push(R.createElement('span',{key:k++,style:{color:'var(--t-op)'}},m[4]));
+      else parts.push(m[0]);
+    }
+    return parts;
+  }
+
+  // ---------- pages ----------
+  homeView(){
+    const R=React; const rules=this.parse(this.state.homeText); const info=this.analyze(rules); const expr=rules[0];
+    const tile=(big,small)=>R.createElement('div',{style:{flex:'1',minWidth:'180px',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',padding:'20px',background:'var(--bg-1)'}},[
+      R.createElement('div',{key:'b',style:{fontFamily:'var(--font-mono)',fontWeight:700,fontSize:'28px',letterSpacing:'-.5px',color:'var(--accent)'}},big),
+      R.createElement('div',{key:'s',style:{fontSize:'13.5px',color:'var(--fg-muted)',marginTop:'6px',lineHeight:1.45}},small)]);
+    return R.createElement('div',{className:'gx-scroll',style:{overflow:'auto',flex:1}},
+      R.createElement('div',{style:{maxWidth:'960px',margin:'0 auto',padding:'64px 28px 80px'}},[
+        R.createElement('div',{key:'hero',style:{textAlign:'center'}},[
+          R.createElement('div',{key:'b',style:{display:'inline-flex',alignItems:'center',gap:'7px',fontFamily:'var(--font-mono)',fontSize:'12px',color:'var(--accent)',background:'var(--accent-softer)',border:'1px solid color-mix(in srgb,var(--accent) 24%,transparent)',borderRadius:'999px',padding:'6px 13px',marginBottom:'24px'}},'LR parser generator · source format is Markdown'),
+          R.createElement('h1',{key:'h',style:{fontSize:'56px',lineHeight:1.04,letterSpacing:'-2px',fontWeight:700,margin:'0 auto 20px',maxWidth:'760px'}},['Grammars that ',R.createElement('span',{key:'a',style:{color:'var(--accent)'}},'render themselves.')]),
+          R.createElement('p',{key:'p',style:{fontSize:'18px',lineHeight:1.6,color:'var(--fg-muted)',maxWidth:'620px',margin:'0 auto 30px'}},'A .gram.md file is a normal document that renders on GitHub — prose, railroad diagrams, FIRST/FOLLOW tables — and is at the same time the exact input the generator reads.'),
+          R.createElement('div',{key:'c',style:{display:'flex',gap:'12px',justifyContent:'center',flexWrap:'wrap'}},[
+            this.btn(['Start the tutorial ',R.createElement('span',{key:'a',style:{fontFamily:'var(--font-mono)'}},'→')],()=>this.setPage('tutorial'),'primary'),
+            this.btn('Open the Lab',()=>this.setPage('lab'),'ghost')])]),
+        R.createElement('div',{key:'show',style:{marginTop:'56px',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',overflow:'hidden',boxShadow:'var(--shadow-card)'}},[
+          R.createElement('div',{key:'hd',style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px',padding:'10px 16px',borderBottom:'1px solid var(--border)',background:'var(--bg-1)'}},[
+            R.createElement('span',{key:'t',style:{fontFamily:'var(--font-mono)',fontSize:'11px',letterSpacing:'.14em',textTransform:'uppercase',color:'var(--fg-faint)'}},'one file · live — edit the source'),
+            this.btn('Open in Lab ↗',()=>this.openInLab(this.state.homeText, expr?expr.name:''),'chip')]),
+          R.createElement('div',{key:'gr',style:{display:'grid',gridTemplateColumns:'1fr 1fr'}},[
+            R.createElement('textarea',{key:'l',className:'gx-src gx-scroll',spellCheck:false,value:this.state.homeText,onChange:this.onHomeInput,style:{border:0,borderRight:'1px solid var(--border)',resize:'none',padding:'20px 22px',fontFamily:'var(--font-mono)',fontSize:'13px',lineHeight:1.7,background:'var(--bg)',color:'var(--fg-secondary)',minHeight:'190px',outline:'none'}}),
+            R.createElement('div',{key:'r',style:{padding:'20px 22px',display:'flex',flexDirection:'column'}},[
+              R.createElement('div',{key:'c',style:{fontFamily:'var(--font-mono)',fontSize:'11px',color:'var(--fg-faint)',marginBottom:'14px'}},'renders to ↓'),
+              R.createElement('div',{key:'d',style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}},this.buildDiagram(expr,info,null))])])]),
+        R.createElement('div',{key:'tiles',style:{display:'flex',gap:'14px',flexWrap:'wrap',marginTop:'24px'}},[
+          tile('3×','parse-table methods — canonical LR(1), LALR(1), IELR(1)'),
+          tile('1 file','grammar and docs are the same .gram.md'),
+          tile('closed','the self-hosting loop — it reads its own notation back')]),
+        R.createElement('div',{key:'ft',style:{marginTop:'56px',paddingTop:'24px',borderTop:'1px solid var(--border)',display:'flex',gap:'18px',alignItems:'center',fontFamily:'var(--font-mono)',fontSize:'12px',color:'var(--fg-faint)',flexWrap:'wrap'}},[
+          R.createElement('span',{key:'a'},'Gramaire · Apache-2.0'),
+          R.createElement('span',{key:'b',style:{cursor:'pointer'},onClick:()=>this.setPage('docs')},'Docs'),
+          R.createElement('span',{key:'c',style:{cursor:'pointer'},onClick:()=>this.setPage('tutorial')},'Tutorial'),
+          R.createElement('span',{key:'d',style:{cursor:'pointer'},onClick:()=>this.setPage('lab')},'Lab'),
+          R.createElement('span',{key:'e'},'GitHub ↗')])]));
+  }
+
+  tutorialView(){
+    const R=React; const i=this.state.tutStep; const step=TUT[i]; const text=this.state.tutTexts[i];
+    const rules=this.parse(text); const info=this.analyze(rules); const focus=rules.find(r=>r.name===step.focus)||rules[0];
+    const stepList=R.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'4px'}},TUT.map((s,idx)=>{
+      const on=idx===i; return R.createElement('div',{key:idx,onClick:()=>this.setTutStep(idx),style:{cursor:'pointer',padding:'10px 12px',borderRadius:'var(--radius)',fontSize:'13.5px',lineHeight:1.3,
+        background:on?'color-mix(in srgb,var(--accent) 10%,var(--bg))':'transparent',color:on?'var(--accent)':'var(--fg-muted)',fontWeight:on?600:400,border:'1px solid '+(on?'color-mix(in srgb,var(--accent) 30%,transparent)':'transparent')}},s.title);
+    }));
+    const ff=focus?R.createElement('div',{style:{display:'flex',gap:'18px',flexWrap:'wrap',fontFamily:'var(--font-mono)',fontSize:'12px',color:'var(--fg-muted)',marginTop:'4px'}},[
+      R.createElement('span',{key:'f'},['FIRST(',R.createElement('span',{key:'n',style:{color:'var(--accent)'}},focus.name),') = ',R.createElement('span',{key:'v',style:{color:'var(--t-term)'}},'{ '+[...info.first(focus.name)].join(' ')+' }')])]):null;
+    return R.createElement('div',{className:'gx-scroll',style:{overflow:'auto',flex:1}},
+      R.createElement('div',{style:{maxWidth:'1060px',margin:'0 auto',padding:'40px 28px 80px',display:'grid',gridTemplateColumns:'220px 1fr',gap:'36px',alignItems:'start'}},[
+        R.createElement('div',{key:'side',style:{position:'sticky',top:'20px'}},[
+          R.createElement('div',{key:'t',style:{fontFamily:'var(--font-mono)',fontSize:'11px',letterSpacing:'.12em',textTransform:'uppercase',color:'var(--fg-faint)',marginBottom:'14px'}},'Getting started'),
+          stepList]),
+        R.createElement('div',{key:'main'},[
+          R.createElement('h1',{key:'h',style:{fontSize:'30px',letterSpacing:'-.8px',fontWeight:700,margin:'0 0 14px'}},step.title),
+          R.createElement('p',{key:'p',style:{fontSize:'16px',lineHeight:1.6,color:'var(--fg-muted)',margin:'0 0 24px',maxWidth:'620px'}},step.body),
+          R.createElement('div',{key:'lab',style:{border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',overflow:'hidden',boxShadow:'var(--shadow-card)'}},[
+            R.createElement('div',{key:'hd',style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 14px',background:'var(--bg-1)',borderBottom:'1px solid var(--border)'}},[
+              R.createElement('span',{key:'a',style:{fontFamily:'var(--font-mono)',fontSize:'11px',letterSpacing:'.1em',textTransform:'uppercase',color:'var(--fg-faint)'}},'try it — live'),
+              this.btn('Open in Lab ↗',()=>this.openInLab(text,step.focus),'chip')]),
+            R.createElement('div',{key:'bd',style:{display:'grid',gridTemplateColumns:'1fr 1fr'}},[
+              R.createElement('textarea',{key:'ta',className:'gx-src gx-scroll',spellCheck:false,value:text,onChange:(e)=>this.onTutInput(i,e.target.value),
+                style:{border:0,borderRight:'1px solid var(--border)',resize:'none',padding:'16px',fontFamily:'var(--font-mono)',fontSize:'13px',lineHeight:1.7,background:'var(--bg)',color:'var(--fg-secondary)',minHeight:'190px',outline:'none'}}),
+              R.createElement('div',{key:'out',style:{padding:'14px 16px',display:'flex',flexDirection:'column',gap:'10px'}},[
+                R.createElement('div',{key:'l',style:{fontFamily:'var(--font-mono)',fontSize:'11px',color:'var(--fg-faint)'}},'railroad · '+(focus?focus.name:'—')),
+                R.createElement('div',{key:'d',style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}},this.buildDiagram(focus,info,(n)=>{ const t=this.parse(this.state.tutTexts[i]); if(t.some(x=>x.name===n)){ /* focus follows click */ } })),
+                ff])])])]) ]));
+  }
+
+  docsView(){
+    const R=React; const sec=this.state.docSection;
+    const content={
+      overview:{h:"Overview",p:["Gramaire is an LR parser generator whose source format is Markdown. A .gram.md file is a normal document that renders on GitHub — prose, railroad diagrams, FIRST/FOLLOW tables — and is at the same time the exact input the generator reads.","The productions live in fenced lr blocks; everything around them is documentation that travels with the grammar. The implementation is PureScript and self-hosting by design: Gramaire's own notation is described, in itself, in grammar/lr.gram.md."],code:null},
+      format:{h:"The .gram.md format",p:["A grammar file is a canonical Markdown document: one H1 naming the grammar, one H2 section per nonterminal — each with an lr fence of productions and an optional linked railroad diagram — plus optional Precedence and Error-message sections and a generated FIRST/FOLLOW section.","Because fence contents are opaque to Markdown, the characters {% , | , + and backslashes inside a payload never trip the renderer or the linter."],code:"Expr\n  : Expr `+` Term\n  | Term"},
+      fences:{h:"lr fences",p:["Each nonterminal's productions go inside a fenced lr block. A production is a sequence of symbols: nonterminals are bare identifiers, terminals are wrapped in backticks. Alternatives are separated by | ; the first line starts with : .","Semantic actions are written between {% and %} as raw PureScript and are preserved verbatim through to code generation."],code:"Term\n  : Term `*` Atom   {% Mul %}\n  | Atom"},
+      ff:{h:"FIRST / FOLLOW",p:["For every grammar, Gramaire machine-computes the FIRST and FOLLOW sets and checks them against the parser's own analysis. FIRST(A) is the set of terminals that can begin a string derived from A; FOLLOW(A) is the set that can appear immediately after A.","Open any grammar in the Lab to see these sets update live as you edit."],code:null},
+      cli:{h:"CLI",p:["The native PureScript CLI reads a .gram.md, lowers it to gramaire-ir, and runs a backend over the IR. gramaire --check gates structure, drift and lint; gramaire fmt emits real railroad diagrams; gramaire emit runs a backend (ir, ebnf, …); gramaire conformance runs the differential-oracle suite."],code:"node bin/gramaire.mjs emit examples/json.gram.md\nnode bin/gramaire.mjs emit examples/calc.gram.md --backend ebnf"},
+    }[sec];
+    const side=R.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'2px'}},DOCS.map(d=>{
+      const on=d.id===sec; return R.createElement('div',{key:d.id,onClick:()=>this.setDoc(d.id),style:{cursor:'pointer',padding:'9px 12px',borderRadius:'var(--radius)',fontSize:'13.5px',
+        background:on?'color-mix(in srgb,var(--accent) 10%,var(--bg))':'transparent',color:on?'var(--accent)':'var(--fg-muted)',fontWeight:on?600:400,borderLeft:'2px solid '+(on?'var(--accent)':'transparent')}},d.label);
+    }));
+    return R.createElement('div',{className:'gx-scroll',style:{overflow:'auto',flex:1}},
+      R.createElement('div',{style:{maxWidth:'1020px',margin:'0 auto',padding:'40px 28px 80px',display:'grid',gridTemplateColumns:'210px 1fr',gap:'40px',alignItems:'start'}},[
+        R.createElement('div',{key:'s',style:{position:'sticky',top:'20px'}},[
+          R.createElement('div',{key:'t',style:{fontFamily:'var(--font-mono)',fontSize:'11px',letterSpacing:'.12em',textTransform:'uppercase',color:'var(--fg-faint)',marginBottom:'12px'}},'Documentation'),side]),
+        R.createElement('div',{key:'c',style:{maxWidth:'660px'}},[
+          R.createElement('h1',{key:'h',style:{fontSize:'32px',letterSpacing:'-.8px',fontWeight:700,margin:'0 0 20px'}},content.h),
+          ...content.p.map((para,idx)=>R.createElement('p',{key:'p'+idx,style:{fontSize:'16px',lineHeight:1.65,color:'var(--fg-muted)',margin:'0 0 18px'}},para)),
+          content.code?R.createElement('div',{key:'code',style:{border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',background:'var(--bg-1)',padding:'18px 20px',margin:'6px 0 20px'}},this.codeBlock(content.code)):null,
+          R.createElement('div',{key:'cta',style:{marginTop:'26px',display:'flex',gap:'10px',flexWrap:'wrap'}},[
+            this.btn('Open calc in Lab ↗',()=>this.openInLab(EXAMPLES.calc.text,'Expr'),'chip'),
+            this.btn('Open json in Lab ↗',()=>this.openInLab(EXAMPLES.json.text,'Value'),'chip'),
+            this.btn('Open lr in Lab ↗',()=>this.openInLab(EXAMPLES.lr.text,'Rule'),'chip')])])]));
+  }
+
+  // ---------- input parsing: lexer + Earley ----------
+  lispOf(node){ if(node.leaf!=null) return '`'+node.leaf+'`'; if(!node.kids||!node.kids.length) return node.name; return '('+node.name+' '+node.kids.map(k=>this.lispOf(k)).join(' ')+')'; }
+  copyLisp = (txt) => { try{ navigator.clipboard.writeText(txt); }catch(e){} this.setState({copied:true}); clearTimeout(this._cpT); this._cpT=setTimeout(()=>this.setState({copied:false}),1400); };
+  detectConflicts(rules, names){
+    const isNT=(s)=>s.type==='nt'&&names.has(s.text);
+    const startW={}, endW={}; names.forEach(n=>{startW[n]=new Set();endW[n]=new Set();});
+    const byName={}; rules.forEach(r=>byName[r.name]=r);
+    let changed=true; let guard=0;
+    while(changed && guard++<50){ changed=false;
+      rules.forEach(r=>{ r.alts.forEach(a=>{ if(!a.length)return;
+        const f=a[0], l=a[a.length-1];
+        if(isNT(f)){ if(!startW[r.name].has(f.text)){startW[r.name].add(f.text);changed=true;} startW[f.text].forEach(x=>{ if(!startW[r.name].has(x)){startW[r.name].add(x);changed=true;} }); }
+        if(isNT(l)){ if(!endW[r.name].has(l.text)){endW[r.name].add(l.text);changed=true;} endW[l.text].forEach(x=>{ if(!endW[r.name].has(x)){endW[r.name].add(x);changed=true;} }); }
+      }); });
+    }
+    const conflicts=new Set();
+    rules.forEach(r=>{ r.alts.forEach(a=>{ if(a.length<2)return;
+      const f=a[0], l=a[a.length-1];
+      const leftReach = isNT(f)?(new Set([f.text, ...startW[f.text]])):new Set();
+      const rightReach = isNT(l)?(new Set([l.text, ...endW[l.text]])):new Set();
+      if(leftReach.has(r.name) && rightReach.has(r.name)) conflicts.add(r.name);
+    }); });
+    return conflicts;
+  }
+  parseForest(rules, start, tokens){
+    const names=new Set(rules.map(r=>r.name)); const isNT=(s)=>s.type==='nt'&&names.has(s.text);
+    const prods=[]; rules.forEach(r=>r.alts.forEach(alt=>prods.push({lhs:r.name,rhs:alt,pid:prods.length})));
+    const byLhs={}; prods.forEach(p=>(byLhs[p.lhs]=byLhs[p.lhs]||[]).push(p));
+    const n=tokens.length; const chart=[],seen=[];
+    for(let k=0;k<=n;k++){ chart.push([]); seen.push(new Set()); }
+    const add=(pos,it)=>{ const key=it.prod.pid+':'+it.dot+':'+it.start; if(seen[pos].has(key))return; seen[pos].add(key); chart[pos].push(it); };
+    (byLhs[start]||[]).forEach(p=>add(0,{prod:p,dot:0,start:0}));
+    for(let pos=0;pos<=n;pos++){ for(let i=0;i<chart[pos].length;i++){ const it=chart[pos][i]; const rhs=it.prod.rhs;
+      if(it.dot<rhs.length){ const sym=rhs[it.dot];
+        if(isNT(sym)){ (byLhs[sym.text]||[]).forEach(p=>add(pos,{prod:p,dot:0,start:pos})); }
+        else if(pos<n && tokens[pos].text===sym.text){ add(pos+1,{prod:it.prod,dot:it.dot+1,start:it.start}); }
+      } else { const L=it.prod.lhs;
+        for(let j=0;j<chart[it.start].length;j++){ const par=chart[it.start][j]; const pr=par.prod.rhs; if(par.dot<pr.length){ const ps=pr[par.dot]; if(ps.type==='nt'&&ps.text===L) add(pos,{prod:par.prod,dot:par.dot+1,start:par.start}); } }
+      }
+    }}
+    const completedAt=(j)=>chart[j].filter(it=>it.dot===it.prod.rhs.length);
+    const CAP=24; const ov={hit:false}; const memoT={}, memoR={};
+    function enumRHS(prod,m,i,j){ const key=prod.pid+'/'+m+'/'+i+'/'+j; if(memoR[key])return memoR[key]; let res=[];
+      if(m===0){ res=(i===j)?[[]]:[]; }
+      else { const sym=prod.rhs[m-1]; const isnt=sym.type==='nt'&&names.has(sym.text);
+        if(!isnt){ if(j>i && tokens[j-1].text===sym.text){ enumRHS(prod,m-1,i,j-1).forEach(pre=>{ if(res.length<CAP) res.push(pre.concat([{leaf:sym.text}])); else ov.hit=true; }); } }
+        else { completedAt(j).forEach(it=>{ if(it.prod.lhs!==sym.text)return; const s=it.start; if(s<i)return; const subs=treesNT(sym.text,s,j); if(!subs.length)return; enumRHS(prod,m-1,i,s).forEach(pre=>{ subs.forEach(sub=>{ if(res.length<CAP) res.push(pre.concat([sub])); else ov.hit=true; }); }); }); }
+      }
+      memoR[key]=res; return res;
+    }
+    function treesNT(name,i,j){ const key=name+'/'+i+'/'+j; if(memoT[key])return memoT[key]; memoT[key]=[]; const out=[];
+      completedAt(j).forEach(it=>{ if(it.prod.lhs!==name||it.start!==i)return; enumRHS(it.prod,it.prod.rhs.length,i,j).forEach(kids=>{ if(out.length<CAP) out.push({name:name,kids:kids}); else ov.hit=true; }); });
+      memoT[key]=out; return out;
+    }
+    const all = treesNT(start,0,n);
+    return {count:all.length, trees:all, overflow:ov.hit};
+  }
+  lexInput(rules, info, input){
+    const lexRules=(rules&&rules._lex)||[]; const s=input||''; const toks=[]; let i=0;
+    const namedSet=new Set(lexRules.map(l=>l.name));
+    const literals=[...info.terms].filter(t=>!namedSet.has(t)).sort((a,b)=>b.length-a.length);
+    if(!lexRules.length){
+      while(i<s.length){ const c=s[i]; if(c===' '||c==='\t'||c==='\n'||c==='\r'){ i++; continue; }
+        let m=null; for(const t of literals){ if(s.startsWith(t,i)){ m=t; break; } }
+        if(!m) return {error:true,pos:i,char:s[i],tokens:toks};
+        toks.push({text:m,value:m,start:i}); i+=m.length; }
+      return {error:false,tokens:toks};
+    }
+    const compiled=lexRules.map(l=>{ let rx=null; try{ rx=new RegExp('^(?:'+l.regex+')'); }catch(e){} return {name:l.name,rx,skip:l.skip}; });
+    while(i<s.length){
+      let best=null; const rest=s.slice(i);
+      for(const lit of literals){ if(s.startsWith(lit,i)){ if(!best||lit.length>best.len) best={len:lit.length,sym:lit,value:lit,skip:false}; break; } }
+      for(const c of compiled){ if(!c.rx)continue; const mm=c.rx.exec(rest); if(mm&&mm[0].length>0){ const len=mm[0].length; if(!best||len>best.len) best={len,sym:c.name,value:mm[0],skip:c.skip}; } }
+      if(!best) return {error:true,pos:i,char:s[i],tokens:toks};
+      if(!best.skip) toks.push({text:best.sym,value:best.value,start:i});
+      i+=best.len;
+    }
+    return {error:false,tokens:toks};
+  }
+  earleyParse(rules, start, tokens){
+    const names=new Set(rules.map(r=>r.name)); const isNT=(sym)=>sym.type==='nt'&&names.has(sym.text);
+    const prods=[]; rules.forEach(r=>r.alts.forEach((alt)=>prods.push({lhs:r.name,rhs:alt,pid:prods.length,action:alt.action})));
+    const byLhs={}; prods.forEach(p=>{ (byLhs[p.lhs]=byLhs[p.lhs]||[]).push(p); });
+    const n=tokens.length; const chart=[],seen=[];
+    for(let k=0;k<=n;k++){ chart.push([]); seen.push(new Set()); }
+    const add=(pos,it)=>{ const key=it.prod.pid+':'+it.dot+':'+it.start; if(seen[pos].has(key)) return false; seen[pos].add(key); chart[pos].push(it); return true; };
+    (byLhs[start]||[]).forEach(p=>add(0,{prod:p,dot:0,start:0,kids:[]}));
+    let furthest=0;
+    for(let pos=0;pos<=n;pos++){ let changed=true;
+      while(changed){ changed=false;
+        for(let i=0;i<chart[pos].length;i++){ const it=chart[pos][i]; const rhs=it.prod.rhs;
+          if(it.dot<rhs.length){ const sym=rhs[it.dot];
+            if(isNT(sym)){ (byLhs[sym.text]||[]).forEach(p=>{ if(add(pos,{prod:p,dot:0,start:pos,kids:[]})) changed=true; }); }
+            else if(pos<n && tokens[pos].text===sym.text){ add(pos+1,{prod:it.prod,dot:it.dot+1,start:it.start,kids:it.kids.concat([{tok:tokens[pos]}])}); if(pos+1>furthest) furthest=pos+1; }
+          } else { const L=it.prod.lhs;
+            for(let j=0;j<chart[it.start].length;j++){ const par=chart[it.start][j]; const pr=par.prod.rhs;
+              if(par.dot<pr.length){ const ps=pr[par.dot]; if(ps.type==='nt'&&ps.text===L){ if(add(pos,{prod:par.prod,dot:par.dot+1,start:par.start,kids:par.kids.concat([{item:it}])})) changed=true; } } }
+          }
+        }
+      }
+    }
+    const acc=chart[n].find(it=>it.prod.lhs===start&&it.dot===it.prod.rhs.length&&it.start===0);
+    const toTree=(it)=>({name:it.prod.lhs,prod:it.prod,kids:it.kids.map(k=> k.tok?{leaf:k.tok.text,value:k.tok.value}:toTree(k.item))});
+    if(acc) return {ok:true,tree:toTree(acc)};
+    const exp=new Set(); (chart[furthest]||[]).forEach(it=>{ const rhs=it.prod.rhs; if(it.dot<rhs.length){ const s=rhs[it.dot]; if(!isNT(s)) exp.add(s.text); } });
+    return {ok:false,at:furthest,expected:[...exp],got: tokens[furthest]?tokens[furthest].text:'end of input'};
+  }
+  flattenTrace(tree){ const out=[]; const visit=(node)=>{ if(node.leaf!=null){ out.push({kind:'shift',text:node.leaf}); return; } node.kids.forEach(visit); out.push({kind:'reduce',rule:node.name,rhs:node.kids.map(k=>k.leaf!=null?('`'+k.leaf+'`'):k.name)}); }; visit(tree); return out; }
+  grammarHasActions(rules){ return rules.some(r=>r.alts.some(a=>a.action)); }
+  fmtVal(v){ if(v==null) return String(v); if(typeof v==='number') return (Number.isInteger(v)?v:parseFloat(v.toFixed(6)))+''; if(typeof v==='string') return JSON.stringify(v); return String(v); }
+  annotate(node){
+    if(node.leaf!=null){ node.ev=node.value; return node.value; }
+    const prod=node.prod; const c={}; let pass=null;
+    node.kids.forEach((kid,i)=>{ const s=prod&&prod.rhs[i]; const v=this.annotate(kid); if(!s||s.type==='t') return; c[s.text.toLowerCase()]=v; pass=v; });
+    if(prod&&prod.action){ try{ const fn=(0,eval)('('+prod.action+')'); node.ev=fn(c); node.err=null; }catch(e){ node.ev=undefined; node.err=String(e.message||e); } }
+    else node.ev=pass;
+    return node.ev;
+  }
+  evalSteps(node,out){ out=out||[]; if(node.leaf!=null) return out; node.kids.forEach(k=>this.evalSteps(k,out));
+    out.push({rule:node.name,rhs:node.prod?node.prod.rhs.map(t=>t.type==='t'?("'"+t.text+"'"):t.text):[],action:node.prod?node.prod.action:null,value:node.ev,err:node.err}); return out; }
+  evalTreeEl(node,depth,path){ const R=React; depth=depth||0; path=path||'r';
+    if(node.leaf!=null) return R.createElement('div',{style:{display:'flex',alignItems:'center',gap:'8px',padding:'2px 0',paddingLeft:(8+depth*20)+'px'}},[
+      R.createElement('span',{key:'g',style:{color:'var(--fg-faint)',fontFamily:'var(--font-mono)',fontSize:'11px',width:'11px',flex:'none',textAlign:'center'}},'•'),
+      R.createElement('span',{key:'t',style:{fontFamily:'var(--font-mono)',fontSize:'12.5px',color:'var(--t-term)',background:'var(--bg-2)',border:'1px solid var(--border)',borderRadius:'999px',padding:'1px 10px'}},node.value)]);
+    const folded=!!this.state.collapsed['e'+path]; const hasKids=node.kids.length>0;
+    const valChip=R.createElement('span',{key:'v',style:{fontFamily:'var(--font-mono)',fontSize:'12px',fontWeight:600,color:node.err?'#e5484d':'var(--accent)',background:node.err?'color-mix(in srgb,#e5484d 12%,var(--bg))':'color-mix(in srgb,var(--accent) 12%,var(--bg))',border:'1px solid '+(node.err?'#e5484d':'color-mix(in srgb,var(--accent) 34%,transparent)'),borderRadius:'5px',padding:'0 8px'}}, node.err?'⚠ err':('= '+this.fmtVal(node.ev)));
+    return R.createElement('div',{},[
+      R.createElement('div',{key:'h',onClick:hasKids?()=>this.toggleFold('e'+path):undefined,style:{display:'flex',alignItems:'center',gap:'8px',padding:'3px 0',paddingLeft:(8+depth*20)+'px',cursor:hasKids?'pointer':'default',userSelect:'none'}},[
+        R.createElement('span',{key:'g',style:{color:'var(--accent)',fontFamily:'var(--font-mono)',fontSize:'10px',width:'11px',flex:'none',textAlign:'center'}},hasKids?(folded?'▶':'▼'):'·'),
+        R.createElement('span',{key:'n',style:{fontFamily:'var(--font-mono)',fontSize:'12.5px',fontWeight:600,color:'var(--accent)'}},node.name),
+        valChip]),
+      ...(folded?[]:node.kids.map((k,i)=>R.createElement('div',{key:i},this.evalTreeEl(k,depth+1,path+'.'+i))))]);
+  }
+  toggleFold = (p) => this.setState(s=>{ const c=Object.assign({},s.collapsed); if(c[p]) delete c[p]; else c[p]=true; return {collapsed:c}; });
+  revealLeaf = (idx) => { const tree=this._lastTree; if(!tree) return; const anc=[]; let count=0;
+    const walk=(node,path)=>{ if(node.leaf!=null){ const hit=count===idx; count++; return hit; } for(let i=0;i<node.kids.length;i++){ if(walk(node.kids[i],path+'.'+i)){ anc.push(path); return true; } } return false; };
+    walk(tree,'r'); if(!anc.length) return; this.setState(s=>{ const c=Object.assign({},s.collapsed); anc.forEach(p=>delete c[p]); return {collapsed:c}; }); };
+  treeEl(node,depth,path){ const R=React; depth=depth||0; path=path||'r';
+    if(node.leaf!=null){ const on=node.idx===this.state.hoverTok;
+      return R.createElement('div',{onMouseEnter:()=>this.setHover(node.idx),onMouseLeave:()=>this.setHover(-1),style:{display:'flex',alignItems:'center',gap:'8px',padding:'2px 0',paddingLeft:(8+depth*20)+'px',cursor:'default'}},[
+        R.createElement('span',{key:'g',style:{color:'var(--fg-faint)',fontFamily:'var(--font-mono)',fontSize:'11px',width:'11px',flex:'none',textAlign:'center'}},'•'),
+        R.createElement('span',{key:'t',style:{fontFamily:'var(--font-mono)',fontSize:'12.5px',color:on?'#fff':'var(--t-term)',background:on?'var(--t-term)':'var(--bg-2)',border:'1px solid '+(on?'var(--t-term)':'var(--border)'),borderRadius:'999px',padding:'1px 10px'}},node.leaf)]); }
+    const folded=!!this.state.collapsed[path]; const hasKids=node.kids.length>0;
+    return R.createElement('div',{},[
+      R.createElement('div',{key:'h',onClick:hasKids?()=>this.toggleFold(path):undefined,onMouseEnter:()=>this.setHoverRule(node.name),onMouseLeave:()=>this.setHoverRule(''),style:{display:'flex',alignItems:'center',gap:'8px',padding:'2px 0',paddingLeft:(8+depth*20)+'px',cursor:hasKids?'pointer':'default',userSelect:'none'}},[
+        R.createElement('span',{key:'g',style:{color:'var(--accent)',fontFamily:'var(--font-mono)',fontSize:'10px',width:'11px',flex:'none',textAlign:'center'}},hasKids?(folded?'▶':'▼'):'·'),
+        R.createElement('span',{key:'n',style:{fontFamily:'var(--font-mono)',fontSize:'12.5px',fontWeight:600,color:'var(--accent)'}},node.name),
+        folded?R.createElement('span',{key:'c',style:{fontFamily:'var(--font-mono)',fontSize:'11px',color:'var(--fg-faint)'}},'… '+node.kids.length):null]),
+      ...(folded?[]:node.kids.map((k,i)=>R.createElement('div',{key:i},this.treeEl(k,depth+1,path+'.'+i))))]);
+  }
+
+  labView(){
+    const R=React; const RED='#e5484d';
+    const rules=this.parse(this.state.labText); const info=this.analyze(rules);
+    const active=rules.find(r=>r.name===this.state.labRule)||rules[0]; const set=s=>'{ '+[...s].join(' ')+' }';
+    const start=(this.state.labStart && rules.some(r=>r.name===this.state.labStart))?this.state.labStart:(rules[0]?rules[0].name:''); const tab=this.state.labTab;
+    const conflicts=this.detectConflicts(rules,info.names); const nConf=conflicts.size;
+    const lex=this.lexInput(rules,info,this.state.labInput);
+    const res=lex.error?{ok:false}:this.earleyParse(rules,start,lex.tokens);
+    const lab={fontFamily:'var(--font-mono)',fontSize:'11px',letterSpacing:'.1em',textTransform:'uppercase',color:'var(--fg-faint)'};
+    const labBlk=Object.assign({},lab,{marginBottom:'11px',display:'block'});
+    const note=(t)=>R.createElement('div',{style:{fontFamily:'var(--font-mono)',fontSize:'12.5px',color:'var(--fg-faint)',padding:'10px 2px'}},t);
+
+    const exampleTabs=R.createElement('div',{style:{display:'flex',gap:'6px'}},Object.keys(EXAMPLES).map(name=>{ const on=this.state.labExample===name;
+      return R.createElement('span',{key:name,onClick:()=>this.loadExample(name),style:{fontFamily:'var(--font-mono)',fontSize:'12px',fontWeight:on?600:400,color:on?'#fff':'var(--fg-muted)',background:on?'var(--accent)':'var(--bg-2)',padding:'4px 11px',borderRadius:'999px',cursor:'pointer'}},name); }));
+    const chips=R.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:'7px'}},rules.map(r=>{ const on=active&&r.name===active.name;
+      return R.createElement('span',{key:r.name,onClick:()=>this.selectLabRule(r.name),style:{fontFamily:'var(--font-mono)',fontSize:'12.5px',fontWeight:600,color:on?'var(--accent)':'var(--fg-muted)',background:on?'color-mix(in srgb,var(--accent) 10%,var(--bg))':'var(--bg-2)',border:'1px solid '+(on?'var(--accent)':'var(--border)'),padding:'5px 11px',borderRadius:'6px',cursor:'pointer'}},r.name); }));
+    const ffTable=R.createElement('div',{style:{display:'flex',flexDirection:'column',border:'1px solid var(--border)',borderRadius:'8px',overflow:'hidden'}},rules.map((r,idx)=>
+      R.createElement('div',{key:r.name,style:{display:'grid',gridTemplateColumns:'100px 1fr 1fr',gap:'12px',alignItems:'center',padding:'9px 14px',background:idx%2?'var(--bg-1)':'var(--bg)',borderTop:idx?'1px solid var(--border)':'none',fontFamily:'var(--font-mono)',fontSize:'12.5px'}},[
+        R.createElement('span',{key:'n',onClick:()=>this.selectLabRule(r.name),style:{color:'var(--accent)',fontWeight:600,cursor:'pointer'}},r.name),
+        R.createElement('span',{key:'fi'},[R.createElement('span',{key:'l',style:{color:'var(--fg-faint)',marginRight:'8px'}},'FIRST'),R.createElement('span',{key:'v',style:{color:'var(--t-term)'}},set(info.first(r.name)))]),
+        R.createElement('span',{key:'fo'},[R.createElement('span',{key:'l',style:{color:'var(--fg-faint)',marginRight:'8px'}},'FOLLOW'),R.createElement('span',{key:'v',style:{color:'var(--t-term)'}},set(info.follow[r.name]||new Set()))])]) ));
+
+    const tokChips = lex.error?null:R.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:'6px'}},lex.tokens.map((t,i)=>{ const fail=!res.ok&&res.at===i;
+      return R.createElement('span',{key:i,style:{fontFamily:'var(--font-mono)',fontSize:'12px',padding:'3px 9px',borderRadius:'5px',background:fail?'color-mix(in srgb,'+RED+' 12%,var(--bg))':'var(--bg-2)',color:fail?RED:'var(--fg-secondary)',border:'1px solid '+(fail?RED:'var(--border)')}},(t.value!=null?t.value:t.text)); }));
+    const banner=(ok,title,sub)=>R.createElement('div',{style:{display:'flex',alignItems:'center',gap:'12px',padding:'14px 16px',borderRadius:'8px',border:'1px solid '+(ok?'color-mix(in srgb,var(--accent) 40%,transparent)':RED),background:ok?'color-mix(in srgb,var(--accent) 10%,var(--bg))':'color-mix(in srgb,'+RED+' 11%,var(--bg))'}},[
+      R.createElement('span',{key:'i',style:{fontSize:'18px',lineHeight:1,color:ok?'var(--accent)':RED}},ok?'✓':'✕'),
+      R.createElement('div',{key:'t'},[R.createElement('div',{key:'a',style:{fontWeight:600,fontSize:'14px',color:ok?'var(--accent)':RED}},title),sub?R.createElement('div',{key:'b',style:{fontSize:'12.5px',color:'var(--fg-muted)',marginTop:'3px',fontFamily:'var(--font-mono)'}},sub):null])]);
+
+    // ---- tab content ----
+    let content;
+    if(tab==='result'){
+      if(lex.error) content=[banner(false,'Lexing error',"unexpected character '"+lex.char+"' at position "+lex.pos+' — input must use the grammar terminal tokens')];
+      else if(res.ok) content=[banner(true,'Accepted',start+' derives this input · '+lex.tokens.length+' tokens'),R.createElement('div',{key:'ts',style:{marginTop:'16px'}},[R.createElement('div',{key:'l',style:labBlk},'token stream'),tokChips])];
+      else content=[banner(false,'Rejected','at token '+res.at+' — expected '+(res.expected.length?'{ '+res.expected.join(' ')+' }':'end of input')+', got '+res.got),R.createElement('div',{key:'ts',style:{marginTop:'16px'}},[R.createElement('div',{key:'l',style:labBlk},'token stream'),tokChips])];
+    } else if(tab==='eval'){
+      const lang=rules._lang; const hasAct=this.grammarHasActions(rules);
+      if(!hasAct) content=[note('This grammar defines no semantic actions. Add inline {% … %} actions to evaluate — see the calc example.')];
+      else if(lex.error) content=[note('Fix the lexing error to evaluate.')];
+      else if(!res.ok) content=[note('Input not accepted — nothing to evaluate. Fix the input on the right.')];
+      else { const tree=res.tree; this.annotate(tree); const steps=this.evalSteps(tree); const topErr=steps.some(s=>s.err);
+        const topVal=tree.ev;
+        const banner=R.createElement('div',{key:'b',style:{display:'flex',alignItems:'center',gap:'16px',padding:'18px 20px',borderRadius:'10px',marginBottom:'18px',border:'1px solid '+(topErr?'#e5484d':'color-mix(in srgb,var(--accent) 40%,transparent)'),background:topErr?'color-mix(in srgb,#e5484d 9%,var(--bg))':'color-mix(in srgb,var(--accent) 9%,var(--bg))'}},[
+          R.createElement('div',{key:'l'},[
+            R.createElement('div',{key:'a',style:{fontFamily:'var(--font-mono)',fontSize:'10.5px',letterSpacing:'.12em',textTransform:'uppercase',color:'var(--fg-faint)',marginBottom:'6px'}},'result · '+(lang||'eval')),
+            R.createElement('div',{key:'b',style:{fontFamily:'var(--font-mono)',fontSize:'13px',color:'var(--fg-muted)'}},(this.state.labInput||'').trim()+'  =')]),
+          R.createElement('div',{key:'v',style:{marginLeft:'auto',fontFamily:'var(--font-mono)',fontSize:'34px',fontWeight:700,letterSpacing:'-1px',color:topErr?'#e5484d':'var(--accent)'}}, topErr?'⚠':this.fmtVal(topVal))]);
+        const treeSec=R.createElement('div',{key:'tr'},[
+          R.createElement('div',{key:'l',style:labBlk},'annotated tree — each rule reduces to a value'),
+          R.createElement('div',{key:'t',style:{padding:'2px 0',marginBottom:'18px'}},this.evalTreeEl(tree,0,'r'))]);
+        const rows=steps.map((s,i)=>R.createElement('div',{key:i,style:{display:'grid',gridTemplateColumns:'1fr auto',gap:'12px',alignItems:'center',padding:'7px 12px',borderTop:i?'1px solid var(--border)':'none',fontFamily:'var(--font-mono)',fontSize:'12.5px'}},[
+          R.createElement('span',{key:'l',style:{minWidth:0}},[
+            R.createElement('span',{key:'a',style:{color:'var(--accent)',fontWeight:600}},s.rule),
+            R.createElement('span',{key:'b',style:{color:'var(--fg-faint)'}},' → '),
+            R.createElement('span',{key:'c',style:{color:'var(--fg-secondary)'}},s.rhs.join(' ')),
+            s.action?R.createElement('span',{key:'d',style:{color:'var(--t-action)',marginLeft:'10px'}},'{% '+s.action+' %}'):null]),
+          R.createElement('span',{key:'v',style:{fontWeight:600,color:s.err?'#e5484d':'var(--accent)',whiteSpace:'nowrap'}}, s.err?('⚠ '+s.err):('⇒ '+this.fmtVal(s.value)))]));
+        const stepsSec=R.createElement('div',{key:'st'},[
+          R.createElement('div',{key:'l',style:labBlk},'reductions · bottom-up ('+steps.length+')'),
+          R.createElement('div',{key:'b',style:{border:'1px solid var(--border)',borderRadius:'8px',overflow:'hidden'}},rows)]);
+        content=[banner,treeSec,stepsSec];
+      }
+    } else if(tab==='tokens'){
+      if(lex.error) content=[banner(false,'Lexing error',"unexpected character '"+lex.char+"' at position "+lex.pos)];
+      else if(!lex.tokens.length) content=[note('No input — type tokens on the right to see the stream.')];
+      else { const hd={fontFamily:'var(--font-mono)',fontSize:'10.5px',letterSpacing:'.1em',textTransform:'uppercase',color:'var(--fg-faint)',padding:'8px 14px'};
+        const head=R.createElement('div',{key:'h',style:{display:'grid',gridTemplateColumns:'44px 1fr 96px 70px 56px',background:'var(--bg-1)',borderBottom:'1px solid var(--border)'}},[
+          R.createElement('div',{key:'a',style:hd},'#'),R.createElement('div',{key:'b',style:hd},'text'),R.createElement('div',{key:'c',style:hd},'type'),R.createElement('div',{key:'d',style:hd},'start'),R.createElement('div',{key:'e',style:hd},'len')]);
+        const rows=lex.tokens.map((t,i)=>{ const on=i===this.state.hoverTok; const fail=!res.ok&&res.at===i;
+          return R.createElement('div',{key:i,onMouseEnter:()=>this.setHover(i),onMouseLeave:()=>this.setHover(-1),style:{display:'grid',gridTemplateColumns:'44px 1fr 96px 70px 56px',alignItems:'center',padding:'8px 14px',fontFamily:'var(--font-mono)',fontSize:'12.5px',cursor:'default',borderTop:'1px solid var(--border)',background:on?'color-mix(in srgb,var(--accent) 10%,var(--bg))':(fail?'color-mix(in srgb,'+RED+' 9%,var(--bg))':'transparent')}},[
+            R.createElement('span',{key:'a',style:{color:'var(--fg-faint)'}},i),
+            R.createElement('span',{key:'b'},R.createElement('span',{style:{color:fail?RED:'var(--t-term)',background:'var(--bg-2)',border:'1px solid '+(fail?RED:'var(--border)'),borderRadius:'5px',padding:'1px 9px'}},(t.value!=null?t.value:t.text))),
+            R.createElement('span',{key:'c',style:{color:'var(--fg-muted)'}},(t.value!=null&&t.value!==t.text)?t.text:'literal'),
+            R.createElement('span',{key:'d',style:{color:'var(--fg-muted)'}},t.start),
+            R.createElement('span',{key:'e',style:{color:'var(--fg-muted)'}},((t.value!=null?t.value:t.text)||'').length)]); });
+        const eof=R.createElement('div',{key:'eof',style:{display:'grid',gridTemplateColumns:'44px 1fr 96px 70px 56px',alignItems:'center',padding:'8px 14px',fontFamily:'var(--font-mono)',fontSize:'12.5px',borderTop:'1px solid var(--border)',color:'var(--fg-faint)'}},[
+          R.createElement('span',{key:'a'},lex.tokens.length),R.createElement('span',{key:'b'},R.createElement('span',{style:{color:'var(--fg-faint)'}},'$')),R.createElement('span',{key:'c'},'EOF'),R.createElement('span',{key:'d'},(this.state.labInput||'').length),R.createElement('span',{key:'e'},'0')]);
+        content=[R.createElement('div',{key:'lk',style:{fontFamily:'var(--font-mono)',fontSize:'11px',color:'var(--fg-faint)',marginBottom:'12px'}},lex.tokens.length+' tokens · hover a row to link it across views'),
+          R.createElement('div',{key:'tb',style:{border:'1px solid var(--border)',borderRadius:'8px',overflow:'hidden'}},[head,...rows,eof])];
+      }
+    } else if(tab==='analysis'){
+      const methods=['Canonical','LALR','IELR']; const m=this.state.labMethod;
+      const states = m==='Canonical'?(info.names.size+info.terms.size)*2 : m==='LALR'?info.names.size+info.terms.size : info.names.size+info.terms.size+1;
+      const mSwitch=R.createElement('div',{style:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'18px'}},[
+        R.createElement('div',{key:'sw',style:{display:'flex',gap:'2px',background:'var(--bg-2)',borderRadius:'7px',padding:'2px'}},methods.map(x=>{ const on=m===x;
+          return R.createElement('span',{key:x,onClick:()=>this.setLabMethod(x),style:{cursor:'pointer',fontFamily:'var(--font-mono)',fontSize:'11.5px',fontWeight:on?600:500,padding:'4px 11px',borderRadius:'5px',background:on?'var(--bg)':'transparent',color:on?'var(--accent)':'var(--fg-muted)'}},x); })),
+        R.createElement('span',{key:'st',style:{fontFamily:'var(--font-mono)',fontSize:'12px',color:nConf?'#b4530a':'var(--fg-muted)'}},'~'+states+' states · '+(nConf?(nConf+' conflict'+(nConf>1?'s':'')):'0 conflicts'))]);
+      content=[mSwitch,
+        R.createElement('div',{key:'rc',style:{marginBottom:'14px'}},[R.createElement('div',{key:'l',style:labBlk},'rules — pick one to diagram'),chips]),
+        R.createElement('div',{key:'dg',style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'150px',padding:'8px 0 20px',borderBottom:'1px solid var(--border)',marginBottom:'16px'}},this.buildDiagram(active,info,this.selectLabRule)),
+        R.createElement('div',{key:'l2',style:labBlk},'FIRST / FOLLOW'),ffTable];
+    } else if(tab==='tree'){
+      if(res.ok){ this.indexLeaves(res.tree); this._lastTree=res.tree;
+        const strip=R.createElement('div',{key:'strip',style:{display:'flex',flexWrap:'wrap',gap:'6px',marginBottom:'16px',paddingBottom:'14px',borderBottom:'1px solid var(--border)'}},(lex.tokens||[]).map((t,i)=>{ const on=i===this.state.hoverTok;
+          return R.createElement('span',{key:i,title:'click to reveal in tree',onMouseEnter:()=>this.setHover(i),onMouseLeave:()=>this.setHover(-1),onClick:()=>this.revealLeaf(i),style:{fontFamily:'var(--font-mono)',fontSize:'12px',padding:'3px 9px',borderRadius:'5px',cursor:'pointer',background:on?'var(--t-term)':'var(--bg-2)',color:on?'#fff':'var(--fg-secondary)',border:'1px solid '+(on?'var(--t-term)':'var(--border)')}},(t.value!=null?t.value:t.text)); }));
+        content=[R.createElement('div',{key:'lk',style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'10px',marginBottom:'10px'}},[R.createElement('span',{key:'a',style:{fontFamily:'var(--font-mono)',fontSize:'11px',color:'var(--fg-faint)'}},'hover a token or a leaf — they link · click a node to fold'),R.createElement('span',{key:'b',onClick:()=>this.copyLisp(this.lispOf(res.tree)),style:{cursor:'pointer',fontFamily:'var(--font-mono)',fontSize:'11px',fontWeight:600,color:this.state.copied?'var(--accent)':'var(--fg-secondary)',background:'var(--bg-2)',border:'1px solid var(--border-strong)',borderRadius:'6px',padding:'4px 10px'}},this.state.copied?'✓ copied':'copy LISP')]),strip,R.createElement('div',{key:'t',style:{padding:'2px 0'}},this.treeEl(res.tree,0,'r'))];
+      } else content=[note(lex.error?'Fix the lexing error to see a parse tree.':'Input not accepted — no parse tree. Edit the input on the right.')];
+    } else if(tab==='trace'){
+      if(res.ok){ const tr=this.flattenTrace(res.tree);
+        content=[R.createElement('div',{key:'tr',style:{display:'flex',flexDirection:'column',gap:'2px'}},tr.map((s,i)=>R.createElement('div',{key:i,style:{display:'flex',gap:'10px',alignItems:'baseline',padding:'4px 8px',borderRadius:'5px',background:i%2?'var(--bg-1)':'transparent',fontFamily:'var(--font-mono)',fontSize:'12.5px'}},[
+          R.createElement('span',{key:'n',style:{color:'var(--fg-faint)',width:'26px',flex:'none'}},(i+1)),
+          R.createElement('span',{key:'k',style:{width:'56px',flex:'none',color:s.kind==='shift'?'var(--t-term)':'var(--accent)'}},s.kind),
+          s.kind==='shift'? R.createElement('span',{key:'v',style:{color:'var(--t-term)'}},'`'+s.text+'`')
+            : R.createElement('span',{key:'v'},[R.createElement('span',{key:'a',style:{color:'var(--accent)',fontWeight:600}},s.rule),R.createElement('span',{key:'b',style:{color:'var(--fg-faint)'}},' → '),R.createElement('span',{key:'c',style:{color:'var(--fg-secondary)'}},s.rhs.join(' '))])
+        ])))];
+      } else content=[note(lex.error?'Fix the lexing error to see a parse trace.':'Input not accepted — no parse trace.')];
+    } else if(tab==='walk'){
+      if(!res.ok) content=[note(lex.error?'Fix the lexing error to run the LR walk.':'Input not accepted — no LR walk.')];
+      else { const steps=this.buildWalk(this.flattenTrace(res.tree)); const cur=Math.max(0,Math.min(this.state.labStep,steps.length-1)); const st=steps[cur];
+        const symChip=(s,i)=>{ const term=s[0]==='`'; return R.createElement('span',{key:i,style:{fontFamily:'var(--font-mono)',fontSize:'12.5px',fontWeight:term?400:600,padding:'2px 9px',borderRadius:'5px',background:term?'var(--bg-2)':'color-mix(in srgb,var(--accent) 10%,var(--bg))',color:term?'var(--t-term)':'var(--accent)',border:'1px solid '+(term?'var(--border)':'color-mix(in srgb,var(--accent) 30%,transparent)')}}, term?s.slice(1,-1):s); };
+        const remaining=(lex.tokens||[]).slice(st.cursor);
+        const ctrlBtn=(label,to,dis)=>R.createElement('span',{key:label,onClick:dis?undefined:()=>this.setLabStep(to),style:{cursor:dis?'default':'pointer',opacity:dis?.4:1,fontFamily:'var(--font-mono)',fontSize:'12px',fontWeight:600,color:'var(--fg-secondary)',background:'var(--bg-2)',border:'1px solid var(--border-strong)',borderRadius:'6px',padding:'5px 11px'}},label);
+        const actionDesc = st.action==='shift'?['shift ',symChip(st.sym,'s')]
+          : st.action==='accept'?[R.createElement('span',{key:'a',style:{color:'var(--accent)',fontWeight:600}},'accept'),' — input reduced to start symbol']
+          : ['reduce ',R.createElement('span',{key:'r',style:{color:'var(--accent)',fontWeight:600,fontFamily:'var(--font-mono)'}},st.rule),R.createElement('span',{key:'a',style:{color:'var(--fg-faint)'}},' → '),R.createElement('span',{key:'b',style:{fontFamily:'var(--font-mono)',color:'var(--fg-secondary)'}},st.rhs.join(' ')),R.createElement('span',{key:'c',style:{color:'var(--fg-faint)'}},'  (pop '+st.popped+', goto '+st.rule+')')];
+        const ctrls=R.createElement('div',{key:'c',style:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'16px'}},[
+          ctrlBtn('⏮',0,cur===0),ctrlBtn('◀ prev',cur-1,cur===0),
+          R.createElement('span',{key:'n',style:{fontFamily:'var(--font-mono)',fontSize:'12px',color:'var(--fg-muted)',minWidth:'92px',textAlign:'center'}},'step '+(cur+1)+' / '+steps.length),
+          ctrlBtn('next ▶',cur+1,cur===steps.length-1),ctrlBtn('⏭',steps.length-1,cur===steps.length-1),
+          R.createElement('input',{key:'sl',type:'range',min:0,max:steps.length-1,value:cur,onChange:(e)=>this.setLabStep(parseInt(e.target.value,10)),style:{flex:1,accentColor:'var(--accent)'}})]);
+        const panel=(title,body)=>R.createElement('div',{style:{flex:1,minWidth:0,border:'1px solid var(--border)',borderRadius:'8px',overflow:'hidden'}},[
+          R.createElement('div',{key:'t',style:{padding:'7px 12px',background:'var(--bg-1)',borderBottom:'1px solid var(--border)',fontFamily:'var(--font-mono)',fontSize:'10.5px',letterSpacing:'.1em',textTransform:'uppercase',color:'var(--fg-faint)'}},title),
+          R.createElement('div',{key:'b',style:{padding:'12px',display:'flex',flexWrap:'wrap',gap:'6px',alignItems:'center',minHeight:'30px'}},body)]);
+        const stackBody = st.after.length?st.after.map((s,i)=>symChip(s,i)):[R.createElement('span',{key:'e',style:{color:'var(--fg-faint)',fontFamily:'var(--font-mono)',fontSize:'12px'}},'∅')];
+        const remBody = remaining.length?remaining.map((t,i)=>symChip('`'+t.text+'`',i)).concat([R.createElement('span',{key:'eof',style:{color:'var(--fg-faint)',fontFamily:'var(--font-mono)',fontSize:'12px'}},'$')]):[R.createElement('span',{key:'eof',style:{color:'var(--fg-faint)',fontFamily:'var(--font-mono)',fontSize:'12px'}},'$')];
+        const stepList=R.createElement('div',{key:'sl',style:{marginTop:'18px',border:'1px solid var(--border)',borderRadius:'8px',overflow:'hidden'}},steps.map((s,i)=>{ const on=i===cur;
+          const lbl = s.action==='shift'?'shift '+s.sym.slice(1,-1) : s.action==='accept'?'accept' : 'reduce '+s.rule+' → '+s.rhs.join(' ');
+          return R.createElement('div',{key:i,onClick:()=>this.setLabStep(i),style:{display:'flex',gap:'12px',alignItems:'baseline',padding:'6px 12px',cursor:'pointer',borderTop:i?'1px solid var(--border)':'none',background:on?'color-mix(in srgb,var(--accent) 10%,var(--bg))':'transparent',fontFamily:'var(--font-mono)',fontSize:'12px'}},[
+            R.createElement('span',{key:'n',style:{color:'var(--fg-faint)',width:'24px',flex:'none'}},i+1),
+            R.createElement('span',{key:'k',style:{width:'52px',flex:'none',color:s.action==='shift'?'var(--t-term)':s.action==='accept'?'var(--accent)':'var(--accent)',fontWeight:600}},s.action),
+            R.createElement('span',{key:'v',style:{color:'var(--fg-secondary)'}}, s.action==='shift'?s.sym.slice(1,-1) : s.action==='accept'?'' : s.rule+' → '+s.rhs.join(' '))]); }));
+        content=[ctrls,
+          R.createElement('div',{key:'act',style:{padding:'11px 14px',border:'1px solid color-mix(in srgb,var(--accent) 30%,transparent)',background:'color-mix(in srgb,var(--accent) 7%,var(--bg))',borderRadius:'8px',marginBottom:'14px',fontSize:'13px',display:'flex',alignItems:'center',gap:'4px',flexWrap:'wrap'}},[R.createElement('span',{key:'l',style:{fontFamily:'var(--font-mono)',fontSize:'10.5px',letterSpacing:'.1em',textTransform:'uppercase',color:'var(--fg-faint)',marginRight:'8px'}},'action'),...actionDesc]),
+          R.createElement('div',{key:'pan',style:{display:'flex',gap:'12px',flexWrap:'wrap'}},[panel('parse stack',stackBody),panel('remaining input',remBody)]),
+          stepList];
+      }
+    } else if(tab==='ambig'){
+      if(lex.error||!res.ok) content=[note(lex.error?'Fix the lexing error to enumerate parses.':'Input not accepted — no parses to enumerate.')];
+      else { const forest=this.parseForest(rules,start,lex.tokens); const amb=forest.count>1;
+        const cnt=forest.overflow?(forest.count+'+'):(''+forest.count);
+        const badge=R.createElement('div',{key:'b',style:{display:'flex',alignItems:'center',gap:'12px',padding:'13px 16px',borderRadius:'8px',marginBottom:'16px',border:'1px solid '+(amb?'#b4530a':'color-mix(in srgb,var(--accent) 40%,transparent)'),background:amb?'color-mix(in srgb,#b4530a 9%,var(--bg))':'color-mix(in srgb,var(--accent) 10%,var(--bg))'}},[
+          R.createElement('span',{key:'i',style:{fontSize:'16px',color:amb?'#b4530a':'var(--accent)'}},amb?'⚠':'✓'),
+          R.createElement('div',{key:'t'},[
+            R.createElement('div',{key:'a',style:{fontWeight:600,fontSize:'14px',color:amb?'#b4530a':'var(--accent)'}},amb?('Ambiguous · '+cnt+' distinct parse trees'):'Unambiguous · exactly 1 parse'),
+            R.createElement('div',{key:'b',style:{fontSize:'12.5px',color:'var(--fg-muted)',marginTop:'3px',fontFamily:'var(--font-mono)'}},amb?('an LR(1) build would report a shift/reduce or reduce/reduce conflict here'):('the '+this.state.labMethod+'(1) tables resolve this input deterministically'))])]);
+        const cards=forest.trees.slice(0,8).map((t,i)=>R.createElement('div',{key:i,style:{border:'1px solid var(--border)',borderRadius:'8px',overflow:'hidden',marginBottom:'10px'}},[
+          R.createElement('div',{key:'h',style:{display:'flex',justifyContent:'space-between',padding:'7px 12px',background:'var(--bg-1)',borderBottom:'1px solid var(--border)',fontFamily:'var(--font-mono)',fontSize:'11px',color:'var(--fg-faint)'}},[R.createElement('span',{key:'a'},'parse '+(i+1)),amb?R.createElement('span',{key:'b',style:{color:'var(--fg-faint)'}},'interpretation '+(i+1)):null]),
+          R.createElement('div',{key:'c',style:{padding:'11px 13px',fontFamily:'var(--font-mono)',fontSize:'12.5px',lineHeight:1.6,color:'var(--fg-secondary)',whiteSpace:'pre-wrap',wordBreak:'break-word'}},this.lispOf(t))]));
+        const more=forest.trees.length>8?R.createElement('div',{key:'m',style:{fontFamily:'var(--font-mono)',fontSize:'11.5px',color:'var(--fg-faint)',padding:'4px 2px'}},'… '+(cnt)+' total; showing first 8'):null;
+        content=[badge,R.createElement('div',{key:'l',style:labBlk},'derivations · LISP form'),...cards,more];
+      }
+    } else if(tab==='diag'){
+      const undef=new Set(); rules.forEach(r=>r.alts.forEach(a=>a.forEach(t=>{ if(t.type==='nt' && !info.names.has(t.text)) undef.add(t.text); })));
+      const items=[ nConf? this._diagRow('err','Conflicts','non-LR(1): '+[...conflicts].join(', ')+' — '+(nConf>1?'these rules are':'this rule is')+' both left- and right-recursive (ambiguous associativity)',RED) : this._diagRow('ok','Build','no LR conflicts under '+this.state.labMethod+'(1) — tables locked',RED) ];
+      if(undef.size) items.push(this._diagRow('warn','Undefined rules',[...undef].join(', ')+' — referenced but never defined; treated as terminals',RED)); else items.push(this._diagRow('ok','References','every nonterminal referenced is defined',RED));
+      if(lex.error) items.push(this._diagRow('err','Input lexing',"unexpected character '"+lex.char+"' at position "+lex.pos,RED));
+      else if(!res.ok) items.push(this._diagRow('err','Input parse','rejected at token '+res.at+' — expected '+(res.expected.length?'{ '+res.expected.join(' ')+' }':'end of input')+', got '+res.got,RED));
+      else items.push(this._diagRow('ok','Input parse','accepted by '+start,RED));
+      content=[R.createElement('div',{key:'d',style:{display:'flex',flexDirection:'column',gap:'10px'}},items)];
+    } else {
+      const prods=[]; rules.forEach(r=>r.alts.forEach(a=>prods.push({lhs:r.name,rhs:a})));
+      content=[ R.createElement('div',{key:'l',style:labBlk},'lowered core — augmented, epsilon-free productions'),
+        R.createElement('div',{key:'p',style:{display:'flex',flexDirection:'column',gap:'3px',fontFamily:'var(--font-mono)',fontSize:'12.5px'}},[
+          R.createElement('div',{key:'aug',style:{display:'flex',gap:'10px',padding:'4px 8px',color:'var(--fg-faint)'}},[R.createElement('span',{key:'a',style:{color:'var(--accent)',fontWeight:600,minWidth:'72px'}},'⊤'),R.createElement('span',{key:'b',style:{color:'var(--fg-faint)'}},'→'),R.createElement('span',{key:'c'},(start||'—')+' $')]),
+          ...prods.map((p,i)=>R.createElement('div',{key:i,style:{display:'flex',gap:'10px',padding:'4px 8px',borderRadius:'5px',background:i%2?'var(--bg-1)':'transparent'}},[
+            R.createElement('span',{key:'l',style:{color:'var(--accent)',fontWeight:600,minWidth:'72px'}},p.lhs),
+            R.createElement('span',{key:'r',style:{color:'var(--fg-faint)'}},'→'),
+            R.createElement('span',{key:'s',style:{color:'var(--fg-secondary)'}}, p.rhs.map(t=>t.type==='t'?('`'+t.text+'`'):t.text).join(' ') )]))])];
+    }
+
+    const TABS=[['result','Result'],['eval','Evaluate'],['tokens','Tokens'],['analysis','Grammar analysis'],['tree','Parse tree'],['trace','Parse trace'],['walk','LR walk'],['ambig','All parses'],['diag','Diagnostics'],['lowered','Lowered Core']];
+    const tabBar=R.createElement('div',{style:{display:'flex',gap:'2px',padding:'0 14px',borderBottom:'1px solid var(--border)',background:'var(--bg-1)',flex:'none'}},TABS.map(([k,l])=>{ const on=tab===k;
+      return R.createElement('div',{key:k,onClick:()=>this.setLabTab(k),style:{cursor:'pointer',padding:'10px 14px',fontSize:'12.5px',fontWeight:on?600:500,fontFamily:'var(--font-mono)',color:on?'var(--accent)':'var(--fg-muted)',borderBottom:'2px solid '+(on?'var(--accent)':'transparent'),marginBottom:'-1px'}},l); }));
+
+    const LH=22, PADT=14; const hlLines = this.state.hoverRule?this.ruleLines(this.state.labText,this.state.hoverRule):[];
+    const bands = hlLines.map((li,k)=>R.createElement('div',{key:'h'+k,style:{position:'absolute',left:0,right:0,top:(PADT+li*LH)+'px',height:LH+'px',background:'color-mix(in srgb,var(--accent) 15%,transparent)',borderLeft:'2px solid var(--accent)'}}));
+    let confLines=[]; conflicts.forEach(rn=>{ this.ruleLines(this.state.labText,rn).forEach(li=>confLines.push(li)); });
+    const confBands = confLines.map((li,k)=>R.createElement('div',{key:'c'+k,style:{position:'absolute',left:'8px',right:'8px',top:(PADT+li*LH+LH-3)+'px',height:'2px',background:'repeating-linear-gradient(90deg,'+RED+' 0 4px,transparent 4px 6px)'}}));
+    const allBands=bands.concat(confBands);
+    const grammarEd=R.createElement('div',{key:'ged',style:{display:'flex',flexDirection:'column',borderRight:'1px solid var(--border)',minHeight:0}},[
+      R.createElement('div',{key:'h',style:{display:'flex',justifyContent:'space-between',alignItems:'center',height:'40px',padding:'0 14px',boxSizing:'border-box',borderBottom:'1px solid var(--border)',background:'var(--bg-1)',flex:'none'}},[
+        R.createElement('div',{key:'a',style:{display:'flex',alignItems:'center',gap:'12px'}},[R.createElement('span',{key:'l',style:lab},'grammar'),exampleTabs]),
+        R.createElement('span',{key:'b',style:{fontFamily:'var(--font-mono)',fontSize:'11px',color:'var(--fg-faint)'}},this.state.labExample&&EXAMPLES[this.state.labExample]?EXAMPLES[this.state.labExample].file:'untitled.gram.md')]),
+      R.createElement('div',{key:'wrap',style:{position:'relative',flex:1,minHeight:0,background:'var(--bg)'}},[
+        R.createElement('div',{key:'ov',style:{position:'absolute',inset:0,overflow:'hidden',pointerEvents:'none'}},R.createElement('div',{ref:(el)=>{this._gOverlay=el;},style:{position:'absolute',top:0,left:0,right:0}},allBands)),
+        R.createElement('textarea',{key:'ta',className:'gx-src gx-scroll',spellCheck:false,value:this.state.labText,onChange:this.onLabInput,onScroll:(e)=>{ if(this._gOverlay) this._gOverlay.style.transform='translateY('+(-e.target.scrollTop)+'px)'; },style:{position:'absolute',inset:0,border:0,resize:'none',padding:'14px',fontFamily:'var(--font-mono)',fontSize:'13px',lineHeight:LH+'px',background:'transparent',color:'var(--fg-secondary)',outline:'none'}})])]);
+    const inputEd=R.createElement('div',{key:'ied',style:{display:'flex',flexDirection:'column',minHeight:0}},[
+      R.createElement('div',{key:'h',style:{display:'flex',justifyContent:'space-between',alignItems:'center',height:'40px',padding:'0 14px',boxSizing:'border-box',borderBottom:'1px solid var(--border)',background:'var(--bg-1)',flex:'none'}},[
+        R.createElement('div',{key:'l',style:{display:'flex',alignItems:'center',gap:'10px'}},[
+          R.createElement('span',{key:'t',style:lab},'input'),
+          R.createElement('span',{key:'s',style:{display:'inline-flex',alignItems:'center',gap:'5px',fontFamily:'var(--font-mono)',fontSize:'11px',color:'var(--fg-faint)'}},[
+            R.createElement('span',{key:'a'},'start'),
+            R.createElement('select',{key:'sel',value:start,onChange:this.setLabStart,style:{fontFamily:'var(--font-mono)',fontSize:'11px',color:'var(--accent)',fontWeight:600,background:'var(--bg-2)',border:'1px solid var(--border)',borderRadius:'5px',padding:'2px 5px',cursor:'pointer',outline:'none'}},rules.map(r=>R.createElement('option',{key:r.name,value:r.name},r.name)))])]),
+        R.createElement('span',{key:'b',style:{fontFamily:'var(--font-mono)',fontSize:'11px',color:lex.error||!res.ok?RED:'var(--accent)'}},lex.error?'✕ lex error':res.ok?'✓ accepted':'✕ rejected')]),
+      R.createElement('textarea',{key:'ta',className:'gx-src gx-scroll',spellCheck:false,value:this.state.labInput,placeholder:'type input as terminal tokens, e.g. num + num',onChange:this.onLabInputText,style:{flex:1,border:0,resize:'none',padding:'14px',fontFamily:'var(--font-mono)',fontSize:'13px',lineHeight:1.7,background:'var(--bg)',color:'var(--fg-secondary)',minHeight:0,outline:'none'}})]);
+
+    return R.createElement('div',{style:{flex:1,display:'flex',flexDirection:'column',minHeight:0}},[
+      R.createElement('div',{key:'split',ref:(el)=>{this._splitRef=el;},style:{flex:'1 1 0',display:'grid',gridTemplateColumns:this.state.labSplit+'% 7px '+(100-this.state.labSplit)+'%',minHeight:0}},[grammarEd,
+        R.createElement('div',{key:'grip',onMouseDown:this.startDrag,style:{cursor:'col-resize',background:'var(--border)',position:'relative'}},R.createElement('div',{style:{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:'3px',height:'32px',borderRadius:'2px',background:'var(--border-strong)'}})),
+        inputEd]),
+      R.createElement('div',{key:'drawer',style:{flex:'1 1 0',display:'flex',flexDirection:'column',minHeight:0,borderTop:'1px solid var(--border)'}},[
+        tabBar,
+        R.createElement('div',{key:'c',className:'gx-scroll',style:{flex:1,overflow:'auto',padding:'18px'}},content)]),
+      R.createElement('div',{key:'sb',style:{flex:'none',padding:'10px 18px',background:'var(--out-bg)',color:'var(--out-fg)',fontFamily:'var(--font-mono)',fontSize:'12px',display:'flex',alignItems:'center',gap:'14px'}},[
+        R.createElement('span',{key:'p',style:{color:lex.error||!res.ok?RED:'#4ade80',fontWeight:600}},lex.error?'✕ lex error':res.ok?'✓ accepted':'✕ rejected'),
+        R.createElement('span',{key:'m',style:{opacity:.85}},this.state.labMethod+'(1) · start '+(start||'—')),
+        R.createElement('span',{key:'c',style:{opacity:.6}},nConf?('gramaire --check · '+nConf+' conflict'+(nConf>1?'s':'')):'gramaire --check · clean')])]);
+  }
+
+  renderVals(){
+    const R=React; const page=this.state.page;
+    const navDefs=[['home','Home'],['tutorial','Tutorial'],['docs','Docs'],['lab','Lab']];
+    const navItems=R.createElement('div',{style:{display:'flex',gap:'22px'}},navDefs.map(([k,label])=>{
+      const on=page===k; return R.createElement('span',{key:k,onClick:()=>this.setPage(k),style:{cursor:'pointer',fontSize:'14px',fontWeight:on?600:500,color:on?'var(--accent)':'var(--fg-muted)'}},label);
+    }));
+    const pageContent = page==='home'?this.homeView():page==='tutorial'?this.tutorialView():page==='docs'?this.docsView():this.labView();
+    return { navItems, pageContent, toggleTheme:this.toggleTheme, goHome:this.goHome };
+  }
+}
+</script>
+</body>
+</html>
+

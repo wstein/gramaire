@@ -1,0 +1,7 @@
+# The imported design handoff bundle is a frozen, external design reference
+# (see design/README.md). Its prototype markup/JS is not ours to review as
+# code — vendor it out of language stats and default diff collapse, the same
+# way vendor/ is treated for third-party submodules. The .md specs and
+# screenshots stay unvendored: they are the contractual docs, not scaffolding.
+design/gramark-site-handoff/*.dc.html linguist-vendored
+design/gramark-site-handoff/support.js linguist-vendored

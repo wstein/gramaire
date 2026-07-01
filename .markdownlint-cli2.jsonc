@@ -54,6 +54,8 @@
   // Honour .gitignore so build output (output/, .spago/) and node_modules —
   // which contain third-party Markdown — are never linted. `vendor/` holds
   // third-party submodules (e.g. antlr-ng), tracked but not ours to lint.
+  // `design/gramark-site-handoff/` is an external design handoff imported
+  // byte-verbatim (see design/README.md) — same rationale as vendor/.
   "gitignore": true,
-  "ignores": ["**/node_modules/**", "vendor/**"],
+  "ignores": ["**/node_modules/**", "vendor/**", "design/gramark-site-handoff/**"],
 }

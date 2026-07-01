@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --font-ui:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    color-scheme:light;
+    --bg:#ffffff; --bg-1:#f5faf7; --bg-2:#edf5f0; --bg-3:#e0efe7;
+    --fg:#16181d; --fg-secondary:#1f3a31; --fg-muted:#566860; --fg-faint:#7d8d85;
+    --border:#dde9e3; --border-strong:#c6dbd0;
+    --accent:#0a8f63; --accent-2:#066b4a; --node:#15b879;
+    --accent-soft:color-mix(in srgb,var(--accent) 16%,var(--bg));
+    --accent-softer:color-mix(in srgb,var(--accent) 8%,var(--bg));
+    --t-nonterm:var(--accent); --t-term:#b4530a; --t-action:#6f42c1; --t-op:#7d8d85; --t-comment:#7d8d85;
+    --out-bg:#0c130f; --out-fg:#e8f1ec;
+    --radius:6px; --radius-lg:10px;
+    --shadow-card:0 1px 2px rgba(22,24,29,.04),0 8px 26px -16px rgba(10,143,99,.28);
+    --shadow-pop:0 16px 40px -12px rgba(22,24,29,.18),0 0 0 1px rgba(22,24,29,.05);
+    --canvas:#eef1ef;
+  }
+  [data-theme="dark"]{
+    color-scheme:dark;
+    --bg:#0e1512; --bg-1:#131c18; --bg-2:#1a2620; --bg-3:#24332b;
+    --fg:#eaf2ed; --fg-secondary:#c2d4ca; --fg-muted:#8ea298; --fg-faint:#73877e;
+    --border:#25332c; --border-strong:#38493f;
+    --accent:#34d399; --accent-2:#6ee7b7; --node:#15b879;
+    --t-nonterm:var(--accent); --t-term:#f0a868; --t-action:#c4a8ec; --t-op:#73877e; --t-comment:#73877e;
+    --out-bg:#080d0a; --out-fg:#e8f1ec;
+    --shadow-card:0 1px 2px rgba(0,0,0,.4),0 10px 30px -16px rgba(0,0,0,.8);
+    --shadow-pop:0 18px 48px -14px rgba(0,0,0,.65),0 0 0 1px rgba(0,0,0,.5);
+    --canvas:#0a0f0c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--canvas);font-family:var(--font-ui);-webkit-font-smoothing:antialiased;color:var(--fg)}
+  ::selection{background:color-mix(in srgb,var(--accent) 26%,transparent)}
+  .gx-switch-knob{transition:transform .22s ease}
+  [data-theme="dark"] .gx-switch-knob{transform:translateX(21px)}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:var(--canvas);color:var(--fg);font-family:var(--font-ui);transition:background .25s ease,color .25s ease">
+
+  <!-- ============ DOC HEADER / REVIEW BAR ============ -->
+  <div style="position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;padding:13px 28px;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)">
+    <dc-import name="GramaireMark" hint-size="28px,28px" style="display:block;width:28px;height:28px"></dc-import>
+    <dc-import name="GramaireWordmark" hint-size="110px,20px" style="font-size:15px"></dc-import>
+    <span style="font-weight:500;color:var(--fg-faint);font-size:14px">· brand &amp; site direction</span>
+    <div style="flex:1"></div>
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint);letter-spacing:.02em">northstar → flatbars</div>
+    <button onClick="{{ toggleTheme }}" style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--fg-secondary);background:var(--bg-1);border:1px solid var(--border-strong);border-radius:999px;padding:7px 13px" style-hover="background:var(--bg-2)">
+      <span>{{ themeIcon }}</span><span>{{ themeLabel }}</span>
+    </button>
+  </div>
+
+  <div style="max-width:1180px;margin:0 auto;padding:56px 28px 120px">
+
+    <!-- ============ INTRO ============ -->
+    <div style="max-width:720px;margin-bottom:14px">
+      <div style="font-family:var(--font-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:18px">Brand &amp; site direction</div>
+      <h1 style="font-size:46px;line-height:1.04;letter-spacing:-1.4px;font-weight:700;margin:0 0 20px">A railroad of its own — a sibling to FlatBars, not a clone.</h1>
+      <p style="font-size:18px;line-height:1.6;color:var(--fg-muted);margin:0">Gramaire today is a stock Starlight theme with a strong idea already in its <code style="font-family:var(--font-mono);font-size:.86em;background:var(--bg-2);padding:1px 6px;border-radius:4px">brand/</code> folder: a railroad diagram that forks into alternatives. FlatBars sets the bar — IBM&nbsp;Plex, one confident accent, an explicit light/dark, and a favicon that <em>is</em> the product. This applies the same rigour to Gramaire and gives it a hue of its own: <strong style="color:var(--accent)">emerald</strong>, where FlatBars owns violet.</p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:64px">
+      <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-muted);background:var(--bg-1);border:1px solid var(--border);border-radius:999px;padding:6px 13px">The middle m</span>
+      <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-muted);background:var(--bg-1);border:1px solid var(--border);border-radius:999px;padding:6px 13px">Refined logo + favicon</span>
+      <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-muted);background:var(--bg-1);border:1px solid var(--border);border-radius:999px;padding:6px 13px">Emerald token system</span>
+      <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-muted);background:var(--bg-1);border:1px solid var(--border);border-radius:999px;padding:6px 13px">Light + dark</span>
+      <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-muted);background:var(--bg-1);border:1px solid var(--border);border-radius:999px;padding:6px 13px">Home + Lab mockups</span>
+    </div>
+
+    <!-- ============ 00 · THE MIDDLE M ============ -->
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:8px">
+      <div style="font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--accent)">00</div>
+      <h2 style="font-size:28px;letter-spacing:-.6px;font-weight:700;margin:0">The middle <span style="font-style:italic">m</span></h2>
+    </div>
+    <p style="font-size:15px;line-height:1.6;color:var(--fg-muted);max-width:700px;margin:0 0 12px">The name is a portmanteau — <strong style="color:var(--fg-secondary)">gram</strong>mar + Markdown <strong style="color:var(--fg-secondary)">mark</strong> — elided onto one shared letter: <span style="font-family:var(--font-mono)">gra<strong style="color:var(--accent)">m</strong>ark</span>. That single <em>m</em> is the hinge where the two halves overlap, so it's the natural place to carry the brand. Ten treatments, rated — all respect the repo's rules (one emerald accent, no second colour, no <span style="font-family:var(--font-mono)">M↓</span> Markdown tile).</p>
+    <p style="font-size:13.5px;line-height:1.6;color:var(--fg-faint);max-width:700px;margin:0 0 28px">Note: I also corrected the wordmark — it was rendering <span style="font-family:var(--font-mono)">Gram+mark = “Grammark”</span> (two m's). Every wordmark on this page now spells <span style="font-family:var(--font-mono)">Gramaire</span> using the recommended treatment below.</p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(296px,1fr));gap:16px;margin-bottom:24px">
+
+      <!-- 02 split-stem · RECOMMENDED (placed first) -->
+      <div style="position:relative;background:var(--bg);border:1.5px solid var(--accent);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="position:absolute;top:0;left:0;font-family:var(--font-mono);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--accent);padding:4px 10px;border-bottom-right-radius:8px">★ Recommended</div>
+        <div style="position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--accent)">9/10</div>
+        <div style="padding:34px 22px 28px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:104px;font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="background:linear-gradient(90deg,var(--fg) 0 50%,var(--accent) 50% 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent">m</span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:14px 18px 16px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">02 · Split stem</div><div style="font-weight:600;font-size:14px;margin:3px 0 4px">One glyph, bisected ink → emerald</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.45">The hinge is literally half-<span style="color:var(--fg-secondary)">gram</span>, half-<span style="color:var(--accent)">mark</span> in a single letter. Crisp at any size, reads instantly, pure type.</div></div>
+      </div>
+
+      <!-- 01 whole emerald m -->
+      <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--accent)">7/10</div>
+        <div style="padding:34px 22px 28px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:104px;font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="color:var(--accent)">mark</span></div>
+        <div style="padding:14px 18px 16px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">01 · Emerald half</div><div style="font-weight:600;font-size:14px;margin:3px 0 4px">The “mark” half emerald</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.45">The repo's current intent — safe and on-brand, but the hinge isn't singled out; it's just where the colour flips.</div></div>
+      </div>
+
+      <!-- 03 node pill -->
+      <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--accent)">8/10</div>
+        <div style="padding:34px 22px 28px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:104px;font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="display:inline-block;background:var(--node);color:#fff;-webkit-text-fill-color:#fff;border-radius:.32em;padding:0 .07em;margin:0 .02em">m</span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:14px 18px 16px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">03 · Rule node</div><div style="font-weight:600;font-size:14px;margin:3px 0 4px">m sits in the emerald node</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.45">Ties the wordmark straight to the logomark's stadium node. Strong, but a little heavy in running text.</div></div>
+      </div>
+
+      <!-- 05 fork rail -->
+      <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--accent)">8/10</div>
+        <div style="padding:34px 22px 28px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:104px;font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="position:relative;color:var(--fg)">m<span style="position:absolute;left:-.03em;right:-.16em;bottom:-.22em;height:.36em;display:block"><svg viewBox="0 0 40 14" style="width:100%;height:100%;display:block"><g fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round"><path d="M2 11 H15"></path><path d="M15 11 C24 11 23 4 38 4"></path><path d="M15 11 C24 11 24 11 38 11"></path></g></svg></span></span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:14px 18px 16px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">05 · Fork rail</div><div style="font-weight:600;font-size:14px;margin:3px 0 4px">A railroad fork under the m</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.45">Echoes the logomark's “forks into alternatives” right in the word. Distinctive; wants a little vertical room.</div></div>
+      </div>
+
+      <!-- 04 mono m -->
+      <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--fg-muted)">7/10</div>
+        <div style="padding:34px 22px 28px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:104px;font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="font-family:var(--font-mono);font-weight:600;color:var(--accent)">m</span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:14px 18px 16px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">04 · Mono m</div><div style="font-weight:600;font-size:14px;margin:3px 0 4px">The hinge in code voice</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.45">Plex Mono on the m nods to “your grammar is code.” Subtle — easy to miss at small sizes.</div></div>
+      </div>
+
+      <!-- 10 track bar -->
+      <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--fg-muted)">7/10</div>
+        <div style="padding:34px 22px 28px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:104px;font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="position:relative;color:var(--fg)">m<span style="position:absolute;left:0;right:0;bottom:-.16em;height:.1em;background:var(--accent);border-radius:2px"></span></span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:14px 18px 16px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">10 · Track bar</div><div style="font-weight:600;font-size:14px;margin:3px 0 4px">A short rail beneath the m</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.45">Minimal, premium, scales down well. The quietest of the railroad cues — almost an underline.</div></div>
+      </div>
+
+      <!-- 09 terminal dot -->
+      <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--fg-muted)">7/10</div>
+        <div style="padding:34px 22px 28px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:104px;font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="position:relative;color:var(--accent)">m<span style="position:absolute;left:50%;top:-.04em;transform:translate(-50%,-50%);width:.2em;height:.2em;border-radius:50%;background:var(--node);box-shadow:0 0 0 .045em var(--bg-1)"></span></span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:14px 18px 16px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">09 · Terminal dot</div><div style="font-weight:600;font-size:14px;margin:3px 0 4px">A rail node rests on the m</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.45">Charming at hero scale; the dot collapses and muddies the m at favicon / nav sizes.</div></div>
+      </div>
+
+      <!-- 06 caret -->
+      <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--fg-faint)">6/10</div>
+        <div style="padding:34px 22px 28px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:104px;font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="position:relative;color:var(--accent)">m<span style="position:absolute;left:50%;top:-.42em;transform:translateX(-50%);font-size:.4em;color:var(--accent);font-family:var(--font-mono)">▾</span></span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:14px 18px 16px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">06 · Caret</div><div style="font-weight:600;font-size:14px;margin:3px 0 4px">A caret marks the m</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.45">Reads “markdown,” which is the trap — the brand rules explicitly avoid the M↓ Markdown cue.</div></div>
+      </div>
+
+      <!-- 08 pivot -->
+      <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--fg-faint)">6/10</div>
+        <div style="padding:34px 22px 28px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:104px;font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="color:var(--accent);font-size:1.16em;line-height:.7">m</span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:14px 18px 16px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">08 · Pivot</div><div style="font-weight:600;font-size:14px;margin:3px 0 4px">An oversized m as the pivot</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.45">Energetic, but it breaks the cap line and feels less like an engineered mark.</div></div>
+      </div>
+
+      <!-- 07 elision -->
+      <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--fg-faint)">5/10</div>
+        <div style="padding:34px 22px 28px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:104px;font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="position:relative;color:var(--fg)"><span style="position:absolute;left:.22em;top:0;color:color-mix(in srgb,var(--accent) 50%,transparent)">m</span>m</span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:14px 18px 16px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">07 · Elision</div><div style="font-weight:600;font-size:14px;margin:3px 0 4px">The dropped m, ghosted</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.45">Honest about the gram+mark overlap, but visually it just reads as a printing glitch.</div></div>
+      </div>
+
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin:6px 0 16px"><div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-faint)">More — outline &amp; shade</div><div style="flex:1;height:1px;background:var(--border)"></div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(296px,1fr));gap:16px;margin-bottom:24px">
+
+      <!-- 11 outline emerald -->
+      <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--fg-muted)">7/10</div>
+        <div style="padding:34px 22px 28px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:104px;font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="color:var(--accent);-webkit-text-fill-color:transparent;-webkit-text-stroke:2px var(--accent)">m</span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:14px 18px 16px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">11 · Outline (emerald)</div><div style="font-weight:600;font-size:14px;margin:3px 0 4px">Hollow m, emerald stroke</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.45">Echoes the open stadium node and the track strokes — airy, engineered. The thin outline thins out below ~20&nbsp;px.</div></div>
+      </div>
+
+      <!-- 14 deep emerald -->
+      <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--fg-muted)">7/10</div>
+        <div style="padding:34px 22px 28px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:104px;font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="color:color-mix(in srgb,var(--accent) 72%,#0b1f17)">m</span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:14px 18px 16px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">14 · Deep emerald</div><div style="font-weight:600;font-size:14px;margin:3px 0 4px">A forest-green hinge</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.45">A darker green anchors the m before the brighter “mark.” Sophisticated, but can read as an accident rather than intent.</div></div>
+      </div>
+
+      <!-- 12 outline ink -->
+      <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--fg-faint)">6/10</div>
+        <div style="padding:34px 22px 28px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:104px;font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="color:var(--fg);-webkit-text-fill-color:transparent;-webkit-text-stroke:2px var(--fg)">m</span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:14px 18px 16px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">12 · Outline (ink)</div><div style="font-weight:600;font-size:14px;margin:3px 0 4px">Hollow m, ink stroke</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.45">The hinge reads as a cut-out rather than a colour. Quiet and neutral — but gives up the emerald cue at the pivot.</div></div>
+      </div>
+
+      <!-- 13 reversed split -->
+      <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--fg-faint)">6/10</div>
+        <div style="padding:34px 22px 28px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:104px;font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--accent)">Gra</span><span style="background:linear-gradient(90deg,var(--accent) 0 50%,var(--fg) 50% 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent">m</span><span style="color:var(--fg)">ark</span></div>
+        <div style="padding:14px 18px 16px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">13 · Split, reversed</div><div style="font-weight:600;font-size:14px;margin:3px 0 4px">Green → black (the mirror of 02)</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.45">Puts the colour on “gram,” not “mark,” and leads the eye with emerald — fights the reading order. Useful only to confirm 02 is the right way round.</div></div>
+      </div>
+
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin:6px 0 16px"><div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)">Split stem — try the angle</div><div style="flex:1;height:1px;background:var(--border)"></div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(208px,1fr));gap:16px;margin-bottom:24px">
+
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="padding:30px 18px 26px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:96px;font-size:34px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="background:linear-gradient(90deg,var(--fg) 0 50%,var(--accent) 50% 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent">m</span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:12px 16px 14px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">02a · 90° vertical</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.4;margin-top:3px">The baseline — a clean centre cut.</div></div>
+      </div>
+
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="padding:30px 18px 26px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:96px;font-size:34px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="background:linear-gradient(110deg,var(--fg) 0 50%,var(--accent) 50% 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent">m</span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:12px 16px 14px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">02b · 110° forward</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.4;margin-top:3px">A gentle lean — feels like motion → right.</div></div>
+      </div>
+
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="padding:30px 18px 26px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:96px;font-size:34px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="background:linear-gradient(135deg,var(--fg) 0 50%,var(--accent) 50% 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent">m</span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:12px 16px 14px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">02c · 135° “/”</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.4;margin-top:3px">Corner-to-corner — the most graphic cut.</div></div>
+      </div>
+
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="padding:30px 18px 26px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:96px;font-size:34px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="background:linear-gradient(60deg,var(--fg) 0 50%,var(--accent) 50% 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent">m</span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:12px 16px 14px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">02d · 60° “\”</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.4;margin-top:3px">Back-slash — emerald rises from the baseline.</div></div>
+      </div>
+
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden">
+        <div style="padding:30px 18px 26px;display:flex;align-items:center;justify-content:center;background:var(--bg-1);min-height:96px;font-size:34px;font-weight:700;letter-spacing:-.04em;line-height:1;white-space:nowrap"><span style="color:var(--fg)">Gra</span><span style="background:linear-gradient(160deg,var(--fg) 0 50%,var(--accent) 50% 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent">m</span><span style="color:var(--accent)">ark</span></div>
+        <div style="padding:12px 16px 14px;border-top:1px solid var(--border)"><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">02e · 160° near-flat</div><div style="font-size:12.5px;color:var(--fg-muted);line-height:1.4;margin-top:3px">Almost a horizontal cut — top ink, base emerald.</div></div>
+      </div>
+
+    </div>
+    <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;font-size:13.5px;line-height:1.6;color:var(--fg-muted);margin-bottom:72px"><strong style="color:var(--fg-secondary)">My pick: 02 · Split stem.</strong> It's the only one that puts the whole gram&nbsp;|&nbsp;mark idea inside a single letter with zero extra geometry — so it survives down to a 16&nbsp;px favicon-adjacent nav and never competes with the railroad logomark. <strong style="color:var(--fg-secondary)">03 · Rule node</strong> and <strong style="color:var(--fg-secondary)">05 · Fork rail</strong> are the strong alternates if you want the wordmark to literally rhyme with the mark.</div>
+
+    <!-- ============ 1 · LOGO + FAVICON ============ -->
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:8px">
+      <div style="font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--accent)">01</div>
+      <h2 style="font-size:28px;letter-spacing:-.6px;font-weight:700;margin:0">Logo &amp; favicon</h2>
+    </div>
+    <p style="font-size:15px;line-height:1.6;color:var(--fg-muted);max-width:680px;margin:0 0 28px">The mark keeps the existing concept — a <strong style="color:var(--fg-secondary)">production rule</strong> drawn as railroad track: an entry track meets the emerald rule-node, then forks into two alternatives. Scaled to fill its box, and made theme-aware so the ink flips in dark mode while the emerald node stays constant.</p>
+
+    <div style="display:grid;grid-template-columns:1.1fr .9fr;gap:18px;margin-bottom:18px">
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:34px;display:flex;flex-direction:column;gap:22px">
+        <div style="display:flex;align-items:center;gap:28px;flex-wrap:wrap">
+          <dc-import name="GramaireMark" hint-size="128px,128px" style="display:block;width:128px;height:128px;flex:none"></dc-import>
+          <div style="flex:1;min-width:200px">
+            <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:10px">The logomark</div>
+            <div style="display:flex;flex-direction:column;gap:9px;font-size:13.5px;line-height:1.45;color:var(--fg-muted)">
+              <div style="display:flex;gap:9px"><span style="font-family:var(--font-mono);color:var(--fg-faint)">├</span><span><strong style="color:var(--fg-secondary)">Entry track</strong> — the input arriving at the rule.</span></div>
+              <div style="display:flex;gap:9px"><span style="font-family:var(--font-mono);color:var(--node)">●</span><span><strong style="color:var(--fg-secondary)">Rule node</strong> — the emerald stadium, the one constant.</span></div>
+              <div style="display:flex;gap:9px"><span style="font-family:var(--font-mono);color:var(--fg-faint)">⊢</span><span><strong style="color:var(--fg-secondary)">The fork</strong> — alternatives, the heart of a grammar.</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="height:1px;background:var(--border)"></div>
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div style="display:flex;align-items:center;gap:14px">
+            <dc-import name="GramaireMark" hint-size="40px,40px" style="display:block;width:40px;height:40px;flex:none"></dc-import>
+            <div style="font-size:34px"><dc-import name="GramaireWordmark" hint-size="190px,40px" style="font-size:34px"></dc-import></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:11px">
+            <dc-import name="GramaireMark" hint-size="27px,27px" style="display:block;width:27px;height:27px;flex:none"></dc-import>
+            <div style="font-size:21px"><dc-import name="GramaireWordmark" hint-size="120px,24px" style="font-size:21px"></dc-import></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:26px">
+          <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:18px">Favicon · real sizes</div>
+          <div style="display:flex;align-items:flex-end;gap:24px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:9px"><dc-import name="GramaireMark" hint-size="48px,48px" style="display:block;width:48px;height:48px"></dc-import><span style="font-family:var(--font-mono);font-size:10px;color:var(--fg-faint)">48</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:9px"><dc-import name="GramaireMark" hint-size="32px,32px" style="display:block;width:32px;height:32px"></dc-import><span style="font-family:var(--font-mono);font-size:10px;color:var(--fg-faint)">32</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:9px"><dc-import name="GramaireMark" hint-size="16px,16px" style="display:block;width:16px;height:16px"></dc-import><span style="font-family:var(--font-mono);font-size:10px;color:var(--fg-faint)">16</span></div>
+          </div>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:26px;display:flex;align-items:center;gap:20px">
+          <div style="width:72px;height:72px;border-radius:18px;background:linear-gradient(150deg,var(--node),var(--accent-2));display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px -8px color-mix(in srgb,var(--accent) 60%,transparent)">
+            <dc-import name="GramaireMark" knockout="true" hint-size="58px,58px" style="display:block;width:58px;height:58px"></dc-import>
+          </div>
+          <div>
+            <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:6px">App / social tile</div>
+            <div style="font-size:13.5px;color:var(--fg-muted);line-height:1.5">White knockout on an emerald<br>gradient — the only place the<br>mark sits on a filled ground.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 24px;display:flex;align-items:center;gap:28px;flex-wrap:wrap;margin-bottom:72px">
+      <div style="display:flex;align-items:center;gap:13px">
+        <div style="width:22px;height:22px;opacity:.85">
+          <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:100%"><g fill="none" stroke="var(--fg)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 48 H33"></path><path d="M63 48 C72 48 74 31 82 31"></path><path d="M63 48 C72 48 74 65 82 65"></path></g><rect x="33" y="36" width="30" height="24" rx="12" fill="#15b879" stroke="var(--fg)" stroke-width="6"></rect></svg>
+        </div>
+        <div><div style="font-family:var(--font-mono);font-size:10px;color:var(--fg-faint);text-transform:uppercase;letter-spacing:.1em">Before</div><div style="font-size:12.5px;color:var(--fg-muted)">single fixed ink, blurs at 16px</div></div>
+      </div>
+      <div style="font-family:var(--font-mono);color:var(--fg-faint)">→</div>
+      <div style="display:flex;align-items:center;gap:13px">
+        <dc-import name="GramaireMark" hint-size="22px,22px" style="display:block;width:22px;height:22px"></dc-import>
+        <div><div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em">After</div><div style="font-size:12.5px;color:var(--fg-muted)">theme-aware ink · bigger node · fills the box</div></div>
+      </div>
+    </div>
+
+    <!-- ============ 2 · COLOR ============ -->
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:8px">
+      <div style="font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--accent)">02</div>
+      <h2 style="font-size:28px;letter-spacing:-.6px;font-weight:700;margin:0">Color tokens</h2>
+    </div>
+    <p style="font-size:15px;line-height:1.6;color:var(--fg-muted);max-width:680px;margin:0 0 28px">A 1:1 sibling of <code style="font-family:var(--font-mono);font-size:.86em;background:var(--bg-2);padding:1px 6px;border-radius:4px">flatbars-chrome.css</code> — same token names, same four-step background and four-step foreground ramps — so the two products feel built by one hand. Two things change: the accent is <strong style="color:var(--accent)">emerald</strong>, and the neutrals carry a faint cool-green cast instead of FlatBars' warm lavender.</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px">
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:24px">
+        <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:16px">Accent &amp; brand</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;gap:14px"><div style="width:46px;height:46px;border-radius:8px;background:var(--accent)"></div><div><div style="font-weight:600;font-size:13.5px">--accent</div><div style="font-family:var(--font-mono);font-size:11.5px;color:var(--fg-faint)">{{ tok.accent }}</div></div></div>
+          <div style="display:flex;align-items:center;gap:14px"><div style="width:46px;height:46px;border-radius:8px;background:var(--accent-2)"></div><div><div style="font-weight:600;font-size:13.5px">--accent-2</div><div style="font-family:var(--font-mono);font-size:11.5px;color:var(--fg-faint)">{{ tok.accent2 }} · hover</div></div></div>
+          <div style="display:flex;align-items:center;gap:14px"><div style="width:46px;height:46px;border-radius:8px;background:var(--node)"></div><div><div style="font-weight:600;font-size:13.5px">--node</div><div style="font-family:var(--font-mono);font-size:11.5px;color:var(--fg-faint)">#15b879 · the logomark, constant</div></div></div>
+          <div style="display:flex;align-items:center;gap:14px"><div style="width:46px;height:46px;border-radius:8px;background:var(--accent-soft);border:1px solid var(--border)"></div><div><div style="font-weight:600;font-size:13.5px">--accent-soft</div><div style="font-family:var(--font-mono);font-size:11.5px;color:var(--fg-faint)">tint, tracks the mode</div></div></div>
+        </div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:24px">
+        <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:16px">Surfaces &amp; ink</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <div style="flex:1;height:54px;border-radius:7px;background:var(--bg);border:1px solid var(--border)"></div>
+          <div style="flex:1;height:54px;border-radius:7px;background:var(--bg-1);border:1px solid var(--border)"></div>
+          <div style="flex:1;height:54px;border-radius:7px;background:var(--bg-2);border:1px solid var(--border)"></div>
+          <div style="flex:1;height:54px;border-radius:7px;background:var(--bg-3);border:1px solid var(--border)"></div>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--fg-faint);display:flex;gap:8px;margin-bottom:18px"><span style="flex:1">bg</span><span style="flex:1">bg-1</span><span style="flex:1">bg-2</span><span style="flex:1">bg-3</span></div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <div style="flex:1"><div style="height:30px;border-radius:6px;background:var(--fg)"></div><div style="font-family:var(--font-mono);font-size:10px;color:var(--fg-faint);margin-top:5px">fg</div></div>
+          <div style="flex:1"><div style="height:30px;border-radius:6px;background:var(--fg-secondary)"></div><div style="font-family:var(--font-mono);font-size:10px;color:var(--fg-faint);margin-top:5px">secondary</div></div>
+          <div style="flex:1"><div style="height:30px;border-radius:6px;background:var(--fg-muted)"></div><div style="font-family:var(--font-mono);font-size:10px;color:var(--fg-faint);margin-top:5px">muted</div></div>
+          <div style="flex:1"><div style="height:30px;border-radius:6px;background:var(--fg-faint)"></div><div style="font-family:var(--font-mono);font-size:10px;color:var(--fg-faint);margin-top:5px">faint</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:24px;margin-bottom:72px">
+      <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:16px">Grammar syntax palette — meaning-mapped, like FlatBars' seven families</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        <span style="font-family:var(--font-mono);font-size:13px;padding:6px 12px;border-radius:6px;background:var(--accent-softer);color:var(--t-nonterm);font-weight:600">Nonterminal</span>
+        <span style="font-family:var(--font-mono);font-size:13px;padding:6px 12px;border-radius:6px;background:var(--bg-2);color:var(--t-term);font-weight:600">`terminal`</span>
+        <span style="font-family:var(--font-mono);font-size:13px;padding:6px 12px;border-radius:6px;background:var(--bg-2);color:var(--t-action);font-weight:600">{% action %}</span>
+        <span style="font-family:var(--font-mono);font-size:13px;padding:6px 12px;border-radius:6px;background:var(--bg-2);color:var(--t-op);font-weight:600">: | ;</span>
+        <span style="font-family:var(--font-mono);font-size:13px;padding:6px 12px;border-radius:6px;background:var(--bg-2);color:var(--t-comment);font-style:italic">comment</span>
+      </div>
+    </div>
+
+    <!-- ============ 3 · TYPE ============ -->
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:8px">
+      <div style="font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--accent)">03</div>
+      <h2 style="font-size:28px;letter-spacing:-.6px;font-weight:700;margin:0">Type</h2>
+    </div>
+    <p style="font-size:15px;line-height:1.6;color:var(--fg-muted);max-width:680px;margin:0 0 28px"><strong style="color:var(--fg-secondary)">IBM&nbsp;Plex Sans</strong> for UI and <strong style="color:var(--fg-secondary)">IBM&nbsp;Plex Mono</strong> for grammar &amp; code — the same pairing FlatBars uses, replacing today's Inter. Plex has the engineered-but-humane voice these parser tools want, and the mono is built to sit beside the sans.</p>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:32px;margin-bottom:72px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:36px">
+        <div>
+          <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:18px">IBM Plex Sans</div>
+          <div style="font-size:40px;font-weight:700;letter-spacing:-1.2px;line-height:1.05;margin-bottom:12px">Grammars that<br>render themselves</div>
+          <div style="font-size:16px;color:var(--fg-muted);line-height:1.55;margin-bottom:18px">Display 700 · Body 400/500 · the source format is Markdown, and the document is the grammar.</div>
+          <div style="display:flex;gap:18px;font-size:13px;color:var(--fg-faint)"><span style="font-weight:400">Regular</span><span style="font-weight:500">Medium</span><span style="font-weight:600">SemiBold</span><span style="font-weight:700">Bold</span></div>
+        </div>
+        <div>
+          <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:18px">IBM Plex Mono</div>
+          <pre style="margin:0;font-family:var(--font-mono);font-size:14px;line-height:1.7;color:var(--fg-secondary);white-space:pre-wrap"><span style="color:var(--t-nonterm);font-weight:600">Expr</span>
+  <span style="color:var(--t-op)">:</span> <span style="color:var(--t-nonterm);font-weight:600">Expr</span> <span style="color:var(--t-term)">`+`</span> <span style="color:var(--t-nonterm);font-weight:600">Term</span>   <span style="color:var(--t-action)">{% \l _ r -> Add l r %}</span>
+  <span style="color:var(--t-op)">|</span> <span style="color:var(--t-nonterm);font-weight:600">Expr</span> <span style="color:var(--t-term)">`-`</span> <span style="color:var(--t-nonterm);font-weight:600">Term</span>   <span style="color:var(--t-action)">{% \l _ r -> Sub l r %}</span>
+  <span style="color:var(--t-op)">|</span> <span style="color:var(--t-nonterm);font-weight:600">Term</span>            <span style="color:var(--t-action)">{% \t -> t %}</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 4 · COMPONENTS ============ -->
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:8px">
+      <div style="font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--accent)">04</div>
+      <h2 style="font-size:28px;letter-spacing:-.6px;font-weight:700;margin:0">Components</h2>
+    </div>
+    <p style="font-size:15px;line-height:1.6;color:var(--fg-muted);max-width:680px;margin:0 0 28px">The shared primitives, on Gramaire tokens — buttons, stat tiles in the FlatBars idiom, surface pills, and the railroad chip that's unique to a grammar tool.</p>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:30px;display:flex;flex-direction:column;gap:26px;margin-bottom:72px">
+      <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center">
+        <a style="display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;font-weight:600;font-size:15px;padding:12px 20px;border-radius:var(--radius);text-decoration:none;cursor:pointer" style-hover="background:var(--accent-2)">Get started <span style="font-family:var(--font-mono)">→</span></a>
+        <a style="display:inline-flex;align-items:center;gap:8px;background:transparent;color:var(--accent);font-weight:600;font-size:15px;padding:12px 20px;border-radius:var(--radius);border:1px solid var(--border-strong);text-decoration:none;cursor:pointer" style-hover="background:var(--accent-softer)">Open the Lab</a>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--accent);background:var(--accent-softer);border:1px solid color-mix(in srgb,var(--accent) 26%,transparent);padding:5px 11px;border-radius:999px">● self-hosting</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--fg-muted);background:var(--bg-2);border:1px solid var(--border);padding:5px 11px;border-radius:999px">IELR(1)</span>
+      </div>
+      <div style="height:1px;background:var(--border)"></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+        <div style="border:1px solid var(--border);border-radius:var(--radius);padding:18px;background:var(--bg-1)">
+          <div style="font-size:30px;font-weight:700;letter-spacing:-.8px;color:var(--accent);font-family:var(--font-mono)">3×</div>
+          <div style="font-size:13px;color:var(--fg-muted);margin-top:4px;line-height:1.4">parse-table methods — canonical LR(1), LALR(1), IELR(1)</div>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:var(--radius);padding:18px;background:var(--bg-1)">
+          <div style="font-size:30px;font-weight:700;letter-spacing:-.8px;color:var(--accent);font-family:var(--font-mono)">1 file</div>
+          <div style="font-size:13px;color:var(--fg-muted);margin-top:4px;line-height:1.4">grammar and docs are the same <span style="font-family:var(--font-mono);font-size:.92em">.gram.md</span></div>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:var(--radius);padding:18px;background:var(--bg-1)">
+          <div style="font-size:30px;font-weight:700;letter-spacing:-.8px;color:var(--accent);font-family:var(--font-mono)">closed</div>
+          <div style="font-size:13px;color:var(--fg-muted);margin-top:4px;line-height:1.4">the self-hosting loop — it reads its own notation back</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 5 · HOMEPAGE MOCKUP ============ -->
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:8px">
+      <div style="font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--accent)">05</div>
+      <h2 style="font-size:28px;letter-spacing:-.6px;font-weight:700;margin:0">Homepage, restyled</h2>
+    </div>
+    <p style="font-size:15px;line-height:1.6;color:var(--fg-muted);max-width:680px;margin:0 0 24px">The current Starlight landing, rebuilt on the system. A real product hero replaces the generic doc index, with the signature showcase: the same <span style="font-family:var(--font-mono);font-size:.92em">.gram.md</span> source beside the railroad diagram it renders to. Toggle the theme above — every surface follows.</p>
+
+    <div style="border:1px solid var(--border-strong);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-pop);margin-bottom:72px">
+      <div style="display:flex;align-items:center;gap:8px;padding:11px 16px;background:var(--bg-2);border-bottom:1px solid var(--border)">
+        <div style="display:flex;gap:6px"><span style="width:11px;height:11px;border-radius:50%;background:#ff5f57"></span><span style="width:11px;height:11px;border-radius:50%;background:#febc2e"></span><span style="width:11px;height:11px;border-radius:50%;background:#28c840"></span></div>
+        <div style="flex:1;text-align:center;font-family:var(--font-mono);font-size:11.5px;color:var(--fg-faint)">wstein.github.io/gramaire</div>
+      </div>
+      <div style="background:var(--bg)">
+        <div style="display:flex;align-items:center;gap:18px;padding:14px 26px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:10px">
+            <dc-import name="GramaireMark" hint-size="32px,32px" style="display:block;width:32px;height:32px"></dc-import>
+            <div style="font-size:21px"><dc-import name="GramaireWordmark" hint-size="130px,24px" style="font-size:21px"></dc-import></div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="display:flex;gap:22px;font-size:13.5px;color:var(--fg-muted)">
+            <span style-hover="color:var(--accent)" style="cursor:pointer">Docs</span>
+            <span style-hover="color:var(--accent)" style="cursor:pointer">Specs</span>
+            <span style-hover="color:var(--accent)" style="cursor:pointer">Tutorials</span>
+            <span style="color:var(--accent);font-weight:600;cursor:pointer">Lab</span>
+          </div>
+          <div style="width:1px;height:18px;background:var(--border)"></div>
+          <div style="font-family:var(--font-mono);font-size:12px;color:var(--fg-faint);display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:6px;padding:5px 9px">⌘K</div>
+          <div onClick="{{ toggleTheme }}" title="Toggle light / dark" class="gx-switch" style="cursor:pointer;width:46px;height:25px;border-radius:999px;background:var(--bg-2);border:1px solid var(--border-strong);position:relative;flex:none">
+            <span style="position:absolute;left:6px;top:50%;transform:translateY(-50%);font-size:11px;line-height:1;color:var(--fg-faint)">☀</span>
+            <span style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:10px;line-height:1;color:var(--fg-faint)">☾</span>
+            <span class="gx-switch-knob" style="position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.35)"></span>
+          </div>
+        </div>
+        <div style="padding:64px 48px 52px;text-align:center;background:radial-gradient(120% 80% at 50% -10%,var(--accent-softer),transparent 60%)">
+          <div style="display:inline-flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:12px;color:var(--accent);background:var(--accent-softer);border:1px solid color-mix(in srgb,var(--accent) 24%,transparent);border-radius:999px;padding:6px 13px;margin-bottom:24px">LR parser generator · source format is Markdown</div>
+          <h1 style="font-size:52px;line-height:1.05;letter-spacing:-1.8px;font-weight:700;margin:0 auto 20px;max-width:760px">Grammars that <span style="color:var(--accent)">render themselves.</span></h1>
+          <p style="font-size:18px;line-height:1.6;color:var(--fg-muted);max-width:620px;margin:0 auto 30px">A <span style="font-family:var(--font-mono);font-size:.9em">.gram.md</span> file is a normal document that renders on GitHub — prose, railroad diagrams, FIRST/FOLLOW tables — and is at the same time the exact input the generator reads.</p>
+          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+            <a style="display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;font-weight:600;font-size:15px;padding:13px 22px;border-radius:var(--radius);text-decoration:none;cursor:pointer" style-hover="background:var(--accent-2)">Get started <span style="font-family:var(--font-mono)">→</span></a>
+            <a style="display:inline-flex;align-items:center;gap:8px;color:var(--fg-secondary);font-weight:600;font-size:15px;padding:13px 22px;border-radius:var(--radius);border:1px solid var(--border-strong);text-decoration:none;cursor:pointer" style-hover="background:var(--bg-1)">Open the Lab</a>
+          </div>
+        </div>
+        <div style="padding:8px 48px 56px">
+          <div style="text-align:center;font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:20px">One file · the source and the rendered diagram</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;background:var(--bg-1)">
+            <div style="padding:22px 24px;border-right:1px solid var(--border)">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><span style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">expr.gram.md</span><span style="font-family:var(--font-mono);font-size:10px;color:var(--accent);background:var(--accent-softer);padding:2px 7px;border-radius:4px">```lr</span></div>
+              <pre style="margin:0;font-family:var(--font-mono);font-size:13.5px;line-height:1.75;white-space:pre-wrap"><span style="color:var(--t-nonterm);font-weight:600">Expr</span>
+  <span style="color:var(--t-op)">:</span> <span style="color:var(--t-nonterm);font-weight:600">Expr</span> <span style="color:var(--t-term)">`+`</span> <span style="color:var(--t-nonterm);font-weight:600">Term</span>   <span style="color:var(--t-action)">{% Add %}</span>
+  <span style="color:var(--t-op)">|</span> <span style="color:var(--t-nonterm);font-weight:600">Expr</span> <span style="color:var(--t-term)">`-`</span> <span style="color:var(--t-nonterm);font-weight:600">Term</span>   <span style="color:var(--t-action)">{% Sub %}</span>
+  <span style="color:var(--t-op)">|</span> <span style="color:var(--t-nonterm);font-weight:600">Term</span>            <span style="color:var(--t-action)">{% id %}</span></pre>
+            </div>
+            <div style="padding:22px 24px;display:flex;flex-direction:column">
+              <div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint);margin-bottom:14px">renders to ↓</div>
+              <div style="flex:1;display:flex;align-items:center;justify-content:center"><dc-import name="GramaireRailroad" hint-size="470px,168px" style="display:block;width:100%;max-width:470px;aspect-ratio:470 / 168"></dc-import></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 6 · LAB MOCKUP ============ -->
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:8px">
+      <div style="font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--accent)">06</div>
+      <h2 style="font-size:28px;letter-spacing:-.6px;font-weight:700;margin:0">Gramaire Lab, restyled</h2>
+    </div>
+    <p style="font-size:15px;line-height:1.6;color:var(--fg-muted);max-width:680px;margin:0 0 24px">FlatBars' Lab is a template/data/output triptych. Gramaire's is the grammar-author's mirror: edit the <span style="font-family:var(--font-mono);font-size:.92em">.gram.md</span> on the left, watch it render to a railroad diagram and FIRST/FOLLOW analysis on the right — the same engine the docs ship.</p>
+
+    <div style="border:1px solid var(--border-strong);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-pop);margin-bottom:40px">
+      <div style="display:flex;align-items:center;gap:8px;padding:11px 16px;background:var(--bg-2);border-bottom:1px solid var(--border)">
+        <div style="display:flex;gap:6px"><span style="width:11px;height:11px;border-radius:50%;background:#ff5f57"></span><span style="width:11px;height:11px;border-radius:50%;background:#febc2e"></span><span style="width:11px;height:11px;border-radius:50%;background:#28c840"></span></div>
+        <div style="flex:1;text-align:center;font-family:var(--font-mono);font-size:11.5px;color:var(--fg-faint)">wstein.github.io/gramaire/lab</div>
+      </div>
+      <div style="background:var(--bg)">
+        <div style="display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <dc-import name="GramaireMark" hint-size="26px,26px" style="display:block;width:26px;height:26px"></dc-import>
+            <div style="font-size:17px;display:flex;align-items:center;gap:6px"><dc-import name="GramaireWordmark" hint-size="104px,20px" style="font-size:17px"></dc-import><span style="color:var(--fg-faint);font-weight:500">Lab</span></div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="display:flex;gap:6px">
+            <span style="font-family:var(--font-mono);font-size:12px;font-weight:600;color:#fff;background:var(--accent);padding:5px 12px;border-radius:999px">calc</span>
+            <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-muted);background:var(--bg-2);padding:5px 12px;border-radius:999px;cursor:pointer" style-hover="background:var(--bg-3)">json</span>
+            <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-muted);background:var(--bg-2);padding:5px 12px;border-radius:999px;cursor:pointer" style-hover="background:var(--bg-3)">lr</span>
+          </div>
+          <div style="width:1px;height:18px;background:var(--border)"></div>
+          <div onClick="{{ toggleTheme }}" title="Toggle light / dark" class="gx-switch" style="cursor:pointer;width:46px;height:25px;border-radius:999px;background:var(--bg-2);border:1px solid var(--border-strong);position:relative;flex:none">
+            <span style="position:absolute;left:6px;top:50%;transform:translateY(-50%);font-size:11px;line-height:1;color:var(--fg-faint)">☀</span>
+            <span style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:10px;line-height:1;color:var(--fg-faint)">☾</span>
+            <span class="gx-switch-knob" style="position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.35)"></span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr">
+          <div style="border-right:1px solid var(--border);display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--bg-1)">
+              <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint)">grammar source</span>
+              <span style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">calc.gram.md</span>
+            </div>
+            <pre style="margin:0;padding:20px 18px;font-family:var(--font-mono);font-size:13px;line-height:1.8;white-space:pre-wrap;flex:1"><span style="color:var(--t-comment)"># Calc</span>
+
+<span style="color:var(--t-comment)">## Expr</span>
+<span style="color:var(--t-nonterm);font-weight:600">Expr</span>
+  <span style="color:var(--t-op)">:</span> <span style="color:var(--t-nonterm);font-weight:600">Expr</span> <span style="color:var(--t-term)">`+`</span> <span style="color:var(--t-nonterm);font-weight:600">Term</span>   <span style="color:var(--t-action)">{% Add %}</span>
+  <span style="color:var(--t-op)">|</span> <span style="color:var(--t-nonterm);font-weight:600">Expr</span> <span style="color:var(--t-term)">`-`</span> <span style="color:var(--t-nonterm);font-weight:600">Term</span>   <span style="color:var(--t-action)">{% Sub %}</span>
+  <span style="color:var(--t-op)">|</span> <span style="color:var(--t-nonterm);font-weight:600">Term</span>
+
+<span style="color:var(--t-comment)">## Term</span>
+<span style="color:var(--t-nonterm);font-weight:600">Term</span>
+  <span style="color:var(--t-op)">:</span> <span style="color:var(--t-nonterm);font-weight:600">Term</span> <span style="color:var(--t-term)">`*`</span> <span style="color:var(--t-nonterm);font-weight:600">Atom</span>
+  <span style="color:var(--t-op)">|</span> <span style="color:var(--t-nonterm);font-weight:600">Atom</span></pre>
+          </div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--bg-1)">
+              <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint)">railroad · Expr</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:11px;color:var(--accent)">● IELR(1) · 0 conflicts</span>
+            </div>
+            <div style="padding:18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;min-height:150px"><dc-import name="GramaireRailroad" hint-size="430px,154px" style="display:block;width:100%;max-width:430px;aspect-ratio:470 / 168"></dc-import></div>
+            <div style="padding:14px 18px">
+              <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:12px">FIRST / FOLLOW</div>
+              <div style="display:flex;flex-direction:column;gap:7px;font-family:var(--font-mono);font-size:12.5px">
+                <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--t-nonterm);font-weight:600;width:48px">Expr</span><span style="color:var(--fg-faint)">FIRST</span><span style="color:var(--t-term)">{ ( num }</span></div>
+                <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--t-nonterm);font-weight:600;width:48px">Term</span><span style="color:var(--fg-faint)">FIRST</span><span style="color:var(--t-term)">{ ( num }</span></div>
+                <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--t-nonterm);font-weight:600;width:48px">Expr</span><span style="color:var(--fg-faint)">FOLLOW</span><span style="color:var(--t-term)">{ + - ) $ }</span></div>
+              </div>
+            </div>
+            <div style="margin-top:auto;padding:12px 18px;background:var(--out-bg);color:var(--out-fg);font-family:var(--font-mono);font-size:12px;display:flex;align-items:center;gap:9px"><span style="color:#4ade80">✓</span> gramaire --check · clean · tables locked</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:13px;line-height:1.6;color:var(--fg-faint);max-width:680px">Try next: <em>"go with treatment 03 / 05 instead"</em> · <em>"make the neutrals warmer / cooler"</em> · <em>"add a docs article page mockup"</em> · <em>"try a teal or lime accent instead of emerald"</em>. Use the theme toggle above, and the Tweaks panel for accent.</p>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:900},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Theme&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#0a8f63&quot;,&quot;options&quot;:[&quot;#0a8f63&quot;,&quot;#0e8f8f&quot;,&quot;#3f9e26&quot;,&quot;#0a7bd6&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Brand&quot;}}">
+class Component extends DCLogic {
+  state = { theme: this.props.theme || 'light' };
+
+  componentDidMount(){ this.applyTheme(); this.applyAccent(); }
+  componentDidUpdate(prev){
+    if(prev.theme !== this.props.theme && this.props.theme){
+      this.setState({ theme: this.props.theme });
+    }
+    this.applyTheme(); this.applyAccent();
+  }
+  applyTheme(){
+    try { document.documentElement.setAttribute('data-theme', this.state.theme); } catch(e){}
+  }
+  applyAccent(){
+    try {
+      const root = document.documentElement, a = this.props.accent;
+      if(a){ root.style.setProperty('--accent', a); } else { root.style.removeProperty('--accent'); }
+    } catch(e){}
+  }
+  toggle = () => { this.setState(s => ({ theme: s.theme === 'dark' ? 'light' : 'dark' }), () => this.applyTheme()); };
+
+  renderVals(){
+    const isDark = this.state.theme === 'dark';
+    return {
+      toggleTheme: this.toggle,
+      themeLabel: isDark ? 'Dark' : 'Light',
+      themeIcon: isDark ? '\u25D0' : '\u25D1',
+      tok: { accent: isDark ? '#34d399' : '#0a8f63', accent2: isDark ? '#6ee7b7' : '#066b4a' }
+    };
+  }
+}
+</script>
+</body>
+</html>
+
