@@ -1,0 +1,292 @@
+---
+// The Landing page — a bare Astro page outside the Starlight shell (see
+// astro.config.mjs sidebar comment and design/README.md's architecture
+// note). Layout/copy/values ported verbatim from the gold-standard mock's
+// `homeView()` (design/gramark-site-handoff/Gramaire Site.dc.html).
+//
+// The mock's showcase is *live* (editable, re-parses on keystroke) because
+// it's backed by its stand-in engine. The real Lab doesn't exist yet (M4 of
+// the site rebuild), so this renders the same content statically instead of
+// faking interactivity — see design/README.md's gold-standard boundary.
+import AppShell from "../components/AppShell.astro";
+import Button from "../components/Button.astro";
+import FeatureTile from "../components/FeatureTile.astro";
+import "../styles/tokens.css";
+import "../styles/tailwind-theme.css";
+
+const showcaseSource = `Expr
+  : Expr \`+\` Term   {% Add %}
+  | Expr \`-\` Term   {% Sub %}
+  | Term`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gramaire — Grammars that render themselves.</title>
+    <meta name="description" content="Grammars that render themselves." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="shell">
+      <AppShell active="home" />
+
+      <main class="content">
+        <div class="container">
+          <div class="hero">
+            <div class="hero__eyebrow">
+              LR parser generator · source format is Markdown
+            </div>
+            <h1 class="hero__title">
+              Grammars that <span class="hero__title-accent"
+                >render themselves.</span
+              >
+            </h1>
+            <p class="hero__sub">
+              A .gram.md file is a normal document that renders on GitHub —
+              prose, railroad diagrams, FIRST/FOLLOW tables — and is at the same
+              time the exact input the generator reads.
+            </p>
+            <div class="hero__buttons">
+              <Button kind="primary" href="/tutorials/intro/"
+                >Start the tutorial <span class="hero__arrow">→</span></Button
+              >
+              <Button kind="ghost" title="Planned — not yet built"
+                >Open the Lab</Button
+              >
+            </div>
+          </div>
+
+          <div class="showcase">
+            <div class="showcase__header">
+              <span class="showcase__label"
+                >one file · live — edit the source</span
+              >
+              <Button kind="chip" title="Planned — not yet built"
+                >Open in Lab ↗</Button
+              >
+            </div>
+            <div class="showcase__body">
+              <pre class="showcase__source"><code>{showcaseSource}</code></pre>
+              <div class="showcase__diagram">
+                <div class="showcase__diagram-label">renders to ↓</div>
+                <div class="showcase__diagram-svg">
+                  <img
+                    src="/diagrams/calc/expr.svg"
+                    alt="Railroad diagram for the Expr rule"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tiles">
+            <FeatureTile
+              big="3×"
+              small="parse-table methods — canonical LR(1), LALR(1), IELR(1)"
+            />
+            <FeatureTile
+              big="1 file"
+              small="grammar and docs are the same .gram.md"
+            />
+            <FeatureTile
+              big="closed"
+              small="the self-hosting loop — it reads its own notation back"
+            />
+          </div>
+
+          <footer class="footer">
+            <span>Gramaire · Apache-2.0</span>
+            <a href="/docs/overview/">Docs</a>
+            <a href="/tutorials/intro/">Tutorial</a>
+            <span class="footer__soon" title="Planned — not yet built">Lab</span
+            >
+            <a
+              href="https://github.com/wstein/gramaire"
+              target="_blank"
+              rel="noreferrer">GitHub ↗</a
+            >
+          </footer>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
+
+<style>
+  :global(html, body) {
+    margin: 0;
+    height: 100%;
+  }
+  :global(body) {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+  }
+  .shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  /*
+   * Deliberate divergence from the mock: the mock wraps every page (Home,
+   * Tutorial, Docs, Lab) in one `height:100vh` shell with an inner
+   * `overflow:auto` region, because it's a single SPA switching views by
+   * JS state. Here each page is its own document, so Landing uses normal
+   * document flow (the body scrolls) instead of a trapped inner scroll
+   * container -- that inner-scroll pattern is a real requirement for the
+   * Lab's fixed editor+drawer (M4), not for a marketing page.
+   */
+  .content {
+    flex: 1;
+  }
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 64px 28px 80px;
+  }
+
+  .hero {
+    text-align: center;
+  }
+  .hero__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent);
+    background: var(--accent-softer);
+    border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+    border-radius: 999px;
+    padding: 6px 13px;
+    margin-bottom: 24px;
+  }
+  .hero__title {
+    font-size: 56px;
+    line-height: 1.04;
+    letter-spacing: -2px;
+    font-weight: 700;
+    margin: 0 auto 20px;
+    max-width: 760px;
+  }
+  .hero__title-accent {
+    color: var(--accent);
+  }
+  .hero__sub {
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--fg-muted);
+    max-width: 620px;
+    margin: 0 auto 30px;
+  }
+  .hero__buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .hero__arrow {
+    font-family: var(--font-mono);
+  }
+
+  .showcase {
+    margin-top: 56px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+  }
+  .showcase__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-1);
+  }
+  .showcase__label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--fg-faint);
+  }
+  .showcase__body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .showcase__source {
+    margin: 0;
+    border-right: 1px solid var(--border);
+    padding: 20px 22px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    background: var(--bg);
+    color: var(--fg-secondary);
+    min-height: 190px;
+    white-space: pre-wrap;
+  }
+  .showcase__diagram {
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+  }
+  .showcase__diagram-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-faint);
+    margin-bottom: 14px;
+  }
+  .showcase__diagram-svg {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .showcase__diagram-svg img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .tiles {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+  }
+
+  .footer {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--fg-faint);
+    flex-wrap: wrap;
+  }
+  .footer a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .footer a:hover {
+    color: var(--accent);
+  }
+  .footer__soon {
+    opacity: 0.55;
+  }
+</style>
