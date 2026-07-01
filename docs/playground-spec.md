@@ -8,14 +8,20 @@ Status: **draft / north-star**. Tiers 1–3 are the roadmap; every feature is
 grounded in a capability the Gramaire Core already exposes, so the target Lab is
 a thin skin over real machinery, never a mock.
 
-> **Current state (be honest about it).** The shipping Lab is a limited
-> client-side **preview**: a small TypeScript recognizer (`site/src/lib/`) that
-> lexes input from a grammar's literal terminals and checks balance/structure.
-> It does **not** yet run the compiled PureScript Core, and it cannot evaluate
-> token classes (ALL-CAPS, e.g. `NUM`) — those need a per-language lexer.
-> **Tier 1's first job is to replace that recognizer with the real compiled
-> Core**, after which the rest of this roadmap unlocks. Until then the Lab must
-> say what it is (a preview) and never claim to be the real parser.
+> **Current state.** T1.0 has shipped: the Lab runs the real compiled
+> PureScript Core (`Gramaire.Playground`, bundled to `site/src/generated/
+> gramaire-engine.mjs` via `npm run build:engine`) through a thin wrapper
+> (`site/src/lib/gramaire-runtime.ts`) — the same `Lr.parse`, the same
+> generated scanner (built from the grammar's own `## Tokens` block), and the
+> same LR tables the `gramaire` CLI uses, including token classes. T2.1
+> (method switch) and T2.2 (ambiguity view) have also shipped: `evaluate`
+> takes a `method` selector threaded to `Gramaire.Glr.forest`/`recognize`, and
+> `forest`'s full derivation set is returned as `allCstJson` instead of being
+> discarded past the first parse. Still open: T1.3 (hover-linking — blocked on
+> source spans not yet threaded through `Gramaire.Scanner`/`Gramaire.Lexer`),
+> T2.4 (desugar lens), and T3.2 (LR state walk, which needs the GLR driver
+> instrumented to keep per-step stack snapshots, not just the post-order CST
+> walk `trace` is reconstructed from today).
 
 ---
 
@@ -153,18 +159,23 @@ can be built without new engine work unless noted.
 
 ### Tier 1 — the workbench
 
-- **T1.0 Real Core in the browser (the keystone).** Compile the PureScript Core
-  to ES modules and run `Gramaire.Lr.parse` → desugar → table build → CST in a
-  Web Worker, replacing the TypeScript preview recognizer. Everything else in
-  Tier 1+ depends on this. The Core's FS-freedom guard means the parse path has
-  no `node:fs`, so it bundles for the browser unchanged. (Input lexing for token
-  classes still needs a per-language lexer — ship a small built-in set and/or let
-  the grammar declare one.)
+- **T1.0 Real Core in the browser (the keystone). Shipped.** The PureScript
+  Core is compiled to ES modules (`gramaire-engine.mjs`) and `Gramaire.Playground
+  .evaluate` runs `Gramaire.Lr.parse` → scan → table build → CST synchronously
+  on the main thread (not yet in a Worker — see T1.1). The Core's FS-freedom
+  guard means the parse path has no `node:fs`, so it bundled for the browser
+  unchanged. Input lexing for token classes works via the grammar's own
+  `## Tokens` block (`Gramaire.Conformance.Lexers.scannerLexer`).
 - **T1.1 Monaco dual-pane** with `.gram.md` highlighting (Markdown + an `gramaire`
   fenced-block grammar mode), a diagnostics gutter in both panes, and debounced
-  re-evaluation on every keystroke (target < 16 ms for small grammars).
-- **T1.2 Interactive CST explorer.** Render the `gramaire-cst` tree
-  (collapsible). Branch nodes show their rule; token leaves show terminal + text.
+  re-evaluation on every keystroke (target < 16 ms for small grammars). _Not
+  shipped_ — the Lab still uses plain `<textarea>`s; evaluation runs
+  synchronously on the main thread, not yet in a Worker.
+- **T1.2 Interactive CST explorer. Shipped.** The `gramaire-cst` tree renders as
+  a collapsible tree (`site/src/lib/cst-view.ts`) in the Parse tree tab;
+  branch nodes show their rule (via the engine's `prodLhs` id → name lookup),
+  token leaves show terminal + text. A "copy LISP" export
+  (`site/src/lib/lisp.ts`) rides the same structure.
 - **T1.3 Hover-linking (the signature feature).** Hover a CST branch → underline
   its production in the grammar pane; hover a token leaf → highlight its source
   span in the input pane. Powered by spanned tokens + CST `rule` ids.
@@ -177,12 +188,18 @@ can be built without new engine work unless noted.
 
 ### Tier 2 — the oracle
 
-- **T2.1 Method switch + comparison.** Toggle Canonical / LALR / IELR; show
-  per-method state count and conflict count; flag **LALR artifacts** with a
-  "build with IELR" affordance (`Gramaire.Glr.explain`).
-- **T2.2 Ambiguity view.** When a grammar is ambiguous, render the parse
-  **forest** — each distinct CST of the current input — from
-  `Gramaire.Glr.forest`.
+- **T2.1 Method switch + comparison. Shipped** (state/conflict counts
+  pending). Toggle Canonical / LALR / IELR (`site/src/lib/method-switch.ts`);
+  `evaluate`'s `method` argument threads the selection to
+  `Gramaire.Glr.forest`/`recognize`. The artifact-vs-genuine verdict
+  (`Gramaire.Glr.explainP`) already compares all three internally and is shown
+  in Grammar analysis regardless of the selected method; a per-method
+  state-count/conflict-count breakdown in the switch itself is not yet built.
+- **T2.2 Ambiguity view. Shipped.** When a grammar is ambiguous, the parse
+  **forest** — every distinct CST of the current input — renders in the "All
+  parses" tab (`site/src/lib/ambiguity-view.ts`) from `Gramaire.Glr.forest`,
+  which was already computing every derivation and discarding all but the
+  first before this shipped.
 - **T2.3 Live railroad + FIRST/FOLLOW drawer.** Re-render the railroad SVG under
   each rule as you type, and show the generated FIRST/FOLLOW table (the same
   artifact `gramaire fmt` writes).

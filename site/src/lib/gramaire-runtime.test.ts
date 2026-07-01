@@ -116,3 +116,102 @@ test("renderDiagrams draws one railroad SVG per rule of the default grammar", ()
   assert.match(diags[0]!.svg, /^<svg/);
   assert.match(diags[0]!.svg, /Railroad diagram for the Expr rule/);
 });
+
+// The classic dangling `E -> E '+' E | 'num'` grammar: genuinely ambiguous
+// (not just an LALR merge artifact) — "num + num + num" derives both a
+// left- and a right-grouped tree. No `## Tokens`/`## Precedence` section, so
+// nothing resolves the ambiguity; `Gramaire.Glr.forest` should enumerate both.
+const AMBIGUOUS_GRAMMAR = `# Ambig
+
+## Tokens
+
+\`\`\`gramaire tokens
+WS : /[ \\t\\r\\n]+/   %skip
+\`\`\`
+
+## Expr
+
+\`\`\`gramaire
+Expr
+  : Expr '+' Expr
+  | 'num'
+\`\`\`
+`;
+
+test("the default grammar defaults to the Canonical method and reports one parse", async () => {
+  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
+  assert.equal(result.method, "Canonical");
+  assert.equal(result.allCstJson.length, 1);
+  assert.equal(result.allCstJson[0], result.cstJson);
+});
+
+test("prodLhs maps cstJson's numeric rule ids back to rule names", async () => {
+  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2 * 3");
+  assert.ok(result.prodLhs.length > 0);
+  // Walk the CST and confirm every branch's `rule` id resolves to one of the
+  // grammar's own nonterminals via `prodLhs` (the CST only carries the id).
+  const seen = new Set<string>();
+  const walk = (node: any): void => {
+    if ("rule" in node) {
+      const name = result.prodLhs[node.rule];
+      assert.ok(name, `no prodLhs entry for rule id ${node.rule}`);
+      seen.add(name!);
+      node.children.forEach(walk);
+    }
+  };
+  walk(JSON.parse(result.cstJson));
+  assert.ok(seen.has("Expr"));
+  assert.ok(seen.has("Term"));
+});
+
+test("an explicit method is echoed back on the result", async () => {
+  const canonical = await parseGramaireDocument(
+    getDefaultGrammar(),
+    "1 + 2",
+    "Canonical",
+  );
+  const lalr = await parseGramaireDocument(getDefaultGrammar(), "1 + 2", "LALR");
+  const ielr = await parseGramaireDocument(getDefaultGrammar(), "1 + 2", "IELR");
+  assert.equal(canonical.method, "Canonical");
+  assert.equal(lalr.method, "LALR");
+  assert.equal(ielr.method, "IELR");
+  // The stratified default grammar is unambiguous and conflict-free under
+  // every method, so all three still accept the same input identically.
+  assert.equal(canonical.success, true);
+  assert.equal(lalr.success, true);
+  assert.equal(ielr.success, true);
+});
+
+test("a genuinely ambiguous grammar reports its conflict as genuine, not an LALR artifact", async () => {
+  const result = await parseGramaireDocument(AMBIGUOUS_GRAMMAR, "num");
+  assert.match(result.conflicts, /genuine/i);
+});
+
+test("Gramaire.Glr.forest enumerates every derivation of an ambiguous parse (allCstJson)", async () => {
+  const result = await parseGramaireDocument(
+    AMBIGUOUS_GRAMMAR,
+    "num + num + num",
+  );
+  // `success`/`accepted` comes from the strict single-action recognizer
+  // (`Gramaire.Conformance.recognize`), which requires a conflict-free table
+  // build for the selected method — a genuinely ambiguous grammar therefore
+  // always reports `false` here, independent of the input. The GLR forest
+  // (`allCstJson`) is a separate, more permissive analysis that still finds
+  // every derivation despite the table having a genuine conflict — this is
+  // exactly the case the Lab's ambiguity view exists for, so it must not
+  // gate on `success`.
+  assert.equal(result.success, false);
+  assert.ok(
+    result.allCstJson.length > 1,
+    `expected >1 derivation, got ${result.allCstJson.length}`,
+  );
+  // Each entry is a distinct, independently-parseable CST.
+  const parsed = result.allCstJson.map((json) => JSON.parse(json));
+  assert.deepEqual(
+    new Set(parsed.map((p) => JSON.stringify(p))).size,
+    parsed.length,
+  );
+  // The first entry is still the one `tree`/`cstJson` are built from.
+  assert.equal(result.allCstJson[0], result.cstJson);
+  assert.match(result.tree, /\(ambiguous: \d+ parses; showing the first\)/);
+});

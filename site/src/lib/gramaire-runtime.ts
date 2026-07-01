@@ -6,16 +6,34 @@
 // bundle with `npm run build:engine`.
 import { evaluate } from "../generated/gramaire-engine.mjs";
 
+/** The table-construction method: all three build from the same automaton;
+ * only the table (and therefore which grammars parse deterministically)
+ * differs. See `Gramaire.Glr.explainP` for the artifact-vs-genuine verdict
+ * across all three, independent of which one is selected here. */
+export type GramaireMethod = "Canonical" | "LALR" | "IELR";
+
 export interface GramaireParseResult {
   success: boolean;
   message: string;
   diagnostics: string[];
   rules: string[];
+  /** The input's lexed token texts, in order; empty when lexing failed or the
+   * input is empty. */
+  tokens: string[];
   tree: string;
   trace: string;
   conflicts: string;
-  /** The parse tree as gramaire-cst JSON; "" when the input was rejected. */
+  /** The first parse tree as gramaire-cst JSON; "" when the input was rejected. */
   cstJson: string;
+  /** Every derivation as gramaire-cst JSON; more than one entry only when the
+   * grammar is ambiguous under the selected method — `Gramaire.Glr.forest`
+   * enumerates them all, this just stops discarding everything past the first. */
+  allCstJson: string[];
+  /** Production id -> LHS rule name, indexed exactly like `cstJson`'s numeric
+   * `rule` field (the CST itself only carries the bare id). */
+  prodLhs: string[];
+  /** The table-construction method actually used to parse. */
+  method: GramaireMethod;
   /** Per-production [{label, fields}] JSON — the evaluator's handler shape. */
   meta: string;
   /** The grammar's self-contained JS evaluator (`evaluate(cst)`); "" if not LR-buildable. */
@@ -26,9 +44,10 @@ export interface GramaireParseResult {
 export async function parseGramaireDocument(
   source: string,
   inputOverride?: string,
+  method: GramaireMethod = "Canonical",
 ): Promise<GramaireParseResult> {
   const input = inputOverride ?? getDefaultInput();
-  const result = evaluate({ source, input });
+  const result = evaluate({ source, input, method });
 
   return {
     // A run succeeds only when the grammar parsed AND the input was accepted.
@@ -36,10 +55,14 @@ export async function parseGramaireDocument(
     message: result.message,
     diagnostics: result.diagnostics,
     rules: result.rules,
+    tokens: result.tokens,
     tree: result.tree,
     trace: result.trace,
     conflicts: result.conflicts,
     cstJson: result.cstJson,
+    allCstJson: result.allCstJson,
+    prodLhs: result.prodLhs,
+    method: result.method as GramaireMethod,
     meta: result.meta,
     evalJs: result.evalJs,
     raw: formatReport(result),

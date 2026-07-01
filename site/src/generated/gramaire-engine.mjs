@@ -9920,14 +9920,14 @@ var renderTree = function(prods) {
         return "(start)";
       }
       ;
-      throw new Error("Failed pattern match at Gramaire.Playground (line 186, column 19 - line 188, column 27): " + [v1.constructor.name]);
+      throw new Error("Failed pattern match at Gramaire.Playground (line 223, column 19 - line 225, column 27): " + [v1.constructor.name]);
     }
     ;
     if (v instanceof Token) {
       return v.value0 + (" " + show9(v.value1));
     }
     ;
-    throw new Error("Failed pattern match at Gramaire.Playground (line 185, column 11 - line 189, column 36): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramaire.Playground (line 222, column 11 - line 226, column 36): " + [v.constructor.name]);
   };
   var indent = function(depth) {
     return joinWith("")(replicate(depth)("  "));
@@ -9945,7 +9945,7 @@ var renderTree = function(prods) {
           return "";
         }
         ;
-        throw new Error("Failed pattern match at Gramaire.Playground (line 182, column 10 - line 184, column 24): " + [node.constructor.name]);
+        throw new Error("Failed pattern match at Gramaire.Playground (line 219, column 10 - line 221, column 24): " + [node.constructor.name]);
       })());
     };
   };
@@ -9966,14 +9966,14 @@ var renderTrace = function(prods) {
         return "$";
       }
       ;
-      throw new Error("Failed pattern match at Gramaire.Playground (line 207, column 13 - line 210, column 15): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Gramaire.Playground (line 244, column 13 - line 247, column 15): " + [v.constructor.name]);
     };
     var prodLabel = function(p) {
       var v = index(prods)(p);
       if (v instanceof Just) {
         return v.value0.lhs + (" -> " + (function() {
-          var $51 = $$null(v.value0.rhs);
-          if ($51) {
+          var $55 = $$null(v.value0.rhs);
+          if ($55) {
             return "\u03B5";
           }
           ;
@@ -9985,7 +9985,7 @@ var renderTrace = function(prods) {
         return "(accept)";
       }
       ;
-      throw new Error("Failed pattern match at Gramaire.Playground (line 202, column 17 - line 206, column 26): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Gramaire.Playground (line 239, column 17 - line 243, column 26): " + [v.constructor.name]);
     };
     var steps = function(v) {
       if (v instanceof Token) {
@@ -9996,7 +9996,7 @@ var renderTrace = function(prods) {
         return append16(concatMap(steps)(v.value1))(["reduce " + prodLabel(v.value0)]);
       }
       ;
-      throw new Error("Failed pattern match at Gramaire.Playground (line 199, column 11 - line 201, column 80): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Gramaire.Playground (line 236, column 11 - line 238, column 80): " + [v.constructor.name]);
     };
     var numbered = function(i) {
       return function(s) {
@@ -10005,6 +10005,32 @@ var renderTrace = function(prods) {
     };
     return joinWith("\n")(mapWithIndex2(numbered)(steps(cst)));
   };
+};
+var parseMethod = function(v) {
+  if (v === "LALR") {
+    return LALR.value;
+  }
+  ;
+  if (v === "IELR") {
+    return IELR.value;
+  }
+  ;
+  return Canonical.value;
+};
+var methodName = function(v) {
+  if (v instanceof Canonical) {
+    return "Canonical";
+  }
+  ;
+  if (v instanceof LALR) {
+    return "LALR";
+  }
+  ;
+  if (v instanceof IELR) {
+    return "IELR";
+  }
+  ;
+  throw new Error("Failed pattern match at Gramaire.Playground (line 63, column 14 - line 66, column 17): " + [v.constructor.name]);
 };
 var metaJsonOf = function(grammar) {
   var refField = function(v2) {
@@ -10016,12 +10042,12 @@ var metaJsonOf = function(grammar) {
       return v2.value1;
     }
     ;
-    throw new Error("Failed pattern match at Gramaire.Playground (line 168, column 14 - line 170, column 20): " + [v2.constructor.name]);
+    throw new Error("Failed pattern match at Gramaire.Playground (line 205, column 14 - line 207, column 20): " + [v2.constructor.name]);
   };
   var fieldJson = (function() {
-    var $92 = maybe(JNull.value)(JString.create);
-    return function($93) {
-      return $92(refField($93));
+    var $99 = maybe(JNull.value)(JString.create);
+    return function($100) {
+      return $99(refField($100));
     };
   })();
   var ruleMeta = function(r) {
@@ -10036,7 +10062,7 @@ var metaJsonOf = function(grammar) {
     return stringify(new JArray(map27(ruleMeta)(v.value0.grammar.rules)));
   }
   ;
-  throw new Error("Failed pattern match at Gramaire.Playground (line 158, column 22 - line 160, column 65): " + [v.constructor.name]);
+  throw new Error("Failed pattern match at Gramaire.Playground (line 195, column 22 - line 197, column 65): " + [v.constructor.name]);
 };
 var evalJsOf = function(source) {
   return function(grammar) {
@@ -10049,10 +10075,11 @@ var evalJsOf = function(source) {
       return emit(withActionLang(actionLangOf(source))(v.value0));
     }
     ;
-    throw new Error("Failed pattern match at Gramaire.Playground (line 149, column 27 - line 151, column 64): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramaire.Playground (line 186, column 27 - line 188, column 64): " + [v.constructor.name]);
   };
 };
 var evaluate = function(v) {
+  var tableMethod = parseMethod(v.method);
   var v1 = parse(v.source);
   if (v1 instanceof Left) {
     return {
@@ -10066,6 +10093,9 @@ var evaluate = function(v) {
       trace: "",
       conflicts: "",
       cstJson: "",
+      allCstJson: [],
+      prodLhs: [],
+      method: methodName(tableMethod),
       meta: "[]",
       evalJs: ""
     };
@@ -10087,14 +10117,14 @@ var evaluate = function(v) {
           return [];
         }
         ;
-        throw new Error("Failed pattern match at Gramaire.Playground (line 75, column 23 - line 77, column 23): " + [v3.constructor.name]);
+        throw new Error("Failed pattern match at Gramaire.Playground (line 102, column 27 - line 104, column 27): " + [v3.constructor.name]);
       }
       ;
       if (v22 instanceof Nothing) {
         return [];
       }
       ;
-      throw new Error("Failed pattern match at Gramaire.Playground (line 74, column 14 - line 78, column 22): " + [v22.constructor.name]);
+      throw new Error("Failed pattern match at Gramaire.Playground (line 101, column 18 - line 105, column 26): " + [v22.constructor.name]);
     })();
     var lexer = scannerLexer(defs)(v1.value0);
     var conflicts = explainP(precedenceOf(v.source))(v1.value0);
@@ -10111,6 +10141,11 @@ var evaluate = function(v) {
         trace: "",
         conflicts,
         cstJson: "",
+        allCstJson: [],
+        prodLhs: map27(function(v3) {
+          return v3.lhs;
+        })(productions(v1.value0)),
+        method: methodName(tableMethod),
         meta,
         evalJs
       };
@@ -10118,7 +10153,7 @@ var evaluate = function(v) {
     ;
     if (v2 instanceof Right) {
       var prods = productions(v1.value0);
-      var csts = forest(Canonical.value)(v1.value0)(v2.value0);
+      var csts = forest(tableMethod)(v1.value0)(v2.value0);
       var trace = (function() {
         var v3 = head(csts);
         if (v3 instanceof Just) {
@@ -10129,14 +10164,14 @@ var evaluate = function(v) {
           return "";
         }
         ;
-        throw new Error("Failed pattern match at Gramaire.Playground (line 116, column 21 - line 118, column 28): " + [v3.constructor.name]);
+        throw new Error("Failed pattern match at Gramaire.Playground (line 149, column 25 - line 151, column 32): " + [v3.constructor.name]);
       })();
       var tree = (function() {
         var v3 = head(csts);
         if (v3 instanceof Just) {
           return renderTree(prods)(v3.value0) + (function() {
-            var $82 = length(csts) > 1;
-            if ($82) {
+            var $88 = length(csts) > 1;
+            if ($88) {
               return "\n\n(ambiguous: " + (show13(length(csts)) + " parses; showing the first)");
             }
             ;
@@ -10148,7 +10183,7 @@ var evaluate = function(v) {
           return "";
         }
         ;
-        throw new Error("Failed pattern match at Gramaire.Playground (line 111, column 20 - line 115, column 28): " + [v3.constructor.name]);
+        throw new Error("Failed pattern match at Gramaire.Playground (line 144, column 24 - line 148, column 32): " + [v3.constructor.name]);
       })();
       var cstJson = (function() {
         var v3 = head(csts);
@@ -10160,9 +10195,12 @@ var evaluate = function(v) {
           return "";
         }
         ;
-        throw new Error("Failed pattern match at Gramaire.Playground (line 119, column 23 - line 121, column 28): " + [v3.constructor.name]);
+        throw new Error("Failed pattern match at Gramaire.Playground (line 153, column 27 - line 155, column 32): " + [v3.constructor.name]);
       })();
-      var accepted = eq8(recognize(lexer)(Canonical.value)(v1.value0)(v.input))(Accept2.value);
+      var allCstJson = map27(function(t) {
+        return stringify(toJson(t));
+      })(csts);
+      var accepted = eq8(recognize(lexer)(tableMethod)(v1.value0)(v.input))(Accept2.value);
       return {
         ok: true,
         accepted,
@@ -10188,15 +10226,20 @@ var evaluate = function(v) {
         trace,
         conflicts,
         cstJson,
+        allCstJson,
+        prodLhs: map27(function(v3) {
+          return v3.lhs;
+        })(prods),
+        method: methodName(tableMethod),
         meta,
         evalJs
       };
     }
     ;
-    throw new Error("Failed pattern match at Gramaire.Playground (line 88, column 7 - line 139, column 14): " + [v2.constructor.name]);
+    throw new Error("Failed pattern match at Gramaire.Playground (line 115, column 11 - line 176, column 18): " + [v2.constructor.name]);
   }
   ;
-  throw new Error("Failed pattern match at Gramaire.Playground (line 51, column 30 - line 139, column 14): " + [v1.constructor.name]);
+  throw new Error("Failed pattern match at Gramaire.Playground (line 73, column 5 - line 176, column 18): " + [v1.constructor.name]);
 };
 export {
   evaluate
