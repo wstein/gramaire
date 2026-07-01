@@ -49,6 +49,203 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
         color: #16181d;
         margin-bottom: 0.4rem;
       }
+
+      /* Draggable editor/input splitter. */
+      .editor-split {
+        --split: 55%;
+        display: flex;
+        gap: 0;
+        margin-top: 1.5rem;
+        align-items: stretch;
+      }
+      .editor-split > .editor-pane {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        min-width: 0;
+      }
+      .editor-split > .editor-pane:first-child {
+        flex: 0 0 calc(var(--split) - 4px);
+      }
+      .editor-split > .editor-pane:last-child {
+        flex: 1 1 auto;
+      }
+      .split-grip {
+        flex: 0 0 8px;
+        margin: 0 2px;
+        cursor: col-resize;
+        border-radius: 4px;
+        background: #e5e7eb;
+        position: relative;
+      }
+      .split-grip:hover,
+      .split-grip.dragging {
+        background: #15b879;
+      }
+
+      /* Tabbed analysis drawer. */
+      .lab-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        border-bottom: 1px solid #e5e7eb;
+        margin-bottom: 1rem;
+      }
+      .lab-tab {
+        font: inherit;
+        font-size: 0.9rem;
+        cursor: pointer;
+        background: transparent;
+        border: none;
+        padding: 0.55rem 0.85rem;
+        color: #566860;
+        border-bottom: 2px solid transparent;
+      }
+      .lab-tab.active {
+        color: #15b879;
+        font-weight: 600;
+        border-bottom-color: #15b879;
+      }
+      .lab-panel[hidden] {
+        display: none;
+      }
+      .lab-muted {
+        font-size: 0.85rem;
+        color: #6b7280;
+      }
+
+      /* Foldable CST tree (Parse tree, All parses tabs). */
+      .cst-tree {
+        font-family: ui-monospace, monospace;
+        font-size: 0.85rem;
+        line-height: 1.6;
+      }
+      .cst-row {
+        display: flex;
+        align-items: baseline;
+        gap: 0.4rem;
+        padding: 0.1rem 0;
+      }
+      .cst-branch {
+        padding-left: 1.1rem;
+      }
+      .cst-branch > .cst-row:first-child {
+        padding-left: 0;
+        margin-left: -1.1rem;
+      }
+      .cst-toggle,
+      .cst-gutter {
+        color: #15b879;
+        width: 0.9rem;
+        flex: none;
+        text-align: center;
+        cursor: pointer;
+        user-select: none;
+      }
+      .cst-gutter {
+        color: #9ca3af;
+        cursor: default;
+      }
+      .cst-rule {
+        color: #15b879;
+        font-weight: 600;
+      }
+      .cst-token {
+        color: #b45309;
+        background: #fef3c7;
+        border-radius: 4px;
+        padding: 0 0.35rem;
+      }
+      .cst-text {
+        color: #566860;
+      }
+      .cst-count {
+        color: #9ca3af;
+        font-size: 0.8rem;
+      }
+
+      /* Tokens tab. */
+      .tokens-table {
+        border-collapse: collapse;
+        font-family: ui-monospace, monospace;
+        font-size: 0.85rem;
+        width: 100%;
+      }
+      .tokens-table th,
+      .tokens-table td {
+        text-align: left;
+        padding: 0.3rem 0.6rem;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .tokens-table .tok-idx {
+        color: #9ca3af;
+        width: 2.5rem;
+      }
+
+      /* Method switch + All parses tab. */
+      .method-switch {
+        display: inline-flex;
+        gap: 2px;
+        background: #edf5f0;
+        border-radius: 8px;
+        padding: 2px;
+        margin-bottom: 0.75rem;
+      }
+      .method-btn {
+        font: inherit;
+        font-family: ui-monospace, monospace;
+        font-size: 0.8rem;
+        border: none;
+        cursor: pointer;
+        padding: 0.3rem 0.7rem;
+        border-radius: 6px;
+        background: transparent;
+        color: #566860;
+      }
+      .method-btn.active {
+        background: #ffffff;
+        color: #15b879;
+        font-weight: 600;
+      }
+      .amb-banner {
+        display: inline-block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0.4rem 0.7rem;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+      }
+      .amb-banner.amb-ok {
+        color: #15b879;
+        background: #ecfdf5;
+      }
+      .amb-banner.amb-warn {
+        color: #b45309;
+        background: #fef3c7;
+      }
+      .amb-parse {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 0.6rem 0.75rem;
+        margin-top: 0.6rem;
+      }
+      .amb-parse-label {
+        font-family: ui-monospace, monospace;
+        font-size: 0.75rem;
+        color: #9ca3af;
+        margin-bottom: 0.3rem;
+      }
+
+      .copy-lisp-btn {
+        font: inherit;
+        font-size: 0.8rem;
+        padding: 0.3rem 0.65rem;
+        border-radius: 0.4rem;
+        border: 1px solid #d1d5db;
+        background: #f5f6f3;
+        color: #16181d;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
@@ -71,12 +268,8 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
         all client-side — your grammar never leaves the page. This is the same engine
         the CLI ships, not a stub or a server.
       </p>
-      <div
-        style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 1rem; margin-top: 1.5rem;"
-      >
-        <section
-          style="border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
-        >
+      <div class="editor-split" id="editor-split">
+        <section class="editor-pane">
           <h2>Grammar editor</h2>
           <textarea
             id="grammar-input"
@@ -96,19 +289,21 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
             >
           </div>
         </section>
-        <section
-          style="border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
+        <div
+          class="split-grip"
+          id="split-grip"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize grammar and input editors"
         >
+        </div>
+        <section class="editor-pane">
           <h2>Input</h2>
           <textarea
             id="input-test"
             style="width: 100%; min-height: 120px; font-family: ui-monospace, monospace; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #d1d5db;"
             >{getDefaultInput()}</textarea
           >
-          <h3 style="margin-top: 1rem;">Result</h3>
-          <pre
-            id="result-output"
-            style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 120px; overflow: auto;">Waiting for evaluation…</pre>
         </section>
       </div>
       <section
@@ -131,45 +326,128 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
           —
         </div>
       </section>
+
       <section
         style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
       >
-        <h2>Grammar analysis</h2>
-        <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
-          Conflict report for the grammar itself (independent of the input):
-          whether it is conflict-free, an <em>LALR artifact</em>, <em
-            >resolved by declaration</em
-          > (your <code>%left</code>/<code>%right</code> lines clear it), or a
-          <em>genuine</em> conflict. The same as <code
-            >gramaire explain-conflict</code
-          >.
-        </p>
-        <pre
-          id="conflicts-output"
-          style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 60px; overflow: auto; font-size: 0.85rem;">—</pre>
-      </section>
-      <div
-        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem;"
-      >
-        <section
-          style="border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
-        >
-          <h2>Parse tree</h2>
+        <div class="lab-tabs" role="tablist">
+          <button
+            type="button"
+            class="lab-tab active"
+            data-tab="result"
+            role="tab"
+            aria-selected="true">Result</button
+          >
+          <button
+            type="button"
+            class="lab-tab"
+            data-tab="tokens"
+            role="tab"
+            aria-selected="false">Tokens</button
+          >
+          <button
+            type="button"
+            class="lab-tab"
+            data-tab="allparses"
+            role="tab"
+            aria-selected="false">All parses</button
+          >
+          <button
+            type="button"
+            class="lab-tab"
+            data-tab="analysis"
+            role="tab"
+            aria-selected="false">Grammar analysis</button
+          >
+          <button
+            type="button"
+            class="lab-tab"
+            data-tab="tree"
+            role="tab"
+            aria-selected="false">Parse tree</button
+          >
+          <button
+            type="button"
+            class="lab-tab"
+            data-tab="trace"
+            role="tab"
+            aria-selected="false">Parse trace</button
+          >
+          <button
+            type="button"
+            class="lab-tab"
+            data-tab="evaluate"
+            role="tab"
+            aria-selected="false">Evaluate</button
+          >
+          <button
+            type="button"
+            class="lab-tab"
+            data-tab="diagnostics"
+            role="tab"
+            aria-selected="false">Diagnostics</button
+          >
+        </div>
+
+        <div class="lab-panel" data-panel="result">
+          <pre
+            id="result-output"
+            style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 120px; overflow: auto;">Waiting for evaluation…</pre>
+        </div>
+
+        <div class="lab-panel" data-panel="tokens" hidden>
+          <p class="lab-muted" style="margin-top: 0;">
+            The input's lexed token stream, in order — hover-linking to the
+            parse tree and grammar source is planned but not yet built (needs
+            source spans threaded through the scanner).
+          </p>
+          <div id="tokens-output"></div>
+        </div>
+
+        <div class="lab-panel" data-panel="allparses" hidden>
+          <p class="lab-muted" style="margin-top: 0;">
+            Every derivation <code>Gramaire.Glr.forest</code> finds for the current
+            input under the selected table-construction method. An unambiguous grammar
+            shows exactly one; an ambiguous one shows every tree, so you can see <em
+              >why</em
+            > it's ambiguous instead of just a state number.
+          </p>
+          <div id="method-switch-output"></div>
+          <div id="allparses-output"></div>
+        </div>
+
+        <div class="lab-panel" data-panel="analysis" hidden>
           <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
-            The concrete syntax tree the engine built — every rule it reduced
-            and token it matched. Watch precedence in the shape: in <code
-              >1 + 2 * 3</code
-            >, the <code>2 * 3</code> sits in one <code>Term</code> below the
-            <code>+</code>.
+            Conflict report for the grammar itself (independent of the input):
+            whether it is conflict-free, an <em>LALR artifact</em>, <em
+              >resolved by declaration</em
+            > (your <code>%left</code>/<code>%right</code> lines clear it), or a
+            <em>genuine</em> conflict — compared across all three methods regardless
+            of which one is selected in the All parses tab. The same as <code
+              >gramaire explain-conflict</code
+            >.
           </p>
           <pre
-            id="tree-output"
-            style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 80px; overflow: auto; font-size: 0.85rem;">—</pre>
-        </section>
-        <section
-          style="border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
-        >
-          <h2>Parse trace</h2>
+            id="conflicts-output"
+            style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 60px; overflow: auto; font-size: 0.85rem;">—</pre>
+        </div>
+
+        <div class="lab-panel" data-panel="tree" hidden>
+          <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
+            The concrete syntax tree the engine built — every rule it reduced
+            and token it matched. Click a rule name to fold/unfold its subtree.
+            Watch precedence in the shape: in <code>1 + 2 * 3</code>, the <code
+              >2 * 3</code
+            > sits in one <code>Term</code> below the
+            <code>+</code>.
+          </p>
+          <button type="button" id="copy-lisp" class="copy-lisp-btn"
+            >copy LISP</button
+          >
+          <div id="tree-output" style="margin-top: 0.5rem;">—</div>
+        </div>
+
+        <div class="lab-panel" data-panel="trace" hidden>
           <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
             The bottom-up LR steps, in order: the engine <strong>shift</strong>s
             each token onto its stack and <strong>reduce</strong>s by a rule
@@ -179,51 +457,48 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
           <pre
             id="trace-output"
             style="background: #f5f6f3; padding: 0.75rem; border-radius: 0.5rem; min-height: 80px; overflow: auto; font-size: 0.85rem;">—</pre>
-        </section>
-      </div>
-      <section
-        style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
-      >
-        <h2>
-          Evaluate <span
-            style="font-size: 0.7rem; color: #b45309; background: #fef3c7; padding: 0.1rem 0.45rem; border-radius: 0.4rem; vertical-align: middle;"
-            >experimental</span
+        </div>
+
+        <div class="lab-panel" data-panel="evaluate" hidden>
+          <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
+            <span
+              style="font-size: 0.7rem; color: #b45309; background: #fef3c7; padding: 0.1rem 0.45rem; border-radius: 0.4rem; vertical-align: middle;"
+              >experimental</span
+            >
+            The grammar's inline <code>&#123;% … %&#125;</code> actions <em
+              >are</em
+            > the semantics. With <code>%lang javascript</code> declared, the engine
+            bakes them into one self-contained <code>evaluate(cst)</code> — the very
+            module that runs here. Children arrive <strong>positionally</strong
+            >:
+            <code>(l, _, r) => l + r</code>. It runs <strong
+              >only when you press Run</strong
+            >, in a sandboxed worker (no DOM, no network, 50&nbsp;ms budget) —
+            the live recognition above never evaluates anything. The default
+            grammar computes <code>(4 - 1) * 3 + 2 = 11</code>.
+          </p>
+          <div
+            style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap;"
           >
-        </h2>
-        <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
-          The grammar's inline <code>&#123;% … %&#125;</code> actions <em
-            >are</em
-          > the semantics. With <code>%lang javascript</code> declared, the engine
-          bakes them into one self-contained <code>evaluate(cst)</code> — the very
-          module that runs here. Children arrive <strong>positionally</strong>:
-          <code>(l, _, r) => l + r</code>. It runs <strong
-            >only when you press Run</strong
-          >, in a sandboxed worker (no DOM, no network, 50&nbsp;ms budget) — the
-          live recognition above never evaluates anything. The default grammar
-          computes <code>(4 - 1) * 3 + 2 = 11</code>.
-        </p>
-        <div
-          style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap;"
-        >
-          <button
-            id="run-eval"
-            type="button"
-            style="font: inherit; padding: 0.35rem 0.7rem; border-radius: 0.5rem; border: 1px solid #15b879; background: #ecfdf5; color: #166534; cursor: pointer;"
-            >Evaluate ▶</button
-          >
-          <span
-            id="value-output"
-            style="font-family: ui-monospace, monospace; font-weight: 700; font-size: 1.1rem; color: #16181d;"
-            >—</span
-          >
+            <button
+              id="run-eval"
+              type="button"
+              style="font: inherit; padding: 0.35rem 0.7rem; border-radius: 0.5rem; border: 1px solid #15b879; background: #ecfdf5; color: #166534; cursor: pointer;"
+              >Evaluate ▶</button
+            >
+            <span
+              id="value-output"
+              style="font-family: ui-monospace, monospace; font-weight: 700; font-size: 1.1rem; color: #16181d;"
+              >—</span
+            >
+          </div>
+        </div>
+
+        <div class="lab-panel" data-panel="diagnostics" hidden>
+          <div id="diagnostics-list" style="display: grid; gap: 0.5rem;"></div>
         </div>
       </section>
-      <section
-        style="margin-top: 1rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem;"
-      >
-        <h2>Diagnostics</h2>
-        <div id="diagnostics-list" style="display: grid; gap: 0.5rem;"></div>
-      </section>
+
       <footer
         style="margin-top: 1.5rem; padding: 0.75rem 1rem; border: 1px solid #cdeee0; background: #f0fbf6; border-radius: 0.75rem; font-size: 0.85rem; color: #166534;"
       >
@@ -237,6 +512,11 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
     <script type="module">
       import { parseGramaireDocument } from "/src/lib/gramaire-runtime.ts";
       import { renderDiagrams } from "/src/lib/diagrams.ts";
+      import { renderCstTree, toggleFold } from "/src/lib/cst-view.ts";
+      import { renderTokensTable } from "/src/lib/tokens-view.ts";
+      import { cstJsonToLisp, copyToClipboard } from "/src/lib/lisp.ts";
+      import { renderMethodSwitch, METHODS } from "/src/lib/method-switch.ts";
+      import { renderAmbiguityView } from "/src/lib/ambiguity-view.ts";
 
       const grammarInput = document.getElementById("grammar-input");
       const inputTest = document.getElementById("input-test");
@@ -247,13 +527,131 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
       const traceOutput = document.getElementById("trace-output");
       const conflictsOutput = document.getElementById("conflicts-output");
       const diagramsOutput = document.getElementById("diagrams-output");
+      const tokensOutput = document.getElementById("tokens-output");
+      const methodSwitchOutput = document.getElementById(
+        "method-switch-output",
+      );
+      const allParsesOutput = document.getElementById("allparses-output");
+      const copyLispBtn = document.getElementById("copy-lisp");
       const valueOutput = document.getElementById("value-output");
       const runEval = document.getElementById("run-eval");
 
-      // The most recent parse, so the (opt-in) evaluator can run it on Evaluate:
-      // the gramaire-cst tree and the engine's self-contained `evaluate(cst)` for
-      // the current grammar (its inline actions baked by Backend.Js).
-      let latest = { cstJson: "", evalJs: "" };
+      // The most recent parse, so the (opt-in) evaluator can run it on Evaluate,
+      // the Parse tree / All parses tabs can re-render on fold, and copy-LISP
+      // can read the current tree without re-parsing.
+      let latest = { cstJson: "", allCstJson: [], prodLhs: [], evalJs: "" };
+      let selectedMethod = "Canonical";
+      const treeCollapsed = new Set();
+      const ambCollapsedByParse = new Map();
+
+      // --- Tab switching ---------------------------------------------------
+      const tabs = Array.from(document.querySelectorAll(".lab-tab"));
+      const panels = Array.from(document.querySelectorAll(".lab-panel"));
+      function selectTab(name) {
+        for (const tab of tabs) {
+          const on = tab.dataset.tab === name;
+          tab.classList.toggle("active", on);
+          tab.setAttribute("aria-selected", String(on));
+        }
+        for (const panel of panels) {
+          panel.hidden = panel.dataset.panel !== name;
+        }
+      }
+      for (const tab of tabs) {
+        tab.addEventListener("click", () => selectTab(tab.dataset.tab));
+      }
+
+      // --- Draggable editor/input splitter -----------------------------------
+      const editorSplit = document.getElementById("editor-split");
+      const splitGrip = document.getElementById("split-grip");
+      splitGrip.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        splitGrip.classList.add("dragging");
+        const rect = editorSplit.getBoundingClientRect();
+        const onMove = (moveEvent) => {
+          let pct = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+          pct = Math.max(28, Math.min(72, pct));
+          editorSplit.style.setProperty("--split", pct + "%");
+        };
+        const onUp = () => {
+          splitGrip.classList.remove("dragging");
+          window.removeEventListener("mousemove", onMove);
+          window.removeEventListener("mouseup", onUp);
+        };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+      });
+
+      // --- Parse tree fold handling (event-delegated: the tree is
+      // re-rendered on every keystroke, so listeners must survive that) ----
+      treeOutput.addEventListener("click", (event) => {
+        const toggle = event.target.closest("[data-toggle-path]");
+        if (!toggle) return;
+        toggleFold(treeCollapsed, toggle.dataset.togglePath);
+        treeOutput.innerHTML = renderCstTree(
+          latest.cstJson,
+          latest.prodLhs,
+          treeCollapsed,
+        );
+      });
+      copyLispBtn.addEventListener("click", async () => {
+        const lisp = cstJsonToLisp(latest.cstJson, latest.prodLhs);
+        if (!lisp) return;
+        const ok = await copyToClipboard(lisp);
+        copyLispBtn.textContent = ok ? "✓ copied" : "⚠ copy failed";
+        setTimeout(() => (copyLispBtn.textContent = "copy LISP"), 1400);
+      });
+
+      allParsesOutput.addEventListener("click", (event) => {
+        const toggle = event.target.closest("[data-toggle-path]");
+        if (!toggle) return;
+        const parseIdx = Number(
+          toggle.closest(".amb-parse")?.dataset.parseIndex ?? "0",
+        );
+        const collapsed = ambCollapsedByParse.get(parseIdx) ?? new Set();
+        ambCollapsedByParse.set(parseIdx, collapsed);
+        toggleFold(collapsed, toggle.dataset.togglePath);
+        renderAllParsesTab();
+      });
+
+      function renderAllParsesTab() {
+        methodSwitchOutput.innerHTML = renderMethodSwitch(selectedMethod);
+        allParsesOutput.innerHTML = renderAmbiguityView(
+          latest.allCstJson,
+          latest.prodLhs,
+          latest.accepted,
+          ambCollapsedByParse,
+        );
+      }
+      methodSwitchOutput?.addEventListener("click", async (event) => {
+        const btn = event.target.closest("[data-method]");
+        if (!btn) return;
+        selectedMethod = btn.dataset.method;
+        ambCollapsedByParse.clear();
+        await evaluate();
+      });
+
+      // Diagram navigation + zoom (event-delegated, so it survives re-renders):
+      // clicking a nonterminal node scrolls to that rule's diagram and flashes
+      // it; clicking anywhere else on a diagram toggles a zoomed (natural-size)
+      // view, since real grammars produce wide diagrams.
+      diagramsOutput.addEventListener("click", (event) => {
+        const nav = event.target.closest("a.rr-nav");
+        if (nav) {
+          event.preventDefault();
+          const target = document.getElementById(
+            nav.getAttribute("href").slice(1),
+          );
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "center" });
+            target.classList.add("rr-flash");
+            setTimeout(() => target.classList.remove("rr-flash"), 900);
+          }
+          return;
+        }
+        const figure = event.target.closest(".rr-figure");
+        if (figure) figure.classList.toggle("zoomed");
+      });
 
       // The sandboxed evaluator: a Worker (no DOM, no network) that loads the
       // engine-generated `evaluate(cst)` module — the single source of truth for
@@ -310,28 +708,6 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
 
       runEval.addEventListener("click", runEvaluator);
 
-      // Diagram navigation + zoom (event-delegated, so it survives re-renders):
-      // clicking a nonterminal node scrolls to that rule's diagram and flashes
-      // it; clicking anywhere else on a diagram toggles a zoomed (natural-size)
-      // view, since real grammars produce wide diagrams.
-      diagramsOutput.addEventListener("click", (event) => {
-        const nav = event.target.closest("a.rr-nav");
-        if (nav) {
-          event.preventDefault();
-          const target = document.getElementById(
-            nav.getAttribute("href").slice(1),
-          );
-          if (target) {
-            target.scrollIntoView({ behavior: "smooth", block: "center" });
-            target.classList.add("rr-flash");
-            setTimeout(() => target.classList.remove("rr-flash"), 900);
-          }
-          return;
-        }
-        const figure = event.target.closest(".rr-figure");
-        if (figure) figure.classList.toggle("zoomed");
-      });
-
       async function evaluate() {
         const grammarSource = grammarInput.value;
         const input = inputTest.value;
@@ -340,15 +716,25 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
         resultOutput.textContent = "Evaluating in the browser…";
         diagnosticsList.innerHTML = "";
 
-        const result = await parseGramaireDocument(grammarSource, input);
-        latest = { cstJson: result.cstJson, evalJs: result.evalJs };
+        const result = await parseGramaireDocument(
+          grammarSource,
+          input,
+          selectedMethod,
+        );
+        latest = {
+          cstJson: result.cstJson,
+          allCstJson: result.allCstJson,
+          prodLhs: result.prodLhs,
+          accepted: result.success,
+          evalJs: result.evalJs,
+        };
         valueOutput.textContent = "— (press Evaluate ▶)";
 
         statusPill.textContent = result.success ? "Accepted" : "Rejected";
         statusPill.style.color = result.success ? "#15b879" : "#dc2626";
-        treeOutput.textContent =
-          result.tree && result.tree.length > 0
-            ? result.tree
+        treeOutput.innerHTML =
+          result.cstJson.length > 0
+            ? renderCstTree(result.cstJson, result.prodLhs, treeCollapsed)
             : "— (no parse tree: the input was rejected)";
         traceOutput.textContent =
           result.trace && result.trace.length > 0
@@ -358,6 +744,8 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
           result.conflicts && result.conflicts.length > 0
             ? result.conflicts
             : "— (grammar did not parse)";
+        tokensOutput.innerHTML = renderTokensTable(result.tokens);
+        renderAllParsesTab();
         const diagrams = result.rules.length
           ? renderDiagrams(grammarSource, result.rules)
           : [];
