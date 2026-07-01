@@ -3,14 +3,15 @@
   <style>
     /* Ink flips with the OS theme; the emerald node + `ark`/right-`m` stay
        constant emerald. The middle `m` is the brand hinge: its left half is
-       ink, its right half emerald (the "02 · Split stem" treatment). */
+       ink, its right half emerald (the "02 · Split stem" treatment).
+       Colors match docs/BRANDING.md's token table (--fg / --accent). */
     .ink { stroke: #16181d; }
-    .dot { fill: #16181d; }
     .wm-gra { fill: #16181d; }
+    .wm-m { fill: url(#mSplit); }
     @media (prefers-color-scheme: dark) {
-      .ink { stroke: #f5f6f3; }
-      .dot { fill: #f5f6f3; }
-      .wm-gra { fill: #f5f6f3; }
+      .ink { stroke: #eaf2ed; }
+      .wm-gra { fill: #eaf2ed; }
+      .wm-m { fill: url(#mSplitDark); }
     }
   </style>
   <defs>
@@ -22,29 +23,27 @@
       <stop offset="1" stop-color="#0a8f63"/>
     </linearGradient>
     <linearGradient id="mSplitDark" gradientUnits="userSpaceOnUse" x1="232" y1="0" x2="288" y2="0">
-      <stop offset="0" stop-color="#f5f6f3"/>
-      <stop offset="0.5" stop-color="#f5f6f3"/>
+      <stop offset="0" stop-color="#eaf2ed"/>
+      <stop offset="0.5" stop-color="#eaf2ed"/>
       <stop offset="0.5" stop-color="#34d399"/>
       <stop offset="1" stop-color="#34d399"/>
     </linearGradient>
   </defs>
 
-  <!-- Logomark, scaled into the left of the lockup -->
+  <!-- Logomark, scaled into the left of the lockup. Geometry matches the
+       gold-standard interactive mock exactly (GramarkMark.dc.html). -->
   <g transform="translate(0 8) scale(0.83)">
-    <g fill="none" class="ink" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M11 48 H28"/>
-      <path d="M62 48 C72 48 73 13 85 13"/>
-      <path d="M62 48 C72 48 73 83 85 83"/>
+    <g transform="matrix(1.3665595,0,0,1.3665595,-17.594856,-17.594856)" fill="none" class="ink" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 18,48 H 33"/>
+      <path d="M 63,48 C 70,48 71,31 78,31"/>
+      <path d="M 63,48 C 70,48 71,65 78,65"/>
+      <rect x="33" y="36" width="30" height="24" rx="12" fill="#15b879" class="ink" stroke-width="6"/>
     </g>
-    <circle cx="11" cy="48" r="5" class="dot"/>
-    <circle cx="85" cy="13" r="5" class="dot"/>
-    <circle cx="85" cy="83" r="5" class="dot"/>
-    <rect x="26" y="30" width="36" height="36" rx="18" fill="#15B879" class="ink" stroke-width="7.5"/>
   </g>
 
   <!-- Wordmark: Gra (ink) · m (split) · ark (emerald). IBM Plex Sans 700. -->
   <text x="104" y="66" font-family="'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif"
         font-weight="700" font-size="62" letter-spacing="-2.5">
-    <tspan class="wm-gra">Gra</tspan><tspan fill="url(#mSplit)">m</tspan><tspan fill="#0a8f63">ark</tspan>
+    <tspan class="wm-gra">Gra</tspan><tspan class="wm-m">m</tspan><tspan fill="#0a8f63">ark</tspan>
   </text>
 </svg>

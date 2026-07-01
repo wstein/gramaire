@@ -1,0 +1,57 @@
+---
+title: Brand
+description: Logomark, wordmark, and color system.
+---
+
+import LogomarkShowcase from "../../components/LogomarkShowcase.astro";
+import WordmarkShowcase from "../../components/WordmarkShowcase.astro";
+import ColorSwatchGrid from "../../components/ColorSwatchGrid.astro";
+import ColorSwatch from "../../components/ColorSwatch.astro";
+
+The full spec lives in [`docs/BRANDING.md`](https://github.com/wstein/gramark/blob/feature/reimplement-site/docs/BRANDING.md).
+This page mirrors the mock's brand-book screens
+(`design/gramark-site-handoff/screenshots/12-brandbook-logo-favicon.png` and
+`13-brandbook-color-tokens.png`) using the site's real components — not
+static images.
+
+## Logomark
+
+A railroad / syntax-diagram mark: an entry track meets an emerald rule-node
+that forks into two alternatives — exactly what Gramark turns a grammar into.
+Theme-aware ink, constant emerald node.
+
+<LogomarkShowcase />
+
+Sizes shown: 96, 48, 32, 16 px, and the white-knockout variant (used only on
+filled-emerald tiles).
+
+## Wordmark
+
+The single shared middle **m** is the brand hinge: `Gra` is ink, `ark` is
+accent, and the `m` is split down the middle via a hard-stop gradient — the
+sanctioned "02 · Split stem" treatment.
+
+<WordmarkShowcase />
+
+## Color tokens
+
+<ColorSwatchGrid>
+  <ColorSwatch name="--bg" var="bg" />
+  <ColorSwatch name="--bg-1" var="bg-1" />
+  <ColorSwatch name="--bg-2" var="bg-2" />
+  <ColorSwatch name="--bg-3" var="bg-3" />
+  <ColorSwatch name="--fg" var="fg" />
+  <ColorSwatch name="--fg-secondary" var="fg-secondary" />
+  <ColorSwatch name="--fg-muted" var="fg-muted" />
+  <ColorSwatch name="--fg-faint" var="fg-faint" />
+  <ColorSwatch name="--border" var="border" />
+  <ColorSwatch name="--border-strong" var="border-strong" />
+  <ColorSwatch name="--accent" var="accent" />
+  <ColorSwatch name="--accent-2" var="accent-2" />
+  <ColorSwatch name="--node" var="node" />
+  <ColorSwatch name="--out-bg" var="out-bg" />
+</ColorSwatchGrid>
+
+**One accent only.** Emerald always reads "valid." `--node` (`#15b879`) is the
+logomark's constant fill; the UI/text accent is the AA-contrast `--accent`
+(`#0a8f63` light / `#34d399` dark) — never use `--node` for text or controls.

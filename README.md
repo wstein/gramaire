@@ -140,6 +140,8 @@ JAVA_HOME=/path/to/graalvm sbt cli/nativeImage   # -> cli/jvm/target/native-imag
 | `docs-lint/` | Standalone Markdown lint gate (`markdownlint-cli2`) over the whole repo. |
 | `brand/`     | Logo and wordmark SVGs.                                                 |
 | `docs/`      | Branding, the `fmt` contract, the multi-backend plan.                   |
+| `design/`    | Frozen gold-standard mock the site rebuild is built from (see `design/README.md`). |
+| `site/`      | Astro + Starlight docs site, in progress (`npm run dev` / `npm run build` in `site/`). |
 | `test/`      | Golden fixtures shared by the Scala test suite (IR JSON, DOT, `.g4`, JS). |
 
 ## Status

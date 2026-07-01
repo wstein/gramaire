@@ -20,3 +20,13 @@ scratchpad/
 
 # Metals build artifacts
 .metals/metals.lock.db
+
+# Astro / site build output
+site/dist/
+site/.astro/
+
+# Playwright (site/ visual tests) — reports and diffs are local-only;
+# snapshot baselines under tests/visual/**/*-snapshots/ ARE committed
+site/test-results/
+site/playwright-report/
+site/blob-report/

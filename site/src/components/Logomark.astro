@@ -1,0 +1,55 @@
+---
+// Railroad-diagram logomark, ported verbatim (geometry + transform) from the
+// gold-standard mock (design/gramark-site-handoff/GramarkMark.dc.html).
+// Theme-aware: ink follows --fg, the rule-node fill stays constant emerald
+// (--node) — except the `knockout` variant, used only on filled-emerald
+// tiles, where the ink is white and the node is transparent.
+//
+// `size` sets explicit width/height attributes rather than relying on a
+// parent-supplied class: Astro scopes <style> per source file, so a class
+// passed down to this component from a *different* .astro file's <style>
+// block never actually matches the <svg> rendered here — the size prop
+// keeps this component self-contained regardless of caller.
+interface Props {
+  knockout?: boolean;
+  size?: number | string;
+  class?: string;
+}
+const { knockout = false, size = 24, class: className } = Astro.props;
+const ink = knockout ? "#ffffff" : "var(--fg)";
+const nodeFill = knockout ? "rgba(255,255,255,0)" : "var(--node)";
+const dim = typeof size === "number" ? `${size}px` : size;
+---
+
+<svg
+  viewBox="0 0 96 96"
+  xmlns="http://www.w3.org/2000/svg"
+  role="img"
+  aria-label="Gramark"
+  class={className}
+  width={dim}
+  height={dim}
+  style="display:block"
+>
+  <g
+    transform="matrix(1.3665595,0,0,1.3665595,-17.594856,-17.594856)"
+    fill="none"
+    stroke={ink}
+    stroke-width="6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M 18,48 H 33"></path>
+    <path d="M 63,48 C 70,48 71,31 78,31"></path>
+    <path d="M 63,48 C 70,48 71,65 78,65"></path>
+    <rect
+      x="33"
+      y="36"
+      width="30"
+      height="24"
+      rx="12"
+      fill={nodeFill}
+      stroke={ink}
+      stroke-width="6"></rect>
+  </g>
+</svg>

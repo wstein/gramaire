@@ -92,9 +92,9 @@ maintaining a separate ledger file that can silently drift from reality.
 
 ## Forward pointers (not yet built)
 
-- A CI check that fails if site code imports from this directory should be
-  added when the Astro scaffold lands (there is no `site/` tree to guard yet —
-  adding the check now would be an unenforceable no-op).
+- ~~A CI check that fails if site code imports from this directory~~ — done:
+  the `site` job in `.github/workflows/ci.yml` greps `site/src/` for
+  references to `design/` on every push and PR.
 - `docs/playground-spec.md` §6 currently documents a 6-tab analysis drawer;
   this mock specifies 10. Reconciling that list — and adding the
   tab-to-core-symbol provenance mapping — is part of the Lab implementation

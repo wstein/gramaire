@@ -1,0 +1,33 @@
+---
+// A single design-token swatch for the brand book page. Renders the actual
+// CSS variable's live value (so it re-themes with [data-theme]) rather than
+// a hardcoded hex — the swatch is always honest about what the token
+// currently resolves to.
+interface Props {
+  name: string; // display label, e.g. "--accent"
+  var: string; // the custom property name, without the leading "--"
+}
+const { name, var: varName } = Astro.props;
+---
+
+<div class="swatch">
+  <div class="swatch__color" style={`background: var(--${varName})`}></div>
+  <code class="swatch__label">{name}</code>
+</div>
+
+<style>
+  .swatch {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .swatch__color {
+    height: 56px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  .swatch__label {
+    font-size: 12px;
+    color: var(--fg-muted);
+  }
+</style>

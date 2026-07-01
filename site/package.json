@@ -1,0 +1,25 @@
+{
+  "name": "gramark-site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "test:visual": "playwright test",
+    "format": "prettier --write \"src/**/*.{ts,astro,md,mdx,css}\" \"*.{json,mjs}\"",
+    "lint": "prettier --check \"src/**/*.{ts,astro,md,mdx,css}\" \"*.{json,mjs}\""
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.41.1",
+    "@tailwindcss/vite": "^4.1.0",
+    "astro": "^7.0.3",
+    "tailwindcss": "^4.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "prettier": "^3.5.0",
+    "prettier-plugin-astro": "^0.14.1"
+  }
+}

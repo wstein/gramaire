@@ -1,0 +1,41 @@
+---
+// Logomark size ramp + white-knockout variant, for the brand book page.
+import Logomark from "./Logomark.astro";
+
+const sizes = [96, 48, 32, 16];
+---
+
+<div class="row">
+  {
+    sizes.map((size) => (
+      <div class="tile" style={`width: ${size}px; height: ${size}px;`}>
+        <Logomark size={size} />
+      </div>
+    ))
+  }
+  <div class="tile tile--knockout" style="width: 96px; height: 96px;">
+    <Logomark knockout size={96} />
+  </div>
+</div>
+
+<style>
+  .row {
+    display: flex;
+    align-items: flex-end;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin: 24px 0;
+  }
+  .tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .tile--knockout {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+</style>

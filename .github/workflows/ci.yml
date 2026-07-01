@@ -115,3 +115,51 @@ jobs:
 
       - name: Lint Markdown (markdownlint-cli2)
         run: npm run lint:md
+
+  site:
+    name: Site (Astro + Starlight)
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format check (prettier)
+        run: npm run lint
+
+      - name: design/ is a frozen reference, never imported by site code
+        # See design/README.md: the mock is a gold-standard visual reference,
+        # not a dependency. This mirrors the guardrail already noted in
+        # design/README.md's "Forward pointers" section. Scoped to actual
+        # import syntax in code files, not prose links in .md/.mdx content
+        # (both index.mdx and brand.mdx legitimately link to design/ for
+        # attribution/context).
+        run: |
+          hits=$(grep -rlE "from ['\"][^'\"]*design/|import\(['\"][^'\"]*design/" \
+            --include='*.astro' --include='*.ts' --include='*.mjs' --include='*.js' src/ 2>/dev/null || true)
+          if [ -n "$hits" ]; then
+            echo "site/src code must never import from design/:"
+            echo "$hits"
+            exit 1
+          fi
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright's Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Visual regression (against committed baselines)
+        run: npm run test:visual
