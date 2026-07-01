@@ -102,7 +102,9 @@ const TABS = [
               <select
                 id="start"
                 class="start-select"
-                title="Start rule (declared)"></select>
+                disabled
+                title="The parse starts from the grammar's first nonterminal. A selectable start rule needs an engine `start` override (roadmap)."
+              ></select>
             </label>
             <span class="status-glyph" id="status-glyph">·</span>
           </header>
@@ -217,6 +219,13 @@ const TABS = [
         border: 1px solid var(--border-strong);
         border-radius: var(--radius);
         padding: 0.1rem 0.3rem;
+      }
+      /* Honest inert control: the engine always parses from the declared start
+         rule, so the picker shows it but does not pretend to be selectable. */
+      .start-select:disabled {
+        opacity: 0.85;
+        cursor: not-allowed;
+        color: var(--fg-muted);
       }
       .status-glyph {
         font-family: var(--font-mono);
