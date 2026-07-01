@@ -14,20 +14,20 @@ notation is LR(1) by construction and carries no operator precedence, so
 this file deliberately omits the optional `## Precedence` section that the
 [`calc`](calc.grmk.md) example shows.
 
-Semantic actions build this AST (the target PureScript shapes):
+Semantic actions build this AST (the target Scala shapes):
 
-```purescript
-data Json
-  = Obj (Array Pair)   -- members in source order
-  | Arr (Array Json)   -- elements in source order
-  | Str String
-  | Num Number
-  | Bool Boolean
-  | Null
-data Pair = Pair String Json   -- member key, member value
+```scala
+enum Json:
+  case Obj(members: Vector[Pair])  // members in source order
+  case Arr(elements: Vector[Json]) // elements in source order
+  case Str(value: String)
+  case Num(value: Double)
+  case Bool(value: Boolean)
+  case Null
+final case class Pair(key: String, value: Json) // member key, member value
 ```
 
-The helper `snoc` appends to an `Array`; the lexer classes `STRING` and
+The helper `snoc` appends to a `Vector`; the lexer classes `STRING` and
 `NUMBER` carry the already-decoded literal.
 
 ## Tokens

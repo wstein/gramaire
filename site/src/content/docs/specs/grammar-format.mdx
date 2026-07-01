@@ -129,8 +129,8 @@ a build error.
 
 A `name:X` prefix names that right-hand position. The name is carried onto the
 IR's `rhs[].field` and feeds CST accessors and generated visitors; it does not
-change the recognized language. A bare-body PureScript action then binds the
-field names: a production `left:NUM '+' right:NUM {% Add left right %}` rewrites
+change the recognized language. A bare-body action then binds the field
+names: a production `left:NUM '+' right:NUM {% Add left right %}` rewrites
 to `\left _ right -> Add left right`.
 
 Under `%lang javascript`, an action instead receives its children as a single
@@ -197,7 +197,7 @@ isolating target generators from Markdown processing and layout entirely.
           { "id": 1, "kind": "nonterminal", "field": "right" }
         ],
         "label": "Add",
-        "actions": [["purescript", "\\l _ r -> Add l r"]]
+        "actions": [["default", "\\l _ r -> Add l r"]]
       }
     ]
   },
