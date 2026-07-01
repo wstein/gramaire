@@ -107,6 +107,34 @@ test("the default grammar bakes a JS evaluator that computes the sample", async 
   assert.equal(evaluate(JSON.parse(result.cstJson)), 11);
 });
 
+test("the engine reports the lexed token stream (Tokens tab / token chips)", async () => {
+  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
+  // WS is %skip, so only the meaningful tokens survive, in source order.
+  assert.deepEqual(result.tokens, ["1", "+", "2"]);
+});
+
+test("the default grammar is unambiguous: exactly one parse in the forest", async () => {
+  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2 * 3");
+  assert.equal(result.allCstJson.length, 1);
+  // The single forest entry matches the primary CST.
+  assert.equal(result.allCstJson[0], result.cstJson);
+});
+
+test("prodLhs resolves the CST's numeric rule ids back to nonterminal names", async () => {
+  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
+  const root = JSON.parse(result.cstJson) as { rule: number };
+  // The root production's LHS is the grammar's start nonterminal, Expr.
+  assert.equal(result.prodLhs[root.rule], "Expr");
+});
+
+test("the method selector is threaded through and echoed back", async () => {
+  const canonical = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
+  assert.equal(canonical.method, "Canonical");
+  const lalr = await parseGramaireDocument(getDefaultGrammar(), "1 + 2", "LALR");
+  assert.equal(lalr.method, "LALR");
+  assert.equal(lalr.success, true);
+});
+
 test("renderDiagrams draws one railroad SVG per rule of the default grammar", () => {
   const diags = renderDiagrams(getDefaultGrammar(), ["Expr", "Term", "Factor"]);
   assert.deepEqual(
