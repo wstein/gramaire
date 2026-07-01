@@ -14,21 +14,16 @@ notation is LR(1) by construction and carries no operator precedence, so
 this file deliberately omits the optional `## Precedence` section that the
 [`calc`](calc.gram.md) example shows.
 
-Semantic actions build this AST (the target Scala shapes):
+Semantic actions build this AST as plain tagged JS objects: `{ tag: "Obj",
+members }`, `{ tag: "Arr", elements }`, `{ tag: "Str", value }`, `{ tag:
+"Num", value }`, `{ tag: "Bool", value }`, `{ tag: "Null" }` — each entry of
+`members` a plain `{ key, value }` pair, in source order.
 
-```scala
-enum Json:
-  case Obj(members: Vector[Pair])  // members in source order
-  case Arr(elements: Vector[Json]) // elements in source order
-  case Str(value: String)
-  case Num(value: Double)
-  case Bool(value: Boolean)
-  case Null
-final case class Pair(key: String, value: Json) // member key, member value
+## General settings
+
+```gramaire settings
+%lang javascript
 ```
-
-The helper `snoc` appends to a `Vector`; the lexer classes `STRING` and
-`NUMBER` carry the already-decoded literal.
 
 ## Tokens
 
@@ -49,13 +44,13 @@ A JSON value is an object, an array, or one of the five primitive forms.
 
 ```gramaire
 Value
-  : Object    {% \o -> o %}
-  | Array     {% \a -> a %}
-  | STRING    {% \s -> Str s %}
-  | NUMBER    {% \n -> Num n %}
-  | 'true'    {% \_ -> Bool true %}
-  | 'false'   {% \_ -> Bool false %}
-  | 'null'    {% \_ -> Null %}
+  : Object
+  | Array
+  | STRING    {% (c) => ({ tag: "Str", value: JSON.parse(c.string) }) %}
+  | NUMBER    {% (c) => ({ tag: "Num", value: Number(c.number) }) %}
+  | 'true'    {% (c) => ({ tag: "Bool", value: true }) %}
+  | 'false'   {% (c) => ({ tag: "Bool", value: false }) %}
+  | 'null'    {% (c) => ({ tag: "Null" }) %}
 ```
 
 ![Railroad diagram for the Value rule](diagrams/json/value.svg)
@@ -68,8 +63,8 @@ needs no member to reduce — one token of lookahead settles it.
 
 ```gramaire
 Object
-  : '{' '}'            {% \_ _ -> Obj [] %}
-  | '{' Members '}'    {% \_ ms _ -> Obj ms %}
+  : '{' '}'            {% (c) => ({ tag: "Obj", members: [] }) %}
+  | '{' Members '}'    {% (c) => ({ tag: "Obj", members: c.members }) %}
 ```
 
 ![Railroad diagram for the Object rule](diagrams/json/object.svg)
@@ -80,8 +75,8 @@ Left recursion accumulates members in source order.
 
 ```gramaire
 Members
-  : Member                {% \m -> [m] %}
-  | Members ',' Member    {% \ms _ m -> snoc ms m %}
+  : Member                {% (c) => [c.member] %}
+  | Members ',' Member    {% (c) => [...c.members, c.member] %}
 ```
 
 ![Railroad diagram for the Members rule](diagrams/json/members.svg)
@@ -92,7 +87,7 @@ A member is a string key, a colon, and a value.
 
 ```gramaire
 Member
-  : STRING ':' Value    {% \k _ v -> Pair k v %}
+  : STRING ':' Value    {% (c) => ({ key: JSON.parse(c.string), value: c.value }) %}
 ```
 
 ![Railroad diagram for the Member rule](diagrams/json/member.svg)
@@ -104,8 +99,8 @@ elements, with the empty case split out for the same lookahead reason.
 
 ```gramaire
 Array
-  : '[' ']'             {% \_ _ -> Arr [] %}
-  | '[' Elements ']'    {% \_ es _ -> Arr es %}
+  : '[' ']'             {% (c) => ({ tag: "Arr", elements: [] }) %}
+  | '[' Elements ']'    {% (c) => ({ tag: "Arr", elements: c.elements }) %}
 ```
 
 ![Railroad diagram for the Array rule](diagrams/json/array.svg)
@@ -116,8 +111,8 @@ Left recursion accumulates elements in source order.
 
 ```gramaire
 Elements
-  : Value                 {% \v -> [v] %}
-  | Elements ',' Value    {% \es _ v -> snoc es v %}
+  : Value                 {% (c) => [c.value] %}
+  | Elements ',' Value    {% (c) => [...c.elements, c.value] %}
 ```
 
 ![Railroad diagram for the Elements rule](diagrams/json/elements.svg)

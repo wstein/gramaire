@@ -1,48 +1,48 @@
 {
   "version": 1,
   "mode": "sidecar",
-  "grammarSha256": "2bd79a89e2e0cc658bcabca334b30aa1f826f0b9a6c4b7994b781c5d84a58395",
+  "grammarSha256": "822b21d66d5c34d0a91d9ac5be777cece0ed35bc57c349566343559916d7c94b",
   "artifacts": [
     {
       "kind": "railroad",
       "nonterminal": "Value",
       "path": "diagrams/json/value.svg",
-      "sourceSha256": "bc146393defde10fd8ce4b7f238d62d28168d18cceedf6e10383625aa74bc4f0"
+      "sourceSha256": "e178dd85b3331d029f51c07780b0c4a8536d17c3c62d30c6acd6b43ade17b981"
     },
     {
       "kind": "railroad",
       "nonterminal": "Object",
       "path": "diagrams/json/object.svg",
-      "sourceSha256": "3502eb0cbb95b357bf80ab18ef41c634de545893f0097e0ffe48c4143992a3ce"
+      "sourceSha256": "6ee598eb0e7777e2aafd48030fb065643d088faecab913a71417233506d8a502"
     },
     {
       "kind": "railroad",
       "nonterminal": "Members",
       "path": "diagrams/json/members.svg",
-      "sourceSha256": "ee42fc60665cca9d771ec7c603866ca408d62656dd5471f04045e0eb52669106"
+      "sourceSha256": "9d84d32776d45a9d228288cbf828948a2d80a24a84cf32486bc78f49891f35f6"
     },
     {
       "kind": "railroad",
       "nonterminal": "Member",
       "path": "diagrams/json/member.svg",
-      "sourceSha256": "4daa022445d32887d943f03eae6737290b167a552f0c020438bd0ec10ea36b76"
+      "sourceSha256": "c3b369acbc3f8cc000e48700f4384382a0d9fac5121428e13eb700ea752a9dbf"
     },
     {
       "kind": "railroad",
       "nonterminal": "Array",
       "path": "diagrams/json/array.svg",
-      "sourceSha256": "2f2cff47778f41cca815cbf99e6a6080732062e417ad2c46454f8c8b533b9c2c"
+      "sourceSha256": "5b5242d46beca0ca8f6425e0cdc4ce885691f19348ed0accc3e305c230beb65b"
     },
     {
       "kind": "railroad",
       "nonterminal": "Elements",
       "path": "diagrams/json/elements.svg",
-      "sourceSha256": "42ba57b43006bcabefac78b9db8e80b4a24f3f09b1b69be3bc8eccd44d74d679"
+      "sourceSha256": "7788de82fb7f23206e5eadf2be2a35ad111ba2547083a5068fe3b53961092d04"
     },
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "2bd79a89e2e0cc658bcabca334b30aa1f826f0b9a6c4b7994b781c5d84a58395"
+      "sourceSha256": "822b21d66d5c34d0a91d9ac5be777cece0ed35bc57c349566343559916d7c94b"
     }
   ]
 }
