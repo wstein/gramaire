@@ -1,7 +1,6 @@
 # Calc-js
 
 An arithmetic calculator that evaluates its own input — a demonstration of inline `{% … %}` actions.
-See the grammar-format spec for how an action reads its children.
 
 ## General settings
 
@@ -20,8 +19,8 @@ WS     : /[ \t\r\n]+/   %skip
 
 ```gramaire
 Expr
-  : Expr '+' Term   {% (c) => c[0] + c[2] %}
-  | Expr '-' Term   {% (c) => c[0] - c[2] %}
+  : Expr '+' Term   {% (c) => c.expr + c.term %}
+  | Expr '-' Term   {% (c) => c.expr - c.term %}
   | Term
 ```
 
@@ -31,8 +30,8 @@ Expr
 
 ```gramaire
 Term
-  : Term '*' Factor   {% (c) => c[0] * c[2] %}
-  | Term '/' Factor   {% (c) => c[0] / c[2] %}
+  : Term '*' Factor   {% (c) => c.term * c.factor %}
+  | Term '/' Factor   {% (c) => c.term / c.factor %}
   | Factor
 ```
 
@@ -42,8 +41,8 @@ Term
 
 ```gramaire
 Factor
-  : '(' Expr ')'   {% (c) => c[1] %}
-  | NUMBER         {% (c) => parseFloat(c[0]) %}
+  : '(' Expr ')'  {% (c) => c.expr %}
+  | NUMBER        {% (c) => parseFloat(c.number) %}
 ```
 
 ![Railroad diagram for the Factor rule](diagrams/calc-js/factor.svg)

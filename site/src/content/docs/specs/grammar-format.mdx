@@ -136,7 +136,14 @@ to `\left _ right -> Add left right`.
 Under `%lang javascript`, an action instead receives its children as a single
 **namedtuple** `c` — an array read by index (`c[0]`, `c[2]`) or, for a named
 position, by field (`c.left`) or destructuring (`({ left, right }) => …`). The
-field names are the same `rhs[].field` entries; unnamed positions are index-only.
+field names are the same `rhs[].field` entries.
+
+A position with **no** explicit `name:` is still auto-named by its symbol
+(`Expr` → `c.expr`, a token class lowercased) — but **only when that symbol occurs
+once** among the rule's nameable positions (nonterminals and token classes;
+literals are never named). A repeated symbol (`Expr '+' Expr`) or a name that
+would collide with an explicit field stays index-only, with no silent
+disambiguation. Auto-naming is a codegen convenience; it does not alter the IR.
 
 ### 4.5 Inline folding — `#[inline]`
 

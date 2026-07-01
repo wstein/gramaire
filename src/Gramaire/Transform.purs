@@ -38,7 +38,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Gramaire.Cst (Cst(..))
-import Gramaire.IR (IRGrammar, IRRef(..))
+import Gramaire.IR (IRGrammar, effectiveFields)
 
 -- | A folded child: either a reduced value, or a terminal leaf (its token class
 -- | name and source text), which a handler can read (e.g. a number literal).
@@ -77,12 +77,8 @@ type ProdMeta = { label :: Maybe String, fields :: Array (Maybe String) }
 -- | each branch with its production id, which indexes `grammar.rules`.
 metaOf :: IRGrammar -> Int -> ProdMeta
 metaOf g = \p -> case Array.index g.rules p of
-  Just r -> { label: r.label, fields: map refField r.rhs }
+  Just r -> { label: r.label, fields: effectiveFields g r }
   Nothing -> { label: Nothing, fields: [] }
-  where
-  refField = case _ of
-    IRRefNT _ f -> f
-    IRRefT _ f -> f
 
 -- | Fold a CST bottom-up. Returns the reduced child: a `ChildVal` for a branch,
 -- | a `ChildTok` for a terminal leaf.

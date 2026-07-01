@@ -17,7 +17,7 @@ import Data.Maybe (Maybe(..), isNothing)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (log)
-import Gramaire.IR (IRRef(..), IRTerminal(..), buildIR, serialize)
+import Gramaire.IR (IRRef(..), IRTerminal(..), buildIR, effectiveFields, serialize)
 import Gramaire.Lr (parse)
 import Gramaire.Syntax (Alt(..), Grammar(..), Rule(..), Sym(..))
 import Gramaire.Table (Method(..))
@@ -92,10 +92,40 @@ fields = do
       Just r -> assertEqual { actual: r.rhs, expected: [ IRRefT 0 (Just "x") ] }
       Nothing -> assert' "a rule should be present" false
 
+-- `effectiveFields` (the namedtuple's field names) auto-names a position by its
+-- symbol only when that symbol is unique among the rule's nameable positions;
+-- repeats and literals stay index-only, an explicit `name:` wins, and an
+-- auto-name that would collide with an explicit field is suppressed.
+autoNaming :: Effect Unit
+autoNaming = do
+  log "  ir: effectiveFields auto-names unique symbols, leaves repeats/literals index-only"
+  -- S : A '+' A — A repeats (ambiguous) and '+' is a literal → all index-only.
+  check tiny 0 [ Nothing, Nothing, Nothing ]
+  -- A : NUM — a unique token class auto-names, lowercased.
+  check tiny 1 [ Just "num" ]
+  -- S : A B — two distinct nonterminals both auto-name.
+  check (defs [ Alt [ Ref "A", Ref "B" ] Nothing Nothing ]) 0 [ Just "a", Just "b" ]
+  -- S : x:A B — an explicit field wins; the sibling still auto-names.
+  check (defs [ Alt [ Field "x" (Ref "A"), Ref "B" ] Nothing Nothing ]) 0 [ Just "x", Just "b" ]
+  -- S : b:A B — an auto-name colliding with an explicit field is suppressed.
+  check (defs [ Alt [ Field "b" (Ref "A"), Ref "B" ] Nothing Nothing ]) 0 [ Just "b", Nothing ]
+  where
+  defs alts = Grammar
+    [ Rule "S" [] alts
+    , Rule "A" [] [ Alt [ Lit "a" ] Nothing Nothing ]
+    , Rule "B" [] [ Alt [ Lit "b" ] Nothing Nothing ]
+    ]
+  check g i expected = case buildIR Canonical "AN" g of
+    Left _ -> assert' "auto-naming grammar should build" false
+    Right ir -> case Array.index ir.grammar.rules i of
+      Just r -> assertEqual { actual: effectiveFields ir.grammar r, expected }
+      Nothing -> assert' ("rule " <> show i <> " is present") false
+
 tests :: Effect Unit
 tests = do
   structural
   fields
+  autoNaming
   for_
     [ Tuple "grammar/lr.gram.md" "test/golden/lr.ir.json"
     , Tuple "examples/json.gram.md" "test/golden/json.ir.json"
