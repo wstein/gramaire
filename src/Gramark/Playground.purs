@@ -6,9 +6,9 @@
 -- | disagree.
 -- |
 -- | `Result` is a plain record and the argument a plain record, so both cross
--- | the FFI boundary as ordinary JS objects: `evaluate({ source, input })`
+-- | the FFI boundary as ordinary JS objects: `evaluate({ source, input, method })`
 -- | returns `{ ok, accepted, message, diagnostics, rules, tokens, tree, trace,
--- | conflicts }`.
+-- | conflicts, cstJson, allCstJson, method, meta, evalJs }`.
 module Gramark.Playground (Result, evaluate) where
 
 import Prelude
@@ -42,101 +42,138 @@ type Result =
   , tree :: String -- the parse tree (CST), one node per line, "" if rejected
   , trace :: String -- the LR shift/reduce step sequence, "" if rejected
   , conflicts :: String -- the explain-conflict analysis of the grammar itself
-  , cstJson :: String -- the parse tree as gramark-cst JSON, "" if rejected
+  , cstJson :: String -- the first parse tree as gramark-cst JSON, "" if rejected
+  , allCstJson :: Array String -- every derivation as gramark-cst JSON; >1 entry only when ambiguous
+  , prodLhs :: Array String -- production id -> LHS rule name, indexed like cstJson's numeric `rule` field
+  , method :: String -- the table-construction method used to parse ("Canonical" | "LALR" | "IELR")
   , meta :: String -- per-production [{label, fields}] JSON (the handler shape)
   , evalJs :: String -- the self-contained JS evaluator for the grammar (Backend.Js), "" if not LR-buildable
   }
 
-evaluate :: { source :: String, input :: String } -> Result
-evaluate { source, input } = case parse source of
-  Left err ->
-    { ok: false
-    , accepted: false
-    , message: "The grammar could not be parsed."
-    , diagnostics: [ err ]
-    , rules: []
-    , tokens: []
-    , tree: ""
-    , trace: ""
-    , conflicts: ""
-    , cstJson: ""
-    , meta: "[]"
-    , evalJs: ""
-    }
-  Right grammar ->
-    let
-      rules = ruleNamesOf grammar
-      -- The grammar's own conflict analysis (LALR artifact / resolved by
-      -- declaration / genuine), folding in its declared precedence.
-      conflicts = explainP (precedenceOf source) grammar
-      -- The grammar's own lexis: its `## Tokens` block, if any. Absent or
-      -- malformed, the scanner falls back to the literal terminals alone.
-      defs = case tokensBlock source of
-        Just block -> case parseTokens block of
-          Right d -> d
-          Left _ -> []
-        Nothing -> []
-      lexer = scannerLexer defs grammar
-      -- The handler shape: each production's `# Label` and its `name:` fields, so
-      -- an external evaluator can bind semantics by label (see Gramark.Transform).
-      meta = metaJsonOf grammar
-      -- The self-contained JS evaluator: the grammar's inline `{% %}` actions
-      -- baked into one `evaluate(cst)` (Backend.Js), tagged by the `%lang`
-      -- directive. The Lab runs exactly this — no second hand-written fold.
-      evalJs = evalJsOf source grammar
-    in
-      case lexer input of
-        Left lexErr ->
-          { ok: true
-          , accepted: false
-          , message: "The input could not be lexed."
-          , diagnostics: [ lexErr ]
-          , rules
-          , tokens: []
-          , tree: ""
-          , trace: ""
-          , conflicts
-          , cstJson: ""
-          , meta
-          , evalJs
-          }
-        Right toks ->
-          let
-            accepted = recognize lexer Canonical grammar input == Accept
-            -- The CST, rendered with rule names. GLR returns every parse; an
-            -- unambiguous grammar yields one, an ambiguous one ≥2 (we show the
-            -- first and say so). Empty when the input is rejected.
-            csts = forest Canonical grammar toks
-            prods = productions grammar
-            tree = case Array.head csts of
-              Just t ->
-                renderTree prods t
-                  <> (if Array.length csts > 1 then "\n\n(ambiguous: " <> show (Array.length csts) <> " parses; showing the first)" else "")
-              Nothing -> ""
-            trace = case Array.head csts of
-              Just t -> renderTrace prods t
-              Nothing -> ""
-            cstJson = case Array.head csts of
-              Just t -> stringify (Cst.toJson t)
-              Nothing -> ""
-          in
-            { ok: true
-            , accepted
-            , message:
-                if accepted then "The input matched the grammar."
-                else "The input did not match the grammar."
-            , diagnostics:
-                if accepted then [ "Accepted by the Gramark engine." ]
-                else [ "The input did not match the grammar." ]
-            , rules
-            , tokens: map _.text toks
-            , tree
-            , trace
-            , conflicts
-            , cstJson
-            , meta
-            , evalJs
-            }
+-- | Parse the JS-side method selector into the `Method` ADT, defaulting to
+-- | `Canonical` for an absent or unrecognized value (e.g. an older caller that
+-- | doesn't pass `method` at all still gets the previous behaviour).
+parseMethod :: String -> Method
+parseMethod = case _ of
+  "LALR" -> LALR
+  "IELR" -> IELR
+  _ -> Canonical
+
+methodName :: Method -> String
+methodName = case _ of
+  Canonical -> "Canonical"
+  LALR -> "LALR"
+  IELR -> "IELR"
+
+evaluate :: { source :: String, input :: String, method :: String } -> Result
+evaluate { source, input, method } =
+  let
+    tableMethod = parseMethod method
+  in
+    case parse source of
+      Left err ->
+        { ok: false
+        , accepted: false
+        , message: "The grammar could not be parsed."
+        , diagnostics: [ err ]
+        , rules: []
+        , tokens: []
+        , tree: ""
+        , trace: ""
+        , conflicts: ""
+        , cstJson: ""
+        , allCstJson: []
+        , prodLhs: []
+        , method: methodName tableMethod
+        , meta: "[]"
+        , evalJs: ""
+        }
+      Right grammar ->
+        let
+          rules = ruleNamesOf grammar
+          -- The grammar's own conflict analysis (LALR artifact / resolved by
+          -- declaration / genuine), folding in its declared precedence. This
+          -- compares all three methods internally, independent of which one
+          -- the caller selected to actually parse with.
+          conflicts = explainP (precedenceOf source) grammar
+          -- The grammar's own lexis: its `## Tokens` block, if any. Absent or
+          -- malformed, the scanner falls back to the literal terminals alone.
+          defs = case tokensBlock source of
+            Just block -> case parseTokens block of
+              Right d -> d
+              Left _ -> []
+            Nothing -> []
+          lexer = scannerLexer defs grammar
+          -- The handler shape: each production's `# Label` and its `name:` fields, so
+          -- an external evaluator can bind semantics by label (see Gramark.Transform).
+          meta = metaJsonOf grammar
+          -- The self-contained JS evaluator: the grammar's inline `{% %}` actions
+          -- baked into one `evaluate(cst)` (Backend.Js), tagged by the `%lang`
+          -- directive. The Lab runs exactly this — no second hand-written fold.
+          evalJs = evalJsOf source grammar
+        in
+          case lexer input of
+            Left lexErr ->
+              { ok: true
+              , accepted: false
+              , message: "The input could not be lexed."
+              , diagnostics: [ lexErr ]
+              , rules
+              , tokens: []
+              , tree: ""
+              , trace: ""
+              , conflicts
+              , cstJson: ""
+              , allCstJson: []
+              , prodLhs: map _.lhs (productions grammar)
+              , method: methodName tableMethod
+              , meta
+              , evalJs
+              }
+            Right toks ->
+              let
+                accepted = recognize lexer tableMethod grammar input == Accept
+                -- The CST forest under the selected method's multi-action
+                -- table — every derivation, not just the first. An
+                -- unambiguous grammar yields one; an ambiguous one yields
+                -- ≥2, which is exactly what the Lab's ambiguity view needs
+                -- (nothing new to compute here, `forest` already enumerates
+                -- them all — this used to be discarded past `Array.head`).
+                csts = forest tableMethod grammar toks
+                prods = productions grammar
+                tree = case Array.head csts of
+                  Just t ->
+                    renderTree prods t
+                      <> (if Array.length csts > 1 then "\n\n(ambiguous: " <> show (Array.length csts) <> " parses; showing the first)" else "")
+                  Nothing -> ""
+                trace = case Array.head csts of
+                  Just t -> renderTrace prods t
+                  Nothing -> ""
+                allCstJson = map (\t -> stringify (Cst.toJson t)) csts
+                cstJson = case Array.head csts of
+                  Just t -> stringify (Cst.toJson t)
+                  Nothing -> ""
+              in
+                { ok: true
+                , accepted
+                , message:
+                    if accepted then "The input matched the grammar."
+                    else "The input did not match the grammar."
+                , diagnostics:
+                    if accepted then [ "Accepted by the Gramark engine." ]
+                    else [ "The input did not match the grammar." ]
+                , rules
+                , tokens: map _.text toks
+                , tree
+                , trace
+                , conflicts
+                , cstJson
+                , allCstJson
+                , prodLhs: map _.lhs prods
+                , method: methodName tableMethod
+                , meta
+                , evalJs
+                }
 
 ruleNamesOf :: Grammar -> Array String
 ruleNamesOf (Grammar rules) = map (\(Rule name _ _) -> name) rules
