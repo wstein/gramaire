@@ -8897,8 +8897,8 @@ var $$unescape = /* @__PURE__ */ (function() {
     ;
     throw new Error("Failed pattern match at Gramark.Lr (line 81, column 11 - line 86, column 53): " + [v.constructor.name]);
   };
-  return function($282) {
-    return fromCharArray(go(toCharArray($282)));
+  return function($274) {
+    return fromCharArray(go(toCharArray($274)));
   };
 })();
 var unquoteLit = function(s) {
@@ -8918,8 +8918,8 @@ var trimBlankEnds = /* @__PURE__ */ (function() {
   var dropBlank = dropWhile(function(l) {
     return trim(l) === "";
   });
-  return function($283) {
-    return reverse(dropBlank(reverse(dropBlank($283))));
+  return function($275) {
+    return reverse(dropBlank(reverse(dropBlank($275))));
   };
 })();
 var tokenVal = function(tok) {
@@ -9145,15 +9145,15 @@ var normalizeLang = function(raw) {
         return false;
       }
       ;
-      throw new Error("Failed pattern match at Gramark.Lr (line 412, column 26 - line 414, column 21): " + [v.constructor.name]);
+      throw new Error("Failed pattern match at Gramark.Lr (line 411, column 26 - line 413, column 21): " + [v.constructor.name]);
     };
   };
   var isJs = function(l2) {
     return elem6(l2)(["js", "javascript", "jsx", "mjs", "cjs", "ecmascript", "esnext"]) || (prefixThenDigits("es")(l2) || prefixThenDigits("ecmascript")(l2));
   };
   var l = toLower(trim(raw));
-  var $252 = isJs(l);
-  if ($252) {
+  var $249 = isJs(l);
+  if ($249) {
     return "js";
   }
   ;
@@ -9164,8 +9164,8 @@ var lrBlocks = function(md) {
   var scan2 = function(acc) {
     return function(line) {
       if (acc.inside) {
-        var $254 = trim(line) === "```";
-        if ($254) {
+        var $251 = trim(line) === "```";
+        if ($251) {
           return {
             inside: false,
             cur: [],
@@ -9180,8 +9180,8 @@ var lrBlocks = function(md) {
         };
       }
       ;
-      var $255 = trim(line) === "```gramark";
-      if ($255) {
+      var $252 = trim(line) === "```gramark";
+      if ($252) {
         return {
           blocks: acc.blocks,
           inside: true,
@@ -9212,7 +9212,7 @@ var isUpperName = function(name) {
       return false;
     }
     ;
-    throw new Error("Failed pattern match at Gramark.Lr (line 312, column 8 - line 314, column 23): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramark.Lr (line 313, column 8 - line 315, column 23): " + [v.constructor.name]);
   })());
 };
 var isTokenDef = function(l) {
@@ -9226,7 +9226,7 @@ var isTokenDef = function(l) {
       return isUpperName(trim(take3(v.value0)(l)));
     }
     ;
-    throw new Error("Failed pattern match at Gramark.Lr (line 304, column 8 - line 306, column 46): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramark.Lr (line 305, column 8 - line 307, column 46): " + [v.constructor.name]);
   })());
 };
 var isSettingDecl = function(l) {
@@ -9242,8 +9242,8 @@ var gramarkBlocks = function(md) {
   var step = function(acc) {
     return function(line) {
       if (acc.inside) {
-        var $261 = trim(line) === "```";
-        if ($261) {
+        var $258 = trim(line) === "```";
+        if ($258) {
           return {
             info: acc.info,
             cur: acc.cur,
@@ -9299,56 +9299,20 @@ var precedenceOf = function(md) {
     return emptyPrec;
   }
   ;
-  throw new Error("Failed pattern match at Gramark.Lr (line 383, column 19 - line 385, column 23): " + [v.constructor.name]);
+  throw new Error("Failed pattern match at Gramark.Lr (line 382, column 19 - line 384, column 23): " + [v.constructor.name]);
 };
-var decomment = function(ls) {
-  var step = function(acc) {
-    return function(line) {
-      var t = trim(line);
-      if (acc.inBlock) {
-        var $267 = contains("*/")(t);
-        if ($267) {
-          return {
-            out: acc.out,
-            inBlock: false
-          };
-        }
-        ;
-        return acc;
-      }
-      ;
-      var $268 = isJust(stripPrefix("//")(t));
-      if ($268) {
-        return acc;
-      }
-      ;
-      var $269 = isJust(stripPrefix("/*")(t));
-      if ($269) {
-        var $270 = contains("*/")(t);
-        if ($270) {
-          return acc;
-        }
-        ;
-        return {
-          out: acc.out,
-          inBlock: true
-        };
-      }
-      ;
-      return {
-        inBlock: acc.inBlock,
-        out: cons(line)(acc.out)
-      };
-    };
+var decomment = /* @__PURE__ */ (function() {
+  var isComment = function(line) {
+    var t = trim(line);
+    return t === ".." || isJust(stripPrefix(".. ")(t));
   };
-  return reverse(foldl9(step)({
-    inBlock: false,
-    out: []
-  })(ls).out);
-};
+  return filter(function($276) {
+    return !isComment($276);
+  });
+})();
 var toFenced = function(src) {
-  var $271 = contains("```gramark")(src);
-  if ($271) {
+  var $263 = contains("```gramark")(src);
+  if ($263) {
     return src;
   }
   ;
@@ -9361,8 +9325,8 @@ var toFenced = function(src) {
   var block = function(info) {
     return function(body) {
       var trimmed = trimBlankEnds(body);
-      var $272 = $$null(trimmed);
-      if ($272) {
+      var $264 = $$null(trimmed);
+      if ($264) {
         return [];
       }
       ;
@@ -9375,8 +9339,8 @@ var parseWith = function(method) {
   return function(md) {
     var src = joinWith("\n")(lrBlocks(toFenced(md))) + "\n";
     var raw = scan(lrScanItems)(src);
-    var $273 = hasError(raw);
-    if ($273) {
+    var $265 = hasError(raw);
+    if ($265) {
       return new Left("lexical error in grammar source");
     }
     ;
@@ -9399,10 +9363,10 @@ var parseWith = function(method) {
         return new Left("parse did not yield a Grammar");
       }
       ;
-      throw new Error("Failed pattern match at Gramark.Lr (line 369, column 22 - line 372, column 56): " + [v1.constructor.name]);
+      throw new Error("Failed pattern match at Gramark.Lr (line 368, column 22 - line 371, column 56): " + [v1.constructor.name]);
     }
     ;
-    throw new Error("Failed pattern match at Gramark.Lr (line 367, column 10 - line 372, column 56): " + [v.constructor.name]);
+    throw new Error("Failed pattern match at Gramark.Lr (line 366, column 10 - line 371, column 56): " + [v.constructor.name]);
   };
 };
 var parse = /* @__PURE__ */ (function() {

@@ -31,14 +31,8 @@ function ruleBlocks(
       .split("\n")
       .filter((line) => {
         const t = line.trim();
-        if (
-          t === "" ||
-          t.startsWith("//") ||
-          t.startsWith("/*") ||
-          t.startsWith("*")
-        )
-          return false;
-        if (/^%(left|right|nonassoc)\b/.test(t)) return false;
+        if (t === "" || t === ".." || t.startsWith(".. ")) return false; // `.. ` comment
+        if (/^%(left|right|nonassoc|lang)\b/.test(t)) return false;
         if (/^[A-Z][A-Z0-9_]*\s*:/.test(line)) return false; // token-class def
         return true;
       })
