@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --font-ui:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    color-scheme:light;
+    --bg:#ffffff; --bg-1:#f5faf7; --bg-2:#edf5f0; --bg-3:#e0efe7;
+    --fg:#16181d; --fg-secondary:#1f3a31; --fg-muted:#566860; --fg-faint:#7d8d85;
+    --border:#dde9e3; --border-strong:#c6dbd0;
+    --accent:#0a8f63; --accent-2:#066b4a; --node:#15b879;
+    --accent-soft:color-mix(in srgb,var(--accent) 16%,var(--bg));
+    --accent-softer:color-mix(in srgb,var(--accent) 8%,var(--bg));
+    --t-nonterm:var(--accent); --t-term:#b4530a; --t-action:#6f42c1; --t-op:#7d8d85; --t-comment:#7d8d85;
+    --out-bg:#0c130f; --out-fg:#e8f1ec;
+    --radius:6px; --radius-lg:10px;
+  }
+  [data-theme="dark"]{
+    color-scheme:dark;
+    --bg:#0e1512; --bg-1:#131c18; --bg-2:#1a2620; --bg-3:#24332b;
+    --fg:#eaf2ed; --fg-secondary:#c2d4ca; --fg-muted:#8ea298; --fg-faint:#73877e;
+    --border:#25332c; --border-strong:#38493f;
+    --accent:#34d399; --accent-2:#6ee7b7; --node:#15b879;
+    --t-nonterm:var(--accent); --t-term:#f0a868; --t-action:#c4a8ec; --t-op:#73877e; --t-comment:#73877e;
+    --out-bg:#080d0a; --out-fg:#e8f1ec;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);font-family:var(--font-ui);-webkit-font-smoothing:antialiased;color:var(--fg)}
+  ::selection{background:color-mix(in srgb,var(--accent) 26%,transparent)}
+  .gx-switch-knob{transition:transform .22s ease}
+  [data-theme="dark"] .gx-switch-knob{transform:translateX(21px)}
+  textarea.gx-src{outline:none}
+  textarea.gx-src:focus{box-shadow:inset 2px 0 0 var(--accent)}
+  .gx-scroll::-webkit-scrollbar{width:10px;height:10px}
+  .gx-scroll::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:6px}
+  .gx-scroll::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+
+<div style="height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font-family:var(--font-ui)">
+
+  <!-- topbar -->
+  <div style="display:flex;align-items:center;gap:16px;padding:11px 18px;border-bottom:1px solid var(--border);flex:none">
+    <div style="display:flex;align-items:center;gap:9px">
+      <dc-import name="GramarkMark" hint-size="26px,26px" style="display:block;width:26px;height:26px"></dc-import>
+      <div style="font-size:17px;display:flex;align-items:center;gap:7px"><dc-import name="GramarkWordmark" hint-size="104px,20px" style="font-size:17px"></dc-import><span style="color:var(--fg-faint);font-weight:500">Lab</span></div>
+    </div>
+    <div style="width:1px;height:18px;background:var(--border)"></div>
+    {{ exampleTabs }}
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:11.5px;color:var(--accent)"><span style="width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block"></span>{{ method }}</div>
+    <div style="width:1px;height:18px;background:var(--border)"></div>
+    <div onClick="{{ toggleTheme }}" title="Toggle light / dark" class="gx-switch" style="cursor:pointer;width:46px;height:25px;border-radius:999px;background:var(--bg-2);border:1px solid var(--border-strong);position:relative;flex:none">
+      <span style="position:absolute;left:6px;top:50%;transform:translateY(-50%);font-size:11px;line-height:1;color:var(--fg-faint)">☀</span>
+      <span style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:10px;line-height:1;color:var(--fg-faint)">☾</span>
+      <span class="gx-switch-knob" style="position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.35)"></span>
+    </div>
+  </div>
+
+  <!-- body -->
+  <div style="flex:1;display:grid;grid-template-columns:minmax(360px,0.95fr) 1.05fr;min-height:0">
+
+    <!-- editor -->
+    <div style="display:flex;flex-direction:column;border-right:1px solid var(--border);min-height:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 16px;border-bottom:1px solid var(--border);background:var(--bg-1);flex:none">
+        <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint)">grammar source</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">{{ filename }}</span>
+      </div>
+      <textarea class="gx-src gx-scroll" spellcheck="false" onInput="{{ onInput }}" value="{{ text }}" style="flex:1;border:0;resize:none;padding:18px 16px;font-family:var(--font-mono);font-size:13.5px;line-height:1.75;background:var(--bg);color:var(--fg-secondary);tab-size:2;min-height:0"></textarea>
+      <div style="flex:none;padding:9px 16px;border-top:1px solid var(--border);background:var(--bg-1);display:flex;gap:18px;font-family:var(--font-mono);font-size:11px;color:var(--fg-faint)">
+        <span>{{ stats.rules }} rules</span>
+        <span>{{ stats.terminals }} terminals</span>
+        <span>edit freely — it re-renders live</span>
+      </div>
+    </div>
+
+    <!-- output -->
+    <div class="gx-scroll" style="display:flex;flex-direction:column;min-height:0;overflow:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 18px;border-bottom:1px solid var(--border);background:var(--bg-1);flex:none;position:sticky;top:0;z-index:2">
+        <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint)">railroad · {{ rule }}</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--accent)">{{ conflictText }}</span>
+      </div>
+
+      <div style="padding:16px 18px 6px;flex:none">
+        <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:11px">rules — pick one to diagram</div>
+        {{ ruleChips }}
+      </div>
+
+      <div style="padding:14px 18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;min-height:170px;flex:none">
+        {{ diagram }}
+      </div>
+
+      <div style="padding:16px 18px;flex:none">
+        <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:12px">FIRST / FOLLOW — computed from the grammar</div>
+        {{ ffTable }}
+      </div>
+
+      <div style="margin-top:auto;flex:none;padding:11px 18px;background:var(--out-bg);color:var(--out-fg);font-family:var(--font-mono);font-size:12px;display:flex;align-items:center;gap:9px;position:sticky;bottom:0"><span style="color:#4ade80">✓</span>{{ checkLine }}</div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Theme&quot;}}">
+const EXAMPLES = {
+  calc: { file: "calc.grmk.md", text:
+`# Calc — a small arithmetic grammar
+
+Expr
+  : Expr \`+\` Term   {% Add %}
+  | Expr \`-\` Term   {% Sub %}
+  | Term
+
+Term
+  : Term \`*\` Atom   {% Mul %}
+  | Term \`/\` Atom   {% Div %}
+  | Atom
+
+Atom
+  : \`(\` Expr \`)\`
+  | \`num\`
+` },
+  json: { file: "json.grmk.md", text:
+`# JSON (RFC 8259), condensed
+
+Value
+  : Object
+  | Array
+  | \`string\`
+  | \`number\`
+  | \`true\`
+  | \`false\`
+  | \`null\`
+
+Object
+  : \`{\` Members \`}\`
+
+Array
+  : \`[\` Elements \`]\`
+` },
+  lr: { file: "lr.grmk.md", text:
+`# lr — Gramark's own notation, condensed
+
+Rule
+  : Name Alts
+
+Alts
+  : \`:\` Seq
+  | \`|\` Seq
+
+Seq
+  : Symbol Seq
+  | Symbol
+` },
+};
+
+class Component extends DCLogic {
+  state = { example: 'calc', text: EXAMPLES.calc.text, rule: 'Expr', theme: 'light' };
+
+  componentDidMount(){ this.applyTheme(); }
+  applyTheme(){ try { document.documentElement.setAttribute('data-theme', this.state.theme); } catch(e){} }
+  toggleTheme = () => this.setState(s => ({ theme: s.theme === 'dark' ? 'light' : 'dark' }), () => this.applyTheme());
+
+  loadExample = (name) => {
+    const ex = EXAMPLES[name]; if(!ex) return;
+    const rules = this.parse(ex.text);
+    this.setState({ example: name, text: ex.text, rule: rules[0] ? rules[0].name : '' });
+  };
+  onInput = (e) => {
+    const text = e.target.value;
+    const rules = this.parse(text);
+    const exists = rules.some(r => r.name === this.state.rule);
+    this.setState({ text, example: '', rule: exists ? this.state.rule : (rules[0] ? rules[0].name : '') });
+  };
+  selectRule = (name) => this.setState({ rule: name });
+
+  parse(text){
+    const lines = (text || '').split('\n');
+    const rules = []; let cur = null;
+    for(const raw of lines){
+      if(/^\s*#/.test(raw)) continue;
+      const t = raw.trim(); if(!t) continue;
+      if(t[0] === ':' || t[0] === '|'){
+        if(!cur) continue;
+        const body = t.slice(1).replace(/\{%[\s\S]*?%\}/g, '').trim();
+        const toks = (body.match(/`[^`]*`|\S+/g) || []).map(m =>
+          m[0] === '`' ? { type:'t', text: m.slice(1, -1) } : { type:'nt', text: m });
+        if(toks.length) cur.alts.push(toks);
+      } else {
+        const name = t.split(/\s+/)[0];
+        cur = { name, alts: [] }; rules.push(cur);
+      }
+    }
+    return rules;
+  }
+
+  analyze(rules){
+    const map = {}; const names = new Set();
+    rules.forEach(r => { map[r.name] = r; names.add(r.name); });
+    const isNT = (tok) => tok.type === 'nt' && names.has(tok.text);
+    const firstCache = {};
+    const first = (name, seen) => {
+      if(firstCache[name]) return firstCache[name];
+      seen = seen || new Set(); if(seen.has(name)) return new Set(); seen.add(name);
+      const out = new Set(); const r = map[name];
+      if(r){ r.alts.forEach(alt => {
+        const s = alt[0]; if(!s) return;
+        if(isNT(s)) first(s.text, seen).forEach(x => out.add(x));
+        else out.add(s.text);
+      }); }
+      firstCache[name] = out; return out;
+    };
+    const firstOf = (tok) => isNT(tok) ? first(tok.text) : new Set([tok.text]);
+    names.forEach(n => first(n));
+    // FOLLOW
+    const follow = {}; names.forEach(n => follow[n] = new Set());
+    if(rules[0]) follow[rules[0].name].add('$');
+    for(let pass = 0; pass < 8; pass++){
+      rules.forEach(r => { r.alts.forEach(alt => {
+        for(let i = 0; i < alt.length; i++){
+          const s = alt[i]; if(!isNT(s)) continue;
+          if(i < alt.length - 1) firstOf(alt[i + 1]).forEach(x => follow[s.text].add(x));
+          else follow[r.name].forEach(x => follow[s.text].add(x));
+        }
+      }); });
+    }
+    const terms = new Set();
+    rules.forEach(r => r.alts.forEach(alt => alt.forEach(tok => { if(!isNT(tok)) terms.add(tok.text); })));
+    return { map, names, isNT, first, follow, terms, rules };
+  }
+
+  tokW(tok){ const len = (tok.text || '').length; return tok.type === 't' ? Math.max(28, len * 8 + 16) : Math.max(46, len * 8 + 20); }
+
+  nodeEl(tok, x, y, w, key){
+    const R = React;
+    if(tok.type === 't'){
+      return R.createElement('g', { key }, [
+        R.createElement('rect', { key:'r', x, y: y - 14, width: w, height: 28, rx: 14, fill:'var(--bg-2)', stroke:'var(--border-strong)', strokeWidth:1.5 }),
+        R.createElement('text', { key:'t', x: x + w/2, y, textAnchor:'middle', dominantBaseline:'central', fill:'var(--t-term)', fontFamily:"'IBM Plex Mono', monospace", fontSize:13, fontWeight:600 }, tok.text),
+      ]);
+    }
+    const known = this._info && this._info.names.has(tok.text);
+    return R.createElement('g', { key, style:{ cursor: known ? 'pointer' : 'default' }, onClick: known ? () => this.selectRule(tok.text) : undefined }, [
+      R.createElement('rect', { key:'r', x, y: y - 15, width: w, height: 30, rx: 6, fill:'color-mix(in srgb, var(--accent) 8%, var(--bg))', stroke:'var(--accent)', strokeWidth:1.6 }),
+      R.createElement('text', { key:'t', x: x + w/2, y, textAnchor:'middle', dominantBaseline:'central', fill:'var(--accent)', fontFamily:"'IBM Plex Mono', monospace", fontSize:13, fontWeight:600 }, tok.text),
+    ]);
+  }
+
+  buildDiagram(rule){
+    const R = React;
+    if(!rule || !rule.alts.length)
+      return R.createElement('div', { style:{ color:'var(--fg-faint)', fontFamily:'var(--font-mono)', fontSize:'12px' } }, 'no productions');
+    const gap = 18, lead = 14, stroke = 'var(--fg-faint)';
+    const rows = rule.alts.map(alt => {
+      let x = 0; const nodes = alt.map(tok => { const w = this.tokW(tok); const n = { x, w, tok }; x += w + gap; return n; });
+      return { nodes, contentW: Math.max(0, x - gap) };
+    });
+    const maxC = Math.max(40, ...rows.map(r => r.contentW));
+    const LX = 46, contentX = LX + lead, RX = contentX + maxC + lead, startX = 16, endX = RX + 30, W = endX + 14;
+    const rowH = 52, topY = 28, H = topY + (rows.length - 1) * rowH + 26;
+    const kids = [];
+    const line = (d, key) => R.createElement('path', { key, d, fill:'none', stroke, strokeWidth:1.6, strokeLinecap:'round' });
+    rows.forEach((row, i) => {
+      const y = topY + i * rowH; let prevR = null;
+      row.nodes.forEach((n, j) => {
+        const nx = contentX + n.x;
+        if(j === 0){
+          if(i === 0) kids.push(line(`M${startX} ${y} H${nx}`, `ld${i}`));
+          else kids.push(line(`M${LX} ${topY} V${y - 9} Q${LX} ${y} ${LX + 9} ${y} H${nx}`, `ld${i}`));
+        } else kids.push(line(`M${prevR} ${y} H${nx}`, `c${i}-${j}`));
+        kids.push(this.nodeEl(n.tok, nx, y, n.w, `n${i}-${j}`));
+        prevR = nx + n.w;
+      });
+      if(prevR === null) prevR = (i === 0 ? startX : LX + 9);
+      if(i === 0) kids.push(line(`M${prevR} ${y} H${endX}`, `tl${i}`));
+      else kids.push(line(`M${prevR} ${y} H${RX - 9} Q${RX} ${y} ${RX} ${y - 9} V${topY}`, `tl${i}`));
+    });
+    kids.push(R.createElement('circle', { key:'s', cx: startX, cy: topY, r: 4, fill:'var(--accent)' }));
+    kids.push(R.createElement('circle', { key:'e', cx: endX, cy: topY, r: 4, fill:'var(--accent)' }));
+    return R.createElement('svg', { viewBox:`0 0 ${W} ${H}`, style:{ display:'block', width:'100%', maxWidth: W + 'px', height:'auto' } }, kids);
+  }
+
+  renderVals(){
+    const R = React;
+    const rules = this.parse(this.state.text);
+    const info = this.analyze(rules);
+    this._info = info;
+    const active = rules.find(r => r.name === this.state.rule) || rules[0];
+    const set = (s) => '{ ' + [...s].join(' ') + ' }';
+
+    const exampleTabs = R.createElement('div', { style:{ display:'flex', gap:6 } },
+      Object.keys(EXAMPLES).map(name => {
+        const on = this.state.example === name;
+        return R.createElement('span', {
+          key: name, onClick: () => this.loadExample(name),
+          style:{ fontFamily:'var(--font-mono)', fontSize:'12px', fontWeight: on ? 600 : 400,
+            color: on ? '#fff' : 'var(--fg-muted)', background: on ? 'var(--accent)' : 'var(--bg-2)',
+            padding:'5px 12px', borderRadius:'999px', cursor:'pointer' } }, name);
+      }));
+
+    const ruleChips = R.createElement('div', { style:{ display:'flex', flexWrap:'wrap', gap:7 } },
+      rules.map(r => {
+        const on = active && r.name === active.name;
+        return R.createElement('span', {
+          key: r.name, onClick: () => this.selectRule(r.name),
+          style:{ fontFamily:'var(--font-mono)', fontSize:'12.5px', fontWeight:600,
+            color: on ? 'var(--accent)' : 'var(--fg-muted)',
+            background: on ? 'color-mix(in srgb, var(--accent) 10%, var(--bg))' : 'var(--bg-2)',
+            border: '1px solid ' + (on ? 'var(--accent)' : 'var(--border)'),
+            padding:'5px 11px', borderRadius:'6px', cursor:'pointer' } }, r.name);
+      }));
+
+    const ffTable = R.createElement('div', { style:{ display:'flex', flexDirection:'column', gap:0, border:'1px solid var(--border)', borderRadius:'8px', overflow:'hidden' } },
+      rules.map((r, i) => R.createElement('div', {
+        key: r.name,
+        style:{ display:'grid', gridTemplateColumns:'92px 1fr 1fr', gap:'12px', alignItems:'center',
+          padding:'9px 14px', background: i % 2 ? 'var(--bg-1)' : 'var(--bg)',
+          borderTop: i ? '1px solid var(--border)' : 'none', fontFamily:'var(--font-mono)', fontSize:'12.5px' } }, [
+        R.createElement('span', { key:'n', onClick: () => this.selectRule(r.name),
+          style:{ color:'var(--accent)', fontWeight:600, cursor:'pointer' } }, r.name),
+        R.createElement('span', { key:'fi', style:{ color:'var(--fg-muted)' } }, [
+          R.createElement('span', { key:'l', style:{ color:'var(--fg-faint)', marginRight:'8px' } }, 'FIRST'),
+          R.createElement('span', { key:'v', style:{ color:'var(--t-term)' } }, set(info.first(r.name))) ]),
+        R.createElement('span', { key:'fo', style:{ color:'var(--fg-muted)' } }, [
+          R.createElement('span', { key:'l', style:{ color:'var(--fg-faint)', marginRight:'8px' } }, 'FOLLOW'),
+          R.createElement('span', { key:'v', style:{ color:'var(--t-term)' } }, set(info.follow[r.name] || new Set())) ]),
+      ])));
+
+    const leftRec = rules.some(r => r.alts.some(a => a[0] && info.isNT(a[0]) && a[0].text === r.name));
+
+    return {
+      text: this.state.text,
+      filename: EXAMPLES[this.state.example] ? EXAMPLES[this.state.example].file : 'untitled.grmk.md',
+      onInput: this.onInput,
+      toggleTheme: this.toggleTheme,
+      method: 'IELR(1)',
+      rule: active ? active.name : '—',
+      conflictText: '● ' + info.names.size + ' rules · 0 conflicts',
+      checkLine: 'gramark --check · clean · ' + (leftRec ? 'left-recursion resolved by IELR(1)' : 'tables locked'),
+      stats: { rules: info.names.size, terminals: info.terms.size },
+      exampleTabs, ruleChips, ffTable,
+      diagram: this.buildDiagram(active),
+    };
+  }
+}
+</script>
+</body>
+</html>

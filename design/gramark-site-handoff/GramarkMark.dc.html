@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<sc-if value="{{ isNormal }}" hint-placeholder-val="{{ true }}">
+  <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gramark" style="display:block;width:100%;height:100%">
+    <g transform="matrix(1.3665595,0,0,1.3665595,-17.594856,-17.594856)" fill="none" stroke="var(--fg)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 18,48 H 33"></path>
+      <path d="M 63,48 C 70,48 71,31 78,31"></path>
+      <path d="M 63,48 C 70,48 71,65 78,65"></path>
+      <rect x="33" y="36" width="30" height="24" rx="12" fill="var(--node)" stroke="var(--fg)" stroke-width="6"></rect>
+    </g>
+  </svg>
+</sc-if>
+<sc-if value="{{ knockout }}" hint-placeholder-val="{{ false }}">
+  <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gramark" style="display:block;width:100%;height:100%">
+    <g transform="matrix(1.3665595,0,0,1.3665595,-17.594856,-17.594856)" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 18,48 H 33"></path>
+      <path d="M 63,48 C 70,48 71,31 78,31"></path>
+      <path d="M 63,48 C 70,48 71,65 78,65"></path>
+      <rect x="33" y="36" width="30" height="24" rx="12" fill="rgba(255,255,255,0)" stroke="#ffffff" stroke-width="6"></rect>
+    </g>
+  </svg>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:96,&quot;height&quot;:96},&quot;knockout&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals(){
+    const k = this.props.knockout === true || this.props.knockout === 'true';
+    return { knockout: k, isNormal: !k };
+  }
+}
+</script>
+</body>
+</html>

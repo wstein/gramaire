@@ -8,12 +8,13 @@ Status: **draft / north-star**. Tiers 1–3 are the roadmap; every feature is
 grounded in a capability the Gramark Core already exposes, so the target Lab is
 a thin skin over real machinery, never a mock.
 
-> **Current state (be honest about it).** Tier 1's keystone has shipped: the
-> Lab runs the real, compiled Scala core (via Scala.js) in the browser, not a
-> TypeScript preview recognizer — the same `Gramark.Lr.parse` the CLI runs.
-> The rest of this roadmap (Tiers 1's remaining items through Tier 3) tracks
-> which further capabilities have landed; keep this callout current as they
-> ship.
+> **Current state (be honest about it).** No Lab exists in the repository
+> today. The previous implementation (Astro + Starlight, with a Scala.js
+> Tier 1 keystone) was deleted in `4133cab` after the PureScript→Scala core
+> migration made it stale. This document remains the target specification
+> for the rebuild on `feature/reimplement-site`; treat every Tier/T-item
+> below as **not yet built** until this callout says otherwise, and keep it
+> current as work lands.
 
 ---
 
@@ -136,22 +137,22 @@ keeps the Lab honest:
 Tiers are shipping order. Each feature names the Core capability it rides so it
 can be built without new engine work unless noted.
 
-### Tier 0 — the loop (MVP; shipping today as a preview)
+### Tier 0 — the loop (MVP; not yet built)
 
 - **T0.1 Dual editor.** Left: the `.grmk.md` grammar. Right: a raw input
-  payload. (Today: textareas; Tier 1 upgrades to Monaco.)
-- **T0.2 Evaluate (preview).** Today: a client-side recognizer lexes input from
-  the grammar's literal terminals and reports **accept / reject**; grammars that
-  use token classes are declined with a clear message. **Tier 1 replaces this
-  with `Gramark.Lr.parse` + the real table-driven parser** (the honest version
-  of this feature).
+  payload. (Target: textareas first; Tier 1 upgrades to Monaco.)
+- **T0.2 Evaluate (preview).** First implementation: a client-side recognizer
+  lexes input from the grammar's literal terminals and reports **accept /
+  reject**; grammars that use token classes are declined with a clear message.
+  **Tier 1 replaces this with `Gramark.Lr.parse` + the real table-driven
+  parser** (the honest version of this feature).
 - **T0.3 Inline diagnostics.** Build / evaluation messages surfaced in the UI.
 - **T0.4 Permalink.** Compress `{grammar, input, layout}` into the URL so a state
   is shareable (Flatbars-grade; LZMA + URL-safe base64). Open-from-URL on load.
 
 ### Tier 1 — the workbench
 
-- **T1.0 Real Core in the browser (the keystone). Shipped.** Compile the Scala
+- **T1.0 Real Core in the browser (the keystone).** Compile the Scala
   Core to Scala.js ES modules and run `Gramark.Lr.parse` → desugar → table
   build → CST in a Web Worker, replacing the TypeScript preview recognizer.
   Everything else in Tier 1+ depends on this. The Core's FS-freedom guard means
