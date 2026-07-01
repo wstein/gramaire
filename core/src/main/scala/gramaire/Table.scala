@@ -24,8 +24,9 @@ enum GSym derives CanEqual:
   case EOF
 
 object GSym:
-  // Mirrors PureScript's derived `Ord` for `NonTerm String | Term String | EOF`:
-  // by constructor declaration order, then structurally within a constructor.
+  // Mirrors the reference implementation's derived `Ord` for
+  // `NonTerm String | Term String | EOF`: by constructor declaration
+  // order, then structurally within a constructor.
   // Used only to make state numbering deterministic — any consistent total
   // order would do, since the parity methodology canonicalizes automata by
   // item-set content rather than raw numbering.
@@ -239,7 +240,7 @@ object Table:
   // list), the dot position, and one terminal of lookahead.
   final case class Item(prod: Int, dot: Int, look: GSym)
 
-  // Mirrors PureScript's derived `Ord` for `Item` (prod, then dot, then look).
+  // Mirrors the reference implementation's derived `Ord` for `Item` (prod, then dot, then look).
   // Reduce actions and reduce/reduce conflict labels are emitted by folding a
   // state's item set; a plain `Set[Item]` folds in hash order, so we sort first
   // to keep conflict labels and GLR action-vector order deterministic and equal

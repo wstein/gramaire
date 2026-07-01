@@ -3,10 +3,9 @@ package gramaire
 // FIRST/FOLLOW analysis for the `gramaire fmt` table regeneration.
 //
 // This is deliberately kept independent of `gramaire.Table`'s own analysis
-// (stage 1 of the real LR(1) construction) so the two cross-check each
-// other — the PureScript `Test.FirstFollow` recomputes the same sets from
-// the same grammars and asserts they match the tables `fmt` writes here.
-// Sharing code with the compiler core would quietly retire that property.
+// (stage 1 of the real LR(1) construction) — the two are separate
+// implementations of the same FIRST/FOLLOW definition. Sharing code with
+// the compiler core would quietly retire that independence.
 //
 // Gramaire grammars are epsilon-free (optionality is enumerated, never an
 // empty alternative), so FIRST of a production is FIRST of its first symbol

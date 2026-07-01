@@ -8,8 +8,8 @@ class IRGoldenSuite extends munit.FunSuite:
     java.nio.file.Files.readString(java.nio.file.Path.of(path))
 
   // Read a grammar, lower it to canonical JSON, and lock it against the
-  // PureScript-produced golden — this is the byte-for-byte IR parity
-  // gate the migration plan calls the single highest-value check.
+  // committed golden — this is the byte-for-byte IR parity gate the
+  // migration plan calls the single highest-value check.
   private def golden(path: String, goldenPath: String, name: String): Unit =
     val md = readFile(path)
     Lr.parse(md) match

@@ -211,7 +211,7 @@ object Lr:
       case Some(k) =>
         if t == "```" then acc.copy(keep = None)
         else if k then acc.copy(out = acc.out :+ line)
-        else acc // inside a dropped fence (errors / purescript)
+        else acc // inside a dropped fence (errors / illustrative code)
       case None =>
         if t.startsWith("```gramaire") then
           acc.copy(keep = Some(keepInfo(t.stripPrefix("```gramaire").trim)))

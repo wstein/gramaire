@@ -13,11 +13,10 @@ import Sym.*
 //     receives one Array (`*`) or Maybe (`?`).
 //   - `Macro name<args>` lowers to a fresh rule (Comma<X>, Sep<X, S>).
 //
-// The action strings manipulated here are still PureScript-lambda-syntax
-// text (`\x -> ...`) at this point in the port — the self-hosting proof
-// task retargets this template shape at Scala syntax together with
-// Codegen; until then this is a faithful structural port of the string
-// templating, unexecuted by anything.
+// The action strings manipulated here are legacy lambda-syntax text
+// (`\x -> ...`), carried through as opaque, unexecuted templating —
+// `CodegenScala`'s Scala-emitting reduce is built from a separate,
+// hand-written Scala action profile, not from these strings.
 // Ported from src/Gramaire/Desugar.purs.
 object Desugar:
 
@@ -300,8 +299,8 @@ object Desugar:
       lowered <- g.rules.foldLeft[Either[String, Vector[Rule]]](Right(Vector.empty)) { (acc, r) =>
         for xs <- acc; r2 <- lowerRule(r) yield xs :+ r2
       }
-    // Append fresh rules in ascending key order, matching the PureScript
-    // original's `Map.values` over an ordered `Data.Map`. A plain Scala `Map`
+    // Append fresh rules in ascending key order, matching the reference
+    // implementation's iteration over an ordered map. A plain Scala `Map`
     // iterates in insertion/hash order, which would assign different production
     // indices (and thus CST/IR/table ids) than the reference engine.
     yield Grammar(lowered ++ fresh.toVector.sortBy(_._1).map(_._2))

@@ -11,14 +11,12 @@ import Sym.*
 // to a value equal to `bootstrapGrammar` (the dogfood test), this literal
 // is deleted and the `.gram.md` file becomes the single source of truth.
 //
-// Each action string is currently the exact text between `{%` and `%}` in
-// the corresponding rule of `lr.gram.md` — still PureScript-lambda syntax
-// at this point in the port (`Gramaire.Codegen`/the self-hosting proof
-// haven't been re-targeted at Scala yet). The migration plan's
-// self-hosting task rewrites both this literal's action strings and
-// `lr.gram.md`'s embedded actions to Scala syntax together, once
-// `Codegen` is ported — until then they are inert opaque text, not
-// executed by anything.
+// Each action string is the exact text between `{%` and `%}` in the
+// corresponding rule of `lr.gram.md` — legacy lambda-syntax text, carried
+// through as opaque, unexecuted payload. `CodegenScala`'s Scala-emitting
+// reduce is generated from a separate, hand-written Scala action profile
+// (`CodegenScala.lrActionsScala`), not from a translation of this text —
+// see `ScalaSelfHostSuite`.
 // Ported from src/Gramaire/Bootstrap.purs.
 object Bootstrap:
 

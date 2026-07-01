@@ -2,11 +2,10 @@ package gramaire
 
 // Ported from test/Test/Json.purs — `parse` inverts `stringify`, and
 // malformed input is rejected with `Left`. The golden-file round-trip
-// tests (test/golden/*.ir.json) stay on the PureScript side for now:
+// tests (test/golden/*.ir.json) live in `IRGoldenSuite` instead:
 // reading files from a shared cross-platform (JVM+Scala.js) test isn't
-// meaningful here (Scala.js has no filesystem), and a JVM-only golden
-// harness is exactly what the migration plan's Phase 2 parity-diffing
-// tooling introduces later.
+// meaningful here (Scala.js has no filesystem), so that JVM-only golden
+// harness is a separate suite.
 class JsonSuite extends munit.FunSuite:
   import Json.*
 
