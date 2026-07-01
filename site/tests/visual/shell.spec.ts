@@ -6,6 +6,12 @@ import { test, expect, type Page } from "@playwright/test";
 const pages = [
   { name: "home", path: "/" },
   { name: "brand", path: "/brand/" },
+  { name: "docs-overview", path: "/docs/overview/" },
+  { name: "specs-grammar-format", path: "/specs/grammar-format/" },
+  { name: "specs-ir-schema", path: "/specs/ir-schema/" },
+  { name: "specs-cst-schema", path: "/specs/cst-schema/" },
+  { name: "specs-schema-overview", path: "/specs/schema-overview/" },
+  { name: "tutorial-intro", path: "/tutorials/intro/" },
 ];
 
 async function setTheme(page: Page, theme: "light" | "dark") {

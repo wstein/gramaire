@@ -33,6 +33,18 @@ export default defineConfig({
       expressiveCode: { shiki: { langAlias: { gramark: "text" } } },
       sidebar: [
         { label: "Home", link: "/" },
+        {
+          label: "Docs",
+          items: [{ autogenerate: { directory: "docs" } }],
+        },
+        {
+          label: "Specs",
+          items: [{ autogenerate: { directory: "specs" } }],
+        },
+        {
+          label: "Tutorials",
+          items: [{ autogenerate: { directory: "tutorials" } }],
+        },
         { label: "Brand", link: "/brand/" },
       ],
       customCss: [
