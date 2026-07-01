@@ -1,6 +1,7 @@
 -- | The raw `.grmk` projection (ADR D36): `strip` carries a `.grmk.md`'s docs as
--- | comments — a `/** */` banner for the title/intro and `//` lines per section —
--- | alongside the fence-free grammar. It is a derived, non-authoritative export;
+-- | doc comments — a `/** */` banner for the title/intro and `///` lines per
+-- | section (Markdown prose) — alongside the fence-free grammar. It is a derived,
+-- | non-authoritative export;
 -- | the safety property is that it carries exactly the grammar the parser sees:
 -- | `parse (strip md) == parse md` for every grammar (the comments are skipped on
 -- | parse), so `.grmk` can never be a second source of truth.
@@ -40,10 +41,10 @@ check path = do
   log ("  strip: parse(strip(x)) == parse(x) for " <> path)
   md <- readTextFile UTF8 path
   let stripped = strip md
-  -- Docs travel as comments: a `/** */` banner for the title/intro and `//`
+  -- Docs travel as doc comments: a `/** */` banner for the title/intro and `///`
   -- lines per section. Headings are dropped (no bare `## `).
   assert' (path <> ": carries a /** */ banner") (contains (Pattern "/**") stripped)
-  assert' (path <> ": section prose survives as // comments") (contains (Pattern "// ") stripped)
+  assert' (path <> ": section prose survives as /// comments") (contains (Pattern "/// ") stripped)
   assert' (path <> ": no bare ## headings") (not (contains (Pattern "\n## ") stripped))
   -- … and the grammar still parses to the same value (toFenced skips comments).
   assert' (path <> ": stripped form should still parse") (isRight (parse stripped))

@@ -69,8 +69,8 @@ function formatReport(result: {
 }
 
 // The lab's sample grammar — a live arithmetic calculator in the raw, fence-free
-// `.grmk` projection (ADR D36): a `/** */` banner and `//` comments carry the
-// docs, ALL-CAPS `NAME : /regex/` lines declare the token classes, and Mixed-case
+// `.grmk` projection (ADR D36): a `/** */` banner and `///` doc-comment lines carry
+// the docs, ALL-CAPS `NAME : /regex/` lines declare the token classes, and Mixed-case
 // productions carry inline `{% … %}` actions. The `%lang javascript` setting
 // (the `## General settings` block in the fenced form) declares those actions as
 // JavaScript, so the engine bakes them into one `evaluate(cst)` the Lab runs in
@@ -89,19 +89,19 @@ const DEFAULT_GRAMAR = `/**
 NUMBER : /[0-9]+(?:\\.[0-9]+)?/
 WS     : /[ \\t\\r\\n]+/   %skip
 
-// An expression is a sum or difference of terms.
+/// An expression is a sum or difference of terms.
 Expr
   : Expr '+' Term   {% (c) => c[0] + c[2] %}
   | Expr '-' Term   {% (c) => c[0] - c[2] %}
   | Term
 
-// A term is a product or quotient of factors.
+/// A term is a product or quotient of factors.
 Term
   : Term '*' Factor {% (c) => c[0] * c[2] %}
   | Term '/' Factor {% (c) => c[0] / c[2] %}
   | Factor
 
-// A factor is a number or a parenthesised expression.
+/// A factor is a number or a parenthesised expression.
 Factor
   : '(' Expr ')'    {% (c) => c[1] %}
   | NUMBER          {% (c) => parseFloat(c[0]) %}
