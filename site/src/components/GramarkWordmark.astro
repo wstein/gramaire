@@ -1,0 +1,47 @@
+---
+// The Gramark wordmark — treatment "02 · Split stem" from the handoff. The
+// name is a portmanteau (grammar + Markdown) whose single shared middle `m`
+// is the brand hinge: `Gra` inks in `--fg`, `ark` in `--accent`, and the `m`
+// is bisected left-half `--fg` / right-half `--accent` by a hard-stop text
+// gradient. One weight/size throughout (IBM Plex Sans 700, tight tracking).
+interface Props {
+  size?: string;
+  class?: string;
+}
+const { size = "1.25rem", class: klass } = Astro.props;
+---
+
+<span class:list={["gramark-wordmark", klass]} style={`--wm-size: ${size}`}>
+  <span class="wm-gra">Gra</span><span class="wm-m">m</span><span class="wm-ark"
+    >ark</span
+  >
+</span>
+
+<style>
+  .gramark-wordmark {
+    font-family: var(--font-ui, "IBM Plex Sans", sans-serif);
+    font-weight: 700;
+    font-size: var(--wm-size);
+    letter-spacing: -0.04em;
+    line-height: 1;
+    white-space: nowrap;
+    display: inline-flex;
+  }
+  .wm-gra {
+    color: var(--gramark-fg, var(--fg, #16181d));
+  }
+  .wm-ark {
+    color: var(--accent, #0a8f63);
+  }
+  .wm-m {
+    background: linear-gradient(
+      90deg,
+      var(--gramark-fg, var(--fg, #16181d)) 0 50%,
+      var(--accent, #0a8f63) 50% 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+</style>

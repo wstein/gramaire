@@ -1,13 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Gramark">
-  <title>Gramark</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Gramark logomark">
+  <title>Gramark logomark</title>
   <style>
-    /* Ink survives both themes: dark ink on light UI, off-white on dark.
-       The emerald node is constant. */
+    /* One file, both themes: dark ink on light backgrounds, off-white on dark.
+       The emerald rule-node is constant across themes. */
     .ink { stroke: #16181d; }
     .dot { fill: #16181d; }
     @media (prefers-color-scheme: dark) {
-      .ink { stroke: #eaf2ed; }
-      .dot { fill: #eaf2ed; }
+      .ink { stroke: #f5f6f3; }
+      .dot { fill: #f5f6f3; }
     }
   </style>
   <g fill="none" class="ink" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round">
