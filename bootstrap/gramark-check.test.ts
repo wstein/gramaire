@@ -32,7 +32,12 @@ import { parseProduction } from "./railroad.ts";
 // nested ```gramark fences can use backticks freely (double-quoted strings, unlike
 // template literals, treat the backtick as an ordinary character).
 function miniDoc(
-  opts: { precedence?: boolean; tokens?: boolean; rule?: string } = {},
+  opts: {
+    precedence?: boolean;
+    tokens?: boolean;
+    settings?: boolean;
+    rule?: string;
+  } = {},
 ): string {
   const rule = opts.rule ?? "  : 'x'   {% \\_ -> 1 %}";
   const lines = [
@@ -41,6 +46,16 @@ function miniDoc(
     "A one-rule grammar used as a test fixture.",
     "",
   ];
+  if (opts.settings) {
+    lines.push(
+      "## General settings",
+      "",
+      "```gramark settings",
+      "%lang javascript",
+      "```",
+      "",
+    );
+  }
   if (opts.tokens) {
     lines.push("## Tokens", "", "```gramark tokens", "X : /x/", "```", "");
   }
@@ -112,6 +127,13 @@ test("checkStructure accepts an optional Precedence section", () => {
 
 test("checkStructure accepts a Tokens section before the nonterminals (lexer-spec §9)", () => {
   assert.deepEqual(checkStructure(parse(miniDoc({ tokens: true }))), []);
+});
+
+test("checkStructure accepts a General settings section first (%lang)", () => {
+  assert.deepEqual(
+    checkStructure(parse(miniDoc({ settings: true, tokens: true }))),
+    [],
+  );
 });
 
 test("checkStructure rejects a Tokens section out of place (after the nonterminal)", () => {

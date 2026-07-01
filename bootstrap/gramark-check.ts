@@ -192,12 +192,13 @@ export function checkStructure(doc: Doc): string[] {
   if (h1s.length !== 1)
     fails.push(`expected exactly one H1, found ${h1s.length} (MD025)`);
 
-  // Canonical order: H1, then the optional Tokens section (alphabet before
-  // grammar; lexer-spec §9), then each lr-nonterminal as an H2 in block order,
-  // then the optional Precedence section, then Error messages and Generated
-  // tables. Only the H1 and H2 layers are structural — `###`+ headings are
-  // deliberately ignored here (free presentational grouping; ADR D29), so do
-  // not add a level-3+ check.
+  // Canonical order: H1, then the optional General settings section
+  // (document-level directives like `%lang`), then the optional Tokens section
+  // (alphabet before grammar; lexer-spec §9), then each lr-nonterminal as an H2
+  // in block order, then the optional Precedence section, then Error messages
+  // and Generated tables. Only the H1 and H2 layers are structural — `###`+
+  // headings are deliberately ignored here (free presentational grouping; ADR
+  // D29), so do not add a level-3+ check.
   const ruleNames = doc.blocks
     .filter((b) => b.info === "gramark" && b.nonterminal)
     .map((b) => b.nonterminal as string);
@@ -206,6 +207,7 @@ export function checkStructure(doc: Doc): string[] {
     ? ["Precedence", ...EXPECTED_TAIL]
     : EXPECTED_TAIL;
   const expected = [
+    ...(h2.includes("General settings") ? ["General settings"] : []),
     ...(h2.includes("Tokens") ? ["Tokens"] : []),
     ...ruleNames,
     ...tail,
