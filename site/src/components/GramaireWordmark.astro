@@ -1,0 +1,47 @@
+---
+// The Gramaire wordmark: "Gra" in ink, a split-stem "m" (the hinge where
+// _gram_mar and _mark_(down) overlap — half ink, half emerald, hard-stop),
+// "ark" in emerald. The split is a linearGradient with two 50%-offset hard
+// stops applied as the "m" tspan's fill; because SVG gradients default to
+// `gradientUnits="objectBoundingBox"`, the 50/50 split is computed against
+// the "m" glyph's own actual rendered bounding box — no hand-measured pixel
+// offsets, so it stays correct across browsers/fonts without drift. See
+// docs/BRANDING.md.
+interface Props {
+  [attr: string]: unknown;
+}
+
+const { ...rest } = Astro.props as Props;
+const gradId = "gramaire-m-split-" + Math.random().toString(36).slice(2, 8);
+---
+
+<svg
+  viewBox="0 0 190 44"
+  xmlns="http://www.w3.org/2000/svg"
+  role="img"
+  aria-label="Gramaire"
+  style="display:block"
+  {...rest}
+>
+  <title>Gramaire</title>
+  <defs>
+    <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="var(--gramaire-fg)"></stop>
+      <stop offset="50%" stop-color="var(--gramaire-fg)"></stop>
+      <stop offset="50%" stop-color="var(--sl-color-accent)"></stop>
+      <stop offset="100%" stop-color="var(--sl-color-accent)"></stop>
+    </linearGradient>
+  </defs>
+  <text
+    x="0"
+    y="33"
+    font-family="'IBM Plex Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
+    font-size="34"
+    font-weight="700"
+    letter-spacing="-1"
+  >
+    <tspan fill="var(--gramaire-fg)">Gra</tspan><tspan fill={`url(#${gradId})`}
+      >m</tspan
+    ><tspan fill="var(--sl-color-accent)">ark</tspan>
+  </text>
+</svg>

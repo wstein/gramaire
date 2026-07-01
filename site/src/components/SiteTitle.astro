@@ -1,0 +1,29 @@
+---
+// Overrides Starlight's default SiteTitle (which only accepts a single static
+// image logo) so the header renders the theme-reactive GramaireMark +
+// GramaireWordmark components instead of a light/dark image pair. See
+// astro.config.mjs's `components.SiteTitle` override.
+import GramaireMark from "./GramaireMark.astro";
+import GramaireWordmark from "./GramaireWordmark.astro";
+
+const { siteTitleHref } = Astro.locals.starlightRoute;
+---
+
+<a href={siteTitleHref} class="site-title sl-flex">
+  <GramaireMark style="width: 1.6rem; height: 1.6rem; flex: none;" />
+  <GramaireWordmark style="height: 1.15rem; width: auto;" />
+</a>
+
+<style>
+  @layer starlight.core {
+    .site-title {
+      align-items: center;
+      gap: var(--sl-nav-gap);
+      font-size: var(--sl-text-h4);
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      min-width: 0;
+    }
+  }
+</style>

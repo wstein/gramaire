@@ -32,6 +32,13 @@ export default defineConfig({
         { label: "Lab", link: "/lab" },
       ],
       customCss: ["./src/styles/custom.css"],
+      // Starlight's built-in `logo` option only accepts a single static
+      // image, which would force a light/dark file pair back into
+      // existence — override the slot instead so the header renders the
+      // theme-reactive GramaireMark/GramaireWordmark components.
+      components: {
+        SiteTitle: "./src/components/SiteTitle.astro",
+      },
     }),
   ],
 });

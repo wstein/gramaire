@@ -1,5 +1,13 @@
 ---
 import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
+import GramaireMark from "../components/GramaireMark.astro";
+import GramaireWordmark from "../components/GramaireWordmark.astro";
+import "@fontsource/ibm-plex-sans/400.css";
+import "@fontsource/ibm-plex-sans/500.css";
+import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource/ibm-plex-sans/700.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
 ---
 
 <html lang="en">
@@ -13,6 +21,15 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
     />
     <title>Gramaire Lab</title>
     <style is:global>
+      /* This page stands outside the Starlight layout, so it doesn't inherit
+         custom.css's tokens — define the ones GramaireMark/GramaireWordmark
+         need directly. Matches docs/BRANDING.md; the Lab has no dark-mode
+         toggle today, so only the light values are defined. */
+      :root {
+        --gramaire-fg: #16181d;
+        --sl-color-accent: #15b879;
+      }
+
       /* Railroad-diagram navigation + zoom (the SVGs are injected at runtime,
          so these must be global, not scoped). */
       .rr-figure {
@@ -43,7 +60,9 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
         fill: #d1fae5;
       }
       .rr-figure figcaption {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-family:
+          "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+          monospace;
         font-size: 1.05rem;
         font-weight: 700;
         color: #16181d;
@@ -116,7 +135,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
 
       /* Foldable CST tree (Parse tree, All parses tabs). */
       .cst-tree {
-        font-family: ui-monospace, monospace;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
         font-size: 0.85rem;
         line-height: 1.6;
       }
@@ -167,7 +186,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
       /* Tokens tab. */
       .tokens-table {
         border-collapse: collapse;
-        font-family: ui-monospace, monospace;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
         font-size: 0.85rem;
         width: 100%;
       }
@@ -193,7 +212,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
       }
       .method-btn {
         font: inherit;
-        font-family: ui-monospace, monospace;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
         font-size: 0.8rem;
         border: none;
         cursor: pointer;
@@ -230,7 +249,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
         margin-top: 0.6rem;
       }
       .amb-parse-label {
-        font-family: ui-monospace, monospace;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
         font-size: 0.75rem;
         color: #9ca3af;
         margin-bottom: 0.3rem;
@@ -250,9 +269,22 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
   </head>
   <body>
     <main
-      style="max-width: 1200px; margin: 0 auto; padding: 2rem; font-family: Inter, sans-serif;"
+      style="max-width: 1200px; margin: 0 auto; padding: 2rem; font-family: 'IBM Plex Sans', sans-serif;"
     >
-      <h1>Gramaire Lab</h1>
+      <h1
+        style="margin: 0 0 0.5rem; font-size: inherit; font-weight: inherit; display: flex; align-items: center; gap: 0.6rem;"
+      >
+        <a
+          href={import.meta.env.BASE_URL}
+          style="display: flex; align-items: center; gap: 0.5rem; text-decoration: none;"
+        >
+          <GramaireMark style="width: 1.9rem; height: 1.9rem; flex: none;" />
+          <GramaireWordmark style="height: 1.35rem; width: auto;" />
+        </a>
+        <span style="color: #6b7280; font-weight: 500; font-size: 1.1rem;"
+          >Lab</span
+        >
+      </h1>
       <p>
         Grammar evaluation in your browser, running the real Gramaire engine (the
         compiled PureScript core). It lexes input from the grammar's literal
@@ -273,7 +305,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
           <h2>Grammar editor</h2>
           <textarea
             id="grammar-input"
-            style="width: 100%; min-height: 260px; font-family: ui-monospace, monospace; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #d1d5db;"
+            style="width: 100%; min-height: 260px; font-family: 'IBM Plex Mono', ui-monospace, monospace; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #d1d5db;"
             >{getDefaultGrammar()}</textarea
           >
           <div
@@ -301,7 +333,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
           <h2>Input</h2>
           <textarea
             id="input-test"
-            style="width: 100%; min-height: 120px; font-family: ui-monospace, monospace; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #d1d5db;"
+            style="width: 100%; min-height: 120px; font-family: 'IBM Plex Mono', ui-monospace, monospace; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #d1d5db;"
             >{getDefaultInput()}</textarea
           >
         </section>
@@ -488,7 +520,7 @@ import { getDefaultGrammar, getDefaultInput } from "../lib/gramaire-runtime.ts";
             >
             <span
               id="value-output"
-              style="font-family: ui-monospace, monospace; font-weight: 700; font-size: 1.1rem; color: #16181d;"
+              style="font-family: 'IBM Plex Mono', ui-monospace, monospace; font-weight: 700; font-size: 1.1rem; color: #16181d;"
               >—</span
             >
           </div>

@@ -1,0 +1,48 @@
+---
+// The Gramaire logomark: a railroad production rule drawn as track — an entry
+// track meets the emerald rule-node, then forks into two alternatives. Ink
+// (tracks, node outline) binds to the theme-aware `--gramaire-fg` custom
+// property (see custom.css) via `currentColor`, so one inline SVG replaces
+// what used to be two hand-synced light/dark `.svg` files. `knockout` renders
+// white-on-transparent for use on a filled emerald ground (the app/social
+// tile) — see docs/BRANDING.md.
+interface Props {
+  knockout?: boolean;
+  [attr: string]: unknown;
+}
+
+const { knockout = false, ...rest } = Astro.props as Props;
+const ink = knockout ? "#ffffff" : "currentColor";
+const nodeFill = knockout ? "rgba(255,255,255,0)" : "var(--sl-color-accent)";
+---
+
+<svg
+  viewBox="0 0 96 96"
+  xmlns="http://www.w3.org/2000/svg"
+  role="img"
+  aria-label="Gramaire"
+  style={`display:block; color: var(--gramaire-fg);`}
+  {...rest}
+>
+  <title>Gramaire</title>
+  <g
+    fill="none"
+    stroke={ink}
+    stroke-width="6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M12 48 H33"></path>
+    <path d="M63 48 C72 48 74 31 82 31"></path>
+    <path d="M63 48 C72 48 74 65 82 65"></path>
+  </g>
+  <rect
+    x="33"
+    y="36"
+    width="30"
+    height="24"
+    rx="12"
+    fill={nodeFill}
+    stroke={ink}
+    stroke-width="6"></rect>
+</svg>
