@@ -111,6 +111,30 @@ test("the default grammar bakes a JS evaluator that computes the sample", async 
   assert.equal(evaluate(JSON.parse(result.cstJson)), 11);
 });
 
+// The landing page (`src/pages/index.astro`) seeds its live showcase with this
+// compact, self-contained grammar; keep it parseable and drawable so the hero
+// never shows an empty "renders to ↓" panel.
+const LANDING_SHOWCASE_GRAMMAR = `Expr
+  : Expr '+' Term
+  | Term
+
+Term
+  : Term '*' 'num'
+  | 'num'
+`;
+
+test("the landing showcase grammar parses and draws a railroad per rule", async () => {
+  const result = await parseGramaireDocument(LANDING_SHOWCASE_GRAMMAR, "num");
+  assert.equal(result.success, true);
+  assert.deepEqual(result.rules, ["Expr", "Term"]);
+  const diagrams = renderDiagrams(LANDING_SHOWCASE_GRAMMAR, result.rules);
+  assert.deepEqual(
+    diagrams.map((d) => d.name),
+    ["Expr", "Term"],
+  );
+  assert.match(diagrams[0]!.svg, /^<svg/);
+});
+
 test("renderDiagrams draws one railroad SVG per rule of the default grammar", () => {
   const diags = renderDiagrams(getDefaultGrammar(), ["Expr", "Term", "Factor"]);
   assert.deepEqual(
