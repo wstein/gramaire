@@ -9,56 +9,6 @@ permissions:
   contents: read
 
 jobs:
-  purescript:
-    name: PureScript core (Spago)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-
-      - name: Cache Spago packages and output
-        uses: actions/cache@v6
-        with:
-          path: |
-            .spago
-            output
-          key: spago-${{ runner.os }}-${{ hashFiles('spago.yaml', 'spago.lock') }}
-          restore-keys: |
-            spago-${{ runner.os }}-
-
-      - name: Install the PureScript toolchain
-        run: npm i -g purescript@0.15.16 spago@1.0.4
-
-      - name: Build (warnings are errors; deps must be tidy)
-        run: spago build --strict --pedantic-packages
-
-      - name: Format check (purs-tidy)
-        # Pinned for determinism; excludes the generated reduce, which is
-        # codegen-shaped (and drift-locked by Test.Codegen), not purs-tidy-shaped.
-        run: |
-          files=$(find src test -name '*.purs' -not -path '*/Generated/*')
-          npx --yes purs-tidy@0.11.0 check $files
-
-      - name: Core stays filesystem-free (ADR D13)
-        # The parser/IR/runtime must import cleanly into a browser/worker, so no
-        # core module may depend on Node's fs. Only the CLI and the codegen
-        # regeneration entry point are allowed to. This guards the boundary the
-        # browser/playground goal relies on before FS coupling can spread.
-        run: |
-          hits=$(grep -rlE 'Node\.(FS|Buffer)' src/Gramaire --include='*.purs' \
-            | grep -vE 'Gramaire/Cli\.purs|Gramaire/Codegen/Main\.purs' || true)
-          if [ -n "$hits" ]; then
-            echo "These core modules import Node.FS/Buffer — keep the core filesystem-free (ADR D13):"
-            echo "$hits"
-            exit 1
-          fi
-
-      - name: Test
-        run: spago test
-
   core:
     name: Scala core (cross-build)
     runs-on: ubuntu-latest
@@ -165,57 +115,6 @@ jobs:
 
       - name: Lint Markdown (markdownlint-cli2)
         run: npm run lint:md
-
-  bootstrap:
-    name: Bootstrap bridge + grammar checks
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: bootstrap
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v6
-        with:
-          # Node 24+ runs the TypeScript bridge directly (native type
-          # stripping) and provides import.meta.main + top-level await.
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: bootstrap/package-lock.json
-
-      - name: Install bridge dependencies
-        run: npm ci
-
-      - name: Check formatting (prettier)
-        run: npm run format:check
-
-      - name: Typecheck (tsc --noEmit)
-        run: npm run typecheck
-
-      - name: Unit tests (node:test)
-        run: npm test
-
-      - name: Lint Markdown (markdownlint-cli2)
-        run: npm run lint:md
-
-      - name: gramaire --check grammar and examples
-        working-directory: ${{ github.workspace }}
-        run: |
-          node bootstrap/gramaire-check.ts grammar/lr.gram.md
-          node bootstrap/gramaire-check.ts examples/calc.gram.md
-          node bootstrap/gramaire-check.ts examples/calc-prec.gram.md
-          node bootstrap/gramaire-check.ts examples/json.gram.md
-          node bootstrap/gramaire-check.ts examples/readme.gram.md
-
-      - name: Derived artifacts are up to date (no drift)
-        working-directory: ${{ github.workspace }}
-        run: |
-          node bootstrap/gramaire-check.ts --write-lock grammar/lr.gram.md
-          node bootstrap/gramaire-check.ts --write-lock examples/calc.gram.md
-          node bootstrap/gramaire-check.ts --write-lock examples/calc-prec.gram.md
-          node bootstrap/gramaire-check.ts --write-lock examples/json.gram.md
-          node bootstrap/gramaire-check.ts --write-lock examples/readme.gram.md
-          git diff --exit-code
 
   site:
     name: Playground site (Astro)

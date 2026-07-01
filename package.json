@@ -2,15 +2,5 @@
   "name": "gramaire",
   "version": "0.0.0",
   "private": true,
-  "description": "Grammars that render themselves — an LR(1) parser generator whose grammars are lint-clean Markdown (.gram.md).",
-  "bin": {
-    "gramaire": "bin/gramaire.mjs"
-  },
-  "files": [
-    "bin/",
-    "output/"
-  ],
-  "scripts": {
-    "build": "spago build"
-  }
+  "description": "Grammars that render themselves — an LR(1) parser generator whose grammars are lint-clean Markdown (.gram.md). The `gramaire` CLI is now a Scala/JVM binary (cli/jvm/) — see README.md for `sbt cli/run` / native-image usage."
 }

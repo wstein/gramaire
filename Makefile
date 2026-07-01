@@ -2,43 +2,39 @@
 
 # Gramaire project task manager
 # Provides a unified interface for building, testing, and developing across:
-# - Core PureScript compiler (via Spago)
+# - Core Scala compiler + CLI (via sbt, cross-built to JVM and Scala.js)
 # - Documentation site (via Astro/npm in site/)
-# - Bootstrap bridge (via npm in bootstrap/)
+# - Markdown lint (via npm in docs-lint/)
 
 help:
 	@echo "Gramaire - Make targets"
 	@echo ""
 	@echo "Setup & Installation:"
-	@echo "  make install       Install all dependencies (Spago, site npm, bootstrap npm)"
+	@echo "  make install       Install all dependencies (site npm, docs-lint npm)"
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev           Start the local Astro docs site (site/npm run dev)"
-	@echo "  make dev-build     Build everything in watch/dev mode"
 	@echo ""
 	@echo "Building:"
-	@echo "  make build         Build all components (Spago, site, bootstrap)"
-	@echo "  make build-core    Build PureScript compiler (spago build)"
+	@echo "  make build         Build all components (core, cli, site)"
+	@echo "  make build-core    Cross-compile the Scala core + CLI (sbt compile)"
 	@echo "  make build-site    Build Astro docs site (site/npm run build)"
-	@echo "  make build-boot    Typecheck bootstrap bridge (bootstrap/npm run typecheck)"
 	@echo ""
 	@echo "Testing:"
-	@echo "  make test          Run all tests (core, site, bootstrap)"
-	@echo "  make test-core     Run PureScript tests (bootstrap check)"
+	@echo "  make test          Run all tests (core, cli, site-glue, site)"
+	@echo "  make test-core     Run the Scala test suite (sbt test)"
 	@echo "  make test-site     Run site tests (tsx test harness)"
-	@echo "  make test-boot     Run bootstrap tests (Node --test)"
 	@echo ""
 	@echo "Code Quality:"
-	@echo "  make format        Format all code (site, bootstrap)"
-	@echo "  make lint          Lint all code (site prettier, bootstrap lint)"
+	@echo "  make format        Format all code (Scala, site, docs-lint)"
+	@echo "  make lint          Lint all code (scalafmt check, site prettier, docs-lint)"
 	@echo "  make lint-site     Lint site code"
-	@echo "  make lint-boot     Lint bootstrap code"
+	@echo "  make lint-docs     Lint Markdown across the whole repo"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean         Remove all build artifacts and caches"
-	@echo "  make clean-core    Clean Spago output and cache"
+	@echo "  make clean-core    Clean sbt/Scala build output"
 	@echo "  make clean-site    Clean Astro build output and cache"
-	@echo "  make clean-boot    Clean bootstrap dependencies"
 	@echo ""
 	@echo "Combined:"
 	@echo "  make all           Install + build + test (full development flow)"
@@ -47,85 +43,70 @@ help:
 # Setup & Installation
 install:
 	@echo "Installing project dependencies..."
-	@spago install
 	@cd site && npm install
-	@cd bootstrap && npm install
+	@cd docs-lint && npm install
 	@echo "Installation complete"
 
 # Development
 dev:
 	@cd site && npm run dev
 
-dev-build:
-	@echo "Building and watching all components..."
-	@spago build
-
 # Building
-build: build-core build-site build-boot
+build: build-core build-site
 	@echo "All build targets complete"
 
 build-core:
-	@echo "Building PureScript compiler..."
-	@spago build
+	@echo "Cross-compiling the Scala core + CLI..."
+	@sbt compile
 
 build-site:
 	@echo "Building Astro docs site..."
 	@cd site && npm run build
 
-build-boot:
-	@echo "Typechecking bootstrap bridge..."
-	@cd bootstrap && npm run typecheck
-
 # Testing
-test: test-core test-site test-boot
+test: test-core test-site
 	@echo "All tests passed"
 
 test-core:
-	@echo "Testing PureScript grammar (bootstrap check)..."
-	@cd bootstrap && npm run check
+	@echo "Testing the Scala core + CLI (JVM + Scala.js)..."
+	@sbt test
 
 test-site:
 	@echo "Testing site utilities..."
 	@cd site && npm run test
 
-test-boot:
-	@echo "Testing bootstrap bridge..."
-	@cd bootstrap && npm run test
-
 # Code Quality
 format:
+	@echo "Formatting Scala code..."
+	@sbt scalafmtAll
 	@echo "Formatting site code..."
 	@cd site && npm run format
-	@echo "Formatting bootstrap code..."
-	@cd bootstrap && npm run format
 	@echo "Formatting complete"
 
-lint: lint-site lint-boot
+lint: lint-site lint-docs
+	@echo "Checking Scala formatting..."
+	@sbt scalafmtCheckAll
 	@echo "All linting checks passed"
 
 lint-site:
 	@echo "Linting site code..."
 	@cd site && npm run lint
 
-lint-boot:
-	@echo "Linting bootstrap code..."
-	@cd bootstrap && npm run lint:md && npm run format:check
+lint-docs:
+	@echo "Linting Markdown (repo-wide)..."
+	@cd docs-lint && npm run lint:md
 
 # Cleanup
-clean: clean-core clean-site clean-boot
+clean: clean-core clean-site
 	@echo "Cleanup complete"
 
 clean-core:
-	@echo "Cleaning Spago output..."
-	@rm -rf output .spago .spago-lock.json
+	@echo "Cleaning sbt/Scala build output..."
+	@rm -rf target project/target project/project core/*/target cli/*/target playground/*/target site-glue/*/target
 
 clean-site:
 	@echo "Cleaning Astro build..."
 	@rm -rf site/dist site/.astro site/.cache site/.vite
-
-clean-boot:
-	@echo "Cleaning bootstrap..."
-	@rm -rf bootstrap/node_modules bootstrap/.turbo
 
 # Combined workflows
 all: install build test

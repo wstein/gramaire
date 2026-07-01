@@ -27,11 +27,11 @@ On GitHub that fence renders as a code block; to Gramaire it is the `Expr`
 rule. The prose around it, the railroad diagram beside it, and the
 FIRST/FOLLOW table below it are all the same document.
 
-The real implementation is PureScript (under [`src/`](src/)). It is
-self-hosting by design: Gramaire's own notation is described, in itself, in
-[`grammar/lr.gram.md`](grammar/lr.gram.md), and the generated parser must read
-that file back to a value equal to the hand-written
-[`Gramaire.Bootstrap`](src/Gramaire/Bootstrap.purs) literal.
+The real implementation is Scala 3, cross-compiled to the JVM and Scala.js
+(under [`core/`](core/)). It is self-hosting by design: Gramaire's own notation
+is described, in itself, in [`grammar/lr.gram.md`](grammar/lr.gram.md), and the
+generated parser must read that file back to a value equal to the hand-written
+[`Bootstrap`](core/src/main/scala/gramaire/Bootstrap.scala) literal.
 
 ## The `.gram.md` format
 
@@ -45,9 +45,11 @@ A grammar file is a canonical Markdown document (see the
   (`lr errors`), and a generated **`## Generated tables`** FIRST/FOLLOW
   section.
 
-Semantic actions are written between `{%` and `%}` as raw PureScript and are
-preserved verbatim through to code generation. Because fence contents are
-opaque to Markdown, `{%`, `|`, `+`, and backslashes inside a payload never
+Semantic actions are written between `{%` and `%}` as raw, language-tagged
+text (`%lang javascript`, say) and are preserved verbatim through to code
+generation — [`examples/calc-js.gram.md`](examples/calc-js.gram.md) bakes its
+actions into a self-contained JS evaluator this way. Because fence contents
+are opaque to Markdown, `{%`, `|`, `+`, and backslashes inside a payload never
 trip the renderer or the linter.
 
 ## Your grammar is the docs
@@ -70,129 +72,122 @@ not a grammar. This file is a window onto those grammars, not itself one.
 
 ## Quick start
 
-The PureScript generator is still being bootstrapped, so today the runnable
-tool is the small TypeScript bridge in [`bootstrap/`](bootstrap/) — it
-implements `gramaire --check` (structure, drift, and lint gates) and `gramaire
-fmt` (railroad diagrams + lock) over any `.gram.md` file. Node 22+ runs it
-directly:
-
-```sh
-# check a grammar file against the fmt output contract
-node bootstrap/gramaire-check.ts examples/json.gram.md
-
-# format: emit real railroad diagrams and the sidecar *.gram.lock
-node bootstrap/gramaire-check.ts fmt grammar/lr.gram.md
-
-# ...or embed the diagrams as GitHub-native mermaid instead of sidecar SVGs
-node bootstrap/gramaire-check.ts fmt --diagrams=mermaid grammar/lr.gram.md
-```
-
-To work on the bridge itself (typecheck + unit tests):
-
-```sh
-cd bootstrap
-npm install
-npm run typecheck
-npm test
-```
-
-The PureScript core builds with [Spago](https://github.com/purescript/spago).
+The core cross-compiles to the JVM and Scala.js with [sbt](https://www.scala-sbt.org/).
 Its test suite includes the self-hosting check — the parser generated from the
 `lr` grammar reads `grammar/lr.gram.md` back to the hand-written
-`bootstrapGrammar` literal:
+`Bootstrap.bootstrapGrammar` literal — under all three table-construction
+methods, plus a Scala-emitting codegen proof that reproduces it through
+_generated_ code, not just the hand-written reduce:
 
 ```sh
-npm i -g purescript spago
-spago build --strict --pedantic-packages
-spago test
+sbt compile   # cross-compile check: core (JVM + Scala.js), playground, cli, site-glue
+sbt test      # coreJVM/test + coreJS/test + cli/test + siteGlue/test
 ```
 
-The core also ships a **native PureScript CLI**, `gramaire emit`, which reads a
-`.gram.md`, lowers it to `gramaire-ir`, and runs a backend over the IR — with no
-TypeScript bridge involved. After `spago build`:
+The unified **`gramaire` CLI** (`cli/jvm/`) absorbs everything the format
+needs — `emit` (lower a grammar to `gramaire-ir` and run a backend over it),
+`import`/`export` for ANTLR4, `conformance` (the differential oracle), and
+`check`/`fmt` (the structure/drift gates and railroad-diagram/table
+regeneration, formerly a separate TypeScript bridge):
 
 ```sh
 # print the canonical gramaire-ir JSON (the default `ir` backend)
-node bin/gramaire.mjs emit examples/json.gram.md
+sbt "cli/run emit examples/json.gram.md"
 
 # render the grammar as EBNF via the `ebnf` format backend
-node bin/gramaire.mjs emit examples/calc.gram.md --backend ebnf
+sbt "cli/run emit examples/calc.gram.md --backend ebnf"
 
 # convert the grammar to an ANTLR4 `.g4` (parser rules + lexer rules)
-node bin/gramaire.mjs emit examples/json.gram.md --backend antlr
+sbt "cli/run emit examples/json.gram.md --backend antlr"
 
 # import an ANTLR4 `.g4` back into a Gramaire `.gram.md`
-node bin/gramaire.mjs import grammar.g4 --out gen/
+sbt "cli/run import grammar.g4 --out gen/"
 
-# write the artifact into a directory instead of stdout
-node bin/gramaire.mjs emit examples/json.gram.md --backend ebnf --out gen/
+# check a grammar file against the fmt output contract (structure + drift)
+sbt "cli/run check examples/json.gram.md"
 
-# run the differential-oracle conformance suite over the built-in lr corpus
-node bin/gramaire.mjs conformance
+# format: emit real railroad diagrams and the sidecar *.gram.lock
+sbt "cli/run fmt grammar/lr.gram.md"
+
+# ...or embed the diagrams as GitHub-native mermaid instead of sidecar SVGs
+sbt "cli/run fmt --diagrams=mermaid grammar/lr.gram.md"
+
+# run the differential-oracle conformance suite over the built-in lr + calc corpora
+sbt "cli/run conformance"
+```
+
+For a standalone binary (no sbt/JVM needed to run it, just to build it once):
+
+```sh
+JAVA_HOME=/path/to/graalvm sbt cli/nativeImage   # -> cli/jvm/target/native-image/gramaire
+./cli/jvm/target/native-image/gramaire emit examples/json.gram.md
 ```
 
 ## Repository layout
 
-| Path           | What lives there                                                    |
-| -------------- | ------------------------------------------------------------------- |
-| `src/Gramaire/` | Core: lexer, tables, parser, `gramaire-ir`, codegen, backends, CLI.  |
-| `bin/`         | `gramaire.mjs` — entry shim for the native PureScript CLI.           |
-| `spec/`        | `ir-schema.json` (IR contract) and `incremental-spec.md` (CST/LSP). |
-| `grammar/`     | `lr.gram.md` — the `lr` notation described in itself.               |
-| `examples/`    | Worked grammars: `json`, `calc`, and the `readme` meta demo.        |
-| `bootstrap/`   | Disposable TypeScript `gramaire --check` bridge (its README).        |
-| `brand/`       | Logo and wordmark SVGs.                                             |
-| `docs/`        | Branding, the `fmt` contract, the multi-backend plan.               |
-| `test/`        | PureScript tests (self-host, IR, codegen, backends, conformance).   |
+| Path         | What lives there                                                       |
+| ------------ | ----------------------------------------------------------------------- |
+| `core/`      | Cross-compiled (JVM + Scala.js) core: lexer, tables, parser, IR, backends. |
+| `cli/jvm/`   | The unified native `gramaire` CLI (`emit`/`import`/`check`/`fmt`/`conformance`). |
+| `playground/`| The Scala.js `evaluate()` entry point the site's browser bundle is built from. |
+| `site-glue/` | The site's own logic (diagrams, FIRST/FOLLOW, CST views), also Scala.js. |
+| `spec/`      | `ir-schema.json` (IR contract) and `incremental-spec.md` (CST/LSP).     |
+| `grammar/`   | `lr.gram.md` — the `lr` notation described in itself.                   |
+| `examples/`  | Worked grammars: `json`, `calc`, `calc-js`, and the `readme` meta demo. |
+| `docs-lint/` | Standalone Markdown lint gate (`markdownlint-cli2`) over the whole repo. |
+| `brand/`     | Logo and wordmark SVGs.                                                 |
+| `docs/`      | Branding, the `fmt` contract, the multi-backend plan.                   |
+| `test/`      | Golden fixtures shared by the Scala test suite (IR JSON, DOT, `.g4`, JS). |
 
 ## Status
 
-The PureScript core lexes an `lr` block, builds parse tables by three methods —
+The Scala core lexes an `lr` block, builds parse tables by three methods —
 canonical LR(1), LALR(1), and IELR(1) (inadequacy-driven state splitting) — and
 runs them through a table-driven parser. The **self-hosting loop is closed**:
 the parser generated from the `lr` grammar reads `grammar/lr.gram.md` back to
-`bootstrapGrammar`, under all three methods. A differential oracle pins the
-methods against each other (an LR(1)-but-not-LALR(1) grammar is accepted by
-canonical, rejected by LALR, and recovered by IELR).
+`Bootstrap.bootstrapGrammar`, under all three methods. A differential oracle
+pins the methods against each other (an LR(1)-but-not-LALR(1) grammar is
+accepted by canonical, rejected by LALR, and recovered by IELR).
 
 The front end also lowers a grammar and its tables into
-[`gramaire-ir`](src/Gramaire/IR.purs) — the versioned, canonically serialized
-JSON artifact that every backend will target (`Gramaire.IR`, with the canonical
-serializer in `Gramaire.Json`). `Test.IR` locks the emitted JSON against
-checked-in goldens for the `lr` and `json` grammars. A first backend,
-[`Gramaire.Backend.Ebnf`](src/Gramaire/Backend/Ebnf.purs), consumes that IR —
-and nothing else — to render a grammar as W3C-style EBNF, proving the narrow
-waist end to end. The emitted IR is validated against its JSON Schema
-([`spec/ir-schema.json`](spec/ir-schema.json)) by `Test.Schema` for every
-grammar, and a differential-oracle conformance suite (`gramaire conformance`,
-`Test.Conformance`) checks that accept/reject vectors agree under all three
-methods. The IR also round-trips: [`Gramaire.IR.Decode`](src/Gramaire/IR/Decode.purs)
-parses serialized IR back and rebuilds the exact parse table, so the interpreter
-runs from the artifact alone. When a grammar is not LR(1),
-[`Gramaire.Diagnostics`](src/Gramaire/Diagnostics.purs) reports the conflict in
-the author's own rules with a suggested fix, rather than in raw state numbers.
+[`gramaire-ir`](core/src/main/scala/gramaire/IR.scala) — the versioned,
+canonically serialized JSON artifact every backend targets (`IR.scala`, with
+the canonical serializer in `Json.scala`). Golden tests lock the emitted JSON
+against checked-in fixtures for the `lr` and `json` grammars. Six backends —
+`ir`, `ebnf`, `dot`, `ts`, `antlr`, and `js` — consume that IR, and nothing
+else, proving the narrow waist end to end (`js` bakes a grammar's inline
+`{% %}` actions into a self-contained evaluator; `antlr` converts both ways).
+A differential-oracle conformance suite (`gramaire conformance`) checks that
+accept/reject vectors agree under all three methods. The IR also round-trips:
+[`IRDecode.scala`](core/src/main/scala/gramaire/IRDecode.scala) parses
+serialized IR back and rebuilds the exact parse table, so the interpreter runs
+from the artifact alone. When a grammar is not LR(1),
+[`Diagnostics.scala`](core/src/main/scala/gramaire/Diagnostics.scala) reports
+the conflict in the author's own rules with a suggested fix, rather than in
+raw state numbers.
 
-Source-emitting codegen is now real: the `lr` grammar's `reduce` is
-**generated** from the IR plus a typed-AST profile
-([`Gramaire.Codegen`](src/Gramaire/Codegen.purs) →
-[`Gramaire.Generated.LrReduce`](src/Gramaire/Generated/LrReduce.purs)) and
-proven by `Test.Codegen` — self-hosting runs through the generated reduce. The
-hand-written [`Gramaire.Lr`](src/Gramaire/Lr.purs) reduce stays the reference
-the generator reproduces.
+Source-emitting codegen is real, in both languages the self-hosting proof has
+run through: the `lr` grammar's `reduce` is **generated** from the IR plus a
+typed-AST profile, and a generated-reduce oracle proves the parser it drives
+still reconstructs `bootstrapGrammar` — first in PureScript during the
+migration, now natively in Scala
+([`CodegenScala.scala`](core/src/main/scala/gramaire/CodegenScala.scala) →
+[`generated/LrReduce.scala`](core/src/main/scala/gramaire/generated/LrReduce.scala)).
 
-The bridge's `gramaire fmt` emits real railroad diagrams — sidecar SVGs by
-default, or GitHub-native mermaid fences with `--diagrams=mermaid` — and every
-grammar's FIRST/FOLLOW table is machine-checked against the parser's own
-analysis (`Test.FirstFollow`). Still ahead: the rest of `gramaire fmt`
-(canonical reformatting, table regeneration) in PureScript. Until that lands,
-the TypeScript bridge keeps `gramaire --check`/`fmt` usable from commit one; see
-[`bootstrap/README.md`](bootstrap/README.md) for its delete-me conditions — the
-self-host half of which now holds.
+`gramaire fmt` emits real railroad diagrams — sidecar SVGs by default, or
+GitHub-native mermaid fences with `--diagrams=mermaid` — and every grammar's
+FIRST/FOLLOW table is machine-checked against the parser's own analysis.
+`gramaire check` verifies the structure and drift gates (a separate,
+Node-native `docs-lint` job handles the Markdown-lint gate, since it has no
+compiler-core relationship).
 
-The road from here — the `gramaire-ir` narrow waist, source-emitting codegen,
-multi-language backends, and the incremental CST/LSP runtime
-([`spec/incremental-spec.md`](spec/incremental-spec.md)) — is laid out in the
-[multi-backend implementation plan](docs/multi-backend-implementation-plan.md).
+The browser Lab at [wstein.github.io/gramaire/lab](https://wstein.github.io/gramaire/lab)
+runs the exact same Scala core, compiled to Scala.js
+(`playground/`) — the in-browser preview and the CLI cannot disagree.
+
+The road from here — multi-language backends and the incremental CST/LSP
+runtime ([`spec/incremental-spec.md`](spec/incremental-spec.md)) — is laid out
+in the [multi-backend implementation plan](docs/multi-backend-implementation-plan.md).
 
 ## License
 
