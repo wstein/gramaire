@@ -3,4 +3,21 @@ title: Overview
 description: Overview of the Gramark project and documentation hub.
 ---
 
-Gramark places grammar, documentation, and generated artifacts in one Markdown document. The output contract and the IR schema make the grammar both human-readable and machine-checked, and the new Gramark Lab turns that pipeline into an interactive browser-based authoring experience backed by the repository's real PureScript parser.
+import LiveGrammar from "../../../components/LiveGrammar.astro";
+import OpenInLab from "../../../components/OpenInLab.astro";
+import { SHOWCASE } from "../../../lib/demo-grammars.ts";
+
+Gramark places grammar, documentation, and generated artifacts in one Markdown document. The output contract and the IR schema make the grammar both human-readable and machine-checked, and the Gramark Lab turns that pipeline into an interactive browser-based authoring experience backed by the repository's real PureScript parser.
+
+Every grammar on this site is live. Edit the source below and the railroad diagrams redraw from the real engine — the same core the `gramark` CLI runs:
+
+<LiveGrammar
+  grammar={SHOWCASE}
+  caption="grammar → railroad — edit the source"
+/>
+
+Prefer the full workbench? Open any of the bundled examples in the Lab — the grammar and its input travel in the URL, never over the network:
+
+<OpenInLab preset="calc" />
+<OpenInLab preset="json" />
+<OpenInLab preset="lr" />
