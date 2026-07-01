@@ -92,20 +92,20 @@ WS     : /[ \\t\\r\\n]+/   %skip
 
 /// An expression is a sum or difference of terms.
 Expr
-  : Expr '+' Term   {% (c) => c[0] + c[2] %}
-  | Expr '-' Term   {% (c) => c[0] - c[2] %}
+  : Expr '+' Term   {% (c) => c.expr + c.term %}
+  | Expr '-' Term   {% (c) => c.expr - c.term %}
   | Term
 
 /// A term is a product or quotient of factors.
 Term
-  : Term '*' Factor {% (c) => c[0] * c[2] %}
-  | Term '/' Factor {% (c) => c[0] / c[2] %}
+  : Term '*' Factor {% (c) => c.term * c.factor %}
+  | Term '/' Factor {% (c) => c.term / c.factor %}
   | Factor
 
 /// A factor is a number or a parenthesised expression.
 Factor
-  : '(' Expr ')'    {% (c) => c[1] %}
-  | NUMBER          {% (c) => parseFloat(c[0]) %}
+  : '(' Expr ')'    {% (c) => c.expr %}
+  | NUMBER          {% (c) => parseFloat(c.number) %}
 `;
 
 const DEFAULT_INPUT = "(4 - 1) * 3 + 2";
