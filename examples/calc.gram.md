@@ -3,6 +3,12 @@
 A small arithmetic grammar demonstrating the Gramaire fenced envelope.
 Operators are left-associative; `*` and `/` bind tighter than `+` and `-`.
 
+## General settings
+
+```gramaire settings
+%lang javascript
+```
+
 ## Tokens
 
 ```gramaire tokens
@@ -16,9 +22,9 @@ An expression is a sum or difference of terms.
 
 ```gramaire
 Expr
-  : Expr '+' Term   {% \l _ r -> Add l r %}
-  | Expr '-' Term   {% \l _ r -> Sub l r %}
-  | Term            {% \t -> t %}
+  : Expr '+' Term   {% (c) => ({ tag: "Add", left: c.expr, right: c.term }) %}
+  | Expr '-' Term   {% (c) => ({ tag: "Sub", left: c.expr, right: c.term }) %}
+  | Term
 ```
 
 ![Railroad diagram for the Expr rule](diagrams/calc/expr.svg)
@@ -29,9 +35,9 @@ A term is a product or quotient of factors.
 
 ```gramaire
 Term
-  : Term '*' Factor {% \l _ r -> Mul l r %}
-  | Term '/' Factor {% \l _ r -> Div l r %}
-  | Factor          {% \f -> f %}
+  : Term '*' Factor {% (c) => ({ tag: "Mul", left: c.term, right: c.factor }) %}
+  | Term '/' Factor {% (c) => ({ tag: "Div", left: c.term, right: c.factor }) %}
+  | Factor
 ```
 
 ![Railroad diagram for the Term rule](diagrams/calc/term.svg)
@@ -42,8 +48,8 @@ A factor is a number or a parenthesised expression.
 
 ```gramaire
 Factor
-  : '(' Expr ')'    {% \_ e _ -> e %}
-  | NUMBER          {% \n -> Lit n %}
+  : '(' Expr ')'    {% (c) => c.expr %}
+  | NUMBER          {% (c) => ({ tag: "Lit", value: Number(c.number) }) %}
 ```
 
 ![Railroad diagram for the Factor rule](diagrams/calc/factor.svg)

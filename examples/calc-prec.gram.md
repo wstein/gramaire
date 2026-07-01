@@ -10,6 +10,12 @@ build error, so precedence convenience never hides a real ambiguity.
 Compare [`calc`](calc.gram.md), which encodes the same language by
 stratification and needs no precedence block.
 
+## General settings
+
+```gramaire settings
+%lang javascript
+```
+
 ## Tokens
 
 ```gramaire tokens
@@ -21,12 +27,12 @@ WS  : /[ \t\r\n]+/   %skip
 
 ```gramaire
 expr
-  : expr '+' expr   # Add   {% \l _ r -> Add l r %}
-  | expr '-' expr   # Sub   {% \l _ r -> Sub l r %}
-  | expr '*' expr   # Mul   {% \l _ r -> Mul l r %}
-  | expr '/' expr   # Div   {% \l _ r -> Div l r %}
-  | '(' expr ')'    # Paren {% \_ e _ -> e %}
-  | NUM             # Lit   {% \n -> Lit n %}
+  : expr '+' expr   # Add   {% (c) => ({ tag: "Add", left: c[0], right: c[2] }) %}
+  | expr '-' expr   # Sub   {% (c) => ({ tag: "Sub", left: c[0], right: c[2] }) %}
+  | expr '*' expr   # Mul   {% (c) => ({ tag: "Mul", left: c[0], right: c[2] }) %}
+  | expr '/' expr   # Div   {% (c) => ({ tag: "Div", left: c[0], right: c[2] }) %}
+  | '(' expr ')'    # Paren {% (c) => c[1] %}
+  | NUM             # Lit   {% (c) => ({ tag: "Lit", value: Number(c[0]) }) %}
 ```
 
 ## Precedence
