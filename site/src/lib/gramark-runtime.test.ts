@@ -13,6 +13,10 @@ import {
   getDefaultInput,
 } from "./gramark-runtime.ts";
 import { renderDiagrams } from "./diagrams.ts";
+import { renderCstTree, toggleFold } from "./cst-view.ts";
+import { renderTokensTable } from "./tokens-view.ts";
+import { cstJsonToLisp } from "./lisp.ts";
+import { renderAmbiguityView } from "./ambiguity-view.ts";
 
 const jsonGrammar = readFileSync(
   fileURLToPath(new URL("../../../examples/json.grmk.md", import.meta.url)),
@@ -214,4 +218,76 @@ test("Gramark.Glr.forest enumerates every derivation of an ambiguous parse (allC
   // The first entry is still the one `tree`/`cstJson` are built from.
   assert.equal(result.allCstJson[0], result.cstJson);
   assert.match(result.tree, /\(ambiguous: \d+ parses; showing the first\)/);
+});
+
+test("renderCstTree labels branches with prodLhs names and folds/unfolds a path", async () => {
+  const result = await parseGramarkDocument(getDefaultGrammar(), "1 + 2");
+  const open = renderCstTree(result.cstJson, result.prodLhs, new Set());
+  assert.match(open, /cst-rule">Expr</);
+  assert.match(open, /cst-rule">Term</);
+  assert.match(open, /cst-token">NUMBER</);
+
+  // Fold the root: children should disappear behind a leaf-count badge.
+  const collapsed = new Set<string>();
+  toggleFold(collapsed, "0");
+  const folded = renderCstTree(result.cstJson, result.prodLhs, collapsed);
+  assert.match(folded, /cst-count">… \d+ leaves/);
+  assert.doesNotMatch(folded, /cst-token">NUMBER</);
+
+  // Toggling the same path again unfolds it.
+  toggleFold(collapsed, "0");
+  assert.equal(collapsed.size, 0);
+});
+
+test("renderCstTree returns empty for a rejected input (no cstJson)", async () => {
+  const result = await parseGramarkDocument(getDefaultGrammar(), "1 +");
+  assert.equal(renderCstTree(result.cstJson, result.prodLhs, new Set()), "");
+});
+
+test("cstJsonToLisp round-trips the default grammar's tree with rule names and quoted leaves", async () => {
+  const result = await parseGramarkDocument(getDefaultGrammar(), "1 + 2");
+  const lisp = cstJsonToLisp(result.cstJson, result.prodLhs);
+  assert.match(lisp, /^\(Expr /);
+  assert.match(lisp, /"1"/);
+  assert.match(lisp, /"2"/);
+});
+
+test("renderTokensTable renders one row per lexed token, indexed from 0", async () => {
+  const result = await parseGramarkDocument(getDefaultGrammar(), "1 + 2");
+  assert.deepEqual(result.tokens, ["1", "+", "2"]);
+  const table = renderTokensTable(result.tokens);
+  assert.match(table, /<td class="tok-idx">0<\/td>/);
+  assert.match(table, /&quot;1&quot;/);
+  assert.match(table, /&quot;\+&quot;/);
+});
+
+test("renderTokensTable reports emptiness distinctly from a real token list", () => {
+  assert.match(renderTokensTable([]), /no tokens yet/);
+});
+
+test("renderAmbiguityView reports 'Unambiguous' for a single parse", async () => {
+  const result = await parseGramarkDocument(getDefaultGrammar(), "1 + 2");
+  const view = renderAmbiguityView(
+    result.allCstJson,
+    result.prodLhs,
+    result.success,
+    new Map(),
+  );
+  assert.match(view, /Unambiguous · 1 parse/);
+});
+
+test("renderAmbiguityView reports 'Ambiguous' with a rejected-but-parsed note when success is false", async () => {
+  const result = await parseGramarkDocument(
+    AMBIGUOUS_GRAMMAR,
+    "num + num + num",
+  );
+  assert.equal(result.success, false);
+  const view = renderAmbiguityView(
+    result.allCstJson,
+    result.prodLhs,
+    result.success,
+    new Map(),
+  );
+  assert.match(view, /Ambiguous · 2 distinct parse trees/);
+  assert.match(view, /still enumerates every derivation/);
 });
