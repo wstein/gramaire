@@ -16,6 +16,8 @@ import { renderDiagrams } from "./diagrams.ts";
 import { SHOWCASE, DIGIT, LIST, CALC } from "./demo-grammars.ts";
 import { labGrammarHref, readLabLink } from "./lab-link.ts";
 import { toLisp, renderCstHtml, type Cst } from "./cst-view.ts";
+import { grammarProductions } from "./diagrams.ts";
+import { computeFirstFollow } from "./first-follow.ts";
 
 const jsonGrammar = readFileSync(
   fileURLToPath(new URL("../../../examples/json.grmk.md", import.meta.url)),
@@ -208,6 +210,22 @@ test("toLisp renders the CST with prodLhs names and leaf text (Parse tree / All 
   assert.match(lisp, /^\(Expr /);
   assert.match(lisp, /"\+"/);
   assert.doesNotMatch(lisp, /#\d/);
+});
+
+test("FIRST/FOLLOW is computed from the calc grammar's productions", async () => {
+  const { rules } = await parseGramarkDocument(getDefaultGrammar());
+  const { first, follow } = computeFirstFollow(
+    grammarProductions(getDefaultGrammar(), rules),
+  );
+  // Every calc rule begins with either '(' or a NUMBER.
+  for (const n of ["Expr", "Term", "Factor"]) {
+    assert.deepEqual(first[n]!.slice().sort(), ["(", "NUMBER"]);
+  }
+  // The start symbol Expr is followed by end-of-input and the operators that
+  // can come after a full expression.
+  assert.ok(follow["Expr"]!.includes("$"));
+  assert.ok(follow["Expr"]!.includes("+"));
+  assert.ok(follow["Factor"]!.includes("*")); // a Factor can be followed by *
 });
 
 test("renderCstHtml is foldable: a collapsed path hides its children", async () => {

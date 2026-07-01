@@ -4,10 +4,30 @@
 // edited grammar into per-rule blocks is done here; the engine supplies the
 // nonterminal names so terminals and nonterminals colour correctly.
 import { parseProduction, renderSvg } from "../../../bootstrap/railroad.ts";
+import type { Production } from "../../../bootstrap/railroad.ts";
 
 export interface RuleDiagram {
   name: string;
   svg: string;
+}
+
+// The grammar's productions as the diagram parser sees them (each rule's
+// alternatives as terminal/nonterminal symbols). Shared with FIRST/FOLLOW so
+// that analysis and the railroad diagrams read the grammar identically.
+export function grammarProductions(
+  source: string,
+  ruleNames: string[],
+): Production[] {
+  const nts = new Set(ruleNames);
+  const out: Production[] = [];
+  for (const { name, content } of ruleBlocks(source, ruleNames)) {
+    try {
+      out.push(parseProduction(content, nts));
+    } catch {
+      // skip a rule the parser can't read (half-typed grammar)
+    }
+  }
+  return out;
 }
 
 // Pull each rule's text (head line + alternatives) out of a grammar document in

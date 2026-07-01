@@ -498,7 +498,8 @@ const TABS = [
     <script>
       import { parseGramarkDocument } from "../lib/gramark-runtime.ts";
       import type { GramarkMethod } from "../lib/gramark-runtime.ts";
-      import { renderDiagrams } from "../lib/diagrams.ts";
+      import { renderDiagrams, grammarProductions } from "../lib/diagrams.ts";
+      import { computeFirstFollow } from "../lib/first-follow.ts";
       import { toLisp, renderCstHtml, type Cst } from "../lib/cst-view.ts";
       import { readLabLink } from "../lib/lab-link.ts";
 
@@ -632,8 +633,30 @@ const TABS = [
           const conflicts = r.conflicts
             ? `<pre class="raw">${esc(r.conflicts)}</pre>`
             : `<p class="muted">—</p>`;
+          // FIRST/FOLLOW: derived client-side from the productions (the engine
+          // does not surface these yet). A pure function of the grammar, so it
+          // is honest, not faked.
+          let ff = "";
+          if (rules.length) {
+            const { first, follow, nullable } = computeFirstFollow(
+              grammarProductions(grammarEl.value, rules),
+            );
+            const nul = new Set(nullable);
+            const cell = (xs: string[]) =>
+              xs.length
+                ? xs.map((t) => `<span class="chip">${esc(t)}</span>`).join(" ")
+                : `<span class="muted">∅</span>`;
+            const body = rules
+              .map(
+                (n) =>
+                  `<tr><td>${esc(n)}${nul.has(n) ? ' <span class="muted">(nullable)</span>' : ""}</td><td>${cell(first[n] ?? [])}</td><td>${cell(follow[n] ?? [])}</td></tr>`,
+              )
+              .join("");
+            ff = `<p class="muted" style="margin-top:.75rem">FIRST / FOLLOW (computed from the grammar):</p>
+              <table class="lab-table"><thead><tr><th>rule</th><th>FIRST</th><th>FOLLOW</th></tr></thead><tbody>${body}</tbody></table>`;
+          }
           return `<div class="seg">${seg}</div>
-            <div class="rule-chips">${chips}</div>${diagram}
+            <div class="rule-chips">${chips}</div>${diagram}${ff}
             <p class="muted" style="margin-top:.75rem">conflict analysis (gramark explain-conflict):</p>${conflicts}`;
         },
         "Parse tree"(r) {
