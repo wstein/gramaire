@@ -507,6 +507,7 @@ const TABS = [
     <script>
       import { parseGramarkDocument } from "../lib/gramark-runtime.ts";
       import type { GramarkMethod } from "../lib/gramark-runtime.ts";
+      import { parseInWorker } from "../lib/engine-client.ts";
       import { renderDiagrams, grammarProductions } from "../lib/diagrams.ts";
       import { computeFirstFollow } from "../lib/first-follow.ts";
       import { toLisp, renderCstHtml, type Cst } from "../lib/cst-view.ts";
@@ -913,11 +914,13 @@ const TABS = [
         }
       }
 
-      // --- The one parse per (grammar, input, method), shared by every tab ---
+      // --- The one parse per (grammar, input, method), shared by every tab.
+      // Runs in a Web Worker (engine-client) so table construction never
+      // blocks the UI; latest-wins by sequence number drops stale results. ---
       let seq = 0;
       async function reparse() {
         const mine = ++seq;
-        const r = await parseGramarkDocument(
+        const r = await parseInWorker(
           grammarEl.value,
           inputEl.value,
           state.method,
@@ -931,10 +934,17 @@ const TABS = [
         reparse().catch((e) => {
           bodyEl.innerHTML = `<div class="banner no">engine error: ${esc(String(e))}</div>`;
         });
+      // Debounce editor keystrokes so a fast typist queues at most one parse in
+      // flight per idle gap (the worker handles messages serially).
+      let debounce = 0;
+      const debouncedReparse = () => {
+        clearTimeout(debounce);
+        debounce = window.setTimeout(safeReparse, 80);
+      };
 
       // --- Wiring: editors, tabs, example presets, draggable grip ---
-      grammarEl.addEventListener("input", safeReparse);
-      inputEl.addEventListener("input", safeReparse);
+      grammarEl.addEventListener("input", debouncedReparse);
+      inputEl.addEventListener("input", debouncedReparse);
 
       document.querySelectorAll<HTMLElement>(".tab").forEach((t) =>
         t.addEventListener("click", () => {
