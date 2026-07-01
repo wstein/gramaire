@@ -253,12 +253,14 @@ object GramaireCheck:
               case Artifact.RailroadArt(nt, path, sourceSha256) =>
                 ruleHashes.get(nt) match
                   case None =>
-                    fails += s"""lock references unknown source for {"kind":"railroad","nonterminal":"$nt"}"""
+                    // Mirror the TS `JSON.stringify(a)` (full artifact) + `continue`:
+                    // an unknown source skips both the stale and missing-file checks.
+                    fails += s"""lock references unknown source for {"kind":"railroad","nonterminal":"$nt","path":"$path","sourceSha256":"$sourceSha256"}"""
                   case Some(current) =>
                     if current != sourceSha256 then
                       fails += s"stale railroad: $path was generated from an older version of rule `$nt`; run `gramaire fmt`"
-                if !Files.exists(fileDir.resolve(path)) then
-                  fails += s"missing artifact file: $path; run `gramaire fmt`"
+                    if !Files.exists(fileDir.resolve(path)) then
+                      fails += s"missing artifact file: $path; run `gramaire fmt`"
               case Artifact.TablesArt(section, sourceSha256) =>
                 if grammarSha256 != sourceSha256 then
                   fails += s"stale tables: $section was generated from an older version of the grammar; run `gramaire fmt`"

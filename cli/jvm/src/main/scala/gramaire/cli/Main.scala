@@ -78,7 +78,7 @@ object Main:
           case "explain-conflict"       => runExplain(tail)
           case "check"                  => runCheck(tail)
           case "fmt"                    => runFmt(tail)
-          case "--write-lock"           => runFmt("--diagrams=sidecar" +: tail) // legacy alias
+          case "--write-lock"           => runFmt(tail) // legacy alias; runFmt defaults to sidecar
           case "codegen-regen"          => runCodegenRegen()
           case "help" | "--help" | "-h" => usage()
           case _ =>
