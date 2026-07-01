@@ -1,4 +1,4 @@
-package gramark.cli
+package gramark
 
 // Railroad-diagram rendering for Gramark rules.
 //

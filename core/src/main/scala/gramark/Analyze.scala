@@ -1,4 +1,4 @@
-package gramark.cli
+package gramark
 
 // FIRST/FOLLOW analysis for the `gramark fmt` table regeneration.
 //

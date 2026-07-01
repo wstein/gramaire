@@ -1,4 +1,4 @@
-package gramark.cli
+package gramark
 
 // Ported from the structural half of bootstrap/railroad.test.ts.
 class RailroadSuite extends munit.FunSuite:

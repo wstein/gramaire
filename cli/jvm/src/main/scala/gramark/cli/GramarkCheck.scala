@@ -2,6 +2,7 @@ package gramark.cli
 
 import java.nio.file.{Files, Path}
 import java.security.MessageDigest
+import gramark.{Analyze, Railroad}
 
 // Verifies the three guarantees from the Gramark `fmt` output contract:
 //   1. STRUCTURE - canonical-form subset (H1-first, section order, fence

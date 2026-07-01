@@ -1,4 +1,4 @@
-package gramark.cli
+package gramark
 
 // Ported from bootstrap/analyze.test.ts: this FIRST/FOLLOW analysis is
 // deliberately independent of `gramark.Table`'s own (it exists to
