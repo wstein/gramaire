@@ -1,16 +1,45 @@
 <svg viewBox="0 0 372 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gramark">
   <title>Gramark</title>
+  <!-- Theme-reactive via prefers-color-scheme, so one file replaces the old
+       light/dark file pair. Split-stem "m": a hard-stop gradient bisects the
+       one glyph where "gram"mar and "mark"(down) overlap — see docs/BRANDING.md. -->
+  <style>
+    .gramark-ink { stroke: #16181D; }
+    .gramark-ink-fill { fill: #16181D; }
+    .gramark-accent-fill { fill: #15B879; }
+    .gramark-m-fill { fill: url(#gramark-m-split-light); }
+    @media (prefers-color-scheme: dark) {
+      .gramark-ink { stroke: #F5F6F3; }
+      .gramark-ink-fill { fill: #F5F6F3; }
+      .gramark-accent-fill { fill: #2DD597; }
+      .gramark-m-fill { fill: url(#gramark-m-split-dark); }
+    }
+  </style>
+  <defs>
+    <linearGradient id="gramark-m-split-light" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#16181D"/>
+      <stop offset="50%" stop-color="#16181D"/>
+      <stop offset="50%" stop-color="#15B879"/>
+      <stop offset="100%" stop-color="#15B879"/>
+    </linearGradient>
+    <linearGradient id="gramark-m-split-dark" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#F5F6F3"/>
+      <stop offset="50%" stop-color="#F5F6F3"/>
+      <stop offset="50%" stop-color="#2DD597"/>
+      <stop offset="100%" stop-color="#2DD597"/>
+    </linearGradient>
+  </defs>
   <!-- logomark, scaled -->
   <g transform="translate(6 17) scale(0.70)">
-    <g fill="none" stroke="#16181D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <g class="gramark-ink" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 48 H33"/>
       <path d="M63 48 C72 48 74 31 82 31"/>
       <path d="M63 48 C72 48 74 65 82 65"/>
     </g>
-    <rect x="33" y="36" width="30" height="24" rx="12" fill="#15B879" stroke="#16181D" stroke-width="6"/>
+    <rect x="33" y="36" width="30" height="24" rx="12" fill="#15B879" class="gramark-ink" stroke-width="6"/>
   </g>
-  <!-- wordmark: Gram (ink) + mark (emerald) -->
-  <text x="92" y="65" font-family="'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="52" font-weight="700" letter-spacing="-1.5">
-    <tspan fill="#16181D">Gram</tspan><tspan fill="#15B879">mark</tspan>
+  <!-- wordmark: "Gra" (ink) + split-stem "m" (ink|emerald) + "ark" (emerald) -->
+  <text x="92" y="65" font-family="'IBM Plex Sans','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="52" font-weight="700" letter-spacing="-1.5">
+    <tspan class="gramark-ink-fill">Gra</tspan><tspan class="gramark-m-fill">m</tspan><tspan class="gramark-accent-fill">ark</tspan>
   </text>
 </svg>
