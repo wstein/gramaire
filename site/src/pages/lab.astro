@@ -114,6 +114,15 @@ const TABS = [
         </section>
       </div>
 
+      <!-- horizontal separator: editor split ↕ analysis drawer -->
+      <div
+        class="vgrip"
+        id="vgrip"
+        role="separator"
+        aria-label="Resize editor and drawer"
+      >
+      </div>
+
       <!-- b) Analysis drawer -->
       <div class="drawer">
         <div class="tabbar" id="tabbar">
@@ -155,9 +164,19 @@ const TABS = [
       /* a) split */
       .split {
         display: flex;
-        min-height: 200px;
-        flex: 1 1 auto;
+        min-height: 60px;
+        flex: 1 1 50%;
         overflow: hidden;
+      }
+      /* Horizontal separator between the editor split and the analysis drawer,
+         so their vertical ratio is draggable (row-resize). */
+      .vgrip {
+        flex: 0 0 7px;
+        cursor: row-resize;
+        background: var(--border);
+      }
+      .vgrip:hover {
+        background: var(--accent);
       }
       .pane {
         display: flex;
@@ -254,11 +273,11 @@ const TABS = [
       }
       /* b) drawer */
       .drawer {
-        flex: 1 1 45%;
+        flex: 1 1 50%;
         display: flex;
         flex-direction: column;
         border-top: 1px solid var(--border);
-        min-height: 180px;
+        min-height: 60px;
         overflow: hidden;
       }
       .tabbar {
@@ -993,6 +1012,27 @@ const TABS = [
         iPane.style.flexBasis = 100 - pct + "%";
       });
       window.addEventListener("mouseup", () => (dragging = false));
+
+      // Horizontal separator: drag the editor/drawer vertical ratio (clamp
+      // 15–85% of their combined height).
+      const drawer = document.querySelector<HTMLElement>(".drawer")!;
+      const vgrip = $("vgrip");
+      let vdragging = false;
+      vgrip.addEventListener("mousedown", (e) => {
+        vdragging = true;
+        e.preventDefault();
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (!vdragging) return;
+        // Pixel model: fix the editor's height, let the drawer (flex-grow)
+        // take the rest. Deterministic — no basis/grow tug-of-war. Clamp so
+        // each keeps a usable minimum.
+        const top = split.getBoundingClientRect().top;
+        const total = drawer.getBoundingClientRect().bottom - top;
+        const px = Math.max(60, Math.min(total - 60, e.clientY - top));
+        split.style.flex = "0 0 " + px + "px";
+      });
+      window.addEventListener("mouseup", () => (vdragging = false));
 
       safeReparse();
     </script>
