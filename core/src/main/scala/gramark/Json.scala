@@ -135,8 +135,8 @@ object Json:
             case Some('n')  => pString(i + 2, acc + "\n")
             case Some('r')  => pString(i + 2, acc + "\r")
             case Some('t')  => pString(i + 2, acc + "\t")
-            case Some('b')  => pString(i + 2, acc + "")
-            case Some('f')  => pString(i + 2, acc + "")
+            case Some('b')  => pString(i + 2, acc + "\b")
+            case Some('f')  => pString(i + 2, acc + "\f")
             case Some('u') =>
               val hex = region(i + 2, 4)
               try
