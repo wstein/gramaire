@@ -1,4 +1,0 @@
-# The pre-redesign site/lab/brand, kept in-tree for side-by-side reference
-# during the rebuild (git tag site-legacy-b23e6a8). Deleted at merge; must
-# not be swept by any repo-root Prettier pass in the meantime.
-archive/
