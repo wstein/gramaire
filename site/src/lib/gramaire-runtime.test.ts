@@ -15,6 +15,7 @@ import {
 import { renderDiagrams } from "./diagrams.ts";
 import { SHOWCASE, DIGIT, LIST, CALC } from "./demo-grammars.ts";
 import { labGrammarHref, readLabLink } from "./lab-link.ts";
+import { toLisp, renderCstHtml, type Cst } from "./cst-view.ts";
 
 const jsonGrammar = readFileSync(
   fileURLToPath(new URL("../../../examples/json.gram.md", import.meta.url)),
@@ -198,4 +199,23 @@ test("lab-link round-trips a grammar + input through the URL hash", () => {
 test("lab-link reads a named preset from the query string", () => {
   const link = readLabLink({ hash: "", search: "?grammar=calc" });
   assert.equal(link.preset, "calc");
+});
+
+test("toLisp renders the CST with prodLhs names and leaf text (Parse tree / All parses)", async () => {
+  const r = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
+  const lisp = toLisp(JSON.parse(r.cstJson) as Cst, r.prodLhs);
+  // Nonterminals resolve to names, the '+' leaf survives, no bare #id leaks.
+  assert.match(lisp, /^\(Expr /);
+  assert.match(lisp, /"\+"/);
+  assert.doesNotMatch(lisp, /#\d/);
+});
+
+test("renderCstHtml is foldable: a collapsed path hides its children", async () => {
+  const r = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
+  const node = JSON.parse(r.cstJson) as Cst;
+  const open = renderCstHtml(node, r.prodLhs, new Set());
+  const folded = renderCstHtml(node, r.prodLhs, new Set(["0"]));
+  assert.match(open, /cst-kids/);
+  assert.doesNotMatch(folded, /cst-kids/); // root collapsed → no children rendered
+  assert.match(folded, /cst-count/); // shows the "… N" child count instead
 });
