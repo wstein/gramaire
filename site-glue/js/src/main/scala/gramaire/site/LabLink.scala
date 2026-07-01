@@ -84,11 +84,14 @@ object LabLink:
   @JSExportTopLevel("readLabLink")
   def readLabLink(hash: String, search: String): Link =
     val presetParams = new dom.URLSearchParams(search)
-    val preset = Option(presetParams.get("grammar"))
+    // `grammar` and `g` use a truthy guard in the TS original (`if (preset)` /
+    // `if (g)`), so an empty `grammar=`/`g=` param is absent, not present-empty.
+    // `i` keeps the null-check (`if (i != null)`): an empty `i=` is a real empty input.
+    val preset = Option(presetParams.get("grammar")).filter(_.nonEmpty)
 
     val hashBody = if hash.startsWith("#") then hash.substring(1) else hash
     val params = new dom.URLSearchParams(hashBody)
-    val g = Option(params.get("g"))
+    val g = Option(params.get("g")).filter(_.nonEmpty)
     val i = Option(params.get("i"))
 
     Try {
