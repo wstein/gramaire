@@ -151,9 +151,10 @@ export function renderSvg(prod: Production): string {
   const mainY = cy(0);
   const height = MARGIN * 2 + n * BOXH + (n - 1) * VGAP;
   // Corner radius for the orthogonal branch routing: rails run horizontally
-  // and vertically (90°) and turn through a small quarter-round, the classic
-  // railroad look — never a diagonal. Clamped to fit the shortest branch arm.
-  const R = Math.min(6, BRANCH, (BOXH + VGAP) / 2);
+  // and vertically (90°) and every direction change turns through a small
+  // quarter-round — the classic railroad look, never a diagonal and never a
+  // hard corner. Clamped to fit the shortest branch arm.
+  const R = Math.min(6, BRANCH, STUB, (BOXH + VGAP) / 2);
 
   const p: string[] = [];
   p.push(`<circle class="rr-cap" cx="${MARGIN}" cy="${mainY}" r="${CAPR}"/>`);
@@ -166,9 +167,11 @@ export function renderSvg(prod: Production): string {
     if (i === 0) {
       p.push(`<path class="rr-track" d="M${forkX} ${mainY} H${startX}"/>`);
     } else {
-      // Down the vertical at forkX, quarter-round, then straight in.
+      // Peel off the main line through a quarter-round, down the vertical at
+      // forkX, quarter-round again, then straight into the row — both corners
+      // rounded, no hard tee.
       p.push(
-        `<path class="rr-track" d="M${forkX} ${mainY} V${yi - R} Q${forkX} ${yi} ${forkX + R} ${yi} H${startX}"/>`,
+        `<path class="rr-track" d="M${forkX - R} ${mainY} Q${forkX} ${mainY} ${forkX} ${mainY + R} V${yi - R} Q${forkX} ${yi} ${forkX + R} ${yi} H${startX}"/>`,
       );
     }
 
@@ -201,9 +204,10 @@ export function renderSvg(prod: Production): string {
     if (i === 0) {
       p.push(`<path class="rr-track" d="M${joinStartX} ${mainY} H${endX}"/>`);
     } else {
-      // Straight out, quarter-round, then up the vertical at endX to rejoin.
+      // Mirror on the rejoin: straight out, quarter-round up, up the vertical
+      // at endX, quarter-round back onto the main line — both corners rounded.
       p.push(
-        `<path class="rr-track" d="M${joinStartX} ${yi} H${endX - R} Q${endX} ${yi} ${endX} ${yi - R} V${mainY}"/>`,
+        `<path class="rr-track" d="M${joinStartX} ${yi} H${endX - R} Q${endX} ${yi} ${endX} ${yi - R} V${mainY + R} Q${endX} ${mainY} ${endX + R} ${mainY}"/>`,
       );
     }
   });
