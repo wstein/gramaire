@@ -32,7 +32,7 @@ jobs:
             sbt-${{ runner.os }}-
 
       - name: Cross-compile check (catches JVM-only stdlib leaks into core/shared)
-        run: sbt coreJVM/compile coreJS/compile playground/compile cli/compile
+        run: sbt coreJVM/compile coreJS/compile cli/compile
 
       - name: Format check (scalafmt)
         run: sbt scalafmtCheckAll
@@ -115,58 +115,3 @@ jobs:
 
       - name: Lint Markdown (markdownlint-cli2)
         run: npm run lint:md
-
-  site:
-    name: Playground site (Astro)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: site
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Cache Coursier and sbt
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cache/coursier
-            ~/.sbt
-            ~/.ivy2/cache
-          key: sbt-${{ runner.os }}-${{ hashFiles('project/build.properties', 'project/plugins.sbt', 'build.sbt') }}
-          restore-keys: |
-            sbt-${{ runner.os }}-
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: site/package-lock.json
-
-      - name: Install site dependencies
-        run: npm ci
-
-      - name: Engine bundle is up to date (rebuild + no drift, ADR D13)
-        # `gramaire.playground.Main.evaluate` → Scala.js browser ESM
-        # (`sbt playground/fullLinkJS`). If this fails, run
-        # `npm run build:engine` in site/ and commit the regenerated bundle.
-        run: npm run check:engine
-
-      - name: Site-glue bundles are up to date (rebuild + no drift)
-        # The site's logic-bearing TypeScript is now Scala.js
-        # (`site-glue`/`engineWorker`, Phase 5). If this fails, run
-        # `npm run build:site-glue` in site/ and commit the regenerated bundles.
-        run: npm run check:site-glue
-
-      - name: Check formatting (prettier)
-        run: npm run lint
-
-      - name: Unit tests (the real engine, via the bundle)
-        run: npm test
-
-      - name: Build the site
-        run: npm run build

@@ -1,13 +1,6 @@
 # Node (bootstrap bridge)
 node_modules/
 
-# Astro docs site
-site/node_modules/
-site/dist/
-site/.astro/
-site/.cache/
-site/.vite/
-
 # sbt / Scala build output
 target/
 project/target/
