@@ -11,6 +11,7 @@
     "test": "tsx --test src/lib/gramark-runtime.test.ts",
     "build:engine": "cd .. && sbt playground/fullLinkJS && cp playground/js/target/scala-3.4.2/gramark-playground-opt/main.js site/src/generated/gramark-engine.mjs",
     "check:engine": "npm run build:engine && git diff --exit-code src/generated/gramark-engine.mjs",
+    "build:site-glue": "cd .. && sbt siteGlue/fullLinkJS engineWorker/fullLinkJS && cp site-glue/js/target/scala-3.4.2/gramark-site-glue-opt/main.js site/src/generated/site-glue.mjs && cp site-glue/worker-js/target/scala-3.4.2/gramark-engine-worker-opt/main.js site/src/generated/engine-worker.mjs",
     "format": "prettier --write \"src/**/*.{ts,astro,md,mdx}\" \"*.{json,md,mjs}\"",
     "lint": "prettier --check \"src/**/*.{ts,astro,md,mdx}\" \"*.{json,md,mjs}\""
   },
