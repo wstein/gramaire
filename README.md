@@ -12,16 +12,17 @@ fenced `lr` blocks; everything around them is documentation that travels with
 the grammar.
 
 Here is what a rule looks like — productions on the left, an optional
-semantic action between `{%` and `%}` carried verbatim to codegen:
+`%lang`-tagged semantic action between `{%` and `%}` carried verbatim to
+codegen:
 
 ```gramaire
 Expr
-  : Expr `+` Term   {% \l _ r -> Add l r %}
-  | Expr `-` Term   {% \l _ r -> Sub l r %}
-  | Term            {% \t -> t %}
+  : Expr `+` Term   {% (c) => c.expr + c.term %}
+  | Expr `-` Term   {% (c) => c.expr - c.term %}
+  | Term
 ```
 
-![Railroad diagram for the Expr rule](examples/diagrams/calc/expr.svg)
+![Railroad diagram for the Expr rule](examples/diagrams/calc-js/expr.svg)
 
 On GitHub that fence renders as a code block; to Gramaire it is the `Expr`
 rule. The prose around it, the railroad diagram beside it, and the
@@ -45,12 +46,16 @@ A grammar file is a canonical Markdown document (see the
   (`lr errors`), and a generated **`## Generated tables`** FIRST/FOLLOW
   section.
 
-Semantic actions are written between `{%` and `%}` as raw, language-tagged
-text (`%lang javascript`, say) and are preserved verbatim through to code
-generation — [`examples/calc-js.gram.md`](examples/calc-js.gram.md) bakes its
-actions into a self-contained JS evaluator this way. Because fence contents
-are opaque to Markdown, `{%`, `|`, `+`, and backslashes inside a payload never
-trip the renderer or the linter.
+A grammar with no actions at all is already complete: it fully defines the
+recognized language and a concrete syntax tree (CST) every backend can walk.
+Semantic actions are opt-in — written between `{%` and `%}` as raw,
+language-tagged text (`%lang javascript`, say) and preserved verbatim through
+to code generation — [`examples/calc-js.gram.md`](examples/calc-js.gram.md)
+bakes its actions into a self-contained JS evaluator this way. `{% … %}` text
+with no declared `%lang` is carried through unexecuted, not run by an
+implicit default language. Because fence contents are opaque to Markdown,
+`{%`, `|`, `+`, and backslashes inside a payload never trip the renderer or
+the linter.
 
 ## Your grammar is the docs
 
