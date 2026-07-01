@@ -1,0 +1,25 @@
+---
+// Starlight `SiteTitle` slot override — Starlight's built-in `logo`/`title`
+// options can't render the split-stem wordmark (they take a static image or
+// plain text), so we override the slot with the brand lockup: the railroad
+// logomark + the two-color wordmark, linked home. Base-prefixed so it resolves
+// under `/gramaire/` in CI.
+import GramaireMark from "./GramaireMark.astro";
+import GramaireWordmark from "./GramaireWordmark.astro";
+
+const href = import.meta.env.BASE_URL;
+---
+
+<a href={href} class="site-title gramaire-lockup">
+  <GramaireMark size={26} />
+  <GramaireWordmark size="1.25rem" />
+</a>
+
+<style>
+  .gramaire-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+  }
+</style>
