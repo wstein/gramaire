@@ -1,0 +1,241 @@
+---
+title: Language Specification
+description: The formal Gramaire grammar format — document envelope, lexical rules, newline normalization, desugaring, and the IR/CST contracts.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+This is the formal definition of the Gramaire grammar language (v0.1): the
+document envelope, the `lr` lexical grammar, the newline rule, the desugaring
+that compiles surface sugar to the epsilon-free core, and the contracts the
+compiler emits. Keywords MUST / SHOULD / MAY per RFC 2119.
+
+<Aside>
+  The canonical on-disk layout that `gramaire fmt` produces is specified
+  separately in the [fmt output
+  contract](../../../../../docs/fmt-output-contract.md). This page specifies the
+  _language_; that one specifies its _formatting_.
+</Aside>
+
+## 1. Document envelope
+
+A Gramaire grammar is hosted in a GitHub-Flavored Markdown document. The compiler
+ignores prose, list markers, and images; it extracts the grammar by scanning ATX
+headings and fenced code blocks whose info string begins with `gramaire`.
+
+- **Grammar name.** The single `# H1`. There MUST be exactly one.
+- **Nonterminal rules.** Every non-reserved `## H2` names a nonterminal; the
+  `lr` block beneath it holds that rule's productions.
+- **Reserved `## H2` sections.** `General settings` (a `gramaire settings` block
+  of document-level directives — currently `%lang <host>`, which declares the
+  language of inline `{% … %}` actions), `Precedence` (an `lr precedence` block),
+  `Error messages` (an `lr errors` block), and `Generated tables` (the emitted
+  FIRST/FOLLOW table). They appear in that order when present.
+- **Presentational headings.** `###` and deeper headings carry no structural
+  meaning; they are free grouping the analyzer skips. Only the H1 and H2 layers
+  are structural.
+- **One grammar per file.** A file defines exactly one start symbol and one
+  nonterminal namespace. Reuse across files is a future cross-file `import`,
+  never in-file sub-grammars or multiple H1s.
+
+## 2. Lexical grammar of an `lr` block
+
+Inside an `lr` productions block the lexer emits these token classes:
+
+| Token                     | Form                     | Meaning                                              |
+| ------------------------- | ------------------------ | ---------------------------------------------------- |
+| `IDENT`                   | `[A-Za-z_][A-Za-z0-9_]*` | a nonterminal (mixed-case) or token class (ALL-CAPS) |
+| `TERM_LIT`                | `` `…` ``                | a backtick-delimited literal terminal                |
+| `:` / `\|`                | `:` / `\|`               | rule-head colon / alternative separator              |
+| `ACTION`                  | `{% … %}`                | a semantic action; body kept verbatim                |
+| `LABEL`                   | `# Name`                 | an alternative label (visitor / accessor name)       |
+| `ATTR`                    | `#[name]`                | a rule attribute (e.g. `#[inline]`)                  |
+| `PLUS` `STAR` `QUESTION`  | `+` `*` `?`              | repetition / optional postfixes                      |
+| `LANGLE` `RANGLE` `COMMA` | `<` `>` `,`              | macro-call punctuation                               |
+| `NL`                      | one or more line breaks  | structural newline (see §3)                          |
+
+A name is a **nonterminal** exactly when it appears as some rule's left-hand
+side; any other mixed-case name referenced but never defined is a build error
+(not a silent terminal). An ALL-CAPS name is always a token class. Input
+tokenization itself is per-language: the `lr` lexer reads the grammar; a separate
+lexer turns _input_ strings into tokens whose `terminal` names match the
+grammar's terminals.
+
+## 3. Newline normalization (Option A)
+
+A line break **inside an alternative is insignificant** — `|` is the only
+alternative separator, so a long alternative may wrap across physical lines. Only
+two newlines are structural, and a normalization pass keeps exactly those before
+the parser runs:
+
+- the **head** `NL` inside `IDENT NL :` (or `ATTR IDENT NL :`), which is what
+  distinguishes a rule head from a same-line `name:Sym` field (`IDENT : Sym`);
+  and
+- the **boundary** `NL` immediately before the next head.
+
+Every other newline — between two symbols, before a `|`, before a label or
+action, at a block edge — is dropped. The lookahead that classifies a newline
+happens once, in this pass, so the grammar stays LR(1) on one token of lookahead
+with no `;` terminators.
+
+<Aside type="caution">
+  A consequence: a `name:Sym` field MUST stay on one line. Splitting it across a
+  break reads the name as a rule head.
+</Aside>
+
+## 4. Desugaring to the epsilon-free core
+
+Before building tables, the surface grammar is lowered to a pure, epsilon-free
+context-free grammar. The core automaton never sees a nullable rule, which keeps
+table construction free of nullable bookkeeping.
+
+### 4.1 Repetition — `X+`, `X*`
+
+`X+` (one-or-more) lowers to a fresh left-recursive list nonterminal whose action
+accumulates an `Array`:
+
+```text
+X_plus
+  : X
+  | X_plus X
+```
+
+`X*` (zero-or-more) reuses that list but enumerates **present / absent** at the
+use site, so the empty case is a real production rather than an epsilon — the
+core stays epsilon-free.
+
+### 4.2 Optional — `X?`
+
+`X?` desugars by **use-site enumeration with generated wrapper actions**. A rule
+`A : pre X? post {% f %}` becomes two epsilon-free productions:
+
+```text
+A : pre X post   -- wrapper applies f with (Just x)
+A : pre post      -- wrapper applies f with Nothing
+```
+
+The wrapper splices the original action verbatim, so it still receives one
+`Maybe` and arity is preserved. With _k_ optionals an alternative enumerates to
+2^k productions; an all-optional alternative (which would enumerate to an empty
+production) is a build error, never a silent epsilon.
+
+### 4.3 Macros — `Comma<X>`, `Sep<X, S>`
+
+`Comma<X>` and `Sep<X, S>` lower to a fresh one-or-more separated-list rule
+(separated by `,` or by the given symbol `S`). An unknown macro or wrong arity is
+a build error.
+
+### 4.4 Named fields — `name:X`
+
+A `name:X` prefix names that right-hand position. The name is carried onto the
+IR's `rhs[].field` and feeds CST accessors and generated visitors; it does not
+change the recognized language.
+
+Under the declared `%lang` (currently `javascript`), an action receives its
+children as a single **namedtuple** `c` — an object read by field (`c.left`) or
+destructured (`({ left, right }) => …`), with the field names taken from
+`rhs[].field`. A production `left:NUM '+' right:NUM {% (c) => c.left + c.right %}`
+binds `c.left`/`c.right` from the explicit field names.
+
+A position with **no** explicit `name:` is still auto-named by its symbol
+(`Expr` → `c.expr`, a token class lowercased) — but **only when that symbol occurs
+once** among the rule's nameable positions (nonterminals and token classes;
+literals are never named). A repeated symbol (`Expr '+' Expr`) or a name that
+would collide with an explicit field stays index-only, with no silent
+disambiguation. Auto-naming is a codegen convenience; it does not alter the IR.
+
+### 4.5 Inline folding — `#[inline]`
+
+`#[inline]` marks a single-production rule to be folded into every use site and
+then dropped — both a DRY tool and a way to hand-fit a grammar into LR(1). When
+the using alternative has an action, the inline rule's own action is threaded
+through a wrapper so values still flow.
+
+### 4.6 Labels — `# Name`
+
+A `# Name` label names an alternative. It surfaces in the IR as an optional
+`rules[].label` and drives per-alternative visitor method names and CST accessors.
+
+For a host-agnostic AST, **prefer labels over inline `{% … %}` actions** (ADR
+D37). A label like `# MulDiv` generates a typed `MulDiv(children)` method on the
+emitted `Visitor<T>` — exactly ANTLR's `visitMulDiv` pattern — that you implement
+in any target. Inline actions, by contrast, are host source: the `%lang`
+directive declares their language, so a grammar that carries them is tied to that
+host (e.g. `%lang javascript` bakes a self-contained `evaluate(cst)`). So:
+
+```gramaire
+expr
+  : expr '*' term   # MulDiv
+  | expr '+' term   # AddSub
+  | NUM             # Int
+```
+
+emits `interface Visitor<T> { MulDiv(c): T; AddSub(c): T; Int(c): T; … }` — you
+fill in the methods in your host language, no inline lambda required. Inline
+`{% … %}` stays available for one-liners where a visitor class is overkill.
+
+## 5. The IR contract — `gramaire-ir`
+
+The compiler emits the analyzed grammar and its parse tables as a versioned JSON
+document, the [IR schema](../ir-schema/). Every backend reads only this artifact —
+isolating target generators from Markdown processing and layout entirely.
+
+```json
+{
+  "irVersion": 0,
+  "grammar": {
+    "name": "Calc",
+    "start": "Expr",
+    "rules": [
+      {
+        "id": 0,
+        "lhs": 0,
+        "rhs": [
+          { "ref": "nt", "id": 0, "field": "left" },
+          { "ref": "t", "id": 2 },
+          { "ref": "nt", "id": 1, "field": "right" }
+        ],
+        "label": "Add",
+        "actions": {
+          "javascript": "(c) => ({ tag: \"Add\", left: c.left, right: c.right })"
+        }
+      }
+    ]
+  },
+  "tables": {
+    "algorithm": "canonical",
+    "stateCount": 42,
+    "action": [],
+    "goto": []
+  },
+  "conflicts": []
+}
+```
+
+`actions` maps a `%lang` profile name to that language's opaque, untrusted
+source text — see the full shape in
+[`spec/ir-schema.json`](../../../../../spec/ir-schema.json).
+
+## 6. The CST contract — `gramaire-cst`
+
+An action-free grammar still fully defines a **concrete syntax tree**: a `branch`
+per reduced production (tagged with its `rules[]` index) and a `token` leaf per
+consumed terminal, children in source order. This generic tree is the portable
+artifact any backend can emit and any host can walk; its shape is fixed by the
+[CST schema](../cst-schema/). The spanned tokenizer carries exact source ranges,
+so a tool can link a CST node back to both its production and its input slice —
+the substrate a hover-linking UI (planned) would use.
+
+## 7. Table construction and conflicts
+
+Tables build by canonical **LR(1)**, **LALR(1)** (canonical states merged by
+LR(0) core), or **IELR(1)** (LALR with the conflicting merges split apart).
+Canonical is the most powerful and serves as the differential oracle for the
+other two.
+
+A conflict is reported in grammar terms — naming the competing productions, not a
+state number — and classified by comparing the three methods: a conflict LALR(1)
+reports but canonical / IELR resolve is an **LALR artifact** (build with IELR);
+one that survives canonical LR(1) is **genuine** (the grammar is ambiguous or not
+LR(1)). For genuinely ambiguous grammars the GLR engine returns the full parse
+forest — every derivation of the input.

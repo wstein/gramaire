@@ -1,0 +1,14 @@
+---
+title: CST Schema
+description: The Gramaire CST schema reference.
+---
+
+The CST schema is published in
+[spec/cst-schema.json](../../../../../spec/cst-schema.json).
+
+It documents the generic concrete-syntax-tree contract every backend can emit
+and any host can walk — a `branch` per reduced production and a `token` leaf
+per consumed terminal, in source order — described in full in
+[§6 of the language specification](../grammar-format/#6-the-cst-contract--gramaire-cst).
+An incremental-editing variant of this contract is tracked separately in
+[spec/incremental-spec.md](../../../../../spec/incremental-spec.md).
