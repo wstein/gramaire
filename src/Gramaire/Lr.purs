@@ -195,23 +195,24 @@ strip md =
   ls = split (Pattern "\n") md
   { preamble, sections } = sectionize ls
 
-  -- The leading `# Title` + intro paragraph → a `/** … */` banner comment.
-  -- Internal blank lines are kept (as ` *`) so the title stays set off from the
-  -- description; only diagram images and the blank ends are dropped.
+  -- The leading `# Title` + intro paragraph → `.. ` comment lines (simplified
+  -- reStructuredText). Internal blank lines are kept (as a bare `..`) so the
+  -- title stays set off from the description; only diagram images and the blank
+  -- ends are dropped.
   banner :: Array String -> String
   banner pre =
     let
       body = trimBlankEnds (map unHead (Array.filter notImage pre))
     in
       if Array.null body then ""
-      else "/**\n" <> joinWith "\n" (map star body) <> "\n */"
+      else joinWith "\n" (map dotdot body)
     where
     notImage l = not (isJust (stripPrefix (Pattern "![") (trim l)))
     unHead l = fromMaybe l (stripPrefix (Pattern "# ") l)
-    star l = if trim l == "" then " *" else " * " <> l
+    dotdot l = if trim l == "" then ".." else ".. " <> l
 
   -- A `## ` section survives only if it carries a keepable gramaire block; its
-  -- prose becomes `//` comments, its block becomes fence-free content.
+  -- prose becomes `.. ` comments, its block becomes fence-free content.
   section :: Array String -> Maybe String
   section sec =
     if Array.any keepableOpen sec then
@@ -236,7 +237,7 @@ strip md =
             Just _ -> acc { keep = Just false } -- some other fence: skip its body
             Nothing
               | not (keepProse line) -> acc -- diagram image / blank: dropped
-              | otherwise -> acc { out = Array.cons ("// " <> line) acc.out }
+              | otherwise -> acc { out = Array.cons (".. " <> line) acc.out }
 
   keepableOpen line = case stripPrefix (Pattern "```gramaire") (trim line) of
     Just rest -> keepInfo (trim rest)
@@ -328,22 +329,20 @@ isPrecDecl l =
 isSettingDecl :: String -> Boolean
 isSettingDecl l = isJust (stripPrefix (Pattern "%lang ") (trim l))
 
--- | Drop `//` line comments and `/* … */` block comments (the prose `strip`
+-- | Drop `..` comment lines (simplified reStructuredText — the prose `strip`
 -- | writes into a `.gram`), so the grammar lexer never sees them. Whole-line
--- | only: a `//` mid-line (e.g. inside a `{% … %}` action) is left alone.
+-- | only: a comment is a line whose first non-blank content is `..` (`.. text`
+-- | or a bare `..`), which never collides with a production (rules start with a
+-- | Mixed-case head, `:`, or `|`; the `.` wildcard only appears mid-line). A
+-- | recognized directive such as `.. note::` is just a comment and is dropped.
 decomment :: Array String -> Array String
-decomment ls = Array.reverse (foldl step { inBlock: false, out: [] } ls).out
+decomment = Array.filter (not <<< isComment)
   where
-  step acc line =
+  isComment line =
     let
       t = trim line
     in
-      if acc.inBlock then
-        if contains (Pattern "*/") t then acc { inBlock = false } else acc
-      else if isJust (stripPrefix (Pattern "//") t) then acc
-      else if isJust (stripPrefix (Pattern "/*") t) then
-        (if contains (Pattern "*/") t then acc else acc { inBlock = true })
-      else acc { out = Array.cons line acc.out }
+      t == ".." || isJust (stripPrefix (Pattern ".. ") t)
 
 -- | The production lexer for `lr` grammar source: the scanner built from the
 -- | notation's own `## Tokens` block (`lrTokensSource`), with `:` and `|` as
