@@ -7,10 +7,10 @@
 // ({ rule, children } | { token, text }); a leaf's value is its matched text.
 
 // production id -> action over its children namedtuple, or null
-const actions = [(c) => c[0] + c[2], (c) => c[0] - c[2], null, (c) => c[0] * c[2], (c) => c[0] / c[2], null, (c) => c[1], (c) => parseFloat(c[0])];
+const actions = [(c) => c.expr + c.term, (c) => c.expr - c.term, null, (c) => c.term * c.factor, (c) => c.term / c.factor, null, (c) => c.expr, (c) => parseFloat(c.number)];
 
 // production id -> field name (or null) aligned to each child position
-const fields = [[null, null, null], [null, null, null], [null], [null, null, null], [null, null, null], [null], [null, null, null], [null]];
+const fields = [["expr", null, "term"], ["expr", null, "term"], ["term"], ["term", null, "factor"], ["term", null, "factor"], ["factor"], [null, "expr", null], ["number"]];
 
 // A namedtuple: the child values as a real Array (index / spread / map all
 // work) with each named position also reachable by its field name.

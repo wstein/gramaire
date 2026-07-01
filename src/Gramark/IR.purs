@@ -47,6 +47,7 @@ module Gramark.IR
   , attachLexer
   , withStrategy
   , withActionLang
+  , effectiveFields
   , irAtnOf
   , toJson
   , serialize
@@ -62,6 +63,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Set (Set)
 import Data.Set as Set
+import Data.String.Common (toLower)
 import Data.Tuple (Tuple(..))
 import Gramark.Atn (StateKind(..), Transition(..)) as Atn
 import Gramark.Atn (Atn)
@@ -703,6 +705,41 @@ withActionLang (Just lang) ir =
   ir { grammar = ir.grammar { rules = map retag ir.grammar.rules } }
   where
   retag r = r { actions = map (\(Tuple _ code) -> Tuple lang code) r.actions }
+
+-- | The field name of each RHS position for the namedtuple binding: the explicit
+-- | `name:` field, or — when the position's symbol occurs exactly once among the
+-- | rule's nameable positions (nonterminals and token classes; literal terminals
+-- | are never named) — an auto-name derived from that symbol, lowercased. A
+-- | repeated or literal position stays index-only (`Nothing`), and an auto-name
+-- | that would collide with an explicit field is suppressed. No silent
+-- | disambiguation suffixes: ambiguity means index-only. This is a codegen-time
+-- | convenience over the IR's explicit `rhs[].field`; it does not alter the IR.
+effectiveFields :: IRGrammar -> IRRule -> Array (Maybe String)
+effectiveFields g rule = map resolve rule.rhs
+  where
+  explicit = Array.mapMaybe refField rule.rhs
+  bases = map autoBase rule.rhs
+  countOf b = Array.length (Array.filter (_ == Just b) bases)
+
+  resolve ref = case refField ref of
+    Just f -> Just f
+    Nothing -> case autoBase ref of
+      Just b | countOf b == 1 && not (Array.elem b explicit) -> Just b
+      _ -> Nothing
+
+  refField = case _ of
+    IRRefNT _ f -> f
+    IRRefT _ f -> f
+
+  autoBase = case _ of
+    IRRefNT i _ -> map (toLower <<< _.name) (Array.find (\n -> n.id == i) g.nonterminals)
+    IRRefT i _ -> case Array.find (\t -> termId t == i) g.terminals of
+      Just (IRClass _ nm) -> Just (toLower nm)
+      _ -> Nothing
+
+  termId = case _ of
+    IRLiteral i _ -> i
+    IRClass i _ -> i
 
 -- | Project a `Gramark.Atn` onto its serializable IR mirror.
 irAtnOf :: Atn -> IRAtn

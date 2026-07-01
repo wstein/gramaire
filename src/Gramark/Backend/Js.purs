@@ -25,7 +25,7 @@ import Data.String (Pattern(..), drop, indexOf, joinWith, stripPrefix, trim)
 import Data.String.CodeUnits (singleton, toCharArray)
 import Data.Tuple (Tuple(..), snd)
 import Gramark.Backend (Backend, Capability(..), allStrategies)
-import Gramark.IR (IR, IRRef(..), IRRule)
+import Gramark.IR (IR, IRRule, effectiveFields)
 
 -- | The JS backend: one `<Name>.js` ES module exposing `evaluate(cst)`.
 backend :: Backend
@@ -65,7 +65,7 @@ emit ir =
     Nothing -> "null"
 
   fieldSlot :: IRRule -> String
-  fieldSlot r = "[" <> joinWith ", " (map (maybeStr <<< refField) r.rhs) <> "]"
+  fieldSlot r = "[" <> joinWith ", " (map maybeStr (effectiveFields ir.grammar r)) <> "]"
 
 -- The `js`-tagged inline action for a rule, if any, as the user's own function.
 -- The front end stores actions under their host-language profile (see
@@ -73,13 +73,6 @@ emit ir =
 -- never emits foreign code.
 jsAction :: IRRule -> Maybe String
 jsAction r = unwrapBinder <<< snd <$> Array.find (\(Tuple profile _) -> profile == "js") r.actions
-
--- The optional `name:` field on a child position (ADR D28), carried on the IR
--- ref; it becomes the child's key in the namedtuple.
-refField :: IRRef -> Maybe String
-refField = case _ of
-  IRRefNT _ f -> f
-  IRRefT _ f -> f
 
 maybeStr :: Maybe String -> String
 maybeStr = case _ of

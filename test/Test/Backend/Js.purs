@@ -36,7 +36,7 @@ tests = do
         let js = emit (withActionLang (actionLangOf md) ir)
         assert' "bakes the per-production action table" (contains (Pattern "const actions = [") js)
         assert' "bakes the aligned field-name table" (contains (Pattern "const fields = [") js)
-        assert' "recovers the inline arrow with positional access" (contains (Pattern "(c) => c[0] + c[2]") js)
+        assert' "recovers the inline arrow with auto-named access" (contains (Pattern "(c) => c.expr + c.term") js)
         assert' "builds a namedtuple per production" (contains (Pattern "action(tuple(kids, fields[node.rule]))") js)
         assert' "leaves a passthrough slot for an action-less production" (contains (Pattern "null") js)
         assert' "exports the evaluate driver" (contains (Pattern "export function evaluate(cst)") js)
