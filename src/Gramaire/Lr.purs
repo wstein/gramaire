@@ -211,7 +211,7 @@ strip md =
     star l = if trim l == "" then " *" else " * " <> l
 
   -- A `## ` section survives only if it carries a keepable gramaire block; its
-  -- prose becomes `//` comments, its block becomes fence-free content.
+  -- prose becomes `///` doc-comment lines, its block becomes fence-free content.
   section :: Array String -> Maybe String
   section sec =
     if Array.any keepableOpen sec then
@@ -236,7 +236,7 @@ strip md =
             Just _ -> acc { keep = Just false } -- some other fence: skip its body
             Nothing
               | not (keepProse line) -> acc -- diagram image / blank: dropped
-              | otherwise -> acc { out = Array.cons ("// " <> line) acc.out }
+              | otherwise -> acc { out = Array.cons ("/// " <> line) acc.out }
 
   keepableOpen line = case stripPrefix (Pattern "```gramaire") (trim line) of
     Just rest -> keepInfo (trim rest)
