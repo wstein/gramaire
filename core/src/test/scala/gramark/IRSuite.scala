@@ -44,7 +44,7 @@ class IRSuite extends munit.FunSuite:
           0,
           0,
           Vector(IRRef.IRRefNT(1, None), IRRef.IRRefT(0, None), IRRef.IRRefNT(1, None)),
-          Map("purescript" -> "\\a _ b -> add a b")
+          Map("default" -> "\\a _ b -> add a b")
         )
         assertRule(1, 1, Vector(IRRef.IRRefT(1, None)), Map.empty)
         assertEquals(ir.grammar.precedence, Vector.empty)
