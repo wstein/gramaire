@@ -71,7 +71,7 @@ class BackendGoldenSuite extends munit.FunSuite:
           case Left(_)   => fail("could not build IR for calc-js")
           case Right(ir) =>
             // Tag the inline actions with the document's `%lang` so the backend
-            // recognizes them as JS (mirrors the CLI / Playground pipeline).
+            // recognizes them as JS (mirrors the `gramaire emit --backend js` pipeline).
             val js = BackendJs.emit(IR.withActionLang(Lr.actionLangOf(md), ir))
             assert(js.contains("const actions = ["), "bakes the per-production action table")
             assert(js.contains("const fields = ["), "bakes the aligned field-name table")
