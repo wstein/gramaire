@@ -11,6 +11,8 @@ import {
   LinkCard,
 } from "@astrojs/starlight/components";
 import Term from "../../../components/Term.astro";
+import GrammarTryout from "../../../components/GrammarTryout.astro";
+import { CALC_RECOGNIZER, CALC_INPUT } from "../../../lib/demo-grammars.ts";
 
 Gramark's whole idea is in its name — _gram + mark_, grammar plus Markdown. A
 `.grmk.md` file is a normal Markdown document that renders on GitHub — prose,
@@ -219,9 +221,15 @@ exactly one question, _does this input fit?_ Paste it into the
 - `12 + 3 * 4` → **accepted**
 - `12 +` → **rejected** — a `Term` has to follow `+`
 
+Try it right here — edit the grammar or the input and watch the railroad
+diagrams and the verdict update live (this is the same engine the CLI runs):
+
+<GrammarTryout grammar={CALC_RECOGNIZER} input={CALC_INPUT} />
+
 The Lab runs the real engine — the `NUMBER` token class lexes client-side — and
 re-evaluates live as you type, so you can feel the grammar accept and reject
-without leaving the page.
+without leaving the page. **Open in Lab ↗** on the panel above carries the
+grammar straight into the full Lab.
 
 <Aside type="tip" title="A recognizer is already useful">
   Linters, validators, and syntax highlighters often need nothing more than
