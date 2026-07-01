@@ -1,0 +1,16 @@
+<svg viewBox="0 0 372 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gramaire">
+  <title>Gramaire</title>
+  <!-- logomark, scaled -->
+  <g transform="translate(6 17) scale(0.70)">
+    <g fill="none" stroke="#16181D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 48 H33"/>
+      <path d="M63 48 C72 48 74 31 82 31"/>
+      <path d="M63 48 C72 48 74 65 82 65"/>
+    </g>
+    <rect x="33" y="36" width="30" height="24" rx="12" fill="#15B879" stroke="#16181D" stroke-width="6"/>
+  </g>
+  <!-- wordmark: Gram (ink) + mark (emerald) -->
+  <text x="92" y="65" font-family="'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="52" font-weight="700" letter-spacing="-1.5">
+    <tspan fill="#16181D">Gram</tspan><tspan fill="#15B879">mark</tspan>
+  </text>
+</svg>
