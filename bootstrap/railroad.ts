@@ -154,7 +154,7 @@ export function renderSvg(prod: Production): string {
   // and vertically (90°) and every direction change turns through a small
   // quarter-round — the classic railroad look, never a diagonal and never a
   // hard corner. Clamped to fit the shortest branch arm.
-  const R = Math.min(6, BRANCH, STUB, (BOXH + VGAP) / 2);
+  const R = Math.min(10, BRANCH, STUB, (BOXH + VGAP) / 2);
 
   const p: string[] = [];
   p.push(`<circle class="rr-cap" cx="${MARGIN}" cy="${mainY}" r="${CAPR}"/>`);
