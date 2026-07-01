@@ -1,32 +1,55 @@
 package gramark
 
-// Scala-emitting codegen: generate the `lr` reduce function from the IR,
-// targeting real, compiled Scala source rather than PureScript text.
+// Source-emitting codegen: generate the `lr` reduce function from the IR.
 //
-// This is the Scala-retargeted half of the self-hosting proof (the
-// migration plan's deferred task). `Codegen` stays PureScript-emitting —
-// it is the drift-lock oracle for the still-live `src/Gramark/Generated/
-// LrReduce.purs`, driven by `Bootstrap.bootstrapGrammar`'s own
-// PureScript-lambda action text, and neither of those change here.
+// `Lr.reduce` is written by hand; this emits an equivalent from
+// `gramark-ir` plus the `lr` typed-AST profile (the per-symbol `SemVal`
+// constructor map). Given the profile, codegen is a pure function of the
+// IR — each production becomes a case branch that unwraps its kids by
+// their symbols' constructors, splices the action body verbatim, and
+// wraps the result by the left-hand side's.
 //
-// The Scala action bodies below are a SEPARATE, independent profile —
-// production id -> Scala-arrow-syntax action text, hand-derived from
-// `Gramark.Lr.reduce`'s own case-for-case logic (not from
-// `bootstrapGrammar`'s `.action` field, which stays PureScript text so
-// every existing PureScript-oracle test keeps passing unmodified). This
-// keeps `grammar/lr.grmk.md` — read by the still-live PureScript
-// self-hosting proof — untouched too.
-// Structurally parallel to `Codegen`, Scala-arrow-syntax-aware and
-// emitting Scala `case` syntax instead of PureScript's.
+// The Scala action bodies below are a hand-derived profile — production
+// id -> Scala-arrow-syntax action text, mirroring `Lr.reduce`'s own
+// case-for-case logic (not `bootstrapGrammar`'s `.action` field, which
+// stays PureScript-lambda text carried over from the original grammar
+// notation, and is compared byte-for-byte against `grammar/lr.grmk.md`'s
+// own embedded actions by `SelfHostSuite` — so it can't change).
+// Originally ported alongside a PureScript-emitting sibling (`Codegen`)
+// during the PureScript-to-Scala migration; that sibling and its
+// drift-lock test were retired at cutover once nothing read PureScript
+// source anymore — this module was always the one real consumers use.
 object CodegenScala:
 
   /** Where the generated module is written and read back from. */
   val lrReduceModulePath: String = "core/src/main/scala/gramark/generated/LrReduce.scala"
 
   /** The `lr` typed-AST profile: each grammar symbol mapped to the `SemVal` case that carries its
-    * value. Identical to `Codegen.lrConMap` — the profile is language-independent.
+    * value.
     */
-  val lrConMap: Map[String, String] = Codegen.lrConMap
+  val lrConMap: Map[String, String] = Map(
+    "Grammar" -> "VGrammar",
+    "RuleList" -> "VRules",
+    "Rule" -> "VRule",
+    "Body" -> "VAlts",
+    "AltTail" -> "VAlts",
+    "Alt" -> "VAlt",
+    "SymList" -> "VSyms",
+    "Sym" -> "VSym",
+    "Args" -> "VSyms",
+    "Action" -> "VMaybeStr",
+    "Label" -> "VMaybeStr",
+    "GroupBody" -> "VGroupBody",
+    "Atom" -> "VSym",
+    "NotArg" -> "VSyms",
+    "SetBody" -> "VSyms",
+    "SetItem" -> "VSym",
+    "IDENT" -> "VStr",
+    "TERM_LIT" -> "VStr",
+    "ACTION" -> "VStr",
+    "LABEL" -> "VStr",
+    "ATTR" -> "VStr"
+  )
 
   /** The `lr` grammar's semantic actions, in Scala-arrow syntax, keyed by production id (the same
     * order `bootstrapGrammar`'s rules/alts flatten to). Mirrors `Gramark.Lr.reduce`'s own

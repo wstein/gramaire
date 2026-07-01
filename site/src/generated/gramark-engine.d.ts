@@ -1,6 +1,6 @@
-// Type surface for `gramark-engine.mjs` — the PureScript `Gramark.Playground`
+// Type surface for `gramark-engine.mjs` — the Scala `gramark.Playground`
 // module bundled to browser ESM (ADR D13). GENERATED; regenerate with
-// `npm run build:engine`. Keep this in sync with `Gramark.Playground.Result`.
+// `npm run build:engine`. Keep this in sync with `gramark.PlaygroundResult`.
 
 /** The table-construction method threaded to `Gramark.Glr.forest`/`recognize`. */
 export type EngineMethod = "Canonical" | "LALR" | "IELR";

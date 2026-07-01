@@ -1,5 +1,5 @@
 // The lab runtime now drives the REAL Gramark engine (the bundled Scala.js
-// `gramark.Playground`, via the site-glue module's `gramark-runtime.mjs`
+// `gramark.Playground`, via the site-glue module's `GramarkRuntime`
 // wrapper), so these tests exercise that bundle end to end: the default
 // grammar, a malformed grammar, and the json example with its own
 // `## Tokens` block — the same acceptance the CLI gives.
@@ -7,7 +7,7 @@
 // Imports from the COMPILED bundle (`../generated/site-glue.mjs`), not the
 // Scala sources — this is a regression test against what actually ships,
 // mirroring how `gramark-engine.d.ts`'s consumers already test the compiled
-// artifact rather than the PureScript/Scala source directly.
+// artifact rather than the source directly.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

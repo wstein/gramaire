@@ -1,11 +1,12 @@
 ---
 // The Gramark Lab — the Claude Design mock's centerpiece, rebuilt on the REAL
-// engine (the compiled PureScript `Gramark.Playground`, via gramark-runtime).
+// engine (the compiled Scala `gramark.Playground`, via GramarkRuntime).
 // Layout per the mock: a brand topbar, a draggable grammar/input split, a
 // ten-tab analysis drawer, and a status strip. Every tab is backed by a real
 // engine field — never the prototype's stand-in JS parser (see the design
-// handoff's "read this first" rule). Diagrams come from bootstrap/railroad.ts
-// via diagrams.ts; evaluation runs the engine-baked evaluate(cst) in a
+// handoff's "read this first" rule). Diagrams come from gramark.Railroad
+// (the same renderer `gramark fmt` writes SVGs with) via the site-glue
+// Diagrams module; evaluation runs the engine-baked evaluate(cst) in a
 // sandboxed Worker.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
