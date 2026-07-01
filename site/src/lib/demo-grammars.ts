@@ -37,3 +37,24 @@ Name
   | 'gramaire'
 `;
 export const GREETING_INPUT = "hello gramaire";
+
+/** The smallest possible rule, for the tutorial's input-less (diagram-only)
+ * demo: a Digit is one of three literal terminals. Edit it — add a `'3'` — and
+ * the railroad redraws; with no sample input there is no verdict to show. */
+export const DIGIT = `Digit
+  : '0'
+  | '1'
+  | '2'
+`;
+
+/** A comma-separated list for the grammar-format spec (§2): it exercises all
+ * three symbol kinds the lexical grammar names at once — an ALL-CAPS token
+ * class (`NUMBER`), a literal terminal (`','`), and a nonterminal (`List`). */
+export const SPEC_LIST = `NUMBER : /[0-9]+/
+WS     : /[ \\t\\r\\n]+/   %skip
+
+List
+  : NUMBER
+  | NUMBER ',' List
+`;
+export const SPEC_LIST_INPUT = "1, 2, 3";

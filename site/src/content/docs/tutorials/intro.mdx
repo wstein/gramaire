@@ -12,7 +12,11 @@ import {
 } from "@astrojs/starlight/components";
 import Term from "../../../components/Term.astro";
 import GrammarTryout from "../../../components/GrammarTryout.astro";
-import { CALC_RECOGNIZER, CALC_INPUT } from "../../../lib/demo-grammars.ts";
+import {
+  CALC_RECOGNIZER,
+  CALC_INPUT,
+  DIGIT,
+} from "../../../lib/demo-grammars.ts";
 
 Gramaire's whole idea is in its name — _gram + mark_, grammar plus Markdown. A
 `.gram.md` file is a normal Markdown document that renders on GitHub — prose,
@@ -59,7 +63,15 @@ documentation that travels with the grammar.
 
 ## 2. Your first rule
 
-Create `calc.gram.md` and give it a title and a first nonterminal:
+Before the full calculator, the smallest possible rule: a `Digit` is one of
+three literal terminals. Edit it — add a `'3'` — and the railroad redraws.
+There is no sample input here, so the panel is **diagram-only**: without an
+`input` it just draws the rule and shows no accept/reject verdict (you will
+parse input in §5).
+
+<GrammarTryout grammar={DIGIT} />
+
+Now create `calc.gram.md` and give it a title and a first nonterminal:
 
 ````md
 # Calc
