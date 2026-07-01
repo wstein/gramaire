@@ -1,0 +1,13 @@
+{
+  "name": "gramark-docs-lint",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone Markdown lint gate for the whole repo (prose docs and grammars), kept Node-native since no mature JVM equivalent exists.",
+  "scripts": {
+    "lint:md": "node lint-docs.mjs"
+  },
+  "devDependencies": {
+    "markdownlint-cli2": "^0.22"
+  }
+}
