@@ -11,7 +11,6 @@ import Prelude
 
 import Data.Array as Array
 import Data.Either (Either(..))
-import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Number (abs, fromString)
@@ -24,7 +23,7 @@ import Gramaire.IR (buildIR)
 import Gramaire.Lr (parse)
 import Gramaire.Table (Method(Canonical))
 import Gramaire.Tokens (TokenDef, parseTokens)
-import Gramaire.Transform (Child(..), Handlers, foldRoot, metaOf)
+import Gramaire.Transform (Child(..), Children, Handlers, foldRoot, metaOf, name)
 import Test.Assert (assert')
 
 -- A small labelled arithmetic grammar (the structure-only model): every
@@ -77,19 +76,21 @@ calcHandlers = Map.fromFoldable
   , Tuple "Sub" (binOp (-))
   , Tuple "Mul" (binOp (*))
   , Tuple "Div" (binOp (/))
-  , Tuple "Paren" (\h -> namedVal h.named "inner")
-  , Tuple "Num" (\h -> namedTok h.named "value")
+  , Tuple "Paren" (\c -> namedVal c "inner")
+  , Tuple "Num" (\c -> namedTok c "value")
   ]
   where
-  binOp f = \h -> f (namedVal h.named "left") (namedVal h.named "right")
+  binOp f = \c -> f (namedVal c "left") (namedVal c "right")
 
-namedVal :: Map String (Child Number) -> String -> Number
-namedVal named k = case Map.lookup k named of
+-- Read a named child's reduced value from the namedtuple.
+namedVal :: Children Number -> String -> Number
+namedVal c k = case name c k of
   Just (ChildVal v) -> v
   _ -> 0.0
 
-namedTok :: Map String (Child Number) -> String -> Number
-namedTok named k = case Map.lookup k named of
+-- Read a named terminal leaf's text and parse it as a number.
+namedTok :: Children Number -> String -> Number
+namedTok c k = case name c k of
   Just (ChildTok _ s) -> fromMaybe 0.0 (fromString s)
   _ -> 0.0
 

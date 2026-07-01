@@ -74,9 +74,10 @@ function formatReport(result: {
 // productions carry inline `{% … %}` actions. The `%lang javascript` setting
 // (the `## General settings` block in the fenced form) declares those actions as
 // JavaScript, so the engine bakes them into one `evaluate(cst)` the Lab runs in
-// its sandbox. Children are passed positionally: `(l, _, r) => l + r`. The same
-// engine reads this as it reads a fenced `.gram.md` — `toFenced` re-fences it and
-// `decomment` skips the comments — so the preview lexes NUMBER natively.
+// its sandbox. Each action gets its children as a namedtuple `c` — here read
+// positionally (`c[0]`, `c[2]`); a `name:` field would also allow `c.left`. The
+// same engine reads this as it reads a fenced `.gram.md` — `toFenced` re-fences
+// it and `decomment` skips the comments — so the preview lexes NUMBER natively.
 const DEFAULT_GRAMAR = `/**
  * Calc-js
  *
@@ -92,20 +93,20 @@ WS     : /[ \\t\\r\\n]+/   %skip
 
 // An expression is a sum or difference of terms.
 Expr
-  : Expr '+' Term   {% (l, _, r) => l + r %}
-  | Expr '-' Term   {% (l, _, r) => l - r %}
+  : Expr '+' Term   {% (c) => c[0] + c[2] %}
+  | Expr '-' Term   {% (c) => c[0] - c[2] %}
   | Term
 
 // A term is a product or quotient of factors.
 Term
-  : Term '*' Factor {% (l, _, r) => l * r %}
-  | Term '/' Factor {% (l, _, r) => l / r %}
+  : Term '*' Factor {% (c) => c[0] * c[2] %}
+  | Term '/' Factor {% (c) => c[0] / c[2] %}
   | Factor
 
 // A factor is a number or a parenthesised expression.
 Factor
-  : '(' Expr ')'    {% (_, e, __) => e %}
-  | NUMBER          {% (n) => parseFloat(n) %}
+  : '(' Expr ')'    {% (c) => c[1] %}
+  | NUMBER          {% (c) => parseFloat(c[0]) %}
 `;
 
 const DEFAULT_INPUT = "(4 - 1) * 3 + 2";

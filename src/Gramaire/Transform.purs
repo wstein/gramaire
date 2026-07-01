@@ -1,20 +1,23 @@
 -- | A **bottom-up tree transform** over a `Gramaire.Cst`: the structure-only
--- | answer to multi-target semantics (the consensus of the action-binding
--- | review). The grammar carries no host code — alternatives are named with
--- | `# Label` (D26) and their children with `name:` fields (D28) — and the
--- | meaning lives in an external, language-specific **handler** keyed by label.
+-- | answer to multi-target semantics. The grammar carries no host code —
+-- | alternatives are named with `# Label` (D26) and their children with `name:`
+-- | fields (D28) — and the meaning lives in an external, language-specific
+-- | **handler** keyed by label.
 -- |
 -- | `fold` walks the tree children-first (Lark's `Transformer` model): each
 -- | child is reduced to a value, then a labelled branch is mapped through its
--- | handler — receiving its children both positionally and by field name — to a
--- | value of the caller's choosing. An **unlabelled** branch (or a labelled one
--- | with no handler) is structurally transparent: the `default` runs, which for
--- | a single child passes that child's value straight through.
+-- | handler — receiving its children as a **namedtuple** (`Children`), reachable
+-- | by index or by field name — to a value of the caller's choosing. An
+-- | **unlabelled** branch (or a labelled one with no handler) is structurally
+-- | transparent: the `default` runs, which for a single child passes that child's
+-- | value straight through.
 -- |
 -- | The same `Cst` + the same per-production metadata thus evaluate in any host:
--- | a JavaScript handler object in the Lab, a PureScript record in the tests.
+-- | a JavaScript namedtuple in the Lab (see `Gramaire.Backend.Js`), this
+-- | `Children` in the tests.
 module Gramaire.Transform
   ( Child(..)
+  , Children
   , Handler
   , Handlers
   , ProdMeta
@@ -22,6 +25,9 @@ module Gramaire.Transform
   , fold
   , foldRoot
   , childValue
+  , index
+  , name
+  , values
   ) where
 
 import Prelude
@@ -40,9 +46,25 @@ data Child a
   = ChildVal a
   | ChildTok String String
 
--- | A handler maps a labelled branch's children — by field name and positionally
--- | — to a value.
-type Handler a = { named :: Map String (Child a), pos :: Array (Child a) } -> a
+-- | A production's children as a **namedtuple**: the reduced children in order,
+-- | plus a field-name → position map, so a handler can read a child by `index`
+-- | or by `name` (the PureScript twin of the JS backend's Array-with-named-keys).
+newtype Children a = Children { values :: Array (Child a), names :: Map String Int }
+
+-- | The child at a position (0-based), if any.
+index :: forall a. Children a -> Int -> Maybe (Child a)
+index (Children c) i = Array.index c.values i
+
+-- | The child bound to a `name:` field, if the production named that position.
+name :: forall a. Children a -> String -> Maybe (Child a)
+name (Children c) n = Map.lookup n c.names >>= Array.index c.values
+
+-- | All children in order.
+values :: forall a. Children a -> Array (Child a)
+values (Children c) = c.values
+
+-- | A handler maps a labelled branch's children namedtuple to a value.
+type Handler a = Children a -> a
 
 -- | The handler set, keyed by `# Label`.
 type Handlers a = Map String (Handler a)
@@ -72,11 +94,11 @@ fold meta handlers default = go
     let
       m = meta p
       children = map go kids
-      named = Map.fromFoldable
-        (Array.catMaybes (Array.zipWith (\mf c -> map (\n -> Tuple n c) mf) m.fields children))
+      names = Map.fromFoldable
+        (Array.catMaybes (Array.mapWithIndex (\i mf -> map (\n -> Tuple n i) mf) m.fields))
     in
       case m.label >>= \lbl -> Map.lookup lbl handlers of
-        Just h -> ChildVal (h { named, pos: children })
+        Just h -> ChildVal (h (Children { values: children, names }))
         Nothing -> ChildVal (default children)
 
 -- | Fold and extract the root value (a well-formed tree's root is a branch).
