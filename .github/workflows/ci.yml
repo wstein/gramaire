@@ -59,6 +59,50 @@ jobs:
       - name: Test
         run: spago test
 
+  core:
+    name: Scala core (cross-build, scaffolding — Phase 0 of the Scala migration)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Coursier and sbt
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/coursier
+            ~/.sbt
+            ~/.ivy2/cache
+          key: sbt-${{ runner.os }}-${{ hashFiles('project/build.properties', 'project/plugins.sbt', 'build.sbt') }}
+          restore-keys: |
+            sbt-${{ runner.os }}-
+
+      - name: Cross-compile check (catches JVM-only stdlib leaks into core/shared)
+        run: sbt coreJVM/compile coreJS/compile playground/compile cli/compile
+
+      - name: Format check (scalafmt)
+        run: sbt scalafmtCheckAll
+
+      - name: Core stays I/O-free (ADR D13 equivalent)
+        # Belt-and-suspenders: `coreJS/compile` succeeding is itself a
+        # stronger, compiler-enforced version of this guarantee (Scala.js
+        # has no java.io/java.nio to call), but keep this fast, readable,
+        # explicit check as the first line of defense too.
+        run: |
+          hits=$(grep -rlE 'java\.(io|nio)\.|scala\.io\.Source' core/src/main/scala || true)
+          if [ -n "$hits" ]; then
+            echo "core/src/main/scala must stay I/O-free (ADR D13 equivalent):"
+            echo "$hits"
+            exit 1
+          fi
+
+      - name: Test (cross-platform, JVM + Scala.js from one shared suite)
+        run: sbt coreJVM/test coreJS/test
+
   bootstrap:
     name: Bootstrap bridge + grammar checks
     runs-on: ubuntu-latest
