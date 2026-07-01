@@ -165,7 +165,10 @@ object LexerAtn:
       active.flatMap(s => transOf(s).collect { case Trans.Ch(pred, x) if pred(c) => x })
 
     def bestAcceptIn(active: Set[Int]): Option[Accept] =
-      val accs = active.toVector.flatMap(atn.accepts.get)
+      // Iterate active states in ascending id order so the priority tie-break
+      // (`reduce` keeps the first element on equal priority) is deterministic and
+      // matches the PureScript ordered-set's lowest-state-id winner.
+      val accs = active.toVector.sorted.flatMap(atn.accepts.get)
       if accs.isEmpty then None
       else Some(accs.reduce((a, b) => if a.priority <= b.priority then a else b))
 
