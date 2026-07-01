@@ -23,6 +23,9 @@ import {
   CALC_INPUT,
   GREETING,
   GREETING_INPUT,
+  DIGIT,
+  SPEC_LIST,
+  SPEC_LIST_INPUT,
 } from "./demo-grammars.ts";
 
 const jsonGrammar = readFileSync(
@@ -187,6 +190,31 @@ test("the tutorial tryout grammar accepts its sample and draws every rule", asyn
   assert.deepEqual(
     diagrams.map((d) => d.name),
     ["Expr", "Term", "Factor"],
+  );
+});
+
+// The tutorial's diagram-only (input-less) Digit demo: the panel takes no
+// input, so it only needs the grammar to parse and draw — never a verdict.
+test("the tutorial Digit demo draws its rule with no input required", async () => {
+  const result = await parseGramarkDocument(DIGIT, "");
+  assert.deepEqual(result.rules, ["Digit"]);
+  const diagrams = renderDiagrams(DIGIT, result.rules);
+  assert.deepEqual(
+    diagrams.map((d) => d.name),
+    ["Digit"],
+  );
+});
+
+// The grammar-format spec's list demo exercises a token class, a literal, and a
+// nonterminal at once; it must accept its sample and draw its rule.
+test("the spec list tryout grammar accepts its sample and draws its rule", async () => {
+  const result = await parseGramarkDocument(SPEC_LIST, SPEC_LIST_INPUT);
+  assert.equal(result.success, true);
+  assert.deepEqual(result.rules, ["List"]);
+  const diagrams = renderDiagrams(SPEC_LIST, result.rules);
+  assert.deepEqual(
+    diagrams.map((d) => d.name),
+    ["List"],
   );
 });
 

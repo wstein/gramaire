@@ -4,6 +4,8 @@ description: The formal Gramark grammar format — document envelope, lexical ru
 ---
 
 import { Aside } from "@astrojs/starlight/components";
+import GrammarTryout from "../../../components/GrammarTryout.astro";
+import { SPEC_LIST, SPEC_LIST_INPUT } from "../../../lib/demo-grammars.ts";
 
 This is the formal definition of the Gramark grammar language (v0.1): the
 document envelope, the `lr` lexical grammar, the newline rule, the desugaring
@@ -60,6 +62,12 @@ side; any other mixed-case name referenced but never defined is a build error
 tokenization itself is per-language: the `lr` lexer reads the grammar; a separate
 lexer turns _input_ strings into tokens whose `terminal` names match the
 grammar's terminals.
+
+All three kinds appear together below — the ALL-CAPS token class `NUMBER`, the
+literal `','`, and the nonterminal `List` — running on the real engine. Edit the
+grammar or the input and watch the railroad and the verdict follow:
+
+<GrammarTryout grammar={SPEC_LIST} input={SPEC_LIST_INPUT} />
 
 ## 3. Newline normalization (Option A)
 
