@@ -4,8 +4,7 @@ package gramark
 // into a single self-contained ES module. Folds a gramark-cst JSON tree
 // bottom-up, handing each action a **namedtuple** of its children — an
 // Array that also carries the production's `name:` fields as keys.
-// This is the `Actions "js"` capability, and the module the Lab's
-// Evaluate tab runs.
+// This is the `Actions "js"` capability (`gramark emit --backend js`).
 // Ported from src/Gramark/Backend/Js.purs.
 object BackendJs:
   val backend: Backend = Backend(
