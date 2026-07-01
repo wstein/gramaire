@@ -47,7 +47,14 @@ class ScalaSelfHostSuite extends munit.FunSuite:
           gramark.generated.LrReduce.reduce,
           Lexer.normalizeNewlines(raw)
         ) match
-          case Right(SemVal.VGrammar(g)) => assertEquals(g, Bootstrap.bootstrapGrammar)
-          case Right(_)                  => fail("parse should yield a Grammar")
-          case Left(e)                   => fail(s"parse failed: ${e.render}")
+          // `Lr.parseWith` (what `SelfHostSuite` drives) desugars its raw parse
+          // before comparing to `bootstrapGrammar`; mirror that here so a
+          // drop-in generated reduce is compared through the same real
+          // pipeline the hand-written one runs in, not a desugar-free shortcut.
+          case Right(SemVal.VGrammar(g)) =>
+            Desugar.desugar(g).flatMap(Diagnostics.checkDefined) match
+              case Right(desugared) => assertEquals(desugared, Bootstrap.bootstrapGrammar)
+              case Left(e)          => fail(s"desugar/check failed: $e")
+          case Right(_) => fail("parse should yield a Grammar")
+          case Left(e)  => fail(s"parse failed: ${e.render}")
   }

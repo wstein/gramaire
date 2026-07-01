@@ -41,28 +41,18 @@ single `NL`, and emits these classes:
 - `LANGLE` / `RANGLE` / `COMMA` — `<` / `>` / `,` for macro calls.
 - `NL` — one or more line breaks.
 
-Semantic actions build this AST (the target Scala shapes):
+Semantic actions build this AST as plain tagged JS objects: `{ tag: "Grammar",
+rules }`, `{ tag: "Rule", name, attrs, alts }`, `{ tag: "Alt", syms, label,
+action }` (`label`/`action` are `null` when absent), and one tagged object per
+`Sym` case — `Ref`, `Lit`, `Rep`, `Star`, `Opt`, `Macro`, `Field`, `Group`,
+`Any`, `Not` — mirroring the real Scala types in
+[`Syntax.scala`](../core/src/main/scala/gramark/Syntax.scala).
 
-```scala
-final case class Grammar(rules: Vector[Rule])
-final case class Rule(name: String, attrs: Vector[String], alts: Vector[Alt])
-  // attrs: #[attrs] (e.g. inline); alts: alternatives
-final case class Alt(syms: Vector[Sym], label: Option[String], action: Option[String])
-  // label: optional # label; action: optional action
-enum Sym:
-  case Ref(name: String)                      // nonterminal ref
-  case Lit(text: String)                      // terminal
-  case Rep(sym: Sym)                          // X+ sugar
-  case Star(sym: Sym)                         // X* sugar
-  case Opt(sym: Sym)                          // X? sugar
-  case Macro(name: String, args: Vector[Sym]) // Name<args> macro call
-  case Field(name: String, sym: Sym)          // name:X named child position
-  case Group(alts: Vector[Vector[Sym]])       // ( a | b ) parenthesised group
-  case Any                                    // . wildcard
-  case Not(set: Vector[Sym])                  // ~set negation
+## General settings
+
+```gramark settings
+%lang javascript
 ```
-
-The helpers `cons` and `snoc` prepend and append to a `Vector`.
 
 ## Tokens
 
@@ -96,7 +86,7 @@ A grammar is a non-empty list of rules.
 
 ```gramark
 Grammar
-  : RuleList   {% \rs -> Grammar rs %}
+  : RuleList   {% (c) => ({ tag: "Grammar", rules: c[0] }) %}
 ```
 
 ![Railroad diagram for the Grammar rule](diagrams/lr/grammar.svg)
@@ -108,8 +98,8 @@ the one boundary newline the normalization pass keeps (see the intro).
 
 ```gramark
 RuleList
-  : Rule               {% \r -> [r] %}
-  | RuleList NL Rule   {% \rs _ r -> snoc rs r %}
+  : Rule               {% (c) => [c[0]] %}
+  | RuleList NL Rule   {% (c) => [...c[0], c[2]] %}
 ```
 
 ![Railroad diagram for the RuleList rule](diagrams/lr/rulelist.svg)
@@ -126,8 +116,8 @@ folds into use sites) before its name.
 
 ```gramark
 Rule
-  : ATTR IDENT NL ':' Body   {% \attr lhs _ _ alts -> Rule lhs [ attr ] alts %}
-  | IDENT NL ':' Body        {% \lhs _ _ alts -> Rule lhs [] alts %}
+  : ATTR IDENT NL ':' Body   {% (c) => ({ tag: "Rule", name: c[1], attrs: [c[0]], alts: c[4] }) %}
+  | IDENT NL ':' Body        {% (c) => ({ tag: "Rule", name: c[0], attrs: [], alts: c[3] }) %}
 ```
 
 ![Railroad diagram for the Rule rule](diagrams/lr/rule.svg)
@@ -140,8 +130,8 @@ across physical lines.
 
 ```gramark
 Body
-  : Alt            {% \a -> [a] %}
-  | Body '|' Alt   {% \bs _ a -> snoc bs a %}
+  : Alt            {% (c) => [c[0]] %}
+  | Body '|' Alt   {% (c) => [...c[0], c[2]] %}
 ```
 
 ![Railroad diagram for the Body rule](diagrams/lr/body.svg)
@@ -153,10 +143,10 @@ optional trailing action.
 
 ```gramark
 Alt
-  : SymList Label Action   {% \syms lbl act -> Alt syms lbl act %}
-  | SymList Label          {% \syms lbl -> Alt syms lbl Nothing %}
-  | SymList Action         {% \syms act -> Alt syms Nothing act %}
-  | SymList                {% \syms -> Alt syms Nothing Nothing %}
+  : SymList Label Action   {% (c) => ({ tag: "Alt", syms: c[0], label: c[1], action: c[2] }) %}
+  | SymList Label          {% (c) => ({ tag: "Alt", syms: c[0], label: c[1], action: null }) %}
+  | SymList Action         {% (c) => ({ tag: "Alt", syms: c[0], label: null, action: c[1] }) %}
+  | SymList                {% (c) => ({ tag: "Alt", syms: c[0], label: null, action: null }) %}
 ```
 
 ![Railroad diagram for the Alt rule](diagrams/lr/alt.svg)
@@ -165,8 +155,8 @@ Alt
 
 ```gramark
 SymList
-  : Sym           {% \s -> [s] %}
-  | SymList Sym   {% \ss s -> snoc ss s %}
+  : Sym           {% (c) => [c[0]] %}
+  | SymList Sym   {% (c) => [...c[0], c[1]] %}
 ```
 
 ![Railroad diagram for the SymList rule](diagrams/lr/symlist.svg)
@@ -190,24 +180,24 @@ becomes `__group_0* C` with `__group_0 : A B`.
 
 ```gramark
 Sym
-  : IDENT              {% \i -> Ref i %}
-  | TERM_LIT           {% \t -> Lit t %}
-  | IDENT PLUS         {% \i _ -> Rep (Ref i) %}
-  | TERM_LIT PLUS      {% \t _ -> Rep (Lit t) %}
-  | IDENT STAR         {% \i _ -> Star (Ref i) %}
-  | TERM_LIT STAR      {% \t _ -> Star (Lit t) %}
-  | IDENT QUESTION     {% \i _ -> Opt (Ref i) %}
-  | TERM_LIT QUESTION  {% \t _ -> Opt (Lit t) %}
-  | IDENT LANGLE Args RANGLE  {% \name _ args _ -> Macro name args %}
-  | IDENT ':' Sym             {% \name _ s -> Field name s %}
-  | '(' GroupBody ')'             {% \_ g _ -> Group g %}
-  | '(' GroupBody ')' PLUS        {% \_ g _ _ -> Rep (Group g) %}
-  | '(' GroupBody ')' STAR        {% \_ g _ _ -> Star (Group g) %}
-  | '(' GroupBody ')' QUESTION    {% \_ g _ _ -> Opt (Group g) %}
-  | Atom                          {% \a -> a %}
-  | Atom PLUS                     {% \a _ -> Rep a %}
-  | Atom STAR                     {% \a _ -> Star a %}
-  | Atom QUESTION                 {% \a _ -> Opt a %}
+  : IDENT              {% (c) => ({ tag: "Ref", name: c[0] }) %}
+  | TERM_LIT           {% (c) => ({ tag: "Lit", text: c[0] }) %}
+  | IDENT PLUS         {% (c) => ({ tag: "Rep", sym: { tag: "Ref", name: c[0] } }) %}
+  | TERM_LIT PLUS      {% (c) => ({ tag: "Rep", sym: { tag: "Lit", text: c[0] } }) %}
+  | IDENT STAR         {% (c) => ({ tag: "Star", sym: { tag: "Ref", name: c[0] } }) %}
+  | TERM_LIT STAR      {% (c) => ({ tag: "Star", sym: { tag: "Lit", text: c[0] } }) %}
+  | IDENT QUESTION     {% (c) => ({ tag: "Opt", sym: { tag: "Ref", name: c[0] } }) %}
+  | TERM_LIT QUESTION  {% (c) => ({ tag: "Opt", sym: { tag: "Lit", text: c[0] } }) %}
+  | IDENT LANGLE Args RANGLE  {% (c) => ({ tag: "Macro", name: c[0], args: c[2] }) %}
+  | IDENT ':' Sym             {% (c) => ({ tag: "Field", name: c[0], sym: c[2] }) %}
+  | '(' GroupBody ')'             {% (c) => ({ tag: "Group", alts: c[1] }) %}
+  | '(' GroupBody ')' PLUS        {% (c) => ({ tag: "Rep", sym: { tag: "Group", alts: c[1] } }) %}
+  | '(' GroupBody ')' STAR        {% (c) => ({ tag: "Star", sym: { tag: "Group", alts: c[1] } }) %}
+  | '(' GroupBody ')' QUESTION    {% (c) => ({ tag: "Opt", sym: { tag: "Group", alts: c[1] } }) %}
+  | Atom
+  | Atom PLUS                     {% (c) => ({ tag: "Rep", sym: c[0] }) %}
+  | Atom STAR                      {% (c) => ({ tag: "Star", sym: c[0] }) %}
+  | Atom QUESTION                 {% (c) => ({ tag: "Opt", sym: c[0] }) %}
 ```
 
 ![Railroad diagram for the Sym rule](diagrams/lr/sym.svg)
@@ -218,8 +208,8 @@ The comma-separated argument list of a macro call.
 
 ```gramark
 Args
-  : Sym               {% \s -> [s] %}
-  | Args COMMA Sym    {% \as _ s -> snoc as s %}
+  : Sym               {% (c) => [c[0]] %}
+  | Args COMMA Sym    {% (c) => [...c[0], c[2]] %}
 ```
 
 ![Railroad diagram for the Args rule](diagrams/lr/args.svg)
@@ -228,7 +218,7 @@ Args
 
 ```gramark
 Action
-  : ACTION   {% \a -> Just a %}
+  : ACTION   {% (c) => c[0] %}
 ```
 
 ![Railroad diagram for the Action rule](diagrams/lr/action.svg)
@@ -240,7 +230,7 @@ CST accessors.
 
 ```gramark
 Label
-  : LABEL   {% \l -> Just l %}
+  : LABEL   {% (c) => c[0] %}
 ```
 
 ![Railroad diagram for the Label rule](diagrams/lr/label.svg)
@@ -253,8 +243,8 @@ with these alternatives.
 
 ```gramark
 GroupBody
-  : SymList                  {% \syms -> [syms] %}
-  | GroupBody '|' SymList    {% \alts _ syms -> snoc alts syms %}
+  : SymList                  {% (c) => [c[0]] %}
+  | GroupBody '|' SymList    {% (c) => [...c[0], c[2]] %}
 ```
 
 ![Railroad diagram for the GroupBody rule](diagrams/lr/groupbody.svg)
@@ -267,8 +257,8 @@ grammar's closed terminal alphabet (D-token-ops).
 
 ```gramark
 Atom
-  : '.'             {% \_ -> Any %}
-  | '~' NotArg      {% \_ s -> Not s %}
+  : '.'             {% (c) => ({ tag: "Any" }) %}
+  | '~' NotArg      {% (c) => ({ tag: "Not", set: c[1] }) %}
 ```
 
 ![Railroad diagram for the Atom rule](diagrams/lr/atom.svg)
@@ -277,8 +267,8 @@ Atom
 
 ```gramark
 NotArg
-  : SetItem            {% \i -> [i] %}
-  | '(' SetBody ')'    {% \_ s _ -> s %}
+  : SetItem            {% (c) => [c[0]] %}
+  | '(' SetBody ')'    {% (c) => c[1] %}
 ```
 
 ![Railroad diagram for the NotArg rule](diagrams/lr/notarg.svg)
@@ -287,8 +277,8 @@ NotArg
 
 ```gramark
 SetBody
-  : SetItem               {% \i -> [i] %}
-  | SetBody '|' SetItem   {% \s _ i -> snoc s i %}
+  : SetItem               {% (c) => [c[0]] %}
+  | SetBody '|' SetItem   {% (c) => [...c[0], c[2]] %}
 ```
 
 ![Railroad diagram for the SetBody rule](diagrams/lr/setbody.svg)
@@ -299,8 +289,8 @@ A set element is a single terminal — a token class or a literal.
 
 ```gramark
 SetItem
-  : IDENT      {% \i -> Ref i %}
-  | TERM_LIT   {% \t -> Lit t %}
+  : IDENT      {% (c) => ({ tag: "Ref", name: c[0] }) %}
+  | TERM_LIT   {% (c) => ({ tag: "Lit", text: c[0] }) %}
 ```
 
 ![Railroad diagram for the SetItem rule](diagrams/lr/setitem.svg)

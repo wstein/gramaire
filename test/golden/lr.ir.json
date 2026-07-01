@@ -68,7 +68,7 @@
     "rules": [
       {
         "actions": {
-          "default": "\\rs -> Grammar rs"
+          "default": "\\_ -> (c) => ({ tag: \"Grammar\", rules: c[0] })"
         },
         "id": 0,
         "lhs": 0,
@@ -81,7 +81,7 @@
       },
       {
         "actions": {
-          "default": "\\r -> [r]"
+          "default": "\\_ -> (c) => [c[0]]"
         },
         "id": 1,
         "lhs": 1,
@@ -94,7 +94,7 @@
       },
       {
         "actions": {
-          "default": "\\rs _ r -> snoc rs r"
+          "default": "\\_ _ _ -> (c) => [...c[0], c[2]]"
         },
         "id": 2,
         "lhs": 1,
@@ -115,7 +115,7 @@
       },
       {
         "actions": {
-          "default": "\\attr lhs _ _ alts -> Rule lhs [ attr ] alts"
+          "default": "\\_ _ _ _ _ -> (c) => ({ tag: \"Rule\", name: c[1], attrs: [c[0]], alts: c[4] })"
         },
         "id": 3,
         "lhs": 2,
@@ -144,7 +144,7 @@
       },
       {
         "actions": {
-          "default": "\\lhs _ _ alts -> Rule lhs [] alts"
+          "default": "\\_ _ _ _ -> (c) => ({ tag: \"Rule\", name: c[0], attrs: [], alts: c[3] })"
         },
         "id": 4,
         "lhs": 2,
@@ -169,7 +169,7 @@
       },
       {
         "actions": {
-          "default": "\\a -> [a]"
+          "default": "\\_ -> (c) => [c[0]]"
         },
         "id": 5,
         "lhs": 3,
@@ -182,7 +182,7 @@
       },
       {
         "actions": {
-          "default": "\\bs _ a -> snoc bs a"
+          "default": "\\_ _ _ -> (c) => [...c[0], c[2]]"
         },
         "id": 6,
         "lhs": 3,
@@ -203,7 +203,7 @@
       },
       {
         "actions": {
-          "default": "\\syms lbl act -> Alt syms lbl act"
+          "default": "\\_ _ _ -> (c) => ({ tag: \"Alt\", syms: c[0], label: c[1], action: c[2] })"
         },
         "id": 7,
         "lhs": 4,
@@ -224,7 +224,7 @@
       },
       {
         "actions": {
-          "default": "\\syms lbl -> Alt syms lbl Nothing"
+          "default": "\\_ _ -> (c) => ({ tag: \"Alt\", syms: c[0], label: c[1], action: null })"
         },
         "id": 8,
         "lhs": 4,
@@ -241,7 +241,7 @@
       },
       {
         "actions": {
-          "default": "\\syms act -> Alt syms Nothing act"
+          "default": "\\_ _ -> (c) => ({ tag: \"Alt\", syms: c[0], label: null, action: c[1] })"
         },
         "id": 9,
         "lhs": 4,
@@ -258,7 +258,7 @@
       },
       {
         "actions": {
-          "default": "\\syms -> Alt syms Nothing Nothing"
+          "default": "\\_ -> (c) => ({ tag: \"Alt\", syms: c[0], label: null, action: null })"
         },
         "id": 10,
         "lhs": 4,
@@ -271,7 +271,7 @@
       },
       {
         "actions": {
-          "default": "\\s -> [s]"
+          "default": "\\_ -> (c) => [c[0]]"
         },
         "id": 11,
         "lhs": 5,
@@ -284,7 +284,7 @@
       },
       {
         "actions": {
-          "default": "\\ss s -> snoc ss s"
+          "default": "\\_ _ -> (c) => [...c[0], c[1]]"
         },
         "id": 12,
         "lhs": 5,
@@ -301,7 +301,7 @@
       },
       {
         "actions": {
-          "default": "\\i -> Ref i"
+          "default": "\\_ -> (c) => ({ tag: \"Ref\", name: c[0] })"
         },
         "id": 13,
         "lhs": 6,
@@ -314,7 +314,7 @@
       },
       {
         "actions": {
-          "default": "\\t -> Lit t"
+          "default": "\\_ -> (c) => ({ tag: \"Lit\", text: c[0] })"
         },
         "id": 14,
         "lhs": 6,
@@ -327,7 +327,7 @@
       },
       {
         "actions": {
-          "default": "\\i _ -> Rep (Ref i)"
+          "default": "\\_ _ -> (c) => ({ tag: \"Rep\", sym: { tag: \"Ref\", name: c[0] } })"
         },
         "id": 15,
         "lhs": 6,
@@ -344,7 +344,7 @@
       },
       {
         "actions": {
-          "default": "\\t _ -> Rep (Lit t)"
+          "default": "\\_ _ -> (c) => ({ tag: \"Rep\", sym: { tag: \"Lit\", text: c[0] } })"
         },
         "id": 16,
         "lhs": 6,
@@ -361,7 +361,7 @@
       },
       {
         "actions": {
-          "default": "\\i _ -> Star (Ref i)"
+          "default": "\\_ _ -> (c) => ({ tag: \"Star\", sym: { tag: \"Ref\", name: c[0] } })"
         },
         "id": 17,
         "lhs": 6,
@@ -378,7 +378,7 @@
       },
       {
         "actions": {
-          "default": "\\t _ -> Star (Lit t)"
+          "default": "\\_ _ -> (c) => ({ tag: \"Star\", sym: { tag: \"Lit\", text: c[0] } })"
         },
         "id": 18,
         "lhs": 6,
@@ -395,7 +395,7 @@
       },
       {
         "actions": {
-          "default": "\\i _ -> Opt (Ref i)"
+          "default": "\\_ _ -> (c) => ({ tag: \"Opt\", sym: { tag: \"Ref\", name: c[0] } })"
         },
         "id": 19,
         "lhs": 6,
@@ -412,7 +412,7 @@
       },
       {
         "actions": {
-          "default": "\\t _ -> Opt (Lit t)"
+          "default": "\\_ _ -> (c) => ({ tag: \"Opt\", sym: { tag: \"Lit\", text: c[0] } })"
         },
         "id": 20,
         "lhs": 6,
@@ -429,7 +429,7 @@
       },
       {
         "actions": {
-          "default": "\\name _ args _ -> Macro name args"
+          "default": "\\_ _ _ _ -> (c) => ({ tag: \"Macro\", name: c[0], args: c[2] })"
         },
         "id": 21,
         "lhs": 6,
@@ -454,7 +454,7 @@
       },
       {
         "actions": {
-          "default": "\\name _ s -> Field name s"
+          "default": "\\_ _ _ -> (c) => ({ tag: \"Field\", name: c[0], sym: c[2] })"
         },
         "id": 22,
         "lhs": 6,
@@ -475,7 +475,7 @@
       },
       {
         "actions": {
-          "default": "\\_ g _ -> Group g"
+          "default": "\\_ _ _ -> (c) => ({ tag: \"Group\", alts: c[1] })"
         },
         "id": 23,
         "lhs": 6,
@@ -496,7 +496,7 @@
       },
       {
         "actions": {
-          "default": "\\_ g _ _ -> Rep (Group g)"
+          "default": "\\_ _ _ _ -> (c) => ({ tag: \"Rep\", sym: { tag: \"Group\", alts: c[1] } })"
         },
         "id": 24,
         "lhs": 6,
@@ -521,7 +521,7 @@
       },
       {
         "actions": {
-          "default": "\\_ g _ _ -> Star (Group g)"
+          "default": "\\_ _ _ _ -> (c) => ({ tag: \"Star\", sym: { tag: \"Group\", alts: c[1] } })"
         },
         "id": 25,
         "lhs": 6,
@@ -546,7 +546,7 @@
       },
       {
         "actions": {
-          "default": "\\_ g _ _ -> Opt (Group g)"
+          "default": "\\_ _ _ _ -> (c) => ({ tag: \"Opt\", sym: { tag: \"Group\", alts: c[1] } })"
         },
         "id": 26,
         "lhs": 6,
@@ -570,9 +570,7 @@
         ]
       },
       {
-        "actions": {
-          "default": "\\a -> a"
-        },
+        "actions": {},
         "id": 27,
         "lhs": 6,
         "rhs": [
@@ -584,7 +582,7 @@
       },
       {
         "actions": {
-          "default": "\\a _ -> Rep a"
+          "default": "\\_ _ -> (c) => ({ tag: \"Rep\", sym: c[0] })"
         },
         "id": 28,
         "lhs": 6,
@@ -601,7 +599,7 @@
       },
       {
         "actions": {
-          "default": "\\a _ -> Star a"
+          "default": "\\_ _ -> (c) => ({ tag: \"Star\", sym: c[0] })"
         },
         "id": 29,
         "lhs": 6,
@@ -618,7 +616,7 @@
       },
       {
         "actions": {
-          "default": "\\a _ -> Opt a"
+          "default": "\\_ _ -> (c) => ({ tag: \"Opt\", sym: c[0] })"
         },
         "id": 30,
         "lhs": 6,
@@ -635,7 +633,7 @@
       },
       {
         "actions": {
-          "default": "\\s -> [s]"
+          "default": "\\_ -> (c) => [c[0]]"
         },
         "id": 31,
         "lhs": 7,
@@ -648,7 +646,7 @@
       },
       {
         "actions": {
-          "default": "\\as _ s -> snoc as s"
+          "default": "\\_ _ _ -> (c) => [...c[0], c[2]]"
         },
         "id": 32,
         "lhs": 7,
@@ -669,7 +667,7 @@
       },
       {
         "actions": {
-          "default": "\\a -> Just a"
+          "default": "\\_ -> (c) => c[0]"
         },
         "id": 33,
         "lhs": 8,
@@ -682,7 +680,7 @@
       },
       {
         "actions": {
-          "default": "\\l -> Just l"
+          "default": "\\_ -> (c) => c[0]"
         },
         "id": 34,
         "lhs": 9,
@@ -695,7 +693,7 @@
       },
       {
         "actions": {
-          "default": "\\syms -> [syms]"
+          "default": "\\_ -> (c) => [c[0]]"
         },
         "id": 35,
         "lhs": 10,
@@ -708,7 +706,7 @@
       },
       {
         "actions": {
-          "default": "\\alts _ syms -> snoc alts syms"
+          "default": "\\_ _ _ -> (c) => [...c[0], c[2]]"
         },
         "id": 36,
         "lhs": 10,
@@ -729,7 +727,7 @@
       },
       {
         "actions": {
-          "default": "\\_ -> Any"
+          "default": "\\_ -> (c) => ({ tag: \"Any\" })"
         },
         "id": 37,
         "lhs": 11,
@@ -742,7 +740,7 @@
       },
       {
         "actions": {
-          "default": "\\_ s -> Not s"
+          "default": "\\_ _ -> (c) => ({ tag: \"Not\", set: c[1] })"
         },
         "id": 38,
         "lhs": 11,
@@ -759,7 +757,7 @@
       },
       {
         "actions": {
-          "default": "\\i -> [i]"
+          "default": "\\_ -> (c) => [c[0]]"
         },
         "id": 39,
         "lhs": 12,
@@ -772,7 +770,7 @@
       },
       {
         "actions": {
-          "default": "\\_ s _ -> s"
+          "default": "\\_ _ _ -> (c) => c[1]"
         },
         "id": 40,
         "lhs": 12,
@@ -793,7 +791,7 @@
       },
       {
         "actions": {
-          "default": "\\i -> [i]"
+          "default": "\\_ -> (c) => [c[0]]"
         },
         "id": 41,
         "lhs": 13,
@@ -806,7 +804,7 @@
       },
       {
         "actions": {
-          "default": "\\s _ i -> snoc s i"
+          "default": "\\_ _ _ -> (c) => [...c[0], c[2]]"
         },
         "id": 42,
         "lhs": 13,
@@ -827,7 +825,7 @@
       },
       {
         "actions": {
-          "default": "\\i -> Ref i"
+          "default": "\\_ -> (c) => ({ tag: \"Ref\", name: c[0] })"
         },
         "id": 43,
         "lhs": 14,
@@ -840,7 +838,7 @@
       },
       {
         "actions": {
-          "default": "\\t -> Lit t"
+          "default": "\\_ -> (c) => ({ tag: \"Lit\", text: c[0] })"
         },
         "id": 44,
         "lhs": 14,

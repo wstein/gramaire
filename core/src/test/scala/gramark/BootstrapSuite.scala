@@ -28,7 +28,13 @@ class BootstrapSuite extends munit.FunSuite:
     )
   }
 
-  test("every alternative in Sym has a semantic action string") {
+  test("every alternative in Sym has a semantic action string, except the Atom passthrough") {
     val symRule = Bootstrap.bootstrapGrammar.rules.find(_.name == "Sym").get
-    assert(symRule.alts.forall(_.action.isDefined))
+    val (withAction, actionless) = symRule.alts.partition(_.action.isDefined)
+    assertEquals(withAction.length, 17)
+    assertEquals(
+      actionless.map(_.syms),
+      Vector(Vector(Sym.Ref("Atom"))),
+      "the single-symbol `Sym : Atom` alternative relies on default passthrough, not a real action"
+    )
   }
