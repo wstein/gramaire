@@ -1,10 +1,9 @@
 # Gramark — brand
 
 > Regenerated from the Claude Design handoff ("Gramark branding enhancement").
-> The live site is the source of truth: tokens in
-> [site/src/styles/custom.css](../site/src/styles/custom.css), the mark and
-> wordmark as components in
-> [site/src/components/](../site/src/components/). The static assets in
+> This document is the source of truth (the Astro site that used to host the
+> live tokens and mark/wordmark components has been removed; a rebuild should
+> re-derive them from the specs below). The static assets in
 > [brand/](../brand/) are for READMEs and social tiles.
 
 ## The idea
@@ -31,7 +30,7 @@ Theme-aware: the ink (tracks, dots, node outline) flips with the theme
 white-knockout variant is used only on the filled emerald app/social tile
 (node fill goes transparent). The node is deliberately large so the favicon
 reads cleanly at 16/32/48 px. See
-[GramarkMark.astro](../site/src/components/GramarkMark.astro).
+[brand/gramark-logomark.svg](../brand/gramark-logomark.svg).
 
 ## Wordmark — "Gramark"
 
@@ -49,14 +48,14 @@ letter-spacing: -0.04em;
 /* "ark" */ color: var(--accent);
 ```
 
-See [GramarkWordmark.astro](../site/src/components/GramarkWordmark.astro).
+See [brand/gramark-wordmark.svg](../brand/gramark-wordmark.svg).
 Sanctioned alternates (documented in the brand book) are `03 · Rule node` and
 `05 · Fork rail`.
 
 ## Color
 
-Full token system (light / dark) lives in
-[custom.css](../site/src/styles/custom.css). The essentials:
+The full token system (light / dark) is specified below for a future site
+rebuild to implement. The essentials:
 
 | Role         | Light     | Dark      | Use                                    |
 | ------------ | --------- | --------- | -------------------------------------- |
