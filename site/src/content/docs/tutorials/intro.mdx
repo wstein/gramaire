@@ -241,41 +241,48 @@ full Lab to see the parse tree, the trace, and the conflict analysis:
 
 ## 6. From recognition to a value
 
-A recognizer throws its work away. To keep it — to build a number, or an AST —
-attach an **action** between `{%` and `%}`. Left untagged, an action defaults
-to a positional lambda-binder convention — one parameter per right-hand
-symbol, in source order:
+A recognizer alone is already a complete grammar — with no actions at all it
+still fully defines the recognized language and the concrete syntax tree
+(CST) any backend can walk; that's what Section 5 just proved. To turn that
+CST into a value instead — a number, an AST — declare the language your
+actions are written in with a document-level `%lang`, then attach an
+**action** between `{%` and `%}`. This is exactly the grammar the live editor
+above already runs:
 
 ```gramaire
+%lang javascript
+
 Expr
-  : Expr '+' Term   {% \l _ r -> Add l r %}
-  | Expr '-' Term   {% \l _ r -> Sub l r %}
-  | Term            {% \t -> t %}
+  : Expr '+' Term   {% (c) => c.expr + c.term %}
+  | Expr '-' Term   {% (c) => c.expr - c.term %}
+  | Term
 ```
 
-Actions are **positional**: one parameter per right-hand symbol, left to right.
-In `Expr '+' Term` the three parameters are the left value, the `+` token (which
-we discard with `_`), and the right value.
+Without a declared `%lang`, `{% … %}` text is carried through as opaque,
+unexecuted payload — a grammar with actions but no declared language doesn't
+get an implicit interpreter.
+
+An action receives its children as a single **namedtuple** `c`: an array read
+by index (`c[0]`, `c[2]`), or by field for a named right-hand position
+(`c.term`). A position with no explicit `name:` is still auto-named by its
+symbol when that symbol occurs once in the rule — `Term` → `c.term`, `Expr` →
+`c.expr`.
 
 <Aside title="From CST to AST">
   The parser first builds a <Term name="cst">concrete syntax tree</Term> — every
   token it matched, the `+` and the parentheses included. Your actions project
-  that onto the <Term name="ast">abstract syntax tree</Term> you actually want:
-  `\l _ r -> Add l r` keeps the two operands and drops the `+`; `'(' Expr ')'`
-  returns the inner `Expr` and drops both brackets. Same recognized language,
-  smaller tree.
+  that onto the value you actually want: `(c) => c.expr + c.term` keeps the two
+  operands and drops the `+`; `Factor : '(' Expr ')'` returns the inner
+  `Expr`'s value and drops both brackets (`(c) => c.expr`). Same recognized
+  language, a value instead of a tree.
 </Aside>
 
-If you name your fields, you can skip the lambda entirely — a **bare body** binds
-the field names for you:
+If you name your fields, you can destructure instead of indexing:
 
 ```gramaire
 Expr
-  : left:Expr '+' right:Term   {% Add left right %}
+  : left:Expr '+' right:Term   {% ({ left, right }) => left + right %}
 ```
-
-Gramaire rewrites that to `\left _ right -> Add left right`, so the action reads
-in terms of your grammar, not positions.
 
 <Aside title="Actions are data, backends are consumers">
   Actions are carried verbatim into the [IR](../../specs/ir-schema/); each
