@@ -13,6 +13,8 @@ import {
   getDefaultInput,
 } from "./gramaire-runtime.ts";
 import { renderDiagrams } from "./diagrams.ts";
+import { SHOWCASE, DIGIT, LIST, CALC } from "./demo-grammars.ts";
+import { labGrammarHref, readLabLink } from "./lab-link.ts";
 
 const jsonGrammar = readFileSync(
   fileURLToPath(new URL("../../../examples/json.gram.md", import.meta.url)),
@@ -143,4 +145,57 @@ test("renderDiagrams draws one railroad SVG per rule of the default grammar", ()
   );
   assert.match(diags[0]!.svg, /^<svg/);
   assert.match(diags[0]!.svg, /Railroad diagram for the Expr rule/);
+});
+
+// --- Page seeds: the Landing showcase and Tutorial live editors must never
+// ship an empty/broken panel, so prove each seed parses and draws on the real
+// engine before it reaches a page.
+
+test("the Landing showcase grammar parses and draws a railroad per rule", async () => {
+  const result = await parseGramaireDocument(SHOWCASE, "");
+  assert.deepEqual(result.rules, ["Expr", "Term"]);
+  const diags = renderDiagrams(SHOWCASE, result.rules);
+  assert.deepEqual(
+    diags.map((d) => d.name),
+    ["Expr", "Term"],
+  );
+  assert.match(diags[0]!.svg, /^<svg/);
+});
+
+test("the Tutorial §1 Digit seed draws with no input", async () => {
+  const result = await parseGramaireDocument(DIGIT, "");
+  assert.deepEqual(result.rules, ["Digit"]);
+  assert.match(renderDiagrams(DIGIT, result.rules)[0]!.svg, /^<svg/);
+});
+
+test("the Tutorial §3 List seed accepts a comma-separated list", async () => {
+  // Literal-only grammar (no WS %skip token class), so the fallback lexer does
+  // not skip whitespace — the sample is unspaced, which is what the tutorial
+  // seeds too. Token classes (and skippable WS) arrive in §4.
+  const result = await parseGramaireDocument(LIST, "item,item,item");
+  assert.equal(result.success, true);
+  assert.deepEqual(result.tokens, ["item", ",", "item", ",", "item"]);
+});
+
+test("the Tutorial §4 Calc seed evaluates its actions", async () => {
+  const result = await parseGramaireDocument(CALC, "2 + 3 * 4");
+  assert.equal(result.success, true);
+  const evaluate = new Function(
+    result.evalJs.replace(/export\s+function\s+evaluate/, "function evaluate") +
+      "\nreturn evaluate;",
+  )();
+  assert.equal(evaluate(JSON.parse(result.cstJson)), 14);
+});
+
+test("lab-link round-trips a grammar + input through the URL hash", () => {
+  const href = labGrammarHref("/", CALC, "2 + 3 * 4");
+  const hash = href.slice(href.indexOf("#"));
+  const link = readLabLink({ hash, search: "" });
+  assert.equal(link.grammar, CALC);
+  assert.equal(link.input, "2 + 3 * 4");
+});
+
+test("lab-link reads a named preset from the query string", () => {
+  const link = readLabLink({ hash: "", search: "?grammar=calc" });
+  assert.equal(link.preset, "calc");
 });
