@@ -169,8 +169,8 @@ raw state numbers.
 Source-emitting codegen is real, in both languages the self-hosting proof has
 run through: the `lr` grammar's `reduce` is **generated** from the IR plus a
 typed-AST profile, and a generated-reduce oracle proves the parser it drives
-still reconstructs `bootstrapGrammar` — first in PureScript during the
-migration, now natively in Scala
+still reconstructs `bootstrapGrammar` — first in the prior reference
+implementation during the migration, now natively in Scala
 ([`CodegenScala.scala`](core/src/main/scala/gramark/CodegenScala.scala) →
 [`generated/LrReduce.scala`](core/src/main/scala/gramark/generated/LrReduce.scala)).
 
