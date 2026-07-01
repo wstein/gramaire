@@ -1,0 +1,116 @@
+package gramaire
+
+import ConformanceLexers.Lexer
+
+// Ported from test/Test/Ll.purs: the Phase 1 LR-parity gate for the
+// ALL(*) port — `Ll.recognize` must accept exactly what the LR path
+// does, for both non-left-recursive grammars and (Phase 2) the
+// left-recursive `lr` bootstrap corpus. The calc-corpus check (needs
+// examples/calc.gram.md) lives in the JVM-only ConformanceSuite instead.
+class LlSuite extends munit.FunSuite:
+
+  private final case class Vec(input: String, expect: Boolean)
+  private final case class Case(name: String, grammar: String, vectors: Vector[Vec])
+
+  private val cases: Vector[Case] = Vector(
+    Case(
+      "balanced nesting (recursive, two alts)",
+      "```gramaire\nS\n  : '(' S ')'\n  | 'x'\n```\n",
+      Vector(
+        Vec("x", true),
+        Vec("(x)", true),
+        Vec("((x))", true),
+        Vec("(x", false),
+        Vec("x)", false),
+        Vec("()", false),
+        Vec("", false)
+      )
+    ),
+    Case(
+      "right-recursive one-or-more list",
+      "```gramaire\nL\n  : 'a' L\n  | 'a'\n```\n",
+      Vector(Vec("a", true), Vec("aaa", true), Vec("", false), Vec("b", false), Vec("ab", false))
+    ),
+    Case(
+      "LL(3) decision — alts share a two-token prefix",
+      "```gramaire\nS\n  : 'a' 'b' 'c'\n  | 'a' 'b' 'd'\n  | 'x'\n```\n",
+      Vector(
+        Vec("abc", true),
+        Vec("abd", true),
+        Vec("x", true),
+        Vec("ab", false),
+        Vec("abe", false),
+        Vec("abcd", false)
+      )
+    ),
+    Case(
+      "rule call whose tail belongs to the caller",
+      "```gramaire\nA\n  : B 'z'\n\nB\n  : 'a' 'b'\n  | 'a'\n```\n",
+      Vector(Vec("abz", true), Vec("az", true), Vec("a", false), Vec("abc", false))
+    ),
+    Case(
+      "direct left recursion — classic expression grammar (Phase 2)",
+      "```gramaire\nE\n  : E '+' T\n  | E '-' T\n  | T\n\nT\n  : T '*' F\n  | F\n\nF\n  : '(' E ')'\n  | 'n'\n```\n",
+      Vector(
+        Vec("n", true),
+        Vec("n+n", true),
+        Vec("n+n*n", true),
+        Vec("n-n-n", true),
+        Vec("(n+n)*n", true),
+        Vec("n+", false),
+        Vec("+n", false),
+        Vec("(n+n", false),
+        Vec("n n", false),
+        Vec("", false)
+      )
+    )
+  )
+
+  private def runVector(name: String, g: Grammar, lexer: Lexer, v: Vec): Unit =
+    val lrAccepts = Conformance.recognize(lexer, Method.Canonical, g, v.input) == Outcome.Accept
+    assertEquals(lrAccepts, v.expect, s"$name / LR ${v.input}: expected ${v.expect}")
+    lexer(v.input) match
+      case Left(_) =>
+        assert(!v.expect, s"$name / LL ${v.input}: lex failed but LR expected ${v.expect}")
+      case Right(toks) =>
+        val llAccepts = Ll.recognize(g, toks)
+        assertEquals(
+          llAccepts,
+          v.expect,
+          s"$name / LL ${v.input}: expected ${v.expect}, got $llAccepts"
+        )
+
+  private def runCase(c: Case): Unit =
+    Lr.parse(c.grammar) match
+      case Left(e) => fail(s"${c.name}: grammar should parse: $e")
+      case Right(g) =>
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        c.vectors.foreach(runVector(c.name, g, lexer, _))
+
+  // Run a corpus through the LL recognizer, asserting each vector's
+  // expectation (which the LR oracle already meets, per Conformance).
+  private def runCorpus(
+      label: String,
+      g: Grammar,
+      lexer: Lexer,
+      vectors: Vector[TestVector]
+  ): Unit =
+    vectors.foreach { v =>
+      val want = v.expect == Outcome.Accept
+      lexer(v.input) match
+        case Left(_) => assert(!want, s"$label / ${v.name}: lex failed but expected accept")
+        case Right(toks) =>
+          assertEquals(
+            Ll.recognize(g, toks),
+            want,
+            s"$label / ${v.name}: ${v.input} expected ${v.expect}"
+          )
+    }
+
+  test("top-down ALL(*) prediction matches the LR oracle (incl. left recursion)") {
+    cases.foreach(runCase)
+  }
+
+  test("the left-recursive `lr` bootstrap corpus parses top-down (Phase 2)") {
+    runCorpus("lr", Bootstrap.bootstrapGrammar, ConformanceLexers.lrLexer, Conformance.lrVectors)
+  }
