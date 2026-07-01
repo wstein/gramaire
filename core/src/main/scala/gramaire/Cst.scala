@@ -24,7 +24,7 @@ object Cst:
   // Mirrors PureScript's `Show String` (quote + escape) — a golden-format
   // contract, not just debug convenience, so it is spelled out explicitly
   // rather than relying on Scala's derived `toString`.
-  private def showString(s: String): String =
+  def showString(s: String): String =
     val sb = StringBuilder("\"")
     s.foreach {
       case '"'  => sb.append("\\\"")
