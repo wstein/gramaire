@@ -12,6 +12,10 @@ export default defineConfig({
     starlight({
       title: "Gramaire",
       description: "Grammars that render themselves.",
+      // Wire the brand favicon into every Starlight page (the standalone
+      // landing and Lab set their own <link>). `fileWithBase` inside Starlight
+      // prepends the deploy base, so this still resolves under `/gramaire/` in CI.
+      favicon: "/favicon.svg",
       // `gramaire` (Gramaire's production blocks) has no Shiki grammar; render
       // it as plain monospace text — matching how GitHub shows the same fences.
       expressiveCode: { shiki: { langAlias: { gramaire: "text" } } },
