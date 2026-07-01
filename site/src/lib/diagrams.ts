@@ -74,7 +74,11 @@ export function renderDiagrams(
     try {
       out.push({
         name,
-        svg: linkNonterminals(renderSvg(parseProduction(content, nts))),
+        // Themed: the SVG is injected inline, so its `--rr-*` inks inherit the
+        // page's emerald tokens and flip in dark mode (custom.css maps them).
+        svg: linkNonterminals(
+          renderSvg(parseProduction(content, nts), { themed: true }),
+        ),
       });
     } catch {
       // skip a rule the railroad renderer can't parse

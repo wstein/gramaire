@@ -124,16 +124,37 @@ function escXml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-const STYLE =
+// Two palettes share the same class names. `fixed` bakes the light-theme hex
+// values — used by the CLI's committed sidecar SVGs so they render identically
+// on GitHub (and keeps the drift goldens stable). `themed` routes every ink
+// through a `--rr-*` CSS custom property with the fixed value as fallback, so
+// an inline SVG inherits the page's theme (the site maps `--rr-*` to its
+// emerald tokens, which flip in dark mode); without those vars it degrades to
+// the same light palette. The renderer owns the `--rr-*` names; the site owns
+// their values.
+const font = `${FS}px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace`;
+const STYLE_FIXED =
   `.rr-track{fill:none;stroke:#6B7280;stroke-width:2}` +
   `.rr-term{fill:#fff;stroke:#15B879;stroke-width:2}` +
   `.rr-nonterm{fill:#F5F6F3;stroke:#16181D;stroke-width:2}` +
-  `.rr-text{fill:#16181D;font:${FS}px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}` +
+  `.rr-text{fill:#16181D;font:${font}}` +
   `.rr-cap{fill:#16181D}`;
+const STYLE_THEMED =
+  `.rr-track{fill:none;stroke:var(--rr-track,#6B7280);stroke-width:2}` +
+  `.rr-term{fill:var(--rr-term-fill,#fff);stroke:var(--rr-term-stroke,#15B879);stroke-width:2}` +
+  `.rr-nonterm{fill:var(--rr-nonterm-fill,#F5F6F3);stroke:var(--rr-ink,#16181D);stroke-width:2}` +
+  `.rr-text{fill:var(--rr-ink,#16181D);font:${font}}` +
+  `.rr-cap{fill:var(--rr-ink,#16181D)}`;
 
 // ---- SVG renderer ----------------------------------------------------------
 
-export function renderSvg(prod: Production): string {
+export interface SvgOptions {
+  /** Route ink through `--rr-*` CSS vars so an inline SVG follows the page
+   * theme. Off by default (the CLI writes fixed-palette files). */
+  readonly themed?: boolean;
+}
+
+export function renderSvg(prod: Production, opts: SvgOptions = {}): string {
   const alts = prod.alts.length ? prod.alts : [[]];
   const altWidth = (a: readonly DiaSym[]): number =>
     a.reduce((w, s, idx) => w + boxWidth(s.label) + (idx > 0 ? GAP : 0), 0);
@@ -216,7 +237,7 @@ export function renderSvg(prod: Production): string {
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" ` +
     `viewBox="0 0 ${width} ${height}" role="img" ` +
     `aria-label="Railroad diagram for the ${escXml(prod.name)} rule">` +
-    `<style>${STYLE}</style>${p.join("")}</svg>\n`
+    `<style>${opts.themed ? STYLE_THEMED : STYLE_FIXED}</style>${p.join("")}</svg>\n`
   );
 }
 
