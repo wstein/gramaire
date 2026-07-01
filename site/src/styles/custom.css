@@ -164,6 +164,19 @@ samp {
   background: color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
+/* Respect a reduced-motion preference across the whole site — the theme-switch
+   knob slide, the diagram flash/zoom, and any transition drop to instant. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 .site-title {
   font-weight: 700;
   letter-spacing: -0.02em;

@@ -450,6 +450,15 @@ const TABS = [
         font-family: var(--font-mono);
         font-size: 0.8rem;
       }
+      .cst-head:focus-visible,
+      .cst-leaf:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        border-radius: 3px;
+      }
+      .cst-tree:focus {
+        outline: none;
+      }
       .cst-term {
         color: var(--t-term);
       }
@@ -523,6 +532,9 @@ const TABS = [
         lrStep: 0,
         result: null as Result | null,
       };
+      // The CST tree-path last focused, so keyboard nav survives the re-render
+      // that an expand/collapse triggers.
+      let treeFocusPath: string | null = null;
 
       // Preload from an Open-in-Lab link (private hash or ?grammar= preset).
       const link = readLabLink(window.location);
@@ -664,7 +676,8 @@ const TABS = [
             return `<p class="muted">no tree (input rejected)</p>`;
           const node = JSON.parse(r.cstJson) as Cst;
           const tree = renderCstHtml(node, r.prodLhs, state.collapsed);
-          return `<button type="button" class="btn-sm" id="copy-lisp">copy LISP</button>${tree}`;
+          return `<button type="button" class="btn-sm" id="copy-lisp">copy LISP</button>
+            <div class="cst-tree" role="tree" aria-label="Parse tree">${tree}</div>`;
         },
         "Parse trace"(r) {
           return r.trace
@@ -769,15 +782,83 @@ const TABS = [
         }
 
         if (state.tab === "Parse tree") {
-          bodyEl.querySelectorAll<HTMLElement>(".cst-head").forEach((h) =>
-            h.addEventListener("click", () => {
-              const p = h.dataset.path!;
-              state.collapsed.has(p)
-                ? state.collapsed.delete(p)
-                : state.collapsed.add(p);
-              renderTab();
-            }),
-          );
+          const tree = bodyEl.querySelector<HTMLElement>(".cst-tree");
+          const items = () =>
+            tree
+              ? [...tree.querySelectorAll<HTMLElement>('[role="treeitem"]')]
+              : [];
+          const setFocus = (el?: HTMLElement) => {
+            if (!el) return;
+            items().forEach((i) => (i.tabIndex = -1));
+            el.tabIndex = 0;
+            el.focus();
+            treeFocusPath = el.dataset.path ?? null;
+          };
+          const toggle = (p: string) => {
+            state.collapsed.has(p)
+              ? state.collapsed.delete(p)
+              : state.collapsed.add(p);
+            treeFocusPath = p;
+            renderTab(); // rebuilds the tab; focus is restored below on re-entry
+          };
+          // Restore the roving tabstop after a re-render (or seed the first
+          // node as the single tabbable entry point).
+          const list0 = items();
+          const restore = list0.find((i) => i.dataset.path === treeFocusPath);
+          if (restore) {
+            list0.forEach((i) => (i.tabIndex = -1));
+            restore.tabIndex = 0;
+            if (tree?.contains(document.activeElement)) restore.focus();
+          } else if (list0[0]) list0[0].tabIndex = 0;
+
+          bodyEl
+            .querySelectorAll<HTMLElement>(".cst-head")
+            .forEach((h) =>
+              h.addEventListener("click", () => toggle(h.dataset.path!)),
+            );
+
+          // ARIA tree keyboard model: ↑/↓ move, →/← expand/collapse (or move),
+          // Enter/Space toggle.
+          tree?.addEventListener("keydown", (e) => {
+            const list = items();
+            const cur = (
+              document.activeElement as HTMLElement | null
+            )?.closest<HTMLElement>('[role="treeitem"]');
+            let idx = cur ? list.indexOf(cur) : 0;
+            if (idx < 0) idx = 0;
+            const el = list[idx];
+            const expanded = el?.getAttribute("aria-expanded");
+            switch (e.key) {
+              case "ArrowDown":
+                e.preventDefault();
+                setFocus(list[Math.min(idx + 1, list.length - 1)]);
+                break;
+              case "ArrowUp":
+                e.preventDefault();
+                setFocus(list[Math.max(idx - 1, 0)]);
+                break;
+              case "ArrowRight":
+                e.preventDefault();
+                if (expanded === "false" && el?.dataset.path)
+                  toggle(el.dataset.path);
+                else setFocus(list[Math.min(idx + 1, list.length - 1)]);
+                break;
+              case "ArrowLeft":
+                e.preventDefault();
+                if (expanded === "true" && el?.dataset.path)
+                  toggle(el.dataset.path);
+                else setFocus(list[Math.max(idx - 1, 0)]);
+                break;
+              case "Enter":
+              case " ":
+                if (expanded != null && el?.dataset.path) {
+                  e.preventDefault();
+                  toggle(el.dataset.path);
+                }
+                break;
+            }
+          });
+
           $("copy-lisp")?.addEventListener("click", (e) => {
             const btn = e.currentTarget as HTMLButtonElement;
             navigator.clipboard
