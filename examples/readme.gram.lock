@@ -1,36 +1,36 @@
 {
   "version": 1,
   "mode": "sidecar",
-  "grammarSha256": "446f7892db736d5ff2f1ce6a5a3e5d58ddde9386c25b240b4528fca03f625ae2",
+  "grammarSha256": "ea27c977e375a56dd3289983ebb5e8331d4a40580066dc4054cff3f0db734c8b",
   "artifacts": [
     {
       "kind": "railroad",
       "nonterminal": "Readme",
       "path": "diagrams/readme/readme.svg",
-      "sourceSha256": "d60fd6f351355f6e0a7e6bc2229d1fc4cea7d67a89543c2ff77d74196e46ceb4"
+      "sourceSha256": "9a9b6192472121c8b2c705366d4120dac25122ae32eb3f98f5342c4f9868c305"
     },
     {
       "kind": "railroad",
       "nonterminal": "SentenceList",
       "path": "diagrams/readme/sentencelist.svg",
-      "sourceSha256": "c406306efdb41b94c841acdb076910ea9c566b58f549a5e7128f9ca0f0d394f1"
+      "sourceSha256": "eb478cbfb1f8818141fe82c888c5c819bd0977a45012940e4bf9783f1e451707"
     },
     {
       "kind": "railroad",
       "nonterminal": "Sentence",
       "path": "diagrams/readme/sentence.svg",
-      "sourceSha256": "a8816bf3e4c4fb6835aa96f29fb2732b755b354e92c62c61110079acf0765001"
+      "sourceSha256": "3965c2e09b25a962f06d475f512c3bb098e0b05a82201c8087839fea84820fa8"
     },
     {
       "kind": "railroad",
       "nonterminal": "Words",
       "path": "diagrams/readme/words.svg",
-      "sourceSha256": "be5f7eef314e94ab0767ea0bd3f5ce7d8175a0d4a4a12d93635cc368f078fe18"
+      "sourceSha256": "bc96fb69ed91f7e633ea05c94d998589451128bbe80a242a6bb6146e09a53590"
     },
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "446f7892db736d5ff2f1ce6a5a3e5d58ddde9386c25b240b4528fca03f625ae2"
+      "sourceSha256": "ea27c977e375a56dd3289983ebb5e8331d4a40580066dc4054cff3f0db734c8b"
     }
   ]
 }

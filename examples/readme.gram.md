@@ -13,18 +13,18 @@ This particular grammar describes its own teaser. Its language is the set
 of period-terminated sentences — which is exactly the shape of the text
 you have been reading. So the claim "the documentation is the grammar" is
 not a slogan here; it is the start symbol. This file checks green: run
-`node bootstrap/gramaire-check.ts examples/readme.gram.md` and watch the
-structure, drift, and lint gates pass.
+`gramaire check examples/readme.gram.md` and watch the structure, drift,
+and lint gates pass.
 
-Semantic actions build this AST (the target Scala shapes):
+Semantic actions build this AST as plain tagged JS objects: `{ tag:
+"Readme", sentences }`, `{ tag: "Sentence", words }` — each a plain array,
+in reading order.
 
-```scala
-final case class Readme(sentences: Vector[Sentence]) // the pitch, in order
-final case class Sentence(words: Vector[String])     // the words before the `.`
+## General settings
+
+```gramaire settings
+%lang javascript
 ```
-
-The helper `snoc` appends to a `Vector`; the lexer class `WORD` carries
-one word of the prose.
 
 ## Readme
 
@@ -32,7 +32,7 @@ A readme is the whole pitch: a non-empty run of sentences.
 
 ```gramaire
 Readme
-  : SentenceList    {% \ss -> Readme ss %}
+  : SentenceList    {% (c) => ({ tag: "Readme", sentences: c.sentencelist }) %}
 ```
 
 ![Railroad diagram for the Readme rule](diagrams/readme/readme.svg)
@@ -43,8 +43,8 @@ Left recursion accumulates sentences in reading order.
 
 ```gramaire
 SentenceList
-  : Sentence                  {% \s -> [s] %}
-  | SentenceList Sentence     {% \ss s -> snoc ss s %}
+  : Sentence                  {% (c) => [c.sentence] %}
+  | SentenceList Sentence     {% (c) => [...c.sentencelist, c.sentence] %}
 ```
 
 ![Railroad diagram for the SentenceList rule](diagrams/readme/sentencelist.svg)
@@ -57,7 +57,7 @@ one.
 
 ```gramaire
 Sentence
-  : Words '.'    {% \ws _ -> Sentence ws %}
+  : Words '.'    {% (c) => ({ tag: "Sentence", words: c.words }) %}
 ```
 
 ![Railroad diagram for the Sentence rule](diagrams/readme/sentence.svg)
@@ -66,8 +66,8 @@ Sentence
 
 ```gramaire
 Words
-  : WORD          {% \w -> [w] %}
-  | Words WORD    {% \ws w -> snoc ws w %}
+  : WORD          {% (c) => [c.word] %}
+  | Words WORD    {% (c) => [...c.words, c.word] %}
 ```
 
 ![Railroad diagram for the Words rule](diagrams/readme/words.svg)
