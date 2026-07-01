@@ -32,7 +32,7 @@
     "rules": [
       {
         "actions": {
-          "purescript": "\\o -> o"
+          "default": "\\o -> o"
         },
         "id": 0,
         "lhs": 0,
@@ -45,7 +45,7 @@
       },
       {
         "actions": {
-          "purescript": "\\a -> a"
+          "default": "\\a -> a"
         },
         "id": 1,
         "lhs": 0,
@@ -58,7 +58,7 @@
       },
       {
         "actions": {
-          "purescript": "\\s -> Str s"
+          "default": "\\s -> Str s"
         },
         "id": 2,
         "lhs": 0,
@@ -71,7 +71,7 @@
       },
       {
         "actions": {
-          "purescript": "\\n -> Num n"
+          "default": "\\n -> Num n"
         },
         "id": 3,
         "lhs": 0,
@@ -84,7 +84,7 @@
       },
       {
         "actions": {
-          "purescript": "\\_ -> Bool true"
+          "default": "\\_ -> Bool true"
         },
         "id": 4,
         "lhs": 0,
@@ -97,7 +97,7 @@
       },
       {
         "actions": {
-          "purescript": "\\_ -> Bool false"
+          "default": "\\_ -> Bool false"
         },
         "id": 5,
         "lhs": 0,
@@ -110,7 +110,7 @@
       },
       {
         "actions": {
-          "purescript": "\\_ -> Null"
+          "default": "\\_ -> Null"
         },
         "id": 6,
         "lhs": 0,
@@ -123,7 +123,7 @@
       },
       {
         "actions": {
-          "purescript": "\\_ _ -> Obj []"
+          "default": "\\_ _ -> Obj []"
         },
         "id": 7,
         "lhs": 1,
@@ -140,7 +140,7 @@
       },
       {
         "actions": {
-          "purescript": "\\_ ms _ -> Obj ms"
+          "default": "\\_ ms _ -> Obj ms"
         },
         "id": 8,
         "lhs": 1,
@@ -161,7 +161,7 @@
       },
       {
         "actions": {
-          "purescript": "\\m -> [m]"
+          "default": "\\m -> [m]"
         },
         "id": 9,
         "lhs": 2,
@@ -174,7 +174,7 @@
       },
       {
         "actions": {
-          "purescript": "\\ms _ m -> snoc ms m"
+          "default": "\\ms _ m -> snoc ms m"
         },
         "id": 10,
         "lhs": 2,
@@ -195,7 +195,7 @@
       },
       {
         "actions": {
-          "purescript": "\\k _ v -> Pair k v"
+          "default": "\\k _ v -> Pair k v"
         },
         "id": 11,
         "lhs": 3,
@@ -216,7 +216,7 @@
       },
       {
         "actions": {
-          "purescript": "\\_ _ -> Arr []"
+          "default": "\\_ _ -> Arr []"
         },
         "id": 12,
         "lhs": 4,
@@ -233,7 +233,7 @@
       },
       {
         "actions": {
-          "purescript": "\\_ es _ -> Arr es"
+          "default": "\\_ es _ -> Arr es"
         },
         "id": 13,
         "lhs": 4,
@@ -254,7 +254,7 @@
       },
       {
         "actions": {
-          "purescript": "\\v -> [v]"
+          "default": "\\v -> [v]"
         },
         "id": 14,
         "lhs": 5,
@@ -267,7 +267,7 @@
       },
       {
         "actions": {
-          "purescript": "\\es _ v -> snoc es v"
+          "default": "\\es _ v -> snoc es v"
         },
         "id": 15,
         "lhs": 5,

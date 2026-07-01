@@ -68,8 +68,8 @@ enum IRRef derives CanEqual:
 
 // A single production. `actions` maps a profile name to its opaque,
 // untrusted host-language text; empty when the alternative has no
-// action. Kept as a `Map` (not the PureScript `Array (Tuple String
-// String)`) since it's genuinely keyed lookup data.
+// action. Kept as a `Map` (not an ordered array of pairs, as the prior
+// reference implementation used) since it's genuinely keyed lookup data.
 final case class IRRule(
     id: Int,
     lhs: Int,
@@ -258,7 +258,7 @@ object IR:
         rhs = syms.map(toRef),
         label = label,
         actions = act match
-          case Some(code) => Map("purescript" -> code)
+          case Some(code) => Map("default" -> code)
           case None       => Map.empty
       )
     }
@@ -309,10 +309,10 @@ object IR:
       case Action.Reduce(n) => IRAct.ActReduce(n)
       case Action.Accept    => IRAct.ActAccept
 
-    // `table.action`/`table.goto` are Scala hash Maps — unlike PureScript's
-    // ascending-key-ordered `Data.Map`, iteration order is not
-    // deterministic key order. Sort explicitly by (state, symbol) before
-    // grouping, so entries within a state come out in the same
+    // `table.action`/`table.goto` are Scala hash Maps — unlike the prior
+    // reference implementation's ascending-key-ordered map type, iteration
+    // order is not deterministic key order. Sort explicitly by (state,
+    // symbol) before grouping, so entries within a state come out in the same
     // deterministic order the canonical-JSON diff relies on.
     val actionByState: Map[Int, Vector[IRActionEntry]] =
       table.action.toVector
