@@ -16,14 +16,14 @@ not a slogan here; it is the start symbol. This file checks green: run
 `node bootstrap/gramaire-check.ts examples/readme.gram.md` and watch the
 structure, drift, and lint gates pass.
 
-Semantic actions build this AST (the target PureScript shapes):
+Semantic actions build this AST (the target Scala shapes):
 
-```purescript
-data Readme   = Readme (Array Sentence)   -- the pitch, in order
-data Sentence = Sentence (Array String)   -- the words before the `.`
+```scala
+final case class Readme(sentences: Vector[Sentence]) // the pitch, in order
+final case class Sentence(words: Vector[String])     // the words before the `.`
 ```
 
-The helper `snoc` appends to an `Array`; the lexer class `WORD` carries
+The helper `snoc` appends to a `Vector`; the lexer class `WORD` carries
 one word of the prose.
 
 ## Readme

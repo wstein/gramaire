@@ -28,9 +28,9 @@ input the parser generator reads. Your grammar _is_ your documentation.
 This tutorial builds a small calculator grammar in two passes: **Part 1** writes
 a <Term name="recognizer">recognizer</Term> that decides whether input is valid,
 and **Part 2** attaches _actions_ that turn a valid parse into a value. The `gramaire` CLI and the
-[Lab](/gramaire/lab) run the **same** PureScript core — the Lab is that core
-compiled to WebAssembly-class browser ESM — so a verdict in the browser matches
-the CLI.
+[Lab](/gramaire/lab) run the **same** Scala core — the Lab is that core
+compiled to Scala.js as browser-native ES modules — so a verdict in the
+browser matches the CLI.
 
 <Aside type="tip" title="The Lab runs the real engine">
   The browser Lab is not a stub: it bundles the compiled Gramaire core and lexes
@@ -227,7 +227,7 @@ and the real engine re-lexes, re-parses, and redraws live:
 - `12 + 3 * 4` → **accepted**
 - `12 +` → **rejected** — a `Term` has to follow `+`
 
-This is the same PureScript core the CLI runs — the `NUMBER` token class lexes
+This is the same Scala core the CLI runs — the `NUMBER` token class lexes
 client-side — so the verdict here is the verdict `gramaire` gives. Open it in the
 full Lab to see the parse tree, the trace, and the conflict analysis:
 
@@ -242,8 +242,9 @@ full Lab to see the parse tree, the trace, and the conflict analysis:
 ## 6. From recognition to a value
 
 A recognizer throws its work away. To keep it — to build a number, or an AST —
-attach a host-language **action** between `{%` and `%}`. The default action
-language is **PureScript** (the core's own language):
+attach an **action** between `{%` and `%}`. Left untagged, an action defaults
+to a positional lambda-binder convention — one parameter per right-hand
+symbol, in source order:
 
 ```gramaire
 Expr

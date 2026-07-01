@@ -41,25 +41,28 @@ single `NL`, and emits these classes:
 - `LANGLE` / `RANGLE` / `COMMA` — `<` / `>` / `,` for macro calls.
 - `NL` — one or more line breaks.
 
-Semantic actions build this AST (the target PureScript shapes):
+Semantic actions build this AST (the target Scala shapes):
 
-```purescript
-data Grammar = Grammar (Array Rule)
-data Rule    = Rule String
-                    (Array String)         -- #[attrs] (e.g. inline)
-                    (Array Alt)            -- alternatives
-data Alt     = Alt (Array Sym)
-                   (Maybe String)          -- optional # label
-                   (Maybe String)          -- optional action
-data Sym     = Ref String | Lit String     -- nonterminal ref | terminal
-             | Rep Sym | Star Sym | Opt Sym -- X+ / X* / X? sugar
-             | Macro String (Array Sym)     -- Name<args> macro call
-             | Field String Sym             -- name:X named child position
-             | Group (Array (Array Sym))    -- ( a | b ) parenthesised group
-             | Any | Not (Array Sym)        -- . wildcard | ~set negation
+```scala
+final case class Grammar(rules: Vector[Rule])
+final case class Rule(name: String, attrs: Vector[String], alts: Vector[Alt])
+  // attrs: #[attrs] (e.g. inline); alts: alternatives
+final case class Alt(syms: Vector[Sym], label: Option[String], action: Option[String])
+  // label: optional # label; action: optional action
+enum Sym:
+  case Ref(name: String)                      // nonterminal ref
+  case Lit(text: String)                      // terminal
+  case Rep(sym: Sym)                          // X+ sugar
+  case Star(sym: Sym)                         // X* sugar
+  case Opt(sym: Sym)                          // X? sugar
+  case Macro(name: String, args: Vector[Sym]) // Name<args> macro call
+  case Field(name: String, sym: Sym)          // name:X named child position
+  case Group(alts: Vector[Vector[Sym]])       // ( a | b ) parenthesised group
+  case Any                                    // . wildcard
+  case Not(set: Vector[Sym])                  // ~set negation
 ```
 
-The helpers `cons` and `snoc` prepend and append to an `Array`.
+The helpers `cons` and `snoc` prepend and append to a `Vector`.
 
 ## Tokens
 

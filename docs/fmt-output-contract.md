@@ -140,7 +140,7 @@ MD058). `fmt` computes the FIRST/FOLLOW rows from the parsed grammar and
 writes them in a canonical order — nonterminals in source order, terminals in
 first-appearance order with `$` last — so the table is a pure function of the
 grammar. (The conflict-summary line below the table stays author-owned: it
-needs the full LR automaton, which lives in the PureScript core.)
+needs the full LR automaton, which lives in the Scala core.)
 
 ## Formatting invariants
 
