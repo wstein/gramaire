@@ -1,5 +1,3 @@
-import org.scalajs.linker.interface.ModuleKind
-
 // Pinned explicitly, bumped deliberately — the same discipline the prior
 // reference implementation's own package manifest applied to its registry pin.
 ThisBuild / scalaVersion := "3.4.2"
@@ -27,79 +25,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
 lazy val coreJS = core.js
 lazy val coreJVM = core.jvm
 
-// The Scala.js entry point consumed by the site — replaces the prior
-// reference implementation's `Gramark.Playground` bundle. Kept separate
-// from `core` so `@JSExport` annotations don't pollute the cross-platform
-// module's public API.
-lazy val playground = project
-  .in(file("playground/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .dependsOn(coreJS)
-  .settings(
-    name := "gramark-playground",
-    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.ESModule)),
-    scalaJSUseMainModuleInitializer := false,
-  )
-
-// The site's logic-bearing TypeScript, ported to Scala.js (Phase 5). Depends
-// on `core.js` for the shared, dependency-free pieces (railroad rendering,
-// canonical JSON) and on scalajs-dom for the browser APIs (Worker,
-// URLSearchParams, btoa/atob) the original TS files used directly. Kept
-// separate from `playground` (which stays the thin `evaluate()` entry point
-// bundled to `site/src/generated/gramark-engine.mjs`) — this module's own
-// bundle imports that prebuilt artifact via `@JSImport` rather than linking
-// the whole compiler twice.
-lazy val siteGlue = project
-  .in(file("site-glue/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .dependsOn(coreJS)
-  .settings(
-    name := "gramark-site-glue",
-    libraryDependencies ++= Seq(
-      "org.scala-js" %%% "scalajs-dom" % "2.8.0",
-      "org.scalameta" %%% "munit" % munitVersion % Test,
-    ),
-    testFrameworks += new TestFramework("munit.Framework"),
-    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.ESModule)),
-    scalaJSUseMainModuleInitializer := false,
-    // `GramarkRuntime`'s `@JSImport("./gramark-engine.mjs", ...)` is a static
-    // ES import: the WHOLE test bundle fails to even load without a real
-    // file there, regardless of whether a given test touches GramarkRuntime.
-    // Copy the already-built engine bundle next to the linker output before
-    // the JS test runner starts (mirrors what `site/`'s own build does when
-    // assembling the real page).
-    Test / fastLinkJS := {
-      val report = (Test / fastLinkJS).value
-      val dir = (Test / fastLinkJS / scalaJSLinkerOutputDirectory).value
-      IO.copyFile(baseDirectory.value / ".." / ".." / "site" / "src" / "generated" / "gramark-engine.mjs", dir / "gramark-engine.mjs")
-      report
-    },
-  )
-
-// The engine Web Worker's own entry point — a separate bundle (mirroring how
-// Vite treated `engine-worker.ts` as its own chunk), since a module worker
-// script needs top-level code that runs the moment it's loaded (installing
-// `self.onmessage`), not just exported functions called from outside.
-lazy val engineWorker = project
-  .in(file("site-glue/worker-js"))
-  .enablePlugins(ScalaJSPlugin)
-  .dependsOn(siteGlue)
-  .settings(
-    name := "gramark-engine-worker",
-    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.ESModule)),
-    scalaJSUseMainModuleInitializer := true,
-    Compile / mainClass := Some("gramark.site.EngineWorkerMain"),
-    // Same reason as siteGlue's identical hook: GramarkRuntime's static
-    // @JSImport needs a real file alongside the linked output before any JS
-    // env (even one running zero tests) can load this module at all.
-    Test / fastLinkJS := {
-      val report = (Test / fastLinkJS).value
-      val dir = (Test / fastLinkJS / scalaJSLinkerOutputDirectory).value
-      IO.copyFile(baseDirectory.value / ".." / ".." / "site" / "src" / "generated" / "gramark-engine.mjs", dir / "gramark-engine.mjs")
-      report
-    },
-  )
-
 // The unified native/JVM `gramark` CLI — replaces the prior reference
 // implementation's Cli.purs + Codegen/Main.purs and the TypeScript
 // bootstrap/gramark-check.ts bridge.
@@ -124,7 +49,7 @@ lazy val cli = project
 
 lazy val root = project
   .in(file("."))
-  .aggregate(coreJS, coreJVM, playground, siteGlue, engineWorker, cli)
+  .aggregate(coreJS, coreJVM, cli)
   .settings(
     publish / skip := true,
   )

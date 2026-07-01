@@ -85,8 +85,8 @@ methods, plus a Scala-emitting codegen proof that reproduces it through
 _generated_ code, not just the hand-written reduce:
 
 ```sh
-sbt compile   # cross-compile check: core (JVM + Scala.js), playground, cli, site-glue
-sbt test      # coreJVM/test + coreJS/test + cli/test + siteGlue/test
+sbt compile   # cross-compile check: core (JVM + Scala.js), cli
+sbt test      # coreJVM/test + coreJS/test + cli/test
 ```
 
 The unified **`gramark` CLI** (`cli/jvm/`) absorbs everything the format
@@ -134,8 +134,6 @@ JAVA_HOME=/path/to/graalvm sbt cli/nativeImage   # -> cli/jvm/target/native-imag
 | ------------ | ----------------------------------------------------------------------- |
 | `core/`      | Cross-compiled (JVM + Scala.js) core: lexer, tables, parser, IR, backends. |
 | `cli/jvm/`   | The unified native `gramark` CLI (`emit`/`import`/`check`/`fmt`/`conformance`). |
-| `playground/`| The Scala.js `evaluate()` entry point the site's browser bundle is built from. |
-| `site-glue/` | The site's own logic (diagrams, FIRST/FOLLOW, CST views), also Scala.js. |
 | `spec/`      | `ir-schema.json` (IR contract) and `incremental-spec.md` (CST/LSP).     |
 | `grammar/`   | `lr.grmk.md` — the `lr` notation described in itself.                   |
 | `examples/`  | Worked grammars: `json`, `calc`, `calc-js`, and the `readme` meta demo. |
@@ -185,10 +183,6 @@ FIRST/FOLLOW table is machine-checked against the parser's own analysis.
 `gramark check` verifies the structure and drift gates (a separate,
 Node-native `docs-lint` job handles the Markdown-lint gate, since it has no
 compiler-core relationship).
-
-The browser Lab at [wstein.github.io/gramark/lab](https://wstein.github.io/gramark/lab)
-runs the exact same Scala core, compiled to Scala.js
-(`playground/`) — the in-browser preview and the CLI cannot disagree.
 
 The road from here — multi-language backends and the incremental CST/LSP
 runtime ([`spec/incremental-spec.md`](spec/incremental-spec.md)) — is laid out
