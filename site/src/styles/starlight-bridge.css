@@ -103,3 +103,35 @@ gramark-topbar button[data-open-modal]:hover {
   border-color: transparent;
   color: var(--fg-secondary);
 }
+
+/*
+ * The open search dialog rendered with zero border/padding on the bare
+ * Landing page while looking correct on Starlight pages (found via CDP's
+ * CSS.getMatchedStylesForNode, not eyeballing): Search.astro's own
+ * `dialog`/`.dialog-frame` rules land inside `@layer starlight.core` in the
+ * bundled CSS, and Tailwind's Preflight reset (`*,::before,::after,
+ * ::backdrop { border:0; margin:0; padding:0 }`, `@layer base`) beats it —
+ * but only on Landing. Same rules, same file even, but the two pages'
+ * overall document layer order (which stylesheets load, and in what order,
+ * across the WHOLE page — Starlight pages load one extra common.css chunk
+ * Landing doesn't) resolves `starlight.core` vs `base` priority oppositely
+ * per page. Rather than depend on layer order agreeing across two different
+ * build pipelines, force Search.astro's own declared values here, unlayered
+ * so they win unconditionally regardless of page.
+ */
+gramark-topbar dialog {
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+gramark-topbar .dialog-frame {
+  padding: 1rem;
+}
+@media (min-width: 50rem) {
+  gramark-topbar dialog {
+    margin: 4rem auto auto;
+  }
+  gramark-topbar .dialog-frame {
+    padding: 1.5rem;
+  }
+}
