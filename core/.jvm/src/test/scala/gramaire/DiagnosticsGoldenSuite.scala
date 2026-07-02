@@ -1,0 +1,197 @@
+package gramaire
+
+// Rendered-diagnostic goldens: exact plain-text assertions (not committed golden FILES, unlike
+// BackendGoldenSuite's artifact goldens — a diagnostic's caret framing is exactly the kind of
+// whitespace-fiddly output where an inline expected string catches a wording/alignment regression
+// as directly as a golden file would, without a second file to keep in sync). JVM-only by
+// convention (matches BackendGoldenSuite/IRGoldenSuite); nothing here is platform-specific, it just
+// lives alongside its siblings.
+class DiagnosticsGoldenSuite extends munit.FunSuite:
+
+  test("lexical error: an unmatched character renders with a caret at the exact offset") {
+    val md = """# Calc
+      |
+      |## Expr
+      |
+      |```gramaire
+      |Expr
+      |: NUMBER @ NUMBER
+      |```
+      |""".stripMargin
+    Lr.parseWith(Method.Canonical, md) match
+      case Right(_) => fail("expected a lexical error")
+      case Left(diags) =>
+        assertEquals(diags.length, 1)
+        assertEquals(
+          Diagnostic.render(diags.head, "calc.gram.md", Lr.toFenced(md)),
+          """error: unexpected character `@`
+            |  --> calc.gram.md:7:10
+            |    : NUMBER @ NUMBER
+            |             ^""".stripMargin
+        )
+  }
+
+  test("parse error: a missing rule-head newline is located, with an expected-token note") {
+    val md = """# Broken
+      |
+      |## Foo
+      |
+      |```gramaire
+      |Foo Bar
+      |```
+      |""".stripMargin
+    Lr.parseWith(Method.Canonical, md) match
+      case Right(_) => fail("expected a parse error")
+      case Left(diags) =>
+        assertEquals(diags.length, 1)
+        assertEquals(
+          Diagnostic.render(diags.head, "broken.gram.md", Lr.toFenced(md)),
+          """error: unexpected `Bar`
+            |  --> broken.gram.md:6:5
+            |    Foo Bar
+            |        ^^^
+            |  note: expected one of: a newline""".stripMargin
+        )
+  }
+
+  test("undefined nonterminal: one diagnostic per reference site, with a did-you-mean") {
+    val md = """# Calc
+      |
+      |## Expr
+      |
+      |```gramaire
+      |Expr
+      |: Expr "+" Factr
+      || Factr
+      |```
+      |
+      |## Factor
+      |
+      |```gramaire
+      |Factor
+      |: NUMBER
+      |```
+      |""".stripMargin
+    Lr.parseWith(Method.Canonical, md) match
+      case Right(_) => fail("expected undefined-nonterminal diagnostics")
+      case Left(diags) =>
+        assertEquals(diags.length, 2)
+        assertEquals(
+          diags.map(d => Diagnostic.render(d, "calc.gram.md", Lr.toFenced(md))),
+          Vector(
+            """error: undefined nonterminal `Factr`
+              |  --> calc.gram.md:7:12
+              |    : Expr "+" Factr
+              |               ^^^^^
+              |  note: a mixed-case name must be defined by some rule (an ALL-CAPS name is a lexer token class)
+              |  help: did you mean `Factor`?""".stripMargin,
+            """error: undefined nonterminal `Factr`
+              |  --> calc.gram.md:8:3
+              |    | Factr
+              |      ^^^^^
+              |  note: a mixed-case name must be defined by some rule (an ALL-CAPS name is a lexer token class)
+              |  help: did you mean `Factor`?""".stripMargin
+          )
+        )
+  }
+
+  test("shift/reduce conflict: points at the reducing rule's own head") {
+    val md = """# Ambiguous
+      |
+      |## E
+      |
+      |```gramaire
+      |E
+      |: E E
+      || 'x'
+      |```
+      |""".stripMargin
+    Lr.parse(md) match
+      case Left(e) => fail(s"should parse: $e")
+      case Right(g) =>
+        Table.buildTablesFor(Method.Canonical, g) match
+          case Right(_) => fail("expected a conflict")
+          case Left(conflicts) =>
+            val spans = Lr.spanIndexOf(md)
+            val diags = Diagnostics.conflictDiagnostics(g, spans, conflicts)
+            assertEquals(diags.length, 1)
+            assertEquals(
+              Diagnostic.render(diags.head, "ambiguous.gram.md", Lr.toFenced(md)),
+              """error: shift/reduce conflict on `x`
+                |  --> ambiguous.gram.md:6:1
+                |    E
+                |    ^
+                |  shift `x`  vs  reduce E -> E E
+                |  help: give `x` a precedence in the `## Precedence` block, inline a rule, or enable GLR.
+                |  note: state 3""".stripMargin
+            )
+  }
+
+  test("reduce/reduce conflict: names both competing productions") {
+    val md = """# Ambiguous
+      |
+      |## S
+      |
+      |```gramaire
+      |S
+      |: A
+      || B
+      |```
+      |
+      |## A
+      |
+      |```gramaire
+      |A
+      |: 'x'
+      |```
+      |
+      |## B
+      |
+      |```gramaire
+      |B
+      |: 'x'
+      |```
+      |""".stripMargin
+    Lr.parse(md) match
+      case Left(e) => fail(s"should parse: $e")
+      case Right(g) =>
+        Table.buildTablesFor(Method.Canonical, g) match
+          case Right(_) => fail("expected a conflict")
+          case Left(conflicts) =>
+            val spans = Lr.spanIndexOf(md)
+            val diags = Diagnostics.conflictDiagnostics(g, spans, conflicts)
+            assertEquals(diags.length, 1)
+            val d = diags.head
+            assertEquals(d.message, "reduce/reduce conflict on $")
+            assert(d.notes.exists(_.contains("reduce A -> `x`")), d.notes.toString)
+            assert(d.notes.exists(_.contains("reduce B -> `x`")), d.notes.toString)
+            // Points at whichever competing rule's head the conflict names first — a real,
+            // in-bounds location either way, not a guess at exactly which one wins.
+            val located = d.span.exists(sp => sp.start >= 0 && sp.end > sp.start && sp.end <= md.length)
+            assert(located, s"expected an in-bounds span, got ${d.span}")
+  }
+
+  test("unknown attribute warning: names the rule, suggests the one known attribute") {
+    val md = """# Warn
+      |
+      |## Aux
+      |
+      |```gramaire
+      |#[inlien] Aux
+      |: NUMBER
+      |```
+      |
+      |## Expr
+      |
+      |```gramaire
+      |Expr
+      |: NUMBER
+      |```
+      |""".stripMargin
+    val warnings = Lr.warningsFor(md)
+    assertEquals(warnings.length, 2) // unknown attr + Expr unreachable
+    val attrWarning = warnings.find(_.message.contains("inlien")).getOrElse(fail("expected an attr warning"))
+    assertEquals(attrWarning.severity, Severity.Warning)
+    assertEquals(attrWarning.message, "unknown attribute `#[inlien]` on rule `Aux` (ignored)")
+    assertEquals(attrWarning.notes, Vector("help: did you mean `#[inline]`?"))
+  }

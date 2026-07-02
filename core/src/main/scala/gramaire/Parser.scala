@@ -13,18 +13,21 @@ package gramaire
 // `Lr` instantiates it for the `lr` notation itself.
 // Ported from src/Gramaire/Parser.purs.
 
-// Why a parse stopped short of `Accept`.
+// Why a parse stopped short of `Accept`. `pos` is the failing token's index into the input vector
+// (one past the last consumed token for `UnexpectedEnd`) — the caller's key to a source span, via
+// whatever span-carrying token stream it kept alongside the plain `Vector[Token]` fed to `run`.
 enum ParseError derives CanEqual:
-  case UnexpectedToken(state: Int, terminal: String)
-  case UnexpectedEnd(state: Int)
+  case UnexpectedToken(state: Int, terminal: String, pos: Int)
+  case UnexpectedEnd(state: Int, pos: Int)
   case InternalError(message: String)
 
 object ParseError:
   extension (e: ParseError)
     def render: String = e match
-      case UnexpectedToken(state, terminal) => s"""unexpected token "$terminal" in state $state"""
-      case UnexpectedEnd(state)             => s"unexpected end of input in state $state"
-      case InternalError(m)                 => s"internal parser error: $m"
+      case UnexpectedToken(state, terminal, _) =>
+        s"""unexpected token "$terminal" in state $state"""
+      case UnexpectedEnd(state, _) => s"unexpected end of input in state $state"
+      case InternalError(m)        => s"internal parser error: $m"
 
 // One step of an LR walk (the Lab's Parse trace / LR walk tabs, M5+): the action taken and the
 // stack/remaining-input state *before* taking it, so a stepper can show "here's what happens
@@ -89,8 +92,8 @@ object Parser:
             case None    => Left(ParseError.InternalError("accept with an empty stack"))
         case None =>
           mtok match
-            case Some(tok) => Left(ParseError.UnexpectedToken(state, tok.terminal))
-            case None      => Left(ParseError.UnexpectedEnd(state))
+            case Some(tok) => Left(ParseError.UnexpectedToken(state, tok.terminal, pos))
+            case None      => Left(ParseError.UnexpectedEnd(state, pos))
 
     go(Stacks(List(0), List.empty), 0)
 
@@ -163,7 +166,7 @@ object Parser:
           Right(acc :+ LrStep(idx, state, TraceAction.Accept, stackBefore, remainingBefore))
         case None =>
           mtok match
-            case Some(tok) => Left(ParseError.UnexpectedToken(state, tok.terminal))
-            case None      => Left(ParseError.UnexpectedEnd(state))
+            case Some(tok) => Left(ParseError.UnexpectedToken(state, tok.terminal, pos))
+            case None      => Left(ParseError.UnexpectedEnd(state, pos))
 
     go(St(List(0), List.empty), 0, 0, Vector.empty)

@@ -139,6 +139,32 @@ object Lexer:
 
     toks.zipWithIndex.flatMap { case (t, i) => decide(i, t) }
 
+  /** `normalizeNewlines`, but over a span-carrying token stream — the form `Lr.parseWith` needs to
+    * keep a failing token's source span reachable after normalization drops the insignificant `NL`s.
+    * Mirrors `normalizeNewlines`'s logic exactly (same predicate, `Spanned.terminal` in place of
+    * `Token.terminal`), duplicated rather than shared for the same reason `Scanner.scan`/
+    * `scanSpanned` are two functions instead of one generic over token shape.
+    */
+  def normalizeNewlinesSpanned(toks: Vector[Spanned]): Vector[Spanned] =
+    def term(j: Int): Option[String] =
+      if j >= 0 && j < toks.length then Some(toks(j).terminal) else None
+
+    def isHead(p: Int): Boolean =
+      (term(p) == Some("IDENT") && term(p + 1) == Some("NL") && term(p + 2) == Some(":")) ||
+        (term(p) == Some("ATTR") && term(p + 1) == Some("IDENT") && term(p + 2) == Some(
+          "NL"
+        ) && term(
+          p + 3
+        ) == Some(":"))
+
+    def decide(i: Int, t: Spanned): Option[Spanned] =
+      if t.terminal != "NL" then Some(t)
+      else if term(i - 1) == Some("IDENT") && term(i + 1) == Some(":") then Some(t)
+      else if isHead(i + 1) then Some(t)
+      else None
+
+    toks.zipWithIndex.flatMap { case (t, i) => decide(i, t) }
+
   private def isLayout(c: Char): Boolean = c == ' ' || c == '\t' || c == '\r' || c == '\n'
   private def isDigit(c: Char): Boolean = c >= '0' && c <= '9'
   private def isIdentStart(c: Char): Boolean =

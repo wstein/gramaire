@@ -181,7 +181,7 @@ object Desugar:
         Right((macroNameOf(name, args), sepRule(macroNameOf(name, args), lowerOne(x), lowerOne(s))))
       case ("Comma", _) => Left("macro Comma<X> takes exactly one argument")
       case ("Sep", _)   => Left("macro Sep<X, S> takes exactly two arguments")
-      case _            => Left(s"unknown macro $name; known macros are Comma<X> and Sep<X, S>")
+      case _            => Left(s"unknown macro `$name`; known macros are Comma<X> and Sep<X, S>")
 
   // Every present/absent flag assignment for n sugar positions (2^n of them).
   private def bools(n: Int): Vector[Vector[Boolean]] =

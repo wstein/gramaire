@@ -52,9 +52,12 @@ class ScalaSelfHostSuite extends munit.FunSuite:
           // drop-in generated reduce is compared through the same real
           // pipeline the hand-written one runs in, not a desugar-free shortcut.
           case Right(SemVal.VGrammar(g)) =>
-            Desugar.desugar(g).flatMap(Diagnostics.checkDefined) match
-              case Right(desugared) => assertEquals(desugared, Bootstrap.bootstrapGrammar)
-              case Left(e)          => fail(s"desugar/check failed: $e")
+            Desugar.desugar(g) match
+              case Left(e) => fail(s"desugar failed: $e")
+              case Right(dg) =>
+                Diagnostics.checkDefined(dg) match
+                  case Right(desugared) => assertEquals(desugared, Bootstrap.bootstrapGrammar)
+                  case Left(e)          => fail(s"check failed: $e")
           case Right(_) => fail("parse should yield a Grammar")
           case Left(e)  => fail(s"parse failed: ${e.render}")
   }
