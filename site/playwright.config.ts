@@ -11,6 +11,14 @@ import { defineConfig, devices } from "@playwright/test";
 // them. Extend to true mock-parity diffing once a page's composition
 // actually matches its corresponding screenshot 1:1 (tracked per-page as
 // later milestones land).
+//
+// Deliberately NOT port 4321 (Astro's default dev/preview port): this
+// suite's webServer used to collide with a developer's own `npm run dev`
+// left running on 4321, and killing whatever was already bound to 4321
+// before each test run destabilized that unrelated process. A dedicated
+// port keeps this suite fully isolated.
+const PORT = 4323;
+
 export default defineConfig({
   testDir: "./tests/visual",
   fullyParallel: true,
@@ -19,8 +27,8 @@ export default defineConfig({
   reporter: [["list"]],
   use: {
     baseURL: process.env.CI
-      ? "http://localhost:4321/gramaire/"
-      : "http://localhost:4321/",
+      ? `http://localhost:${PORT}/gramaire/`
+      : `http://localhost:${PORT}/`,
     trace: "retain-on-failure",
   },
   expect: {
@@ -28,10 +36,10 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "npm run preview",
+    command: `npm run preview -- --port ${PORT}`,
     url: process.env.CI
-      ? "http://localhost:4321/gramaire/"
-      : "http://localhost:4321/",
+      ? `http://localhost:${PORT}/gramaire/`
+      : `http://localhost:${PORT}/`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
   },
