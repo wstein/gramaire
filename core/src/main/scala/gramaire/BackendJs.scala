@@ -29,7 +29,10 @@ object BackendJs:
   // lambda binder `\params -> body` (the field-per-symbol parameter
   // convention every backend can parse). For a JS host that wrapper is
   // inert: recover the user's action by dropping the synthesized binder.
-  private def unwrapBinder(code: String): String =
+  // `private[gramaire]`, not `private`: the Lab (gramaire.lab.LabApi) reuses this exact transform
+  // to display a production's action text without leaking the synthesized binder into the UI —
+  // the same "one place this transform is defined" reasoning as `tablesBlock`.
+  private[gramaire] def unwrapBinder(code: String): String =
     val trimmed = code.trim
     if !trimmed.startsWith("\\") then trimmed
     else

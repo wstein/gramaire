@@ -167,6 +167,15 @@ test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthro
   const reductionRows = page.locator(".lab__panel .lab__table tbody tr");
   await expect(reductionRows).toHaveCount(3); // NUMBER"1", Sum+NUMBER"2", Sum+NUMBER"3"
   await expect(reductionRows.last()).toContainText("6");
+  // The displayed action text is the grammar author's own "(c) => ...", not
+  // Desugar.normalizeAction's synthesized "\_ _ -> (c) => ..." binder prefix.
+  await expect(reductionRows.last()).toContainText(
+    "(c) => c.sum + Number(c.number)",
+  );
+  await expect(page.locator(".lab__panel")).not.toContainText("\\_");
+
+  await page.click('button[role="tab"]:has-text("Lowered Core")');
+  await expect(page.locator(".lab__panel")).not.toContainText("\\_");
 });
 
 test("the Lab reflects a rejected input", async ({ page }) => {
