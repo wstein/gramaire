@@ -187,6 +187,13 @@ jobs:
         # uses, into public/lab/engine.mjs (gitignored, never committed).
         run: npm run build:engine -- --full
 
+      - name: JVM<->JS parity gate (§8)
+        # Runs a fixed LabRequest fixture list through labJVM (sbt runMain)
+        # and through the just-built public/lab/engine.mjs under Node,
+        # byte-comparing the serialized LabResponse — plus ajv-validates
+        # each against spec/lab-protocol-schema.json.
+        run: npm run check:lab-parity
+
       - name: Build
         run: npm run build
 
