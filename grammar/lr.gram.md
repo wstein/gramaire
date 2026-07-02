@@ -50,7 +50,8 @@ action }` (`label`/`action` are `null` when absent), and one tagged object per
 
 ## General settings
 
-```gramaire settings
+```gramaire
+%name Lr
 %lang javascript
 ```
 
@@ -64,7 +65,7 @@ the consumer unquotes it. `ATTR` precedes `IDENT` / `LABEL` so a `#[name]`
 attribute out-matches a `# Name` label; `WS` is skipped; `':'` and `'|'` stay
 implicit literals from the productions.
 
-```gramaire tokens
+```gramaire
 WS       : /[ \t]+/                       %skip
 NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      %external(layout)
 ATTR     : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/
@@ -299,7 +300,7 @@ SetItem
 
 Curated messages keyed by the parser state they are reported from.
 
-```gramaire errors
+```text
 after IDENT NL:
   Expected `:` to begin this rule's alternatives.
   A rule is its name on one line, then `:` and the first alternative

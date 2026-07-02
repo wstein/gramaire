@@ -12,13 +12,14 @@ stratification and needs no precedence block.
 
 ## General settings
 
-```gramaire settings
+```gramaire
+%name Calc (precedence)
 %lang javascript
 ```
 
 ## Tokens
 
-```gramaire tokens
+```gramaire
 NUM : /[0-9]+/
 WS  : /[ \t\r\n]+/   %skip
 ```
@@ -37,14 +38,14 @@ expr
 
 ## Precedence
 
-```gramaire precedence
+```gramaire
 %left '+' '-'
 %left '*' '/'
 ```
 
 ## Error messages
 
-```gramaire errors
+```text
 after a complete expression, lookahead is NUM:
   Two values in a row — an operator (`+ - * /`) is missing between them.
 ```

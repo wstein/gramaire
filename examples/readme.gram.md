@@ -22,7 +22,8 @@ in reading order.
 
 ## General settings
 
-```gramaire settings
+```gramaire
+%name Readme
 %lang javascript
 ```
 
@@ -76,7 +77,7 @@ Words
 
 Curated messages keyed by the parser state they are reported from.
 
-```gramaire errors
+```text
 after Words, lookahead is `$`:
   This sentence never ends. A sentence is words terminated by a `.`.
   Add the period and the pitch parses.

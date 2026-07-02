@@ -25,6 +25,12 @@ The ANTLR `X (s X)*` idioms become Gramaire `Sep<X, s>`, and `(…)` groups —
 which Gramaire defers (ADR D27) — become helper rules (`*Decl`, `*Op`, …). Empty
 alternatives are kept verbatim; Gramaire accepts them.
 
+## General settings
+
+```gramaire
+%name ANTLRv4
+```
+
 ## Tokens
 
 Lexer token classes. ANTLR's case rule (a lower-case head is a parser-rule
@@ -33,7 +39,7 @@ into `RULE_REF` / `TOKEN_REF`. Whitespace and comments are `%skip` (ANTLR puts
 them on hidden channels; Gramaire has only skip — flagged below). Regexes are
 DFA-friendly (no non-greedy), so a few are approximations of the ANTLR originals.
 
-```gramaire tokens
+```gramaire
 DOC_COMMENT   : /\/\*\*([^*]|\*+[^*\/])*\*+\//   %skip
 BLOCK_COMMENT : /\/\*([^*]|\*+[^*\/])*\*+\//     %skip
 LINE_COMMENT  : /\/\/[^\r\n]*/                   %skip
