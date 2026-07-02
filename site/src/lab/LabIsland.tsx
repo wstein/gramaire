@@ -113,9 +113,18 @@ function selectSpan(
   el.scrollTop = Math.max(0, line * lineHeight - el.clientHeight / 2);
 }
 
-const buildStatus = computed<"pending" | "ok" | "fail">(() => {
-  if (response.value === null) return "pending";
-  return response.value.buildOk ? "ok" : "fail";
+// Three states: errors (the GRAMMAR itself failed to build — the thing that needs the author's
+// attention), accepted (build fine AND the current input matches — a bonus confirmation), ok (build
+// fine, everything else — compile-only, or the current input happens not to match). Rejected input
+// deliberately does NOT fold into "errors": the grammar is fine either way, and a status bar that
+// called a healthy grammar "errors" just because a leftover/mismatched input didn't happen to parse
+// would be actively misleading — the actual reject reason still has its own place in Output.
+const buildStatus = computed<"pending" | "accepted" | "ok" | "errors">(() => {
+  const r = response.value;
+  if (!r) return "pending";
+  if (!r.buildOk) return "errors";
+  if (r.parse?.accepted) return "accepted";
+  return "ok";
 });
 
 // Every rule name, in the compiled grammar's current declaration order — same source `analysis`
@@ -571,13 +580,7 @@ function StatusBar() {
         <span
           class={`lab__status lab__status--${pending.value ? "pending" : buildStatus.value}`}
         >
-          {pending.value
-            ? "building…"
-            : buildStatus.value === "ok"
-              ? "build ok"
-              : buildStatus.value === "fail"
-                ? "build failed"
-                : "—"}
+          {pending.value ? "building…" : buildStatus.value}
         </span>
         {errorCount > 0 && (
           <span class="lab__statusbar-errors">
@@ -677,28 +680,32 @@ function ResultPanel() {
   const tokens = r.parse.tokens;
   return (
     <div>
-      <div
-        class={`lab__result lab__result--${r.parse.accepted ? "accept" : "reject"}`}
-      >
-        <div>
-          <strong>{r.parse.accepted ? "Accepted" : "Rejected"}</strong>
-          {r.parse.message && (
-            <pre
-              class={
-                r.parse.message.span
-                  ? "lab__result-message lab__result-message--clickable"
-                  : "lab__result-message"
-              }
-              onClick={() => {
-                const span = r.parse?.message?.span;
-                if (span) selectSpan(inputEditorEl, span);
-              }}
-            >
-              {r.parse.message.rendered}
-            </pre>
-          )}
+      {/* Accepted has nothing more to say than "yes, it matched" — that's the status bar's job
+          now (buildStatus's "accepted" state). Rejected keeps its banner: unlike a bare
+          confirmation, it carries an actual reason (r.parse.message), the kind of content that
+          belongs in Output, not squeezed into a status-bar word. */}
+      {!r.parse.accepted && (
+        <div class="lab__result lab__result--reject">
+          <div>
+            <strong>Rejected</strong>
+            {r.parse.message && (
+              <pre
+                class={
+                  r.parse.message.span
+                    ? "lab__result-message lab__result-message--clickable"
+                    : "lab__result-message"
+                }
+                onClick={() => {
+                  const span = r.parse?.message?.span;
+                  if (span) selectSpan(inputEditorEl, span);
+                }}
+              >
+                {r.parse.message.rendered}
+              </pre>
+            )}
+          </div>
         </div>
-      </div>
+      )}
       {diagnosticsSection}
       {tokens.length > 0 && (
         <div class="lab__analysis-section">
