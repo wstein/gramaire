@@ -127,21 +127,45 @@ object Lr:
     case (44, Vector(SemVal.VStr(t))) => SemVal.VSym(Lit(t)) // SetItem : TERM_LIT
     case _                            => SemVal.VErr(s"unexpected reduce shape for production $p")
 
-  /** Extract the contents of every ```gramark fenced block — the rule blocks, not `gramark
-    * precedence`/`gramark errors` — from a `.grmk.md` document, in order.
-    */
-  def lrBlocks(md: String): Vector[String] =
-    final case class Acc(inside: Boolean, cur: Vector[String], blocks: Vector[String])
-    md.split("\n", -1)
-      .toVector
-      .foldLeft(Acc(false, Vector.empty, Vector.empty)) { (acc, line) =>
+  // One ```gramark rule block's content, with the document (or fence-free-projection) character
+  // offset where that content begins — the anchor `SrcSpan`s are built relative to.
+  private final case class BlockOrigin(content: String, docStart: Int)
+
+  private def lrBlocksWithOrigins(md: String): Vector[BlockOrigin] =
+    val lines = md.split("\n", -1).toVector
+    // lineStarts(i) = the character offset where lines(i) begins, reconstructing `md` as
+    // `lines.mkString("\n")` (every line, including the last, is treated as `\n`-terminated; safe
+    // since we only ever index one line past an opening fence, never past EOF in a well-formed doc).
+    val lineStarts: Vector[Int] = lines.scanLeft(0)((acc, l) => acc + l.length + 1).init
+    def startOf(i: Int): Int = if i < lineStarts.length then lineStarts(i) else md.length
+
+    final case class Acc(
+        inside: Boolean,
+        cur: Vector[String],
+        curStart: Int,
+        blocks: Vector[BlockOrigin]
+    )
+    lines.zipWithIndex
+      .foldLeft(Acc(false, Vector.empty, 0, Vector.empty)) { case (acc, (line, i)) =>
         if acc.inside then
-          if line.trim == "```" then Acc(false, Vector.empty, acc.blocks :+ acc.cur.mkString("\n"))
+          if line.trim == "```" then
+            Acc(
+              false,
+              Vector.empty,
+              0,
+              acc.blocks :+ BlockOrigin(acc.cur.mkString("\n"), acc.curStart)
+            )
           else acc.copy(cur = acc.cur :+ line)
-        else if line.trim == "```gramark" then acc.copy(inside = true, cur = Vector.empty)
+        else if line.trim == "```gramark" then
+          acc.copy(inside = true, cur = Vector.empty, curStart = startOf(i + 1))
         else acc
       }
       .blocks
+
+  /** Extract the contents of every ```gramark fenced block — the rule blocks, not `gramark
+    * precedence`/`gramark errors` — from a `.grmk.md` document, in order.
+    */
+  def lrBlocks(md: String): Vector[String] = lrBlocksWithOrigins(md).map(_.content)
 
   private final case class GBlock(info: String, content: String)
 
@@ -309,24 +333,267 @@ object Lr:
       Vector(":", "|", "(", ")", ".", "~")
     )
 
+  // A block's virtual (concatenated-source) offset range and where it starts in the document —
+  // the additive shift `mapOffset` applies to translate a scanner offset back to document
+  // coordinates. Blocks are copied verbatim (character-for-character) into the virtual source
+  // `parseWith`/`spanIndexOf` scan, so the mapping within a block is a plain offset, never a
+  // line-by-line reconstruction.
+  private final case class Seg(virtualStart: Int, docStart: Int, len: Int)
+
+  private def buildSegs(origins: Vector[BlockOrigin]): Vector[Seg] =
+    val b = Vector.newBuilder[Seg]
+    var voffset = 0
+    origins.foreach { o =>
+      b += Seg(voffset, o.docStart, o.content.length)
+      voffset += o.content.length + 1 // the "\n" the blocks are joined by
+    }
+    b.result()
+
+  private def mapOffset(segs: Vector[Seg], v: Int): Int =
+    val seg = segs.reverse.find(_.virtualStart <= v).getOrElse(Seg(0, 0, 0))
+    seg.docStart + math.min(math.max(v - seg.virtualStart, 0), seg.len)
+
+  private def mapSpanned(segs: Vector[Seg], s: Spanned): Spanned =
+    s.copy(start = mapOffset(segs, s.start), end = mapOffset(segs, s.end))
+
+  // Scan a `.grmk.md`/`.grmk` document's `lr` blocks into a normalized, DOCUMENT-coordinate token
+  // stream — or the lexical-error diagnostics (one per contiguous run of unmatched characters), if
+  // scanning hit any. Shared by `parseWith` (which needs the tokens to actually parse) and
+  // `spanIndexOf` (which only needs them to locate a name for a diagnostic about a LATER stage,
+  // e.g. a table conflict in a grammar that already parsed successfully).
+  private def tokenizeDocument(md: String): Either[Vector[Diagnostic], Vector[Spanned]] =
+    val fenced = toFenced(md)
+    val origins = lrBlocksWithOrigins(fenced)
+    val segs = buildSegs(origins)
+    val virtualSrc = origins.map(_.content).mkString("\n") + "\n"
+    val docSpanned = Scanner.scanSpanned(lrScanItems, virtualSrc).map(mapSpanned(segs, _))
+    val errorRuns = Scanner.mergeErrorRuns(docSpanned)
+    if errorRuns.nonEmpty then
+      Left(
+        errorRuns.map(s =>
+          Diagnostic.error(
+            Stage.Lex,
+            s"""unexpected character `${s.text}`""",
+            Some(SrcSpan(s.start, s.end))
+          )
+        )
+      )
+    else Right(Lexer.normalizeNewlinesSpanned(docSpanned))
+
+  /** The `SpanIndex` for a `.grmk.md`/`.grmk` document's own `lr` blocks — for locating a name (e.g.
+    * a table conflict's competing production) by re-scanning a grammar already known to parse.
+    * `SpanIndex.empty` on a lexical error, which would already have surfaced from `Lr.parse` itself.
+    */
+  def spanIndexOf(md: String): SpanIndex =
+    tokenizeDocument(md) match
+      case Left(_)      => SpanIndex.empty
+      case Right(toks)  => SpanIndex.build(toks)
+
+  // A friendly name for one of the `lr` notation's own internal token classes — used only when no
+  // literal spelling is more informative (an IDENT/TERM_LIT/etc.'s CLASS name is implementation
+  // vocabulary; its own lexeme, or a short description, reads in the grammar author's terms).
+  private def friendlyTerminal(terminal: String): String = terminal match
+    case "IDENT"    => "a rule or token name"
+    case "TERM_LIT" => "a quoted literal"
+    case "ACTION"   => "a {% %} action"
+    case "LABEL"    => "a #label"
+    case "ATTR"     => "a #[attr]"
+    case "NL"       => "a newline"
+    case "PLUS"     => "`+`"
+    case "STAR"     => "`*`"
+    case "QUESTION" => "`?`"
+    case "LANGLE"   => "`<`"
+    case "RANGLE"   => "`>`"
+    case "COMMA"    => "`,`"
+    case lit        => s"`$lit`"
+
+  // Build the located, note-carrying diagnostic for a rejected `lr`-notation parse: the failing
+  // token's document span (or a zero-width span at the source's end, for `UnexpectedEnd`) and, from
+  // the table's own action row, the set of terminals that *would* have been accepted there.
+  private def diagnosticForParseError(
+      e: ParseError,
+      table: ParseTable,
+      normalized: Vector[Spanned]
+  ): Diagnostic =
+    def spanFor(pos: Int): Option[SrcSpan] =
+      normalized
+        .lift(pos)
+        .map(s => SrcSpan(s.start, s.end))
+        .orElse(normalized.lastOption.map(s => SrcSpan(s.end, s.end)))
+    def expectedNote(state: Int): Vector[String] =
+      val expected =
+        table.action.keys.collect { case (s, GSym.Term(t)) if s == state => t }.toVector.sorted
+      if expected.isEmpty then Vector.empty
+      else Vector("note: expected one of: " + expected.map(friendlyTerminal).mkString(", "))
+    e match
+      case ParseError.UnexpectedToken(state, terminal, pos) =>
+        val shown = normalized.lift(pos).map(s => s"`${s.text}`").getOrElse(friendlyTerminal(terminal))
+        Diagnostic.error(Stage.Parse, s"unexpected $shown", spanFor(pos), expectedNote(state))
+      case ParseError.UnexpectedEnd(state, pos) =>
+        Diagnostic.error(Stage.Parse, "unexpected end of input", spanFor(pos), expectedNote(state))
+      case ParseError.InternalError(m) =>
+        Diagnostic.error(Stage.Internal, s"internal error: $m; please report this")
+
+  // Parse up to (but not including) `Desugar.desugar` — the RAW grammar, still in the author's own
+  // rule/attr shape (before `#[inline]` folding drops rules and EBNF lowering renames/synthesizes
+  // them), paired with the normalized token stream `SpanIndex.build` needs. Shared by `parseWith`
+  // (which desugars and checks it) and `warningsFor` (which never desugars — `#[attr]`/reachability/
+  // token-use warnings must read in the terms the author actually wrote).
+  private def parseRaw(
+      method: Method,
+      md: String
+  ): Either[Vector[Diagnostic], (Grammar, Vector[Spanned])] =
+    tokenizeDocument(md) match
+      case Left(diags) => Left(diags)
+      case Right(normalized) =>
+        val tokens = normalized.map(s => Token(s.terminal, s.text))
+        Table.buildTablesFor(method, Bootstrap.bootstrapGrammar) match
+          case Left(_) =>
+            Left(
+              Vector(
+                Diagnostic.error(
+                  Stage.Internal,
+                  "the lr grammar is not parseable by this method; please report this"
+                )
+              )
+            )
+          case Right(table) =>
+            Parser.run[SemVal](table, tokenVal, reduce, tokens) match
+              case Left(e)                   => Left(Vector(diagnosticForParseError(e, table, normalized)))
+              case Right(SemVal.VGrammar(g)) => Right((g, normalized))
+              case Right(_) =>
+                Left(
+                  Vector(
+                    Diagnostic.error(Stage.Internal, "parse did not yield a Grammar; please report this")
+                  )
+                )
+
   /** Parse a `.grmk.md` document's `lr` blocks into a `Grammar`, using the tables generated from
     * the `lr` grammar itself (`bootstrapGrammar`) by the given method.
     */
-  def parseWith(method: Method, md: String): Either[String, Grammar] =
-    val src = lrBlocks(toFenced(md)).mkString("\n") + "\n"
-    val raw = Scanner.scan(lrScanItems, src)
-    if Scanner.hasError(raw) then Left("lexical error in grammar source")
-    else
-      Table.buildTablesFor(method, Bootstrap.bootstrapGrammar) match
-        case Left(_) => Left("internal: the lr grammar is not parseable by this method")
-        case Right(table) =>
-          Parser.run[SemVal](table, tokenVal, reduce, Lexer.normalizeNewlines(raw)) match
-            case Left(e)                   => Left(e.render)
-            case Right(SemVal.VGrammar(g)) => Desugar.desugar(g).flatMap(Diagnostics.checkDefined)
-            case Right(_)                  => Left("parse did not yield a Grammar")
+  def parseWith(method: Method, md: String): Either[Vector[Diagnostic], Grammar] =
+    parseRaw(method, md) match
+      case Left(diags) => Left(diags)
+      case Right((g, normalized)) =>
+        val spans = SpanIndex.build(normalized)
+        Desugar.desugar(g) match
+          case Left(msg) =>
+            Left(Vector(Diagnostic.error(Stage.Desugar, msg, SpanIndex.spanFromMessage(msg, spans))))
+          case Right(g2) => Diagnostics.checkDefined(g2, spans)
 
-  /** Parse using canonical LR(1) tables. */
-  def parse(md: String): Either[String, Grammar] = parseWith(Method.Canonical, md)
+  /** Parse using canonical LR(1) tables, rendering any diagnostics to plain text — the stable
+    * `Either[String, Grammar]` shape most callers (the conformance suite, self-hosting loop, CLI
+    * commands not yet migrated to `parseWith`'s located diagnostics) still use.
+    */
+  def parse(md: String): Either[String, Grammar] =
+    parseWith(Method.Canonical, md) match
+      case Right(g)    => Right(g)
+      case Left(diags) => Left(Diagnostic.renderAll(diags, "<grammar>", toFenced(md)))
+
+  private val knownAttrs: Vector[String] = Vector("inline")
+  private val knownSettingDirectives: Vector[String] = Vector("%lang")
+
+  private def refsOf(s: Sym): Vector[String] = s match
+    case Ref(n)          => Vector(n)
+    case Lit(_)          => Vector.empty
+    case Rep(inner)      => refsOf(inner)
+    case Star(inner)     => refsOf(inner)
+    case Opt(inner)      => refsOf(inner)
+    case Field(_, inner) => refsOf(inner)
+    case Macro(_, args)  => args.flatMap(refsOf)
+    case Group(alts)     => alts.flatMap(_.flatMap(refsOf))
+    case Any             => Vector.empty
+    case Not(set)        => set.flatMap(refsOf)
+
+  // Every `#[attr]` the author wrote that isn't `inline` (the only attribute Desugar recognizes) —
+  // today these are silently ignored, so a typo like `#[inlien]` has no effect and no signal.
+  private def unknownAttrWarnings(g: Grammar, spans: SpanIndex): Vector[Diagnostic] =
+    g.rules.flatMap { r =>
+      r.attrs.filterNot(knownAttrs.contains).map { attr =>
+        val hint = Diagnostics.nearestMatch(attr, knownAttrs).map(sug => s"help: did you mean `#[$sug]`?")
+        Diagnostic.warning(
+          Stage.Desugar,
+          s"unknown attribute `#[$attr]` on rule `${r.name}` (ignored)",
+          spans.attrSpans.get(r.name).orElse(spans.ruleHeadSpans.get(r.name)),
+          hint.toVector
+        )
+      }
+    }
+
+  // Every `%directive` line in the `## General settings` block that isn't `%lang` (the only
+  // directive `Lr`/`toFenced` recognizes) — same silent-typo risk as an unknown `#[attr]`.
+  private def unknownSettingWarnings(md: String): Vector[Diagnostic] =
+    gramarkBlocks(toFenced(md)).find(_.info == "settings") match
+      case None => Vector.empty
+      case Some(block) =>
+        block.content.split("\n", -1).toVector.flatMap { line =>
+          val t = line.trim
+          if t.isEmpty || t.startsWith("//") then None
+          else
+            val directive = t.split("\\s+", 2).headOption.getOrElse(t)
+            if knownSettingDirectives.contains(directive) then None
+            else Some(Diagnostic.warning(Stage.Desugar, s"unknown setting `$directive` (ignored)"))
+        }
+
+  // A rule defined but never reachable (by reference) from the start rule — almost always a typo'd
+  // reference elsewhere, or a rule the author forgot to delete.
+  private def unreachableRuleWarnings(g: Grammar, spans: SpanIndex): Vector[Diagnostic] =
+    g.rules.headOption match
+      case None => Vector.empty
+      case Some(start) =>
+        val byName = g.rules.map(r => r.name -> r).toMap
+        def refsOfRule(r: Rule): Vector[String] = r.alts.flatMap(_.syms.flatMap(refsOf))
+        def bfs(seen: Set[String], frontier: Vector[String]): Set[String] =
+          if frontier.isEmpty then seen
+          else
+            val next = frontier
+              .flatMap(n => byName.get(n).toVector.flatMap(refsOfRule))
+              .filter(byName.contains)
+              .distinct
+              .filterNot(seen.contains)
+            bfs(seen ++ next, next)
+        val reachable = bfs(Set(start.name), Vector(start.name))
+        g.rules
+          .filterNot(r => reachable.contains(r.name))
+          .map(r =>
+            Diagnostic.warning(
+              Stage.Desugar,
+              s"rule `${r.name}` is unreachable from the start rule `${start.name}`",
+              spans.ruleHeadSpans.get(r.name)
+            )
+          )
+
+  // A declared, non-`%skip` token class no rule ever references by name — almost always a typo'd
+  // reference (the intended rule then silently resolves the misspelled name as a phantom terminal,
+  // per `Diagnostics.checkDefined`'s own ALL-CAPS carve-out) or a leftover declaration.
+  private def unusedTokenWarnings(md: String, g: Grammar): Vector[Diagnostic] =
+    ConformanceLexers.tokensBlock(toFenced(md)) match
+      case None => Vector.empty
+      case Some(block) =>
+        Tokens.parseTokens(block) match
+          case Left(_) => Vector.empty
+          case Right(defs) =>
+            val used: Set[String] = g.rules.flatMap(_.alts.flatMap(_.syms.flatMap(refsOf))).toSet
+            defs
+              .filterNot(d => d.skip || used.contains(d.name))
+              .map(d =>
+                Diagnostic.warning(Stage.Desugar, s"token class `${d.name}` is declared but never referenced")
+              )
+
+  /** Soft diagnostics for a `.grmk.md`/`.grmk` document that parses cleanly — none of these reject
+    * the grammar; they exist to catch an author's typo the compile pipeline would otherwise never
+    * surface (an unrecognized `#[attr]`/`%setting` is silently ignored, an unreachable rule or
+    * unused token class silently does nothing). Computed against the RAW parsed grammar, not the
+    * desugared one `parseWith` returns — see `parseRaw`'s own doc comment. Empty if the document
+    * doesn't even parse (`parseWith`'s own diagnostics already say why).
+    */
+  def warningsFor(md: String): Vector[Diagnostic] =
+    parseRaw(Method.Canonical, md) match
+      case Left(_) => Vector.empty
+      case Right((g, normalized)) =>
+        val spans = SpanIndex.build(normalized)
+        unknownAttrWarnings(g, spans) ++ unknownSettingWarnings(md) ++
+          unreachableRuleWarnings(g, spans) ++ unusedTokenWarnings(md, g)
 
   /** The declared operator precedence of a `.grmk.md` (its `## Precedence` block), or empty if it
     * has none.

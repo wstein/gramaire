@@ -128,3 +128,16 @@ object Scanner:
     * `buildTables`/`buildTablesFor` instead of overloading).
     */
   def hasErrorSpanned(toks: Vector[Spanned]): Boolean = toks.exists(_.terminal == "ERROR")
+
+  /** Collapse consecutive `ERROR` tokens (M4, one per unmatched character) into one span per
+    * contiguous run, so a stretch of garbage text becomes one diagnostic, not one per character.
+    * Shared by the `lr`-notation's own lexical-error diagnostics (`Lr.tokenizeDocument`) and a
+    * target input's (`gramark.lab.LabApi.parseInput`).
+    */
+  def mergeErrorRuns(spans: Vector[Spanned]): Vector[Spanned] =
+    spans.filter(_.terminal == "ERROR").foldLeft(Vector.empty[Spanned]) { (acc, s) =>
+      acc.lastOption match
+        case Some(last) if last.end == s.start =>
+          acc.init :+ last.copy(text = last.text + s.text, end = s.end)
+        case _ => acc :+ s
+    }
