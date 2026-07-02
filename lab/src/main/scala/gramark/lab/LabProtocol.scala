@@ -60,6 +60,42 @@ object LabRequest:
     case Json.JString(other)       => Left(s"unknown method: $other")
     case _                         => Left("LabRequest.method must be a string")
 
+/** `gramark.SrcSpan`, wire-rendered — a `[start, end)` code-unit span into whichever source text the
+  * owning `DiagnosticInfo` is relative to (the grammar source, or `LabRequest.input`).
+  */
+final case class SrcSpanInfo(start: Int, end: Int)
+
+object SrcSpanInfo:
+  def toJson(s: SrcSpanInfo): Json =
+    Json.JObject(Vector("start" -> Json.JInt(s.start), "end" -> Json.JInt(s.end)))
+
+/** `gramark.Diagnostic`, wire-rendered: severity/stage as lowercase strings, an optional span, the
+  * note/help lines verbatim, and `rendered` — the SAME plain-text `Diagnostic.render` output the CLI
+  * prints, included so the Lab UI has a zero-effort fallback (and so the JVM<->JS parity gate
+  * byte-compares the shared renderer's output on both platforms, not just the structured fields).
+  */
+final case class DiagnosticInfo(
+    severity: String,
+    stage: String,
+    message: String,
+    span: Option[SrcSpanInfo],
+    notes: Vector[String],
+    rendered: String
+)
+
+object DiagnosticInfo:
+  def toJson(d: DiagnosticInfo): Json =
+    Json.JObject(
+      Vector(
+        "severity" -> Json.JString(d.severity),
+        "stage" -> Json.JString(d.stage),
+        "message" -> Json.JString(d.message),
+        "span" -> d.span.map(SrcSpanInfo.toJson).getOrElse(Json.JNull),
+        "notes" -> Json.JArray(d.notes.map(Json.JString.apply)),
+        "rendered" -> Json.JString(d.rendered)
+      )
+    )
+
 /** A single lexed token from the Lab's Tokens tab, with its source span (start/end are code-unit
   * offsets into `LabRequest.input`, matching `gramark.Spanned`'s own convention).
   */
@@ -140,7 +176,7 @@ object LrActionInfo:
   */
 final case class ParseResult(
     accepted: Boolean,
-    message: Option[String],
+    message: Option[DiagnosticInfo],
     tokens: Vector[LabToken],
     cst: Option[Json],
     trace: Option[Vector[LrStepInfo]] = None
@@ -151,7 +187,7 @@ object ParseResult:
     Json.JObject(
       Vector(
         "accepted" -> Json.JBool(p.accepted),
-        "message" -> p.message.map(Json.JString.apply).getOrElse(Json.JNull),
+        "message" -> p.message.map(DiagnosticInfo.toJson).getOrElse(Json.JNull),
         "tokens" -> Json.JArray(p.tokens.map(LabToken.toJson)),
         "cst" -> p.cst.getOrElse(Json.JNull),
         "trace" -> p.trace.map(ts => Json.JArray(ts.map(LrStepInfo.toJson))).getOrElse(Json.JNull)
@@ -248,7 +284,7 @@ object GrammarAnalysis:
 final case class LabResponse(
     labProtocolVersion: Int,
     buildOk: Boolean,
-    diagnostics: Vector[String],
+    diagnostics: Vector[DiagnosticInfo],
     parse: Option[ParseResult],
     productions: Option[Vector[ProductionInfo]] = None,
     forest: Option[ForestResult] = None,
@@ -257,17 +293,20 @@ final case class LabResponse(
 )
 
 object LabResponse:
-  /** The schema version of the serialized LabResponse document (spec/lab-protocol-schema.json). 0
-    * is draft/unstable, mirroring Cst.cstVersion / IR.irVersion.
+  /** The schema version of the serialized LabResponse document (spec/lab-protocol-schema.json).
+    * Bumped 0 -> 1 for the `diagnostics`/`parse.message` shape change (a plain string ->
+    * `DiagnosticInfo`, carrying severity/stage/span/notes) — version 0 was documented draft/
+    * unstable with no compatibility promise, and the site is this protocol's only consumer,
+    * deployed from the same repo/commit, so this is a clean break rather than an additive field.
     */
-  val version: Int = 0
+  val version: Int = 1
 
   def toJson(r: LabResponse): Json =
     Json.JObject(
       Vector(
         "labProtocolVersion" -> Json.JInt(r.labProtocolVersion),
         "buildOk" -> Json.JBool(r.buildOk),
-        "diagnostics" -> Json.JArray(r.diagnostics.map(Json.JString.apply)),
+        "diagnostics" -> Json.JArray(r.diagnostics.map(DiagnosticInfo.toJson)),
         "parse" -> r.parse.map(ParseResult.toJson).getOrElse(Json.JNull),
         "productions" -> r.productions
           .map(ps => Json.JArray(ps.map(ProductionInfo.toJson)))

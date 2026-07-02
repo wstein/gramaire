@@ -78,6 +78,41 @@ const drawerHeight = signal(300);
 const DRAWER_MIN = 160;
 const DRAWER_MAX = 640;
 
+// The two source textareas' live DOM nodes, set via callback refs where they render (inside the
+// main component) — plain module-level mutables, same convention as `worker`/`requestId` below,
+// so DiagnosticsPanel/ResultPanel (separate top-level components) can reach them to select a
+// diagnostic's span without threading a prop down.
+let grammarEditorEl: HTMLTextAreaElement | null = null;
+let inputEditorEl: HTMLTextAreaElement | null = null;
+
+// 1-based (line, col) for a code-unit offset — the same coordinate space `Diagnostic.render`'s
+// `--> name:line:col` line already uses, computed client-side since a `DiagnosticInfo.span` only
+// carries the raw offsets.
+function lineColOf(
+  text: string,
+  offset: number,
+): { line: number; col: number } {
+  const clamped = Math.max(0, Math.min(offset, text.length));
+  const before = text.slice(0, clamped);
+  const lines = before.split("\n");
+  return { line: lines.length, col: lines[lines.length - 1].length + 1 };
+}
+
+// Focus the given editor and select the span — `setSelectionRange` takes the same code-unit
+// offsets a `SrcSpanInfo` already carries, so no line/col math is needed for the selection itself,
+// only for the scroll-into-view estimate below.
+function selectSpan(
+  el: HTMLTextAreaElement | null,
+  span: { start: number; end: number },
+) {
+  if (!el) return;
+  el.focus();
+  el.setSelectionRange(span.start, span.end);
+  const line = el.value.slice(0, span.start).split("\n").length - 1;
+  const lineHeight = parseFloat(getComputedStyle(el).lineHeight || "18") || 18;
+  el.scrollTop = Math.max(0, line * lineHeight - el.clientHeight / 2);
+}
+
 const buildStatus = computed<"pending" | "ok" | "fail">(() => {
   if (response.value === null) return "pending";
   return response.value.buildOk ? "ok" : "fail";
@@ -409,6 +444,9 @@ export default function LabIsland() {
             class="lab__editor"
             spellcheck={false}
             value={targetInput.value}
+            ref={(el) => {
+              inputEditorEl = el;
+            }}
             onInput={(e) => {
               targetInput.value = (e.target as HTMLTextAreaElement).value;
               scheduleEvaluate();
@@ -551,7 +589,21 @@ function ResultPanel() {
       >
         <div>
           <strong>{r.parse.accepted ? "Accepted" : "Rejected"}</strong>
-          {r.parse.message && <p>{r.parse.message}</p>}
+          {r.parse.message && (
+            <pre
+              class={
+                r.parse.message.span
+                  ? "lab__result-message lab__result-message--clickable"
+                  : "lab__result-message"
+              }
+              onClick={() => {
+                const span = r.parse?.message?.span;
+                if (span) selectSpan(inputEditorEl, span);
+              }}
+            >
+              {r.parse.message.rendered}
+            </pre>
+          )}
         </div>
       </div>
       {tokens.length > 0 && (
@@ -733,9 +785,38 @@ function DiagnosticsPanel() {
     return <p class="lab__empty">No diagnostics.</p>;
   return (
     <ul class="lab__diagnostics">
-      {diagnostics.map((d, i) => (
-        <li key={i}>{d}</li>
-      ))}
+      {diagnostics.map((d, i) => {
+        const loc = d.span
+          ? lineColOf(grammarSource.value, d.span.start)
+          : null;
+        return (
+          <li key={i} class="lab__diagnostic">
+            <div class="lab__diagnostic-head">
+              <span class={`lab__chip lab__chip--${d.severity}`}>
+                {d.severity}
+              </span>
+              <span class="lab__chip">{d.stage}</span>
+              {loc && (
+                <button
+                  type="button"
+                  class="lab__mono lab__diagnostic-loc"
+                  onClick={() => d.span && selectSpan(grammarEditorEl, d.span)}
+                >
+                  {loc.line}:{loc.col}
+                </button>
+              )}
+            </div>
+            <div class="lab__diagnostic-message">{d.message}</div>
+            {d.notes.length > 0 && (
+              <ul class="lab__diagnostic-notes">
+                {d.notes.map((n, j) => (
+                  <li key={j}>{n}</li>
+                ))}
+              </ul>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }

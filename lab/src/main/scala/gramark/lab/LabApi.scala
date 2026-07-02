@@ -17,6 +17,7 @@ import gramark.{
   BackendJs,
   Cst,
   ConformanceLexers,
+  Diagnostic,
   Diagnostics,
   GSym,
   Glr,
@@ -25,10 +26,15 @@ import gramark.{
   LrStep,
   Lr,
   Method,
+  ParseError,
   ParseTable,
   Parser,
   Railroad,
   Scanner,
+  Severity,
+  Spanned,
+  SrcSpan,
+  Stage,
   Sym,
   Table,
   Token,
@@ -36,12 +42,39 @@ import gramark.{
   TraceAction,
   Tokens
 }
-import gramark.ParseError.render
 
 object LabApi:
   // The All-parses tab's cap (docs/playground-spec.md M5+): enough to show a genuinely ambiguous
   // grammar's shape without a pathological grammar's parse count blowing up the response.
   private val forestCap = 50
+
+  // The Lab has no real "file" for the grammar source (a browser textarea) or the target input —
+  // generic placeholder source names for `Diagnostic.render`'s `-->` line, distinguishing the two
+  // artifacts a diagnostic might be about (mirrors `Lr.parse`'s own `<grammar>` convention).
+  private val grammarSourceName = "<grammar>"
+  private val inputSourceName = "<input>"
+
+  private def severityWord(s: Severity): String = s match
+    case Severity.Error   => "error"
+    case Severity.Warning => "warning"
+
+  private def stageWord(s: Stage): String = s match
+    case Stage.Lex      => "lex"
+    case Stage.Parse    => "parse"
+    case Stage.Desugar  => "desugar"
+    case Stage.Resolve  => "resolve"
+    case Stage.Tables   => "tables"
+    case Stage.Internal => "internal"
+
+  private def toDiagnosticInfo(d: Diagnostic, sourceName: String, src: String): DiagnosticInfo =
+    DiagnosticInfo(
+      severityWord(d.severity),
+      stageWord(d.stage),
+      d.message,
+      d.span.map(sp => SrcSpanInfo(sp.start, sp.end)),
+      d.notes,
+      Diagnostic.render(d, sourceName, src)
+    )
 
   /** Compile `request.source` and, if `request.input` is given, parse it. Plain Scala — no
     * Scala.js-specific API — so it compiles and is directly testable on both `labJVM` and `labJS`;
@@ -49,9 +82,18 @@ object LabApi:
     * cross-compiled module has one shared source tree for both platforms).
     */
   def evaluate(request: LabRequest): LabResponse =
-    Lr.parse(request.source) match
-      case Left(err) =>
-        LabResponse(LabResponse.version, buildOk = false, diagnostics = Vector(err), parse = None)
+    val src = Lr.toFenced(request.source)
+    // `Lr.parseWith` always uses Canonical to build the `lr` NOTATION's OWN tables (parsing the
+    // `.grmk.md` text itself) — a fixed implementation detail, unrelated to `request.method`, which
+    // is the METHOD the caller wants the TARGET grammar's own tables built with, below.
+    Lr.parseWith(Method.Canonical, request.source) match
+      case Left(diags) =>
+        LabResponse(
+          LabResponse.version,
+          buildOk = false,
+          diagnostics = diags.map(toDiagnosticInfo(_, grammarSourceName, src)),
+          parse = None
+        )
       case Right(parsedGrammar) =>
         val grammar = withStartRule(parsedGrammar, request.startRule)
         // `productions`/`forest` depend only on the grammar notation having parsed, not on
@@ -60,20 +102,28 @@ object LabApi:
         // genuinely ambiguous grammar (real conflicts under every method, so `buildOk` is always
         // false for it) still show the All-parses tab's forest instead of only a diagnostic.
         //
-        // No separate `Diagnostics.undefinedNonterminals` call belongs here: `Lr.parse` already
-        // runs it, as the last step of `Lr.parseWith` (`Desugar.desugar(g).flatMap(Diagnostics.
-        // checkDefined)`) — an undefined mixed-case reference is a hard `Left(err)` from `Lr.parse`
-        // itself, caught above, not a soft warning `LabApi` needs to compute separately. A grammar
-        // that reaches this `Right(grammar)` branch is guaranteed already free of them.
+        // No separate `Diagnostics.undefinedNonterminals` call belongs here: `Lr.parseWith` already
+        // runs it, as its own last step (`Desugar.desugar(g).flatMap(Diagnostics.checkDefined)`) —
+        // an undefined mixed-case reference is a hard `Left(diags)` above, not a soft warning
+        // `LabApi` needs to compute separately. A grammar that reaches this `Right(grammar)` branch
+        // is guaranteed already free of them.
         val productions = Some(productionsOf(grammar))
         val forest = request.input.map(forestFor(request.source, request.method, grammar, _))
         val analysis = Some(analysisOf(grammar))
+        // Soft diagnostics (unknown `#[attr]`/`%setting`, an unreachable rule, an unused token
+        // class) are independent of whether the target grammar's tables build — a grammar can have
+        // both real conflicts AND an unused token class, and both should be visible together.
+        val warnings = Lr.warningsFor(request.source).map(toDiagnosticInfo(_, grammarSourceName, src))
         Table.buildTablesFor(request.method, grammar) match
           case Left(conflicts) =>
+            val spans = Lr.spanIndexOf(request.source)
+            val conflictInfos = Diagnostics
+              .conflictDiagnostics(grammar, spans, conflicts)
+              .map(toDiagnosticInfo(_, grammarSourceName, src))
             LabResponse(
               LabResponse.version,
               buildOk = false,
-              diagnostics = Diagnostics.renderConflicts(grammar, conflicts),
+              diagnostics = conflictInfos ++ warnings,
               parse = None,
               productions = productions,
               forest = forest,
@@ -84,7 +134,7 @@ object LabApi:
             LabResponse(
               LabResponse.version,
               buildOk = true,
-              diagnostics = Vector.empty,
+              diagnostics = warnings,
               parse = parse,
               productions = productions,
               forest = forest,
@@ -213,6 +263,35 @@ object LabApi:
       case Some(block) => Tokens.parseTokens(block).getOrElse(Vector.empty)
       case None        => Vector.empty
 
+  // The "expected one of: ..." note for an input-side parse rejection, from the compiled table's
+  // own action row — the terminals are the TARGET grammar's own (whatever the author declared), so
+  // unlike `Lr`'s own notation-parse errors, no friendly-name remapping is needed: they already read
+  // in the author's terms.
+  private def expectedNote(table: ParseTable, state: Int): Vector[String] =
+    val expected =
+      table.action.keys.collect { case (s, GSym.Term(t)) if s == state => t }.toVector.sorted
+    if expected.isEmpty then Vector.empty
+    else Vector("note: expected one of: " + expected.map(t => s"`$t`").mkString(", "))
+
+  private def diagnosticForInputParseError(
+      e: ParseError,
+      table: ParseTable,
+      spanned: Vector[Spanned]
+  ): Diagnostic =
+    def spanFor(pos: Int): Option[SrcSpan] =
+      spanned
+        .lift(pos)
+        .map(s => SrcSpan(s.start, s.end))
+        .orElse(spanned.lastOption.map(s => SrcSpan(s.end, s.end)))
+    e match
+      case ParseError.UnexpectedToken(state, terminal, pos) =>
+        val shown = spanned.lift(pos).map(s => s"`${s.text}`").getOrElse(s"`$terminal`")
+        Diagnostic.error(Stage.Parse, s"unexpected $shown", spanFor(pos), expectedNote(table, state))
+      case ParseError.UnexpectedEnd(state, pos) =>
+        Diagnostic.error(Stage.Parse, "unexpected end of input", spanFor(pos), expectedNote(table, state))
+      case ParseError.InternalError(m) =>
+        Diagnostic.error(Stage.Internal, s"internal error: $m; please report this")
+
   // Lex `input` against the grammar's own declared `## Tokens` (or its
   // implicit backtick-literal terminals alone, if it has none) and run it
   // through the compiled table. `tokens` is populated even on a reject —
@@ -229,12 +308,28 @@ object LabApi:
     val labTokens = spanned.map(s => LabToken(s.text, s.terminal, s.start, s.end))
 
     if Scanner.hasErrorSpanned(spanned) then
-      ParseResult(accepted = false, message = Some("lexical error in input"), labTokens, cst = None)
+      val errorRuns = Scanner.mergeErrorRuns(spanned)
+      val d = errorRuns.headOption match
+        case Some(s) =>
+          Diagnostic.error(Stage.Lex, s"""unexpected character `${s.text}`""", Some(SrcSpan(s.start, s.end)))
+        case None => Diagnostic.error(Stage.Lex, "lexical error in input")
+      ParseResult(
+        accepted = false,
+        message = Some(toDiagnosticInfo(d, inputSourceName, input)),
+        labTokens,
+        cst = None
+      )
     else
       val plainTokens = spanned.map(s => Token(s.terminal, s.text))
       Parser.run(table, Cst.cstToken, Cst.cstReduce, plainTokens) match
         case Left(err) =>
-          ParseResult(accepted = false, message = Some(err.render), labTokens, cst = None)
+          val d = diagnosticForInputParseError(err, table, spanned)
+          ParseResult(
+            accepted = false,
+            message = Some(toDiagnosticInfo(d, inputSourceName, input)),
+            labTokens,
+            cst = None
+          )
         case Right(cst) =>
           // walk and run are differentially tested to agree (core/src/test/scala/gramark/
           // ParserSuite.scala) — `.toOption` here is defensive, not expected to ever discard a

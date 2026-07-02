@@ -56,9 +56,9 @@ export interface LabResponse {
    */
   buildOk: boolean;
   /**
-   * Rendered conflict/undefined-nonterminal messages (Diagnostics.renderConflicts), or a single grammar-notation parse error, when buildOk is false. Empty when buildOk is true.
+   * Errors (a grammar-notation lexical/parse/undefined-nonterminal failure, or a table conflict) when buildOk is false, plus warnings (an unknown #[attr]/%setting, an unreachable rule, an unused token class) either way — distinguish by each entry's own `severity`.
    */
-  diagnostics: string[];
+  diagnostics: DiagnosticInfo[];
   /**
    * Present only when the request carried `input` and the grammar built successfully; null otherwise (compile-only requests, or any build failure).
    */
@@ -81,14 +81,38 @@ export interface LabResponse {
   evaluatorJs: string | null;
 }
 /**
+ * One structured diagnostic: a severity, which pipeline stage raised it, a message, an optional source span, free-form note/help lines, and a plain-text rendering (the same caret-framed text the CLI prints) as a display fallback.
+ */
+export interface DiagnosticInfo {
+  severity: "error" | "warning";
+  stage: "lex" | "parse" | "desugar" | "resolve" | "tables" | "internal";
+  message: string;
+  span: SrcSpanInfo | null;
+  /**
+   * Free-form note/help lines, e.g. "help: did you mean `Factor`?" — the tag is part of the text.
+   */
+  notes: string[];
+  /**
+   * The plain-text rendering (Diagnostic.render): a headline, an optional --> name:line:col location with a caret-underlined source line, then the notes — the same text the CLI prints.
+   */
+  rendered: string;
+}
+/**
+ * A `[start, end)` code-unit span into whichever source text the owning Diagnostic is relative to (the grammar source, or LabRequest.input).
+ */
+export interface SrcSpanInfo {
+  start: number;
+  end: number;
+}
+/**
  * The outcome of parsing LabRequest.input against the compiled grammar. `tokens` is populated even on a reject, so the Tokens tab still has something to show; `cst`/`trace` are null unless `accepted`.
  */
 export interface ParseResult {
   accepted: boolean;
   /**
-   * The reject reason (a lexical-error notice, or ParseError.render) when accepted is false; null when accepted.
+   * The reject reason (a located lexical or parse diagnostic, relative to LabRequest.input) when accepted is false; null when accepted.
    */
-  message: string | null;
+  message: DiagnosticInfo | null;
   tokens: LabToken[];
   cst: CstNode | null;
   /**

@@ -26,7 +26,8 @@ object LabExports:
   def evaluate(requestJson: String): String =
     val response = gramark.Json.parse(requestJson).flatMap(LabRequest.fromJson) match
       case Left(err) =>
-        LabResponse(LabResponse.version, buildOk = false, diagnostics = Vector(err), parse = None)
+        val d = DiagnosticInfo("error", "internal", err, None, Vector.empty, s"error: $err")
+        LabResponse(LabResponse.version, buildOk = false, diagnostics = Vector(d), parse = None)
       case Right(request) =>
         LabApi.evaluate(request)
     LabResponse.serialize(response)

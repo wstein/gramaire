@@ -72,6 +72,33 @@ const fixtures = [
     input: "xxx",
     method: "Canonical",
   },
+  {
+    // A grammar-notation parse error (missing the `NL` between a rule head and its `:`) — exercises
+    // the located Diagnostic path (span, notes) on the `diagnostics` array on both platforms, not
+    // just a flat string.
+    name: "notation-parse-error",
+    source: [
+      "# Broken",
+      "",
+      "## Foo",
+      "",
+      "```gramark",
+      "Foo Bar",
+      "```",
+      "",
+    ].join("\n"),
+    input: null,
+    method: "Canonical",
+  },
+  {
+    // A lexical error in the TARGET input (not the grammar) — exercises the located Diagnostic on
+    // `parse.message`, relative to `input`'s own coordinate space, distinct from the grammar-source
+    // diagnostics above.
+    name: "lexical-error-in-input",
+    source: readGrammar("examples/calc.grmk.md"),
+    input: "1 @ 2",
+    method: "Canonical",
+  },
 ];
 
 function jvmResponses(fixtures, tmpDir) {
