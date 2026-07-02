@@ -22,6 +22,12 @@ const showcaseSource = `Expr
   : Expr \`+\` Term   {% Add %}
   | Expr \`-\` Term   {% Sub %}
   | Term`;
+
+// Astro does not rewrite hand-written root-absolute href strings under the
+// configured `base` (only its own href/src template attributes get that
+// treatment) — a real bug the CI build (base "/gramaire/") would otherwise
+// ship: these links would 404 on GitHub Pages. Resolve from BASE_URL instead.
+const base = import.meta.env.BASE_URL;
 ---
 
 <!doctype html>
@@ -29,9 +35,35 @@ const showcaseSource = `Expr
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {
+      /*
+        This page sits outside Starlight's own Page.astro, so it has no
+        <ThemeProvider/> seeding data-theme before first paint — without this,
+        the page would flash the wrong theme, then AppShell's <gramaire-topbar>
+        corrects it after upgrading. Same key, same algorithm, as Starlight's
+        own inline ThemeProvider (node_modules/@astrojs/starlight/components/
+        ThemeProvider.astro) — one source of truth across both surfaces.
+      */
+    }
+    <script is:inline>
+      (() => {
+        const stored = localStorage.getItem("starlight-theme");
+        const theme =
+          stored === "light" || stored === "dark"
+            ? stored
+            : matchMedia("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark";
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
     <title>Gramaire — Grammars that render themselves.</title>
     <meta name="description" content="Grammars that render themselves." />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link
+      rel="icon"
+      href={`${import.meta.env.BASE_URL}favicon.svg`}
+      type="image/svg+xml"
+    />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -60,7 +92,7 @@ const showcaseSource = `Expr
               time the exact input the generator reads.
             </p>
             <div class="hero__buttons">
-              <Button kind="primary" href="/tutorials/intro/"
+              <Button kind="primary" href={`${base}tutorials/intro/`}
                 >Start the tutorial <span class="hero__arrow">→</span></Button
               >
               <Button kind="ghost" title="Planned — not yet built"
@@ -84,7 +116,7 @@ const showcaseSource = `Expr
                 <div class="showcase__diagram-label">renders to ↓</div>
                 <div class="showcase__diagram-svg">
                   <img
-                    src="/diagrams/calc/expr.svg"
+                    src={`${base}diagrams/calc/expr.svg`}
                     alt="Railroad diagram for the Expr rule"
                   />
                 </div>
@@ -109,8 +141,8 @@ const showcaseSource = `Expr
 
           <footer class="footer">
             <span>Gramaire · Apache-2.0</span>
-            <a href="/docs/overview/">Docs</a>
-            <a href="/tutorials/intro/">Tutorial</a>
+            <a href={`${base}docs/overview/`}>Docs</a>
+            <a href={`${base}tutorials/intro/`}>Tutorial</a>
             <span class="footer__soon" title="Planned — not yet built">Lab</span
             >
             <a

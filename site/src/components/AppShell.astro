@@ -1,33 +1,25 @@
 ---
 // The single, unified topbar for every route — Starlight pages (Docs,
 // Specs, Tutorials, Brand) via the `Header` component override in
-// astro.config.mjs, and the bare Landing page directly. One design instead
-// of two: Starlight's own default header is fully replaced here, with its
-// search folded in rather than dropped.
-//
-// Unlike Starlight (which manages its own theme state on the pages it
-// fully controls), this shell owns its own [data-theme] toggle +
-// localStorage persistence, per IMPLEMENTATION_astro.md §4, so the same
-// toggle works identically whether Starlight is present or not.
+// astro.config.mjs, and the bare Landing page directly. Rendering itself is
+// delegated to the shared <gramaire-topbar> custom element
+// (../shared/gramaire-topbar.mjs): a real Shadow DOM boundary instead of two
+// independent Astro composition paths, which is what caused Starlight's own
+// `.header` wrapper to double up on padding and an ancestor-attribute
+// selector (`[data-theme="dark"] .knob`) to silently never match under
+// Astro's per-file style scoping. This component's only job is the Astro-side
+// concerns the custom element can't do itself: computing which nav section is
+// active from the current route, resolving the deploy base path, and
+// providing Starlight's own `<Search />` (so Pagefind indexing keeps working)
+// as the slotted `tools` content.
 import Search from "@astrojs/starlight/components/Search.astro";
-import Logomark from "./Logomark.astro";
-import Wordmark from "./Wordmark.astro";
 
 type NavId = "home" | "tutorial" | "docs" | "lab";
 
-const navItems: Array<{ id: NavId; label: string; href: string | null }> = [
-  { id: "home", label: "Home", href: "/" },
-  { id: "tutorial", label: "Tutorial", href: "/tutorials/intro/" },
-  { id: "docs", label: "Docs", href: "/docs/overview/" },
-  // The Lab is planned (M4 of the site rebuild) but not yet built — see
-  // docs/playground-spec.md. Rendered as inert rather than a dead link.
-  { id: "lab", label: "Lab", href: null },
-];
-
 // Auto-detect from the URL rather than requiring every caller (Landing,
-// every Starlight page) to pass it explicitly — this component is now
-// Starlight's Header override too, and Starlight doesn't know about our
-// nav's id scheme to pass one in.
+// every Starlight page) to pass it explicitly — this component is also
+// Starlight's Header override, and Starlight doesn't know about our nav's
+// id scheme to pass one in.
 const path = Astro.url.pathname;
 function detectActive(path: string): NavId | null {
   if (path === "/" || path.endsWith("/index.html")) return "home";
@@ -44,206 +36,20 @@ function detectActive(path: string): NavId | null {
 const active = detectActive(path);
 ---
 
-<div class="topbar">
-  <a href="/" class="brand">
-    <Logomark size={28} />
-    <span class="brand__wordmark"><Wordmark /></span>
-  </a>
-  <div class="divider"></div>
-  <div class="search">
-    <Search />
-  </div>
-  <div class="spacer"></div>
-  <nav class="nav">
-    {
-      navItems.map((item) =>
-        item.href ? (
-          <a
-            href={item.href}
-            class="nav__item"
-            data-active={item.id === active}
-          >
-            {item.label}
-          </a>
-        ) : (
-          <span
-            class="nav__item nav__item--soon"
-            title="Planned — not yet built"
-          >
-            {item.label}
-          </span>
-        ),
-      )
-    }
-  </nav>
-  <div class="divider"></div>
-  <button type="button" class="theme-toggle" id="theme-toggle" data-mode="auto">
-    <span class="theme-toggle__sun">☀</span>
-    <span class="theme-toggle__moon">☾</span>
-    <span class="theme-toggle__knob"></span>
-  </button>
-</div>
-
-<style>
-  .topbar {
-    display: flex;
-    align-items: center;
-    gap: 18px;
-    padding: 12px 22px;
-    border-bottom: 1px solid var(--border);
-    flex: none;
-    z-index: 10;
-    background: var(--bg);
+<gramaire-topbar active={active} base={import.meta.env.BASE_URL}>
+  {
+    /*
+      `slot="tools"` on <Search/> itself would be consumed by Astro's OWN
+      component-slotting (it has no matching named <slot> to project into),
+      not forwarded as a literal HTML attribute on the rendered <site-search>
+      — the same gotcha FlatBars' Topbar.astro documents for its sidebar
+      toggle. A plain wrapping element isn't an Astro component, so Astro
+      passes its `slot` attribute through literally.
+    */
   }
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    text-decoration: none;
-    flex: none;
-  }
-  .brand__wordmark {
-    font-size: 19px;
-  }
-  .spacer {
-    flex: 1;
-  }
-  .nav {
-    display: flex;
-    gap: 22px;
-    flex: none;
-  }
-  .nav__item {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--fg-muted);
-    text-decoration: none;
-    cursor: pointer;
-  }
-  .nav__item[data-active="true"] {
-    font-weight: 600;
-    color: var(--accent);
-  }
-  .nav__item--soon {
-    cursor: default;
-    opacity: 0.55;
-  }
-  .search {
-    flex: none;
-    width: 200px;
-  }
-  .divider {
-    width: 1px;
-    height: 18px;
-    background: var(--border);
-    flex: none;
-  }
-  .theme-toggle {
-    all: unset;
-    cursor: pointer;
-    width: 46px;
-    height: 25px;
-    border-radius: 999px;
-    background: var(--bg-2);
-    border: 1px solid var(--border-strong);
-    position: relative;
-    flex: none;
-  }
-  .theme-toggle__sun,
-  .theme-toggle__moon {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    line-height: 1;
-    color: var(--fg-faint);
-  }
-  .theme-toggle__sun {
-    left: 6px;
-    font-size: 11px;
-  }
-  .theme-toggle__moon {
-    right: 6px;
-    font-size: 10px;
-  }
-  .theme-toggle__knob {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 19px;
-    height: 19px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-    transition: left 0.22s ease;
-  }
-  /*
-   * Driven by `data-mode` on the button itself (light/auto/dark), not by
-   * `[data-theme]` on <html> — that ancestor lives outside this
-   * component's template, and Astro's per-file style scoping silently
-   * requires its own scope class on BOTH sides of a compound selector,
-   * so a rule keyed off an ancestor attribute like `[data-theme="dark"]
-   * .theme-toggle__knob` can never match (the knob never visibly moved).
-   * Keeping the state on `#theme-toggle` itself sidesteps that entirely.
-   */
-  .theme-toggle[data-mode="light"] .theme-toggle__knob {
-    left: 2px;
-  }
-  .theme-toggle[data-mode="auto"] .theme-toggle__knob {
-    left: 13px;
-  }
-  .theme-toggle[data-mode="dark"] .theme-toggle__knob {
-    left: 23px;
-  }
-
-  @media (max-width: 720px) {
-    .nav {
-      display: none;
-    }
-    .search {
-      width: auto;
-      flex: 1;
-    }
-  }
-</style>
+  <div slot="tools"><Search /></div>
+</gramaire-topbar>
 
 <script>
-  // Three modes — light/dark force an explicit theme; auto (the default,
-  // i.e. no stored preference yet) follows the OS live via the
-  // prefers-color-scheme media query, not just once at load.
-  const STORAGE_KEY = "gramaire-theme";
-  const MODES = ["light", "auto", "dark"];
-  const root = document.documentElement;
-  const toggle = document.getElementById("theme-toggle");
-  const media = window.matchMedia("(prefers-color-scheme: dark)");
-
-  function isMode(v: string | null): v is "light" | "auto" | "dark" {
-    return v === "light" || v === "auto" || v === "dark";
-  }
-
-  function apply(mode: "light" | "auto" | "dark") {
-    const effective =
-      mode === "auto" ? (media.matches ? "dark" : "light") : mode;
-    root.setAttribute("data-theme", effective);
-    toggle?.setAttribute("data-mode", mode);
-    const label =
-      mode === "auto"
-        ? `Theme: Auto (currently ${effective})`
-        : `Theme: ${effective}`;
-    toggle?.setAttribute("title", `${label} — click to change`);
-    toggle?.setAttribute("aria-label", `${label} — click to change`);
-  }
-
-  const stored = localStorage.getItem(STORAGE_KEY);
-  let mode = isMode(stored) ? stored : "auto";
-  apply(mode);
-
-  media.addEventListener("change", () => {
-    if (mode === "auto") apply(mode);
-  });
-
-  toggle?.addEventListener("click", () => {
-    mode = MODES[(MODES.indexOf(mode) + 1) % MODES.length]!;
-    localStorage.setItem(STORAGE_KEY, mode);
-    apply(mode);
-  });
+  import "../shared/gramaire-topbar.mjs";
 </script>
