@@ -305,3 +305,47 @@ test("the Lab's splitter resizes the panes and clamps at 28%/72%", async ({
   await page.mouse.up();
   await expect(splitter).toHaveAttribute("aria-valuenow", "28");
 });
+
+test("the Lab's drawer splitter resizes the drawer and clamps at 160px/640px", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+
+  const hsplitter = page.locator(".lab__hsplitter");
+  await expect(hsplitter).toHaveAttribute("aria-valuenow", "300"); // default
+
+  const before = await page.locator(".lab__drawer").boundingBox();
+  const box = await hsplitter.boundingBox();
+  if (!before || !box) throw new Error("expected bounding boxes");
+
+  // Drag up — grows the drawer.
+  await page.mouse.move(box.x + 20, box.y + 3);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 20, box.y - 103, { steps: 10 });
+  await page.mouse.up();
+
+  const after = await page.locator(".lab__drawer").boundingBox();
+  if (!after) throw new Error("expected a bounding box");
+  expect(after.height).toBeGreaterThan(before.height + 50);
+
+  // Drag far past the top edge — clamps at 640px, never grows unbounded.
+  const box2 = await hsplitter.boundingBox();
+  if (!box2) throw new Error("expected a bounding box");
+  await page.mouse.move(box2.x + 20, box2.y + 3);
+  await page.mouse.down();
+  await page.mouse.move(box2.x + 20, box2.y - 2000, { steps: 5 });
+  await page.mouse.up();
+  await expect(hsplitter).toHaveAttribute("aria-valuenow", "640");
+
+  // Drag far past the bottom edge — clamps at 160px.
+  const box3 = await hsplitter.boundingBox();
+  if (!box3) throw new Error("expected a bounding box");
+  await page.mouse.move(box3.x + 20, box3.y + 3);
+  await page.mouse.down();
+  await page.mouse.move(box3.x + 20, box3.y + 2000, { steps: 5 });
+  await page.mouse.up();
+  await expect(hsplitter).toHaveAttribute("aria-valuenow", "160");
+});

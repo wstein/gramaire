@@ -95,6 +95,15 @@
 .lab__splitter:active {
   background: var(--accent);
 }
+.lab__hsplitter {
+  flex: 0 0 7px;
+  cursor: row-resize;
+  background: var(--border);
+}
+.lab__hsplitter:hover,
+.lab__hsplitter:active {
+  background: var(--accent);
+}
 .lab__pane-label {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -119,7 +128,8 @@
 }
 
 .lab__drawer {
-  flex: 0 0 clamp(220px, 30vh, 360px);
+  /* flex-basis set inline from the drawerHeight signal (px, draggable via .lab__hsplitter) —
+     same pattern as .lab__pane--grammar's splitPercent. */
   display: flex;
   flex-direction: column;
   min-height: 0;
