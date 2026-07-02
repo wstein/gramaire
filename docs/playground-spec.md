@@ -419,10 +419,24 @@ byte-for-byte, gitignored, rebuilt by `npm run build:engine`), and
 `worker.ts` loads it via a runtime `import(/* @vite-ignore */ engineUrl)`
 instead of a static `import … from "./engine.mjs"`.
 
+**M5 progress.** All parses and Lowered Core are done: `LabResponse` grew
+`productions: Option[Vector[ProductionInfo]]` (every flattened production,
+`Table.productions` zipped by index with `grammar.rules.flatMap(_.alts)` for
+each one's raw `{% %}` action text — same traversal order, confirmed by
+`Table.scala`'s own `productions` definition) and
+`forest: Option[ForestResult]` (`Glr.forest`, capped at 50 with a
+`truncated` flag). Both are computed right after `Lr.parse` succeeds, before
+`Table.buildTablesFor` runs — deliberately: `Glr.forest`'s multi-action
+table never fails, so a genuinely ambiguous grammar (real conflicts under
+every method, `buildOk` always false) still gets a populated forest instead
+of only a diagnostic, which is the entire reason the All-parses tab exists.
+Covered by 4 new `LabApiSuite` cases (including the ambiguous-grammar one)
+and 2 new `lab.spec.ts` cases against the real engine.
+
 **Not yet done:** the JVM↔JS parity gate below (the main remaining tracked
-gap for this slice), and the M5+ tabs (Evaluate, Grammar analysis, Parse
-trace, LR walk, All parses, Lowered Core) plus the `Glr.explain` refactor,
-draggable splitter, and LR-walk stepper.
+gap for this slice), and the rest of the M5+ tabs (Evaluate, Grammar
+analysis, Parse trace, LR walk) plus the `Glr.explain` refactor, draggable
+splitter, and LR-walk stepper.
 
 **JVM↔JS parity gate** (§8, "no-import" guardrail's sibling; not yet built):
 `Conformance.scala` already exists as differential-oracle infrastructure;
@@ -461,9 +475,9 @@ always reads "valid / green"), matching the gold-standard mock's spec exactly
 | 5   | Parse tree       | `Cst.toJson`                                                                                                                                                                                                          | ✅       |
 | 6   | Parse trace      | derived client-side from the LR walk below, or a new `Table`/`Parser` trace hook                                                                                                                                      | M5+      |
 | 7   | LR walk          | stepper over the same trace data as Parse trace                                                                                                                                                                       | M5+      |
-| 8   | All parses       | `Glr.forest` (real; **do not** relabel to "Conflicts" — see `design/README.md`'s override of the stale `IMPLEMENTATION_astro.md` guidance)                                                                            | M5+      |
+| 8   | All parses       | `Glr.forest`, populated even when `buildOk` is false — a genuinely ambiguous grammar has real conflicts under every method, so this is exactly the case the tab exists for (real; **do not** relabel to "Conflicts" — see `design/README.md`'s override of the stale `IMPLEMENTATION_astro.md` guidance) | ✅ (M5)  |
 | 9   | Diagnostics      | `Diagnostics.undefinedNonterminals` + `Diagnostics.renderConflicts`                                                                                                                                                   | ✅       |
-| 10  | Lowered Core     | render the already-desugared `Grammar` `Lr.parse` returns (confirmed: `Desugar.desugar` returns the same `Grammar` type, not a distinct "lowered" type — desugaring is a value-level guarantee, not a type-level one) | M5+      |
+| 10  | Lowered Core     | `Table.productions(grammar)` zipped with `grammar.rules.flatMap(_.alts)` for each production's raw `{% %}` action text (confirmed: `Desugar.desugar` returns the same `Grammar` type, not a distinct "lowered" type — desugaring is a value-level guarantee, not a type-level one) | ✅ (M5)  |
 
 This table **is** the provenance mapping the round-2 review guardrails called
 for (`docs-lint`-checked once the M5+ tabs land); it's the single source that
