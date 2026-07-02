@@ -85,6 +85,9 @@ const walkStep = signal(0);
 const splitPercent = signal(55);
 const SPLIT_MIN = 28;
 const SPLIT_MAX = 72;
+const drawerHeight = signal(300);
+const DRAWER_MIN = 160;
+const DRAWER_MAX = 640;
 
 const buildStatus = computed<"pending" | "ok" | "fail">(() => {
   if (response.value === null) return "pending";
@@ -153,8 +156,31 @@ function startSplitterDrag(panesEl: HTMLDivElement) {
   };
 }
 
+// The vertical counterpart of startSplitterDrag: resizes the bottom drawer (tabs + panel) against
+// the top panes, clamped DRAWER_MIN-DRAWER_MAX px. Measured in pixels rather than a percentage of
+// `labEl`'s height — a percentage would make the drawer's size depend on viewport height even
+// when the user hasn't touched this splitter, unlike the grammar/input split where a percentage
+// is exactly what's wanted.
+function startDrawerDrag(labEl: HTMLDivElement) {
+  return (e: MouseEvent) => {
+    e.preventDefault();
+    const onMove = (moveEvent: MouseEvent) => {
+      const rect = labEl.getBoundingClientRect();
+      const height = rect.bottom - moveEvent.clientY;
+      drawerHeight.value = Math.min(DRAWER_MAX, Math.max(DRAWER_MIN, height));
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+}
+
 export default function LabIsland() {
   const initialized = useRef(false);
+  const labRef = useRef<HTMLDivElement>(null);
   const panesRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (initialized.current) return;
@@ -164,7 +190,7 @@ export default function LabIsland() {
   }, []);
 
   return (
-    <div class="lab">
+    <div class="lab" ref={labRef}>
       <div class="lab__toolbar">
         <label class="lab__method">
           Method
@@ -234,7 +260,18 @@ export default function LabIsland() {
         </div>
       </div>
 
-      <div class="lab__drawer">
+      <div
+        class="lab__hsplitter"
+        role="separator"
+        aria-orientation="horizontal"
+        aria-valuemin={DRAWER_MIN}
+        aria-valuemax={DRAWER_MAX}
+        aria-valuenow={Math.round(drawerHeight.value)}
+        onMouseDown={(e) => {
+          if (labRef.current) startDrawerDrag(labRef.current)(e);
+        }}
+      />
+      <div class="lab__drawer" style={{ flex: `0 0 ${drawerHeight.value}px` }}>
         <div class="lab__tabs" role="tablist">
           {(
             [
