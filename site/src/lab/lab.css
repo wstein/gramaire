@@ -386,8 +386,34 @@
   background: var(--accent-softer);
 }
 
-.lab__annotated-value {
+.lab__value-chip {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
   color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  border-radius: 5px;
+  padding: 0 8px;
+}
+.lab__value-details > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.lab__value-details > summary::-webkit-details-marker {
+  display: none;
+}
+.lab__value-json {
+  margin: 6px 0 0 0;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
 }
 
 @media (max-width: 720px) {
