@@ -38,3 +38,6 @@ site/public/lab/engine.mjs
 site/test-results/
 site/playwright-report/
 site/blob-report/
+
+# Metals build artifacts
+.metals/metals.lock.db
