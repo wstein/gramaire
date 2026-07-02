@@ -4,10 +4,41 @@
  * design/README.md for the gold-standard boundary this file honors).
  *
  * This is the single palette authority for the whole site. Starlight's
- * --sl-* variables alias into these tokens (starlight-bridge.css); Tailwind
- * v4's @theme (tailwind-theme.css) does the same. Never hand-duplicate a
- * color literal anywhere else — add or change it here only.
+ * --sl-* variables alias into these tokens (starlight-bridge.css). Never
+ * hand-duplicate a color literal anywhere else — add or change it here only.
+ *
+ * This file also owns the base reset below — the ONE thing every page on
+ * this site needs regardless of pipeline (loaded first, by both the bare
+ * Landing page and every Starlight page). It used to arrive as a side
+ * effect of Tailwind's Preflight, even though this site never used a single
+ * Tailwind utility class; that framework was removed (it directly caused a
+ * cascade-layer bug — see starlight-bridge.css's dialog-frame comment), but
+ * several components (tiles, buttons, code blocks) turned out to silently
+ * depend on its box-sizing/margin/padding reset. Made explicit and owned
+ * here instead of resurrecting an otherwise-unused framework for it.
+ *
+ * Wrapped in `@layer reset`, NOT left unlayered: an unlayered rule beats
+ * every layer unconditionally, which broke every Starlight page's own
+ * prose spacing on the first attempt here — Starlight's own typography
+ * rules are themselves layered specifically so they can override ITS OWN
+ * base reset, and an unlayered `margin: 0` sat above even that. Declaring
+ * this layer FIRST (tokens.css loads before every other stylesheet on both
+ * pipelines) makes it the lowest-priority layer in the whole document, so
+ * anything Starlight declares afterward — layered or not — still wins,
+ * exactly like Tailwind's own `@layer base` did before it was removed.
  */
+
+@layer reset {
+  *,
+  *::before,
+  *::after,
+  ::backdrop {
+    box-sizing: border-box;
+    border: 0 solid;
+    margin: 0;
+    padding: 0;
+  }
+}
 
 @font-face {
   font-family: "IBM Plex Sans";
