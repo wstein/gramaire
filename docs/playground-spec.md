@@ -356,31 +356,54 @@ the self-hosting bootstrap grammar) — a completely different concern from
 `Parser.run`, which parses a **target input** against a _compiled_ `ParseTable`.
 Step 1 above runs once per `COMPILE`; step 4 runs once per `EVALUATE`.
 
-**Engine work still required for v1** (owner: core; runs in parallel with the
+**Engine work required for v1** (owner: core; runs in parallel with the
 Preact-side work, per the round-2 debate's "engine work gates only M4"):
 
-- **Nothing new for Result/Tokens/Parse tree** — `Lexer.tokenizeSpanned`
-  already gives spanned tokens, `Cst.toJson` already gives the tree JSON,
-  `ParseError` is already structured (not prose). The composition pipeline
-  above is real glue code, but no core module needs new capability.
-- **Diagnostics needs no new capability either** — `Diagnostics.renderConflicts`
+- **Result/Parse tree needed nothing new** — `Cst.toJson` already gives the
+  tree JSON, `ParseError` is already structured (not prose).
+- **Tokens needed one small, genuine addition.** An earlier pass through this
+  section claimed `Lexer.tokenizeSpanned` already covered it — wrong:
+  `tokenizeSpanned` is specific to `Lexer.scala`, the `lr` NOTATION's own
+  hardcoded micro-language lexer, not target-input lexing. The actual
+  mechanism target input goes through, `Scanner.scan` (via
+  `ConformanceLexers.scannerLexer`), computed spans internally during
+  matching and then discarded them — its return type was plain `Token`
+  (terminal + text only). Fixed by adding `Scanner.scanSpanned` (returning
+  `Vector[Spanned]`, reusing the existing `Spanned` type from `Lexer.scala`)
+  and making `scan` a one-line wrapper that discards spans, so every
+  existing caller (the conformance suite, the `lr` grammar's own lexer
+  table) is untouched. Covered by 3 new `ScannerSuite` tests.
+- **Diagnostics needs no new capability** — `Diagnostics.renderConflicts`
   and `undefinedNonterminals` already return exactly what v1 needs.
-- The one genuine gap: `Glr.explain`'s String→structured refactor (needed for
-  Grammar analysis, **M5+**, not v1) is confirmed necessary — `explainP`
-  currently discards everything but a conflict _count_ per method, and no
-  function anywhere exposes a per-method _state_ count (`Table.States` is
-  private and never escapes `Table.scala`). Deferred past v1 deliberately;
-  tracked here so M5 doesn't rediscover it.
+- The one genuine deferred gap: `Glr.explain`'s String→structured refactor
+  (needed for Grammar analysis, **M5+**, not v1) is confirmed necessary —
+  `explainP` currently discards everything but a conflict _count_ per
+  method, and no function anywhere exposes a per-method _state_ count
+  (`Table.States` is private and never escapes `Table.scala`). Deferred past
+  v1 deliberately; tracked here so M5 doesn't rediscover it.
 
-**JVM↔JS parity gate** (§8, "no-import" guardrail's sibling): `Conformance.scala`
-already exists as differential-oracle infrastructure; extend its fixtures to
-run one `LabRequest` through `labJVM` directly and through the linked `labJS`
-worker module under Node, byte-comparing the serialized `LabResponse`. This
-proves the wire format is right; it does **not** prove the UI renders it
-right — the drift that actually hurt this project once (`b335a75`, a docs/copy
-bug, not a serialization bug) needs a second check: the tab→core-symbol
-provenance table below, extended to grep component source for the field name,
-not just prose.
+**Implementation status (v1 engine slice — done):** `lab/src/main/scala/gramaire/lab/LabProtocol.scala`
+(the case classes + hand-written JSON codecs) and `LabApi.scala` (the
+composition pipeline above, as `LabApi.evaluate: LabRequest => LabResponse`)
+are built, compile and link on both `labJVM` and `labJS`, and pass 11 tests
+in `lab/.jvm/src/test/scala/gramaire/lab/LabApiSuite.scala` (accept/reject/
+lexical-error/no-input/conflict/malformed-grammar cases, all three
+`Table.Method`s, and a `LabResponse.serialize` JSON round-trip) — JVM-only,
+matching `core/.jvm/src/test/scala/gramaire/ConformanceSuite.scala`'s own
+convention (reads `examples/calc.gram.md`). **Not yet done:** the
+`@JSExportTopLevel` wrapper around `LabApi.evaluate` (needs its own
+platform-specific source dir — see the note in `LabApi.scala` — not written
+yet), the Preact-side Worker wiring, and the JVM↔JS parity gate below.
+
+**JVM↔JS parity gate** (§8, "no-import" guardrail's sibling; not yet built):
+`Conformance.scala` already exists as differential-oracle infrastructure;
+extend its fixtures to run one `LabRequest` through `labJVM` directly and
+through the linked `labJS` worker module under Node, byte-comparing the
+serialized `LabResponse`. This proves the wire format is right; it does
+**not** prove the UI renders it right — the drift that actually hurt this
+project once (`b335a75`, a docs/copy bug, not a serialization bug) needs a
+second check: the tab→core-symbol provenance table below, extended to grep
+component source for the field name, not just prose.
 
 ---
 

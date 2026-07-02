@@ -41,3 +41,43 @@ class ScannerSuite extends munit.FunSuite:
     assertEquals(toks.map(_.terminal), Vector("IDENT", "ERROR", "IDENT"))
     assert(Scanner.hasError(toks))
   }
+
+  // scanSpanned backs the Lab's Tokens tab (docs/playground-spec.md §5.1):
+  // spans must survive skipped (whitespace) tokens intact, since those are
+  // exactly the offsets hover-linking needs.
+  test("scanSpanned carries exact source offsets, skipped tokens included in the gaps") {
+    val defs = Tokens.parseTokens(idTokens).getOrElse(fail("tokens should parse"))
+    val items = Scanner.buildItems(defs, Vector("true"))
+    val toks = Scanner.scanSpanned(items, "true trueish")
+    assertEquals(
+      toks,
+      Vector(
+        Spanned("true", "true", 0, 4),
+        Spanned("IDENT", "trueish", 5, 12)
+      )
+    )
+    assert(!Scanner.hasErrorSpanned(toks))
+  }
+
+  test("scanSpanned: an unmatched character becomes a spanned ERROR token (M4)") {
+    val defs = Tokens.parseTokens(idTokens).getOrElse(fail("tokens parse"))
+    val toks = Scanner.scanSpanned(Scanner.buildItems(defs, Vector.empty), "a@b")
+    assertEquals(
+      toks,
+      Vector(
+        Spanned("IDENT", "a", 0, 1),
+        Spanned("ERROR", "@", 1, 2),
+        Spanned("IDENT", "b", 2, 3)
+      )
+    )
+    assert(Scanner.hasErrorSpanned(toks))
+  }
+
+  test("scan is scanSpanned with spans discarded") {
+    val defs = Tokens.parseTokens(numberTokens).getOrElse(fail("number tokens should parse"))
+    val items = Scanner.buildItems(defs, Vector.empty)
+    val input = "123.45e-6"
+    val spanned = Scanner.scanSpanned(items, input)
+    val plain = Scanner.scan(items, input)
+    assertEquals(plain, spanned.map(s => Token(s.terminal, s.text)))
+  }
