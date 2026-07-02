@@ -101,9 +101,9 @@ test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", 
   });
 
   await page
-    .locator(".lab__pane:nth-child(1) .lab__editor")
+    .locator(".lab__pane--grammar .lab__editor")
     .fill("# Ambiguous\n\n## E\n\n```gramark\nE\n: E E\n| 'x'\n```\n");
-  await page.locator(".lab__pane:nth-child(2) .lab__editor").fill("xxx");
+  await page.locator(".lab__pane--fill .lab__editor").fill("xxx");
   await expect(page.locator(".lab__status")).toHaveText("build failed", {
     timeout: 5000,
   });
@@ -147,8 +147,8 @@ test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthro
     "```",
     "",
   ].join("\n");
-  await page.locator(".lab__pane:nth-child(1) .lab__editor").fill(md);
-  await page.locator(".lab__pane:nth-child(2) .lab__editor").fill("1+2+3");
+  await page.locator(".lab__pane--grammar .lab__editor").fill(md);
+  await page.locator(".lab__pane--fill .lab__editor").fill("1+2+3");
   await expect(page.locator(".lab__status")).toHaveText("build ok", {
     timeout: 5000,
   });
@@ -168,7 +168,7 @@ test("the Lab reflects a rejected input", async ({ page }) => {
     timeout: 5000,
   });
 
-  await page.locator(".lab__pane:nth-child(2) .lab__editor").fill("1+");
+  await page.locator(".lab__pane--fill .lab__editor").fill("1+");
   await page.click('button[role="tab"]:has-text("Result")');
   await expect(page.locator(".lab__result")).toContainText("Rejected", {
     timeout: 5000,
@@ -184,11 +184,54 @@ test("the Lab reflects a grammar that fails to build, with real diagnostics", as
   });
 
   await page
-    .locator(".lab__pane:nth-child(1) .lab__editor")
+    .locator(".lab__pane--grammar .lab__editor")
     .fill("# Broken\n\n## Foo\n\n```gramark\nFoo Bar\n```\n");
   await expect(page.locator(".lab__status")).toHaveText("build failed", {
     timeout: 5000,
   });
   await page.click('button[role="tab"]:has-text("Diagnostics")');
   await expect(page.locator(".lab__diagnostics li")).toHaveCount(1);
+});
+
+test("the Lab's splitter resizes the panes and clamps at 28%/72%", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+
+  const splitter = page.locator(".lab__splitter");
+  await expect(splitter).toHaveAttribute("aria-valuenow", "55"); // default
+
+  const before = await page.locator(".lab__pane").first().boundingBox();
+  const box = await splitter.boundingBox();
+  if (!before || !box) throw new Error("expected bounding boxes");
+
+  await page.mouse.move(box.x + 3, box.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 153, box.y + 20, { steps: 10 });
+  await page.mouse.up();
+
+  const after = await page.locator(".lab__pane").first().boundingBox();
+  if (!after) throw new Error("expected a bounding box");
+  expect(after.width).toBeGreaterThan(before.width + 100);
+
+  // Drag far past the right edge — clamps at 72%, never grows unbounded.
+  const box2 = await splitter.boundingBox();
+  if (!box2) throw new Error("expected a bounding box");
+  await page.mouse.move(box2.x + 3, box2.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(box2.x + 2000, box2.y + 20, { steps: 5 });
+  await page.mouse.up();
+  await expect(splitter).toHaveAttribute("aria-valuenow", "72");
+
+  // Drag far past the left edge — clamps at 28%.
+  const box3 = await splitter.boundingBox();
+  if (!box3) throw new Error("expected a bounding box");
+  await page.mouse.move(box3.x + 3, box3.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(box3.x - 2000, box3.y + 20, { steps: 5 });
+  await page.mouse.up();
+  await expect(splitter).toHaveAttribute("aria-valuenow", "28");
 });

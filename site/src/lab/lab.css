@@ -77,13 +77,23 @@
   border-bottom: 1px solid var(--border);
 }
 .lab__pane {
-  flex: 1 1 50%;
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
-.lab__pane + .lab__pane {
-  border-left: 1px solid var(--border);
+/* The grammar pane's flex-basis is set inline from the splitPercent signal; the input pane
+   always fills whatever's left, so the two never need to sum to exactly 100% by hand. */
+.lab__pane--fill {
+  flex: 1 1 auto;
+}
+.lab__splitter {
+  flex: 0 0 7px;
+  cursor: col-resize;
+  background: var(--border);
+}
+.lab__splitter:hover,
+.lab__splitter:active {
+  background: var(--accent);
 }
 .lab__pane-label {
   font-family: var(--font-mono);
@@ -325,8 +335,17 @@
   .lab__panes {
     flex-direction: column;
   }
-  .lab__pane + .lab__pane {
-    border-left: 0;
+  /* Stacked panes have no meaningful horizontal split to drag; each pane just takes its
+     natural height instead (the inline flex-basis from splitPercent only applies to the
+     horizontal desktop layout). */
+  .lab__splitter {
+    display: none;
+  }
+  .lab__pane {
+    flex-basis: auto !important;
     border-top: 1px solid var(--border);
+  }
+  .lab__pane:first-child {
+    border-top: 0;
   }
 }

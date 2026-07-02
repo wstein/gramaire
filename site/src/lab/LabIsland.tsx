@@ -82,6 +82,9 @@ const evaluation = signal<EvaluationResult | null>(null);
 const pending = signal(false);
 const selectedRule = signal<string | null>(null);
 const walkStep = signal(0);
+const splitPercent = signal(55);
+const SPLIT_MIN = 28;
+const SPLIT_MAX = 72;
 
 const buildStatus = computed<"pending" | "ok" | "fail">(() => {
   if (response.value === null) return "pending";
@@ -129,8 +132,30 @@ function scheduleEvaluate() {
   }, DEBOUNCE_MS);
 }
 
+// Draggable splitter (M5+, docs/playground-spec.md §6): default 55/45, clamped 28-72. Position is
+// in-memory only (not persisted) — the spec doesn't call for localStorage, so this doesn't add one
+// speculatively. `panesEl` is measured live on every move rather than cached at drag-start, since
+// a cached rect would go stale if the window were resized mid-drag.
+function startSplitterDrag(panesEl: HTMLDivElement) {
+  return (e: MouseEvent) => {
+    e.preventDefault();
+    const onMove = (moveEvent: MouseEvent) => {
+      const rect = panesEl.getBoundingClientRect();
+      const pct = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+      splitPercent.value = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, pct));
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+}
+
 export default function LabIsland() {
   const initialized = useRef(false);
+  const panesRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
@@ -168,8 +193,11 @@ export default function LabIsland() {
         </span>
       </div>
 
-      <div class="lab__panes">
-        <div class="lab__pane">
+      <div class="lab__panes" ref={panesRef}>
+        <div
+          class="lab__pane lab__pane--grammar"
+          style={{ flex: `0 0 ${splitPercent.value}%` }}
+        >
           <div class="lab__pane-label">Grammar (.grmk.md)</div>
           <textarea
             class="lab__editor"
@@ -181,7 +209,18 @@ export default function LabIsland() {
             }}
           />
         </div>
-        <div class="lab__pane">
+        <div
+          class="lab__splitter"
+          role="separator"
+          aria-orientation="vertical"
+          aria-valuemin={SPLIT_MIN}
+          aria-valuemax={SPLIT_MAX}
+          aria-valuenow={Math.round(splitPercent.value)}
+          onMouseDown={(e) => {
+            if (panesRef.current) startSplitterDrag(panesRef.current)(e);
+          }}
+        />
+        <div class="lab__pane lab__pane--fill">
           <div class="lab__pane-label">Input</div>
           <textarea
             class="lab__editor"
