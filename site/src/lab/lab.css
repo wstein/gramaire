@@ -639,9 +639,14 @@
   margin-bottom: 18px;
   /* A long input can wrap the parse-stack/remaining-input chips across many lines — capping this
      region and letting it scroll internally keeps the step-history table from being squeezed down
-     to nothing below it. flex:none for the same reason as .lab__walk-controls above: this must
-     hold its natural (capped) size, not shrink to help the flexbox make room. */
-  max-height: 140px;
+     to nothing below it. flex:none for the same reason as .lab__walk-controls above: making this
+     ALSO flex-shrinkable sounds fairer (share the deficit with history instead of dumping it all
+     on history), but flex's shrink math weights by flex-basis, and an auto/content basis on a
+     scrolling item like history is its full (often much larger than visible) content height — that
+     made panes shrink to its floor even on a perfectly comfortable default-sized drawer. A modest
+     static cap keeps the common case unaffected while still leaving history a real (if tight)
+     minimum in the pathological very-long-input case. */
+  max-height: 70px;
   overflow-y: auto;
   flex: none;
 }

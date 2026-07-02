@@ -422,13 +422,25 @@ function startDrawerDrag(labEl: HTMLDivElement) {
 // text they're meant to underline. Same coupling the design mock's own hardcoded LH/PADT accept.
 const EDITOR_LINE_HEIGHT = 20.8; // font-size: 13px * line-height: 1.6
 const EDITOR_PAD_TOP = 14; // padding: 14px
-// .lab__editor-gutter-clip's width and .lab__editor--gutter's padding-left (lab.css) must stay in
-// sync with each other so gutter digits and text never overlap — no JS-side constant needed since
-// neither value depends on editor content.
 
 function lineNumbers(text: string): number[] {
   const count = text.split("\n").length;
   return Array.from({ length: count }, (_, i) => i + 1);
+}
+
+// lab.css's static .lab__editor-gutter-clip width (44px) and .lab__editor--gutter padding-left
+// (58px) are sized for up to 3-digit line numbers — comfortable for any realistic .gram.md file,
+// but a pasted multi-thousand-line input would crowd its 4-5 digit numbers against the gutter's
+// edge. gutterWidth grows the column (and GUTTER_TEXT_PADDING below grows the textarea's own
+// inline override to match) by one glyph per extra digit past 3, applied inline per editor so the
+// grammar and input panes size independently.
+const GUTTER_DIGIT_WIDTH = 8; // ~1 monospace glyph at the editor's 13px font size
+const GUTTER_BASE_WIDTH = 20; // lab.css's 44px baseline minus 3 digits' worth of GUTTER_DIGIT_WIDTH
+const GUTTER_TEXT_PADDING = 14; // .lab__editor's own base padding, added past the gutter's width
+
+function gutterWidth(lineCount: number): number {
+  const digits = Math.max(3, String(lineCount).length);
+  return digits * GUTTER_DIGIT_WIDTH + GUTTER_BASE_WIDTH;
 }
 
 export default function LabIsland() {
@@ -452,6 +464,11 @@ export default function LabIsland() {
       worker = null;
     };
   }, []);
+
+  const grammarLines = lineNumbers(grammarSource.value);
+  const grammarGutterW = gutterWidth(grammarLines.length);
+  const inputLines = lineNumbers(targetInput.value);
+  const inputGutterW = gutterWidth(inputLines.length);
 
   return (
     <div class="lab" ref={labRef}>
@@ -530,9 +547,12 @@ export default function LabIsland() {
                   )}
               </div>
             </div>
-            <div class="lab__editor-gutter-clip">
+            <div
+              class="lab__editor-gutter-clip"
+              style={{ width: `${grammarGutterW}px` }}
+            >
               <div class="lab__editor-gutter" ref={grammarGutterRef}>
-                {lineNumbers(grammarSource.value).map((n) => (
+                {grammarLines.map((n) => (
                   <div
                     key={n}
                     class="lab__editor-gutter-line"
@@ -549,6 +569,9 @@ export default function LabIsland() {
               class="lab__editor lab__editor--overlaid lab__editor--gutter"
               spellcheck={false}
               value={grammarSource.value}
+              style={{
+                paddingLeft: `${grammarGutterW + GUTTER_TEXT_PADDING}px`,
+              }}
               ref={(el) => {
                 grammarEditorEl = el;
               }}
@@ -580,9 +603,12 @@ export default function LabIsland() {
         <div class="lab__pane lab__pane--fill">
           <div class="lab__pane-label">Input</div>
           <div class="lab__editor-wrap">
-            <div class="lab__editor-gutter-clip">
+            <div
+              class="lab__editor-gutter-clip"
+              style={{ width: `${inputGutterW}px` }}
+            >
               <div class="lab__editor-gutter" ref={inputGutterRef}>
-                {lineNumbers(targetInput.value).map((n) => (
+                {inputLines.map((n) => (
                   <div
                     key={n}
                     class="lab__editor-gutter-line"
@@ -599,6 +625,7 @@ export default function LabIsland() {
               class="lab__editor lab__editor--overlaid lab__editor--gutter"
               spellcheck={false}
               value={targetInput.value}
+              style={{ paddingLeft: `${inputGutterW + GUTTER_TEXT_PADDING}px` }}
               ref={(el) => {
                 inputEditorEl = el;
               }}
