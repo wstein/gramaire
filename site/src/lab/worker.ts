@@ -29,9 +29,28 @@ export interface WorkerRequestMessage {
   request: LabRequest;
 }
 
+// The Evaluate tab's data (M5+): not part of LabProtocol (Scala never computes this — it only
+// generates the JS source in LabResponse.evaluatorJs), so this is a hand-written type, not
+// codegen'd from spec/lab-protocol-schema.json like the rest of this file's imports.
+export interface AnnotatedBranch {
+  rule: number;
+  children: AnnotatedNode[];
+  value: unknown;
+}
+export interface AnnotatedToken {
+  token: string;
+  text: string;
+  value: unknown;
+}
+export type AnnotatedNode = AnnotatedBranch | AnnotatedToken;
+
+export type EvaluationResult =
+  { ok: true; tree: AnnotatedNode } | { ok: false; error: string };
+
 export interface WorkerResponseMessage {
   id: number;
   response: LabResponse;
+  evaluation: EvaluationResult | null;
 }
 
 type Engine = { gramarkLabEvaluate: (requestJson: string) => string };
@@ -42,11 +61,37 @@ const engineUrl = new URL(
 ).href;
 const enginePromise: Promise<Engine> = import(/* @vite-ignore */ engineUrl);
 
+// Run the grammar author's own generated evaluator (LabResponse.evaluatorJs) against the accepted
+// parse's CST. This executes arbitrary JS compiled from the grammar's `{% %}` actions — the same
+// trust boundary `gramark emit --backend js` already crosses when a user runs the downloaded file
+// themselves: it's the author's own code, in their own tab, against their own input, with nothing
+// server-side or cross-origin involved. A Blob URL (not a bare eval/Function) so it goes through
+// the same ES-module import path as the engine itself, and gets revoked right after import so the
+// browser can free the underlying text once the module's been instantiated.
+async function runEvaluator(
+  response: LabResponse,
+): Promise<EvaluationResult | null> {
+  const js = response.evaluatorJs;
+  const cst = response.parse?.cst;
+  if (!js || !cst) return null;
+  const url = URL.createObjectURL(new Blob([js], { type: "text/javascript" }));
+  try {
+    const mod: { evaluateTraced: (cst: unknown) => AnnotatedNode } =
+      await import(/* @vite-ignore */ url);
+    return { ok: true, tree: mod.evaluateTraced(cst) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 self.onmessage = async (event: MessageEvent<WorkerRequestMessage>) => {
   const { id, request } = event.data;
   const { gramarkLabEvaluate } = await enginePromise;
   const responseJson = gramarkLabEvaluate(JSON.stringify(request));
   const response: LabResponse = JSON.parse(responseJson);
-  const message: WorkerResponseMessage = { id, response };
+  const evaluation = await runEvaluator(response);
+  const message: WorkerResponseMessage = { id, response, evaluation };
   self.postMessage(message);
 };

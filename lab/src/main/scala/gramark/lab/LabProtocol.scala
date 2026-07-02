@@ -234,7 +234,11 @@ object GrammarAnalysis:
     )
 
 /** The Lab's full response: whether the grammar itself built, any diagnostics, and — if input was
-  * given and the grammar built — the parse result.
+  * given and the grammar built — the parse result. `evaluatorJs` (the Evaluate tab's data, M5+) is
+  * `BackendJs.emitTraced`'s generated ES module SOURCE TEXT, not a computed value — the Worker
+  * dynamically imports and runs it client-side, since running arbitrary grammar-author JS is
+  * inherently a Worker-thread, not a Scala, concern (the same boundary `gramark emit --backend js`
+  * already crosses when a user runs the downloaded file themselves).
   */
 final case class LabResponse(
     labProtocolVersion: Int,
@@ -243,7 +247,8 @@ final case class LabResponse(
     parse: Option[ParseResult],
     productions: Option[Vector[ProductionInfo]] = None,
     forest: Option[ForestResult] = None,
-    analysis: Option[GrammarAnalysis] = None
+    analysis: Option[GrammarAnalysis] = None,
+    evaluatorJs: Option[String] = None
 )
 
 object LabResponse:
@@ -263,7 +268,8 @@ object LabResponse:
           .map(ps => Json.JArray(ps.map(ProductionInfo.toJson)))
           .getOrElse(Json.JNull),
         "forest" -> r.forest.map(ForestResult.toJson).getOrElse(Json.JNull),
-        "analysis" -> r.analysis.map(GrammarAnalysis.toJson).getOrElse(Json.JNull)
+        "analysis" -> r.analysis.map(GrammarAnalysis.toJson).getOrElse(Json.JNull),
+        "evaluatorJs" -> r.evaluatorJs.map(Json.JString.apply).getOrElse(Json.JNull)
       )
     )
 

@@ -32,7 +32,8 @@
         "parse",
         "productions",
         "forest",
-        "analysis"
+        "analysis",
+        "evaluatorJs"
       ],
       "additionalProperties": false,
       "properties": {
@@ -64,6 +65,10 @@
         "analysis": {
           "oneOf": [{ "$ref": "#/$defs/grammarAnalysis" }, { "type": "null" }],
           "description": "The Grammar analysis tab's data: every method's state/conflict count, FIRST/FOLLOW per rule, and a railroad SVG per rule. Present whenever the grammar notation parsed, independent of buildOk (same reasoning as `productions`); null only when the grammar notation itself failed to parse."
+        },
+        "evaluatorJs": {
+          "type": ["string", "null"],
+          "description": "The Evaluate tab's data: BackendJs.emitTraced's generated ES module source text, run by the Worker (not this schema's owner — Scala never executes it). Present only when buildOk is true (it needs a valid compiled table); null otherwise."
         }
       }
     },

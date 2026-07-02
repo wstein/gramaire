@@ -72,7 +72,7 @@ class BackendGoldenSuite extends munit.FunSuite:
           case Right(ir) =>
             // Tag the inline actions with the document's `%lang` so the backend
             // recognizes them as JS (mirrors the `gramark emit --backend js` pipeline).
-            val js = BackendJs.emit(IR.withActionLang(Lr.actionLangOf(md), ir))
+            val js = BackendJs.emit(IR.withActionLang(Lr.actionLangOf(md), ir).grammar)
             assert(js.contains("const actions = ["), "bakes the per-production action table")
             assert(js.contains("const fields = ["), "bakes the aligned field-name table")
             assert(
@@ -90,4 +90,42 @@ class BackendGoldenSuite extends munit.FunSuite:
               "carries no source lambda-binder or {% %} action-delimiter syntax into the host module"
             )
             assertEquals(js, readFile("test/golden/calc-js.js"))
+  }
+
+  test(
+    "js (traced): calc-js's annotated-tree runtime shares emit's exact actions/fields tables"
+  ) {
+    val path = "examples/calc-js.grmk.md"
+    val md = readFile(path)
+    Lr.parse(md) match
+      case Left(e) => fail(s"could not parse $path: $e")
+      case Right(g) =>
+        IR.buildIR(Method.Canonical, "Calc-js", g) match
+          case Left(_) => fail("could not build IR for calc-js")
+          case Right(ir0) =>
+            val ir = IR.withActionLang(Lr.actionLangOf(md), ir0)
+            val plain = BackendJs.emit(ir.grammar)
+            val traced = BackendJs.emitTraced(ir.grammar)
+
+            // Same tables, byte-identical — the whole point of sharing `tablesBlock` is that a
+            // traced evaluation can never bake a different action than `emit`'s own artifact.
+            def tableLines(js: String): Vector[String] =
+              js.linesIterator
+                .filter(l => l.startsWith("const actions") || l.startsWith("const fields"))
+                .toVector
+            assertEquals(tableLines(traced), tableLines(plain))
+
+            assert(
+              traced.contains("export function evaluateTraced(cst)"),
+              "exports the annotated-tree driver, not evaluate(cst)"
+            )
+            assert(
+              traced.contains("{ rule: node.rule, children: kidsAnnotated, value }"),
+              "folds to an annotated tree, not a bare value"
+            )
+            assert(
+              !traced.contains("{%") && !traced.contains("\\_"),
+              "carries no source lambda-binder or {% %} action-delimiter syntax into the host module"
+            )
+            assertEquals(traced, readFile("test/golden/calc-js-traced.js"))
   }

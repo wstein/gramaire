@@ -168,13 +168,13 @@ object IR:
   def buildIR(method: Method, name: String, g: Grammar): Either[Vector[Conflict], IR] =
     buildIRP(Table.emptyPrec, method, name, g)
 
-  /** Like `buildIR`, but with declared operator precedence (ADR D37). */
-  def buildIRP(
-      prec: Precedence,
-      method: Method,
-      name: String,
-      g: Grammar
-  ): Either[Vector[Conflict], IR] =
+  /** Build just the grammar-shape half of the IR — terminals, nonterminals, rules with their
+    * actions/fields, precedence — with no table construction, so it never fails and never builds
+    * the LR automaton. `buildIRP` composes this with the table-build step below; a consumer that
+    * only needs `IR.grammar` (e.g. `BackendJs.emit`/`emitTraced`, which never reads `IR.tables`)
+    * should call this directly rather than `buildIRP`, to avoid a redundant automaton build.
+    */
+  def irGrammarOf(prec: Precedence, name: String, g: Grammar): IRGrammar =
     val rules = g.rules
 
     val ntNames: Vector[String] = rules.map(_.name)
@@ -263,6 +263,35 @@ object IR:
       )
     }
 
+    IRGrammar(
+      name = name,
+      start = startSymbol,
+      terminals = terminals,
+      nonterminals = nonterminals,
+      rules = irRules,
+      precedence = irPrecedence,
+      extras = Vector.empty
+    )
+
+  /** Like `buildIR`, but with declared operator precedence (ADR D37). */
+  def buildIRP(
+      prec: Precedence,
+      method: Method,
+      name: String,
+      g: Grammar
+  ): Either[Vector[Conflict], IR] =
+    val irGrammar = irGrammarOf(prec, name, g)
+    // Rebuilding these two small id maps from the already-computed `irGrammar` (not from scratch)
+    // is O(rules), not an automaton build — `assembleTables` below needs term/nonterminal name ->
+    // id lookups, and `irGrammarOf` doesn't expose the ones it built internally.
+    val termIdMap: Map[String, Int] = irGrammar.terminals.map {
+      case IRTerminal.IRLiteral(id, s) => s -> id
+      case IRTerminal.IRClass(id, s)   => s -> id
+    }.toMap
+    val ntIdMap: Map[String, Int] = irGrammar.nonterminals.map(nt => nt.name -> nt.id).toMap
+    def termId(s: String): Int = termIdMap.getOrElse(s, -1)
+    def ntId(s: String): Int = ntIdMap.getOrElse(s, -1)
+
     Table.buildTablesForP(prec, method, g) match
       case Left(conflicts) => Left(conflicts)
       case Right(table) =>
@@ -270,15 +299,7 @@ object IR:
           IR(
             irVersion = irVersion,
             strategy = "lr",
-            grammar = IRGrammar(
-              name = name,
-              start = startSymbol,
-              terminals = terminals,
-              nonterminals = nonterminals,
-              rules = irRules,
-              precedence = irPrecedence,
-              extras = Vector.empty
-            ),
+            grammar = irGrammar,
             tables = assembleTables(algorithmName(method), termId, ntId, table),
             conflicts = Vector.empty,
             lexer = None,
@@ -585,16 +606,22 @@ object IR:
         case Left(_) => ir.copy(strategy = "ll-star")
     case other => ir.copy(strategy = other)
 
+  /** Re-tag an `IRGrammar`'s productions' inline-action profile with the document's declared host
+    * language — the part of `withActionLang` below that doesn't need a full `IR` (just
+    * `IR.grammar`), so a caller that only has an `IRGrammar` (e.g. `LabApi`, via `irGrammarOf`
+    * rather than the table-building `buildIRP`) can re-tag without constructing a placeholder IR.
+    */
+  def withActionLangGrammar(lang: Option[String], irGrammar: IRGrammar): IRGrammar = lang match
+    case None => irGrammar
+    case Some(l) =>
+      irGrammar.copy(rules =
+        irGrammar.rules.map(r => r.copy(actions = r.actions.map { case (_, code) => l -> code }))
+      )
+
   /** Re-tag every production's inline-action profile with the document's declared host language.
     */
-  def withActionLang(lang: Option[String], ir: IR): IR = lang match
-    case None => ir
-    case Some(l) =>
-      ir.copy(grammar =
-        ir.grammar.copy(rules =
-          ir.grammar.rules.map(r => r.copy(actions = r.actions.map { case (_, code) => l -> code }))
-        )
-      )
+  def withActionLang(lang: Option[String], ir: IR): IR =
+    ir.copy(grammar = withActionLangGrammar(lang, ir.grammar))
 
   /** The field name of each RHS position for the namedtuple binding. */
   def effectiveFields(g: IRGrammar, rule: IRRule): Vector[Option[String]] =

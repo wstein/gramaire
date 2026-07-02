@@ -8,24 +8,30 @@ import type {
   Method,
   ProductionInfo,
 } from "./protocol";
-import type { WorkerRequestMessage, WorkerResponseMessage } from "./worker";
+import type {
+  AnnotatedNode,
+  EvaluationResult,
+  WorkerRequestMessage,
+  WorkerResponseMessage,
+} from "./worker";
 import "./lab.css";
 
 // Tier 0/1 v1 slice (docs/playground-spec.md §6) was Result, Tokens, Parse
 // tree, Diagnostics. M5+ adds tabs one increment at a time, following
-// docs/playground-spec.md's tab->core-symbol table; "forest"/"lowered" (All
-// parses / Lowered Core), "analysis" (Grammar analysis), and "trace"/"walk"
-// (Parse trace / LR walk) are done. Only Evaluate remains M5+.
+// docs/playground-spec.md's tab->core-symbol table; every M5+ tab is now
+// done: "forest"/"lowered" (All parses / Lowered Core), "analysis" (Grammar
+// analysis), "trace"/"walk" (Parse trace / LR walk), and "evaluate".
 type Tab =
   | "result"
+  | "evaluate"
   | "tokens"
   | "tree"
+  | "trace"
+  | "walk"
   | "diagnostics"
   | "forest"
   | "lowered"
-  | "analysis"
-  | "trace"
-  | "walk";
+  | "analysis";
 
 const METHODS = ["Canonical", "LALR", "IELR"] as const;
 
@@ -72,6 +78,7 @@ const targetInput = signal(DEFAULT_INPUT);
 const method = signal<Method>("Canonical");
 const activeTab = signal<Tab>("result");
 const response = signal<LabResponse | null>(null);
+const evaluation = signal<EvaluationResult | null>(null);
 const pending = signal(false);
 const selectedRule = signal<string | null>(null);
 const walkStep = signal(0);
@@ -97,9 +104,10 @@ function ensureWorker(): Worker {
     type: "module",
   });
   worker.onmessage = (event: MessageEvent<WorkerResponseMessage>) => {
-    const { id, response: resp } = event.data;
+    const { id, response: resp, evaluation: evalResult } = event.data;
     if (id !== latestSentId) return; // stale — a newer request has already been sent
     response.value = resp;
+    evaluation.value = evalResult;
     pending.value = false;
   };
   return worker;
@@ -192,6 +200,7 @@ export default function LabIsland() {
           {(
             [
               "result",
+              "evaluate",
               "tokens",
               "tree",
               "trace",
@@ -216,6 +225,7 @@ export default function LabIsland() {
         </div>
         <div class="lab__panel">
           {activeTab.value === "result" && <ResultPanel />}
+          {activeTab.value === "evaluate" && <EvaluatePanel />}
           {activeTab.value === "tokens" && <TokensPanel />}
           {activeTab.value === "tree" && <TreePanel />}
           {activeTab.value === "trace" && <ParseTracePanel />}
@@ -234,6 +244,8 @@ function tabLabel(tab: Tab): string {
   switch (tab) {
     case "result":
       return "Result";
+    case "evaluate":
+      return "Evaluate";
     case "tokens":
       return "Tokens";
     case "tree":
@@ -654,6 +666,119 @@ function LrWalkPanel() {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function formatValue(v: unknown): string {
+  if (v === undefined) return "undefined";
+  try {
+    return JSON.stringify(v) ?? String(v);
+  } catch {
+    return String(v);
+  }
+}
+
+function EvaluatePanel() {
+  const r = response.value;
+  const ev = evaluation.value;
+  if (!r?.buildOk)
+    return <p class="lab__empty">Grammar did not build — see Diagnostics.</p>;
+  if (!r.parse) return <p class="lab__empty">No input given — compile-only.</p>;
+  if (!r.parse.accepted)
+    return <p class="lab__empty">Input wasn't accepted — see Result.</p>;
+  if (!ev) return <p class="lab__empty">Evaluating…</p>;
+  if (!ev.ok) return <p class="lab__empty">Evaluator error: {ev.error}</p>;
+
+  const productions = r.productions ?? [];
+  // Bottom-up (post-order), matching the actual order reductions happen during parsing — a
+  // node's own reduction is listed only after every child's.
+  const reductions: { rule: number; action: string; value: unknown }[] = [];
+  function collect(node: AnnotatedNode) {
+    if ("token" in node) return;
+    node.children.forEach(collect);
+    const prod = productions[node.rule];
+    if (prod?.action)
+      reductions.push({
+        rule: node.rule,
+        action: prod.action,
+        value: node.value,
+      });
+  }
+  collect(ev.tree);
+
+  return (
+    <div>
+      <div class="lab__result lab__result--accept">
+        <strong>
+          {targetInput.value} = {formatValue(ev.tree.value)}
+        </strong>
+      </div>
+
+      <div class="lab__analysis-section">
+        <div class="lab__analysis-heading">annotated parse tree</div>
+        <pre class="lab__tree">
+          <AnnotatedNodeView node={ev.tree} />
+        </pre>
+      </div>
+
+      <div class="lab__analysis-section">
+        <div class="lab__analysis-heading">reductions</div>
+        {reductions.length === 0 ? (
+          <p class="lab__empty">
+            No actions in this grammar — every value passes through.
+          </p>
+        ) : (
+          <table class="lab__table">
+            <thead>
+              <tr>
+                <th>rule</th>
+                <th>action</th>
+                <th>⇒ value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reductions.map((red, i) => (
+                <tr key={i}>
+                  <td class="lab__mono">{red.rule}</td>
+                  <td class="lab__mono">{red.action}</td>
+                  <td class="lab__mono">{formatValue(red.value)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AnnotatedNodeView({
+  node,
+  depth = 0,
+}: {
+  node: AnnotatedNode;
+  depth?: number;
+}) {
+  const indent = "  ".repeat(depth);
+  if ("token" in node) {
+    return (
+      <div>
+        {indent}
+        {node.token} {JSON.stringify(node.text)}{" "}
+        <span class="lab__annotated-value">= {formatValue(node.value)}</span>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <div>
+        {indent}rule {node.rule}{" "}
+        <span class="lab__annotated-value">= {formatValue(node.value)}</span>
+      </div>
+      {node.children.map((c, i) => (
+        <AnnotatedNodeView key={i} node={c} depth={depth + 1} />
+      ))}
     </div>
   );
 }
