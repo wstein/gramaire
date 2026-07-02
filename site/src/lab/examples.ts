@@ -14,8 +14,6 @@ export interface LabExample {
 
 export const DEFAULT_SOURCE = `# Expr
 
-## General settings
-
 \`\`\`gramaire
 %name Expr
 \`\`\`

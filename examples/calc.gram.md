@@ -3,8 +3,6 @@
 A small arithmetic grammar demonstrating the Gramaire fenced envelope.
 Operators are left-associative; `*` and `/` bind tighter than `+` and `-`.
 
-## General settings
-
 ```gramaire
 %name Calc
 %lang javascript

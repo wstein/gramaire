@@ -41,9 +41,11 @@ the shape of its own lines:
 <Steps>
 
 1. **A required `%name <name>` directive** — the grammar's name. It lives
-   inside a `gramaire` fence (conventionally under a `## General settings`
-   heading); there's no fallback to a heading or a file name, so a `.gram.md`
-   stays self-describing on its own.
+   inside a `gramaire` fence, right after the intro, with **no heading of its
+   own** — the one fence role `fmt` deliberately leaves headless, since
+   `%name`/`%lang` read like a source file's leading `import`/`package` line;
+   there's no fallback to a heading or a file name, so a `.gram.md` stays
+   self-describing on its own.
 
 2. **One `gramaire` fence per nonterminal** — the fence's own head (`Name`
    on its own line, then `:` and its alternatives) names the rule; a `## H2`
@@ -72,8 +74,6 @@ first nonterminal:
 # Calc
 
 A small arithmetic grammar.
-
-## General settings
 
 ```gramaire
 %name Calc
@@ -255,8 +255,6 @@ language once, by adding `%lang` to the `%name` fence you already have from
 §2:
 
 ````md
-## General settings
-
 ```gramaire
 %name Calc
 %lang javascript

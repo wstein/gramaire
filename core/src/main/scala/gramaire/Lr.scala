@@ -285,14 +285,28 @@ object Lr:
     val body = trimBlankEnds(pre.filter(notImage).map(unHead))
     if body.isEmpty then "" else "/**\n" + body.map(star).mkString("\n") + "\n */"
 
+  // The preamble (H1 + intro, before the first `## ` heading) carries the headless Settings fence
+  // (fmt-output-contract.md's canonical layout puts it right after the intro, with no heading of
+  // its own) — split it from the banner-worthy prose before it, so `banner` never swallows a real
+  // fence into a comment (which would both discard `%name`/`%lang` and, worse, leave a literal
+  // "```gramaire" substring inside the comment text that fools `toFenced`'s already-fenced check).
+  private def splitPreamble(pre: Vector[String]): (Vector[String], Option[String]) =
+    val idx = pre.indexWhere(keepableOpen)
+    if idx < 0 then (pre, None)
+    else
+      val rendered = trimBlankEnds(pre.drop(idx).foldLeft(WalkAcc(None, Vector.empty))(walk).out)
+      (pre.take(idx), if rendered.isEmpty then None else Some(rendered.mkString("\n")))
+
   /** The raw `.gram` projection (ADR D36): a FENCE-FREE, marker-free export. It is DERIVED and
     * non-authoritative — `.gram.md` stays the source of truth.
     */
   def strip(md: String): String =
     val ls = md.split("\n", -1).toVector
     val sect = sectionize(ls)
-    val parts = (banner(sect.preamble) +: sect.sections.flatMap(section)).filter(_ != "")
-    parts.mkString("\n\n") + "\n"
+    val (bannerLines, preambleFence) = splitPreamble(sect.preamble)
+    val parts =
+      (banner(bannerLines) +: preambleFence.toVector) ++ sect.sections.flatMap(section)
+    parts.filter(_ != "").mkString("\n\n") + "\n"
 
   // A token-class definition line: an ALL-CAPS name then `:` on one
   // unindented line. A production head is a Mixed-case name on its OWN

@@ -130,3 +130,29 @@ class FenceModelSuite extends munit.FunSuite:
     val prec = Lr.precedenceOf(gram)
     assertEquals(prec.terms.get("+").map(_.assoc), Some(Assoc.LeftA))
   }
+
+  test(
+    "strip/parse round-trips a headless Settings fence in the preamble (regression: it used to be swallowed into the /** */ banner comment, silently dropping %name/%lang and corrupting toFenced's already-fenced check with a literal \"```gramaire\" trapped inside the comment text)"
+  ) {
+    val md = """# T
+      |
+      |An intro paragraph, no heading before the settings fence.
+      |
+      |```gramaire
+      |%name T
+      |%lang javascript
+      |```
+      |
+      |## S
+      |
+      |```gramaire
+      |S
+      |  : 'x'
+      |```
+      |""".stripMargin
+    val stripped = Lr.strip(md)
+    assert(!stripped.contains("```"), s"stripped output must stay fence-free, got:\n$stripped")
+    assertEquals(Lr.nameOf(stripped), Some("T"), s"stripped output:\n$stripped")
+    assertEquals(Lr.actionLangOf(stripped), Some("js"), s"stripped output:\n$stripped")
+    assertEquals(Lr.parse(stripped), Lr.parse(md), s"stripped output:\n$stripped")
+  }

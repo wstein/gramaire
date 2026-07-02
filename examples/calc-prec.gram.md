@@ -10,8 +10,6 @@ build error, so precedence convenience never hides a real ambiguity.
 Compare [`calc`](calc.gram.md), which encodes the same language by
 stratification and needs no precedence block.
 
-## General settings
-
 ```gramaire
 %name Calc (precedence)
 %lang javascript
