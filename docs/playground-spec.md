@@ -513,18 +513,38 @@ an actual `%lang javascript` grammar with real actions (not just the
 default action-free grammar): `1+2+3` correctly reduces to `6` through
 three real reduction steps.
 
-**Not yet done:** the JVM↔JS parity gate below (the main remaining tracked
-gap for this slice), and the draggable splitter.
+**Not yet done:** the draggable splitter.
 
-**JVM↔JS parity gate** (§8, "no-import" guardrail's sibling; not yet built):
-`Conformance.scala` already exists as differential-oracle infrastructure;
-extend its fixtures to run one `LabRequest` through `labJVM` directly and
-through the linked `labJS` worker module under Node, byte-comparing the
-serialized `LabResponse`. This proves the wire format is right; it does
-**not** prove the UI renders it right — the drift that actually hurt this
-project once (`b335a75`, a docs/copy bug, not a serialization bug) needs a
-second check: the tab→core-symbol provenance table below, extended to grep
-component source for the field name, not just prose.
+**JVM↔JS parity gate** (§8, "no-import" guardrail's sibling — done). Rather
+than extending `Conformance.scala` (a differential oracle over accept/reject
+vectors, not a serialization-format check), the gate is a new pair: a JVM
+entry point, `lab/.jvm/src/main/scala/gramark/lab/LabParityMain.scala`
+(`sbt labJVM/runMain gramark.lab.LabParityMain <request1.json> ...` —
+takes request-file paths, not stdin, to avoid both sbt's stdin-forwarding
+uncertainty and multi-line-grammar shell-quoting; prints each serialized
+`LabResponse` wrapped in START/END marker lines, since `Json.stringify`
+pretty-prints — a single trailing delimiter isn't enough, confirmed the
+hard way: sbt's own `[success] Total time...` banner lands on stdout right
+after the last `runMain` output and silently folded into the last response
+under a naive split), and `site/scripts/check-lab-parity.mjs`
+(`npm run check:lab-parity`), which runs a fixed fixture list (`examples/
+calc.grmk.md` with `"1+2*3"`, `examples/json.grmk.md` with a small JSON
+literal, `grammar/lr.grmk.md` compile-only, and a genuinely ambiguous
+grammar with real conflicts — the `buildOk = false` case `forest`/
+`productions`/`analysis` exist to still cover) through both `labJVM`
+(one `sbt` invocation for all fixtures, not one per fixture — sbt/JVM
+startup cost is real) and the just-built `public/lab/engine.mjs` under
+Node, byte-comparing the two `LabResponse`s and `ajv`-validating each
+against `spec/lab-protocol-schema.json`. Wired into the `site` CI job right
+after "Build the Lab engine," so it always runs against the optimized
+`fullLinkJS` build CI actually ships (verified locally against both
+`fastLinkJS` and `--full` before landing). All 4 fixtures pass — the wire
+format agrees across platforms. This proves the wire format is right; it
+does **not** prove the UI renders it right — the drift that actually hurt
+this project once (`b335a75`, a docs/copy bug, not a serialization bug)
+needs a second check: the tab→core-symbol provenance table below, extended
+to grep component source for the field name, not just prose (still
+deferred — see that table's own guardrail-sequencing note).
 
 ---
 
