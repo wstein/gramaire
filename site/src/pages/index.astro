@@ -1,8 +1,23 @@
 ---
-// The Landing page — a bare Astro page outside the Starlight shell (see
-// astro.config.mjs sidebar comment and design/README.md's architecture
-// note). Layout/copy/values ported verbatim from the gold-standard mock's
-// `homeView()` (design/gramark-site-handoff/Gramark Site.dc.html).
+// The Landing page — rendered through Starlight's own page pipeline
+// (`<StarlightPage template="splash">`) instead of as a bare Astro page
+// outside it. It used to be bare, same reasoning as src/pages/lab.astro
+// (this page's own custom layout doesn't fit Starlight's sidebar/prose
+// content model) — but that meant Home never loaded Starlight's own CSS
+// bundle or `--sl-*` variable definitions, which caused two real,
+// hard-to-reproduce bugs (the search shortcut badge, the topbar's sticky
+// positioning) that had to be patched with page-agnostic overrides in
+// starlight-bridge.css and gramark-topbar.mjs. `<StarlightPage>` gets Home
+// the exact same bundle, `<ThemeProvider>`, and Header wiring Docs/Specs/
+// Tutorials/Brand already have, for free — see docs/topbar-styles-sharing-
+// audit.md for the fuller comparison this grew out of.
+//
+// `template: "splash"` drops the sidebar/table-of-contents; `PageTitle`
+// and `Footer` are suppressed for this route specifically (see
+// src/components/overrides/PageTitle.astro and Footer.astro) since this
+// page's hero heading and footer replace Starlight's own. Layout/copy/
+// values ported verbatim from the gold-standard mock's `homeView()`
+// (design/gramark-site-handoff/Gramark Site.dc.html).
 //
 // The mock's showcase is *live* (editable, re-parses on keystroke) because
 // it's backed by its stand-in engine. This showcase stays static and links
@@ -10,15 +25,9 @@
 // now exists as its own page (src/pages/lab.astro), but an embedded preview
 // island on Landing is its own increment, not bundled into this one — see
 // design/README.md's gold-standard boundary.
-import AppShell from "../components/AppShell.astro";
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
 import Button from "../components/Button.astro";
 import FeatureTile from "../components/FeatureTile.astro";
-import { pageHeadTags } from "../shared/page-head.mjs";
-import "../styles/tokens.css";
-// AppShell renders Starlight's <Search />, which themes itself off Starlight's
-// own --sl-* variables — needed here too since this page sits outside the
-// Starlight layout that would otherwise supply them automatically.
-import "../styles/starlight-bridge.css";
 
 const showcaseSource = `Expr
   : Expr \`+\` Term   {% Add %}
@@ -30,155 +39,100 @@ const showcaseSource = `Expr
 // treatment) — a real bug the CI build (base "/gramark/") would otherwise
 // ship: these links would 404 on GitHub Pages. Resolve from BASE_URL instead.
 const base = import.meta.env.BASE_URL;
-const headTags = pageHeadTags(base);
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    {
-      /*
-        This page sits outside Starlight's own Page.astro, so it has no
-        <ThemeProvider/> seeding data-theme before first paint — without this,
-        the page would flash the wrong theme, then AppShell's <gramark-topbar>
-        corrects it after upgrading. Same key, same algorithm, as Starlight's
-        own inline ThemeProvider (node_modules/@astrojs/starlight/components/
-        ThemeProvider.astro) — one source of truth across both surfaces.
-      */
-    }
-    <script is:inline>
-      (() => {
-        const stored = localStorage.getItem("starlight-theme");
-        const theme =
-          stored === "light" || stored === "dark"
-            ? stored
-            : matchMedia("(prefers-color-scheme: light)").matches
-              ? "light"
-              : "dark";
-        document.documentElement.dataset.theme = theme;
-      })();
-    </script>
-    <title>Gramark — Grammars that render themselves.</title>
-    <meta name="description" content="Grammars that render themselves." />
-    {headTags.map((t) => t.tag === "link" && <link {...t.attrs} />)}
-  </head>
-  <body>
-    <div class="shell">
-      <AppShell />
-
-      <main class="content">
-        <div class="container">
-          <div class="hero">
-            <div class="hero__eyebrow">
-              LR parser generator · source format is Markdown
-            </div>
-            <h1 class="hero__title">
-              Grammars that <span class="hero__title-accent"
-                >render themselves.</span
-              >
-            </h1>
-            <p class="hero__sub">
-              A .grmk.md file is a normal document that renders on GitHub —
-              prose, railroad diagrams, FIRST/FOLLOW tables — and is at the same
-              time the exact input the generator reads.
-            </p>
-            <div class="hero__buttons">
-              <Button kind="primary" href={`${base}tutorials/intro/`}
-                >Start the tutorial <span class="hero__arrow">→</span></Button
-              >
-              <Button kind="ghost" href={`${base}lab/`}>Open the Lab</Button>
-            </div>
-          </div>
-
-          <div class="showcase">
-            <div class="showcase__header">
-              <span class="showcase__label"
-                >one file · live — edit the source</span
-              >
-              <Button kind="chip" href={`${base}lab/`}>Open in Lab ↗</Button>
-            </div>
-            <div class="showcase__body">
-              <pre class="showcase__source"><code>{showcaseSource}</code></pre>
-              <div class="showcase__diagram">
-                <div class="showcase__diagram-label">renders to ↓</div>
-                <div class="showcase__diagram-svg">
-                  <img
-                    src={`${base}diagrams/calc/expr.svg`}
-                    alt="Railroad diagram for the Expr rule"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="tiles">
-            <FeatureTile
-              big="3×"
-              small="parse-table methods — canonical LR(1), LALR(1), IELR(1)"
-            />
-            <FeatureTile
-              big="1 file"
-              small="grammar and docs are the same .grmk.md"
-            />
-            <FeatureTile
-              big="closed"
-              small="the self-hosting loop — it reads its own notation back"
-            />
-          </div>
-
-          <footer class="footer">
-            <span>Gramark · Apache-2.0</span>
-            <a href={`${base}docs/overview/`}>Docs</a>
-            <a href={`${base}tutorials/intro/`}>Tutorial</a>
-            <a href={`${base}lab/`}>Lab</a>
-            <a
-              href="https://github.com/wstein/gramark"
-              target="_blank"
-              rel="noreferrer">GitHub ↗</a
-            >
-          </footer>
-        </div>
-      </main>
+<StarlightPage
+  frontmatter={{
+    title: "Gramark — Grammars that render themselves.",
+    description: "Grammars that render themselves.",
+    template: "splash",
+    tableOfContents: false,
+    editUrl: false,
+  }}
+>
+  <div class="container">
+    <div class="hero">
+      <div class="hero__eyebrow">
+        LR parser generator · source format is Markdown
+      </div>
+      <h1 class="hero__title">
+        Grammars that <span class="hero__title-accent">render themselves.</span>
+      </h1>
+      <p class="hero__sub">
+        A .grmk.md file is a normal Markdown document — it renders on GitHub as
+        prose, railroad diagrams, and FIRST/FOLLOW tables — and is <strong
+          >at the same time</strong
+        > the exact input the parser generator reads. Your grammar <em>is</em> your
+        documentation.
+      </p>
+      <div class="hero__buttons">
+        <Button kind="primary" href={`${base}tutorials/intro/`}
+          >Start the tutorial <span class="hero__arrow">→</span></Button
+        >
+        <Button kind="ghost" href={`${base}lab/`}>Open the Lab</Button>
+      </div>
     </div>
-  </body>
-</html>
+
+    <div class="showcase">
+      <div class="showcase__header">
+        <span class="showcase__label">one file · live — edit the source</span>
+        <Button kind="chip" href={`${base}lab/`}>Open in Lab ↗</Button>
+      </div>
+      <div class="showcase__body">
+        <pre class="showcase__source"><code>{showcaseSource}</code></pre>
+        <div class="showcase__diagram">
+          <div class="showcase__diagram-label">renders to ↓</div>
+          <div class="showcase__diagram-svg">
+            <img
+              src={`${base}diagrams/calc/expr.svg`}
+              alt="Railroad diagram for the Expr rule"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tiles">
+      <FeatureTile
+        big="3×"
+        small="parse-table methods — canonical LR(1), LALR(1), IELR(1)"
+      />
+      <FeatureTile
+        big="1 file"
+        small="grammar and docs are the same .grmk.md"
+      />
+      <FeatureTile
+        big="closed"
+        small="the self-hosting loop — it reads its own notation back"
+      />
+    </div>
+
+    <footer class="footer">
+      <span>Gramark · Apache-2.0</span>
+      <a href={`${base}docs/overview/`}>Docs</a>
+      <a href={`${base}tutorials/intro/`}>Tutorial</a>
+      <a href={`${base}lab/`}>Lab</a>
+      <a
+        href="https://github.com/wstein/gramark"
+        target="_blank"
+        rel="noreferrer">GitHub ↗</a
+      >
+    </footer>
+  </div>
+</StarlightPage>
 
 <style>
-  :global(html, body) {
-    margin: 0;
-    height: 100%;
-  }
-  :global(body) {
-    background: var(--bg);
-    color: var(--fg);
-    font-family: var(--font-ui);
-    -webkit-font-smoothing: antialiased;
-  }
-  .shell {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
   /*
-   * Deliberate divergence from the mock: the mock wraps every page (Home,
-   * Tutorial, Docs, Lab) in one `height:100vh` shell with an inner
-   * `overflow:auto` region, because it's a single SPA switching views by
-   * JS state. Here each page is its own document, so Landing uses normal
-   * document flow (the body scrolls) instead of a trapped inner scroll
-   * container -- that inner-scroll pattern is a real requirement for the
-   * Lab's fixed editor+drawer (M4), not for a marketing page.
+   * Keeps Home's own reading measure (960px) narrower than Starlight's
+   * `--sl-content-width` (67.5rem/1080px for a sidebar-less `splash`
+   * template) — same width this page used before it ran through
+   * Starlight's own ContentPanel, which already supplies vertical padding
+   * (`--sl-content-pad-x`/1.5rem) around this.
    */
-  .content {
-    flex: 1;
-  }
   .container {
     max-width: 960px;
     margin: 0 auto;
-    padding: 64px 28px 80px;
   }
-
   .hero {
     text-align: center;
   }

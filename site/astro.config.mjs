@@ -14,19 +14,26 @@ export default defineConfig({
       description: "Grammars that render themselves.",
       // Header is fully overridden with AppShell.astro — the same unified
       // topbar (logomark + wordmark, nav, search, theme toggle) used on the
-      // bare Landing page, so there's one topbar design, not two. AppShell
+      // bare Lab page, so there's one topbar design, not two. AppShell
       // folds in Starlight's own <Search /> rather than dropping it.
       // Starlight's `logo` option goes unused; pageHeadTags's favicon link
       // is the browser-tab icon.
       //
       // pageHeadTags(base) is the single source of every document-level
-      // <head> tag both this pipeline and the bare Landing page
-      // (src/pages/index.astro) need — see its own header comment for why
+      // <head> tag both this pipeline and the bare Lab page
+      // (src/pages/lab.astro) need — see its own header comment for why
       // that matters (a previous divergence silently dropped the real
-      // webfont on every Starlight page).
+      // webfont on every Starlight page). Home (src/pages/index.astro) used
+      // to be a third, bare pipeline here too — it's now a `<StarlightPage
+      // template="splash">`, so it gets this for free instead of needing
+      // its own copy.
       head: pageHeadTags(base),
       components: {
         Header: "./src/components/AppShell.astro",
+        // Home is the only page with its own hero <h1> and footer — see
+        // each override's own comment.
+        PageTitle: "./src/components/overrides/PageTitle.astro",
+        Footer: "./src/components/overrides/Footer.astro",
       },
       // `gramark` (Gramark's production blocks) has no Shiki grammar; render
       // it as plain monospace text — matching how GitHub shows the same fences.
