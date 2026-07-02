@@ -59,12 +59,17 @@
    * bare Landing page, with no such wrapper, never had. Zeroing these
    * here (an unlayered rule beats Starlight's own `@layer starlight.base`
    * unconditionally) makes the topbar's own padding the only source
-   * everywhere. `--sl-nav-height` is left alone — it already matches the
-   * topbar's natural rendered height, so the fixed header's content
-   * offset (`.main-frame`'s padding-top) stays correct.
+   * everywhere. `--sl-nav-height` also needs to track the topbar's actual
+   * rendered height explicitly (Starlight's own default, 56px/64px at the
+   * >=50em breakpoint, only coincidentally matched it before the topbar
+   * was shrunk) — `.main-frame`'s `padding-top: calc(var(--sl-nav-height)
+   * + …)` content offset is wrong otherwise, showing as a gap/double
+   * border below the fixed header. Keep this in sync with .bar's actual
+   * height in gramaire-topbar.mjs (measure it, don't guess).
    */
   --sl-nav-pad-x: 0px;
   --sl-nav-pad-y: 0px;
+  --sl-nav-height: 49px;
 }
 
 /*

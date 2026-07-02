@@ -73,7 +73,7 @@ const TEMPLATE = `
     display: flex;
     align-items: center;
     gap: 1.125em;
-    padding: 0.75em 1.375em;
+    padding: 0.25em 1.375em;
     border-bottom: 1px solid var(--border, #ddd6f8);
     background: var(--bg, #fff);
   }
@@ -91,7 +91,7 @@ const TEMPLATE = `
     font-weight: 700;
     letter-spacing: -0.04em;
     line-height: 1;
-    font-size: 1.1875em;
+    font-size: 2em;
     white-space: nowrap;
   }
   .wm .ink { color: var(--fg, #16181d); }
@@ -136,7 +136,7 @@ const TEMPLATE = `
     color: var(--fg-muted, #5b4d92);
     background: none;
     border: none;
-    padding: 0.4375em 0.625em;
+    padding: 0.3125em 0.625em;
     border-radius: 6px;
     cursor: pointer;
     white-space: nowrap;
@@ -159,7 +159,7 @@ const TEMPLATE = `
 
 <div class="bar" part="bar">
   <a class="brand" part="brand" id="brand">
-    <svg class="mark" viewBox="0 0 96 96" width="28" height="28" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gramaire">
+    <svg class="mark" viewBox="0 0 96 96" width="40" height="40" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gramaire">
       <g transform="matrix(1.3665595,0,0,1.3665595,-17.594856,-17.594856)" fill="none" stroke="var(--fg, #16181d)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
         <path d="M 18,48 H 33"></path>
         <path d="M 63,48 C 70,48 71,31 78,31"></path>
