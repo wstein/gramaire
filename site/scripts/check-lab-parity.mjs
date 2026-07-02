@@ -99,6 +99,17 @@ const fixtures = [
     input: "1 @ 2",
     method: "Canonical",
   },
+  {
+    // A grammar whose PARSEABILITY depends on its own declared `## Precedence` block (ADR D37) —
+    // `calc-prec.gram.md`'s natural ambiguous `expr op expr` shape has real shift/reduce conflicts
+    // that only its `%left` declarations resolve. Every other fixture above either has no
+    // precedence block or (calc.gram.md) is already conflict-free without one, so none of them
+    // would catch a regression that drops precedence when building tables (see LabApi.evaluate).
+    name: "calc-prec",
+    source: readGrammar("examples/calc-prec.gram.md"),
+    input: "1+2*3",
+    method: "Canonical",
+  },
 ];
 
 function jvmResponses(fixtures, tmpDir) {

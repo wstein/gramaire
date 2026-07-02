@@ -29,6 +29,7 @@ import gramaire.{
   ParseError,
   ParseTable,
   Parser,
+  Precedence,
   Railroad,
   Scanner,
   Severity,
@@ -116,6 +117,12 @@ object LabApi:
         )
       case Right(parsedGrammar) =>
         val grammar = withStartRule(parsedGrammar, request.startRule)
+        // The target grammar's own declared `## Precedence` block (ADR D37) — dropping this (i.e.
+        // building with `Table.emptyPrec`) leaves every shift/reduce ambiguity a declared
+        // `%left`/`%right`/`%nonassoc` would have resolved as an unresolved conflict, which is wrong
+        // for any grammar (like `examples/calc-prec.gram.md`) whose parseability depends on it. The
+        // CLI threads this the same way (`Main.scala`'s `Lr.precedenceOf(md)`); the Lab must too.
+        val prec = Lr.precedenceOf(request.source)
         // `productions`/`forest` depend only on the grammar notation having parsed, not on
         // `Table.buildTablesFor` succeeding — `Glr.forest`'s multi-action table never fails (it
         // keeps every conflicting action instead of rejecting), which is exactly what lets a
@@ -129,13 +136,13 @@ object LabApi:
         // is guaranteed already free of them.
         val productions = Some(productionsOf(grammar))
         val forest = request.input.map(forestFor(request.source, request.method, grammar, _))
-        val analysis = Some(analysisOf(grammar))
+        val analysis = Some(analysisOf(prec, grammar))
         // Soft diagnostics (unknown `#[attr]`/`%setting`, an unreachable rule, an unused token
         // class) are independent of whether the target grammar's tables build — a grammar can have
         // both real conflicts AND an unused token class, and both should be visible together.
         val warnings =
           Lr.warningsFor(request.source).map(toDiagnosticInfo(_, grammarSourceName, src, spanSafe))
-        Table.buildTablesFor(request.method, grammar) match
+        Table.buildTablesForP(prec, request.method, grammar) match
           case Left(conflicts) =>
             val spans = Lr.spanIndexOf(request.source)
             val conflictInfos = Diagnostics
@@ -160,7 +167,7 @@ object LabApi:
               productions = productions,
               forest = forest,
               analysis = analysis,
-              evaluatorJs = Some(evaluatorJsFor(request.source, grammar))
+              evaluatorJs = Some(evaluatorJsFor(prec, request.source, grammar))
             )
 
   // The Lab's start-rule picker (M5+): core has no separate "start rule" concept anywhere —
@@ -208,8 +215,8 @@ object LabApi:
   // (one shared canonical-automaton build) rather than three separate `statsFor` calls — the
   // naive version was measurably slow enough under concurrent load to blow past this project's
   // Playwright test timeouts.
-  private def analysisOf(grammar: Grammar): GrammarAnalysis =
-    val perMethod = Table.statsForAll(Table.emptyPrec, grammar).map { case (m, stats) =>
+  private def analysisOf(prec: Precedence, grammar: Grammar): GrammarAnalysis =
+    val perMethod = Table.statsForAll(prec, grammar).map { case (m, stats) =>
       m.toString -> MethodStatsInfo(stats.states, stats.conflicts.length)
     }
 
@@ -241,13 +248,13 @@ object LabApi:
   // evaluate() already confirmed the table builds via Table.buildTablesFor above — irGrammarOf
   // skips the redundant automaton build BackendJs never needed in the first place (it only reads
   // IR.grammar).
-  private def evaluatorJsFor(source: String, grammar: Grammar): String =
+  private def evaluatorJsFor(prec: Precedence, source: String, grammar: Grammar): String =
     // No CLI-shaped `file` path exists in the Lab's browser context to fall back to; "grammar" is
     // only ever cosmetic (BackendJs's header comment), mirroring cli/jvm's own grammarName's H1
     // extraction (that helper is CLI-only, reading a file path this module doesn't have).
     val name =
       source.split("\n", -1).find(_.startsWith("# ")).map(_.drop(2).trim).getOrElse("grammar")
-    val irGrammar = IR.irGrammarOf(Table.emptyPrec, name, grammar)
+    val irGrammar = IR.irGrammarOf(prec, name, grammar)
     val tagged = IR.withActionLangGrammar(Lr.actionLangOf(source), irGrammar)
     BackendJs.emitTraced(tagged)
 
