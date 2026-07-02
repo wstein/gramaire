@@ -50,6 +50,9 @@ export type LrActionInfo =
  * The Lab's full response: whether the grammar itself built, any diagnostics, and — if input was given and the grammar built — the parse result.
  */
 export interface LabResponse {
+  /**
+   * The current protocol version — must equal LabProtocol.scala's LabResponse.version. `default`, a standard/ajv-strict-mode-safe JSON Schema keyword, not `const`: a `const` would narrow the generated LabResponse.labProtocolVersion TS field to the literal type `1`, breaking site/src/lab/worker.ts's staleEngineResponse, which deliberately reports a DIFFERENT, mismatched version number as diagnostic data — the type still needs to stay a plain `number`. gen-lab-types.mjs reads this `default` to emit a LAB_PROTOCOL_VERSION constant into protocol.ts, the single source of truth worker.ts's stale-engine-bundle guard derives from instead of a second hand-maintained literal that could drift from LabResponse.version independently. Bump both together on any breaking wire-format change.
+   */
   labProtocolVersion: number;
   /**
    * True iff the grammar compiled and its tables built with no unresolved conflicts. When false, `diagnostics` names why and `parse` is always null.
@@ -207,3 +210,5 @@ export interface RuleFirstFollow {
   first: string[];
   follow: string[];
 }
+
+export const LAB_PROTOCOL_VERSION = 1;

@@ -95,7 +95,10 @@ class LabApiSuite extends munit.FunSuite:
           case Some(d) =>
             assertEquals(d.severity, "error")
             assertEquals(d.stage, "lex")
-            assert(d.message.contains("@"), s"expected the offending character named, got: ${d.message}")
+            assert(
+              d.message.contains("@"),
+              s"expected the offending character named, got: ${d.message}"
+            )
             assert(d.span.isDefined, "expected a located span")
         assertEquals(p.cst, None)
   }
@@ -143,6 +146,33 @@ class LabApiSuite extends munit.FunSuite:
         _.contains("must be defined by some rule")
       ),
       s"expected Diagnostics.checkDefined's rejection message naming Baz, got: ${resp.diagnostics}"
+    )
+  }
+
+  test(
+    "evaluate: a fence-free grammar's diagnostics omit spans (unsafe against the raw source)"
+  ) {
+    // `Diagnostic.span` is always relative to `Lr.toFenced(source)` — a no-op when the source is
+    // already fenced (undefinedRefMd, below), but a reordered/stripped synthetic projection when
+    // it isn't. The Lab frontend only ever has `request.source` verbatim (the literal textarea
+    // content), so exposing a span computed against the projection would select/highlight the
+    // wrong region for this shape of input — LabApi drops it instead.
+    val fenceFreeGrmk = "Expr\n: Baz\n"
+    val resp = LabApi.evaluate(LabRequest(fenceFreeGrmk, None, Method.Canonical))
+    assert(!resp.buildOk)
+    assertEquals(resp.diagnostics.length, 1)
+    assertEquals(
+      resp.diagnostics.head.span,
+      None,
+      s"expected no span for fence-free input, got: ${resp.diagnostics}"
+    )
+
+    // The already-fenced fixture (same underlying diagnostic shape) DOES carry a span, since
+    // Lr.toFenced(source) == source there, so the offsets are safe to use directly.
+    val fencedResp = LabApi.evaluate(LabRequest(undefinedRefMd, None, Method.Canonical))
+    assert(
+      fencedResp.diagnostics.head.span.isDefined,
+      "expected a span for already-fenced input"
     )
   }
 

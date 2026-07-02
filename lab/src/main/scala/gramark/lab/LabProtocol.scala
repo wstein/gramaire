@@ -60,8 +60,8 @@ object LabRequest:
     case Json.JString(other)       => Left(s"unknown method: $other")
     case _                         => Left("LabRequest.method must be a string")
 
-/** `gramark.SrcSpan`, wire-rendered — a `[start, end)` code-unit span into whichever source text the
-  * owning `DiagnosticInfo` is relative to (the grammar source, or `LabRequest.input`).
+/** `gramark.SrcSpan`, wire-rendered — a `[start, end)` code-unit span into whichever source text
+  * the owning `DiagnosticInfo` is relative to (the grammar source, or `LabRequest.input`).
   */
 final case class SrcSpanInfo(start: Int, end: Int)
 
@@ -70,8 +70,8 @@ object SrcSpanInfo:
     Json.JObject(Vector("start" -> Json.JInt(s.start), "end" -> Json.JInt(s.end)))
 
 /** `gramark.Diagnostic`, wire-rendered: severity/stage as lowercase strings, an optional span, the
-  * note/help lines verbatim, and `rendered` — the SAME plain-text `Diagnostic.render` output the CLI
-  * prints, included so the Lab UI has a zero-effort fallback (and so the JVM<->JS parity gate
+  * note/help lines verbatim, and `rendered` — the SAME plain-text `Diagnostic.render` output the
+  * CLI prints, included so the Lab UI has a zero-effort fallback (and so the JVM<->JS parity gate
   * byte-compares the shared renderer's output on both platforms, not just the structured fields).
   */
 final case class DiagnosticInfo(

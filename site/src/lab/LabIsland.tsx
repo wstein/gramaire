@@ -136,6 +136,33 @@ let requestId = 0;
 let latestSentId = 0;
 let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
+// A synthesized LabResponse for a failure that never produced a WorkerResponseMessage at all — see
+// worker.onerror below. Same single-internal-diagnostic shape worker.ts's own
+// staleEngineResponse/engineErrorResponse use, so Output renders it identically; kept as a small
+// local copy rather than an import from worker.ts, since importing that module would also run its
+// top-level side effects (self.onmessage/the engine dynamic import) on the main thread.
+function workerErrorResponse(message: string): LabResponse {
+  return {
+    labProtocolVersion: 0,
+    buildOk: false,
+    diagnostics: [
+      {
+        severity: "error",
+        stage: "internal",
+        message,
+        span: null,
+        notes: [],
+        rendered: `error: ${message}`,
+      },
+    ],
+    parse: null,
+    productions: null,
+    forest: null,
+    analysis: null,
+    evaluatorJs: null,
+  };
+}
+
 function ensureWorker(): Worker {
   if (worker) return worker;
   worker = new Worker(new URL("./worker.ts", import.meta.url), {
@@ -147,6 +174,17 @@ function ensureWorker(): Worker {
     response.value = resp;
     evaluation.value = evalResult;
     pending.value = false;
+  };
+  // A defense-in-depth backstop worker.ts's own onmessage try/catch can't cover: a synchronous
+  // failure in the Worker's own top-level module evaluation (e.g. a syntax error in a corrupted
+  // build, so self.onmessage is never even registered) fires the Worker's error event instead of
+  // onmessage. Without this handler, that left `pending` stuck true forever with no diagnostic —
+  // the exact "building…" hang worker.ts's own try/catch exists to prevent for in-message failures.
+  worker.onerror = (event) => {
+    pending.value = false;
+    response.value = workerErrorResponse(
+      `Lab worker failed to start (${event.message}) — reload the page.`,
+    );
   };
   return worker;
 }
@@ -321,7 +359,15 @@ export default function LabIsland() {
     if (initialized.current) return;
     initialized.current = true;
     scheduleEvaluate();
-    return () => worker?.terminate();
+    return () => {
+      worker?.terminate();
+      // Without this, ensureWorker()'s `if (worker) return worker;` would hand back a terminated
+      // (permanently dead) Worker on remount — postMessage on a terminated worker is a silent no-op
+      // per spec, so every request after a remount would hang forever with no error. A remount can
+      // happen from Vite/Preact HMR during development, or any future client-side view-transition
+      // reuse of this page.
+      worker = null;
+    };
   }, []);
 
   return (
@@ -416,6 +462,9 @@ export default function LabIsland() {
               class="lab__editor lab__editor--overlaid"
               spellcheck={false}
               value={grammarSource.value}
+              ref={(el) => {
+                grammarEditorEl = el;
+              }}
               onInput={(e) => {
                 grammarSource.value = (e.target as HTMLTextAreaElement).value;
                 scheduleEvaluate();

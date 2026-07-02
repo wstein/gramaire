@@ -66,12 +66,27 @@ object LabApi:
     case Stage.Tables   => "tables"
     case Stage.Internal => "internal"
 
-  private def toDiagnosticInfo(d: Diagnostic, sourceName: String, src: String): DiagnosticInfo =
+  // `spanSafe` gates whether `d.span` is safe to expose on the wire as raw offsets: `SrcSpan`s for
+  // grammar-notation diagnostics are relative to `Lr.toFenced(request.source)` (Diagnostic.scala's
+  // own `SrcSpan` doc comment: "the original .grmk.md text, OR ITS FENCE-FREE .grmk PROJECTION when
+  // the source had no fenced form"), never to `request.source` itself when the two differ. The one
+  // consumer of these offsets outside `render` (the Lab frontend's click-to-source-span navigation)
+  // only ever has `request.source` — the literal textarea content, not the internal projection — so
+  // a span computed for the projection would select/highlight the wrong region there. Dropping the
+  // span (message/severity/notes/rendered text are all still shown in full) is the safe, correct
+  // behavior for that mismatched case; `render`'s own text is unaffected either way, since it's
+  // always built against the same `src` the span was computed relative to.
+  private def toDiagnosticInfo(
+      d: Diagnostic,
+      sourceName: String,
+      src: String,
+      spanSafe: Boolean
+  ): DiagnosticInfo =
     DiagnosticInfo(
       severityWord(d.severity),
       stageWord(d.stage),
       d.message,
-      d.span.map(sp => SrcSpanInfo(sp.start, sp.end)),
+      if spanSafe then d.span.map(sp => SrcSpanInfo(sp.start, sp.end)) else None,
       d.notes,
       Diagnostic.render(d, sourceName, src)
     )
@@ -83,6 +98,11 @@ object LabApi:
     */
   def evaluate(request: LabRequest): LabResponse =
     val src = Lr.toFenced(request.source)
+    // Whether `src` is actually `request.source` verbatim — false whenever the grammar notation is
+    // fence-free (`toFenced` reorders/strips it into a synthetic projection), the one case where a
+    // `Diagnostic.span`'s offsets (always relative to `src`) would be wrong if applied to the raw
+    // text the Lab frontend actually has. See `toDiagnosticInfo`'s own comment.
+    val spanSafe = src == request.source
     // `Lr.parseWith` always uses Canonical to build the `lr` NOTATION's OWN tables (parsing the
     // `.grmk.md` text itself) — a fixed implementation detail, unrelated to `request.method`, which
     // is the METHOD the caller wants the TARGET grammar's own tables built with, below.
@@ -91,7 +111,7 @@ object LabApi:
         LabResponse(
           LabResponse.version,
           buildOk = false,
-          diagnostics = diags.map(toDiagnosticInfo(_, grammarSourceName, src)),
+          diagnostics = diags.map(toDiagnosticInfo(_, grammarSourceName, src, spanSafe)),
           parse = None
         )
       case Right(parsedGrammar) =>
@@ -113,13 +133,14 @@ object LabApi:
         // Soft diagnostics (unknown `#[attr]`/`%setting`, an unreachable rule, an unused token
         // class) are independent of whether the target grammar's tables build — a grammar can have
         // both real conflicts AND an unused token class, and both should be visible together.
-        val warnings = Lr.warningsFor(request.source).map(toDiagnosticInfo(_, grammarSourceName, src))
+        val warnings =
+          Lr.warningsFor(request.source).map(toDiagnosticInfo(_, grammarSourceName, src, spanSafe))
         Table.buildTablesFor(request.method, grammar) match
           case Left(conflicts) =>
             val spans = Lr.spanIndexOf(request.source)
             val conflictInfos = Diagnostics
               .conflictDiagnostics(grammar, spans, conflicts)
-              .map(toDiagnosticInfo(_, grammarSourceName, src))
+              .map(toDiagnosticInfo(_, grammarSourceName, src, spanSafe))
             LabResponse(
               LabResponse.version,
               buildOk = false,
@@ -286,9 +307,19 @@ object LabApi:
     e match
       case ParseError.UnexpectedToken(state, terminal, pos) =>
         val shown = spanned.lift(pos).map(s => s"`${s.text}`").getOrElse(s"`$terminal`")
-        Diagnostic.error(Stage.Parse, s"unexpected $shown", spanFor(pos), expectedNote(table, state))
+        Diagnostic.error(
+          Stage.Parse,
+          s"unexpected $shown",
+          spanFor(pos),
+          expectedNote(table, state)
+        )
       case ParseError.UnexpectedEnd(state, pos) =>
-        Diagnostic.error(Stage.Parse, "unexpected end of input", spanFor(pos), expectedNote(table, state))
+        Diagnostic.error(
+          Stage.Parse,
+          "unexpected end of input",
+          spanFor(pos),
+          expectedNote(table, state)
+        )
       case ParseError.InternalError(m) =>
         Diagnostic.error(Stage.Internal, s"internal error: $m; please report this")
 
@@ -311,11 +342,15 @@ object LabApi:
       val errorRuns = Scanner.mergeErrorRuns(spanned)
       val d = errorRuns.headOption match
         case Some(s) =>
-          Diagnostic.error(Stage.Lex, s"""unexpected character `${s.text}`""", Some(SrcSpan(s.start, s.end)))
+          Diagnostic.error(
+            Stage.Lex,
+            s"""unexpected character `${s.text}`""",
+            Some(SrcSpan(s.start, s.end))
+          )
         case None => Diagnostic.error(Stage.Lex, "lexical error in input")
       ParseResult(
         accepted = false,
-        message = Some(toDiagnosticInfo(d, inputSourceName, input)),
+        message = Some(toDiagnosticInfo(d, inputSourceName, input, spanSafe = true)),
         labTokens,
         cst = None
       )
@@ -326,7 +361,7 @@ object LabApi:
           val d = diagnosticForInputParseError(err, table, spanned)
           ParseResult(
             accepted = false,
-            message = Some(toDiagnosticInfo(d, inputSourceName, input)),
+            message = Some(toDiagnosticInfo(d, inputSourceName, input, spanSafe = true)),
             labTokens,
             cst = None
           )

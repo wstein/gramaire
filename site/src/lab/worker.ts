@@ -23,6 +23,7 @@
 // asked, tagged with the same id so a slow response for an old request
 // can't be mistaken for the current one.
 import type { LabRequest, LabResponse } from "./protocol";
+import { LAB_PROTOCOL_VERSION } from "./protocol";
 
 export interface WorkerRequestMessage {
   id: number;
@@ -64,18 +65,47 @@ const engineUrl = new URL(
 ).href;
 const enginePromise: Promise<Engine> = import(/* @vite-ignore */ engineUrl);
 
-// spec/lab-protocol-schema.json's own labProtocolVersion — kept in sync by hand (this file has no
-// derivation mechanism to read the schema's value at build time). A mismatch means the browser is
-// still running an engine.mjs built before the last protocol change (a long-open tab across a
-// redeploy, or a stale local `npm run build:engine`) — the exact bundle/page skew
+// LAB_PROTOCOL_VERSION is generated from spec/lab-protocol-schema.json's own top-level
+// labProtocolVersion annotation (see gen-lab-types.mjs) — a mismatch against the running engine
+// means the browser is still executing an engine.mjs built before the last protocol change (a
+// long-open tab across a redeploy, or a stale local `npm run build:engine`), which
 // `gramarkLabProtocolVersion` was exported to let this Worker catch, so a stale response fails
 // loudly as one clear diagnostic instead of the UI throwing on fields the old shape never had.
-const EXPECTED_PROTOCOL_VERSION = 1;
-
 function staleEngineResponse(actualVersion: number): LabResponse {
-  const message = `Lab engine bundle is out of date (protocol v${actualVersion}, page expects v${EXPECTED_PROTOCOL_VERSION}) — reload the page.`;
+  const message = `Lab engine bundle is out of date (protocol v${actualVersion}, page expects v${LAB_PROTOCOL_VERSION}) — reload the page.`;
   return {
     labProtocolVersion: actualVersion,
+    buildOk: false,
+    diagnostics: [
+      {
+        severity: "error",
+        stage: "internal",
+        message,
+        span: null,
+        notes: [],
+        rendered: `error: ${message}`,
+      },
+    ],
+    parse: null,
+    productions: null,
+    forest: null,
+    analysis: null,
+    evaluatorJs: null,
+  };
+}
+
+// A synthesized LabResponse for a failure that never reached the engine's own "never throws"
+// boundary at all — the engine module itself failed to load (a 404'd or syntactically broken
+// public/lab/engine.mjs), or a genuinely unhandled exception escaped gramarkLabEvaluate despite
+// LabExports.evaluate's own try/catch (see LabExports.scala). Reuses staleEngineResponse's exact
+// shape (a single internal-stage error diagnostic) so the Result/Output tab renders it the same way
+// — the point isn't a different UI, just guaranteeing self.onmessage always posts SOMETHING back
+// instead of leaving the caller's `pending` flag permanently stuck.
+function engineErrorResponse(e: unknown): LabResponse {
+  const detail = e instanceof Error ? e.message : String(e);
+  const message = `Lab engine failed unexpectedly (${detail}) — reload the page.`;
+  return {
+    labProtocolVersion: LAB_PROTOCOL_VERSION,
     buildOk: false,
     diagnostics: [
       {
@@ -120,21 +150,35 @@ async function runEvaluator(
   }
 }
 
+// Every path through here posts SOMETHING back for `id` — the try/catch is load-bearing, not
+// defensive boilerplate: LabIsland.tsx only clears its `pending` signal inside `onmessage`, so a
+// silently-dropped request (the engine module failing to load, or any uncaught exception from
+// `gramarkLabEvaluate` despite LabExports.evaluate's own try/catch) used to leave the UI stuck on
+// "building…" forever, with no diagnostic and no recovery short of a reload.
 self.onmessage = async (event: MessageEvent<WorkerRequestMessage>) => {
   const { id, request } = event.data;
-  const engine = await enginePromise;
-  if (engine.gramarkLabProtocolVersion !== EXPECTED_PROTOCOL_VERSION) {
+  try {
+    const engine = await enginePromise;
+    if (engine.gramarkLabProtocolVersion !== LAB_PROTOCOL_VERSION) {
+      const message: WorkerResponseMessage = {
+        id,
+        response: staleEngineResponse(engine.gramarkLabProtocolVersion),
+        evaluation: null,
+      };
+      self.postMessage(message);
+      return;
+    }
+    const responseJson = engine.gramarkLabEvaluate(JSON.stringify(request));
+    const response: LabResponse = JSON.parse(responseJson);
+    const evaluation = await runEvaluator(response);
+    const message: WorkerResponseMessage = { id, response, evaluation };
+    self.postMessage(message);
+  } catch (e) {
     const message: WorkerResponseMessage = {
       id,
-      response: staleEngineResponse(engine.gramarkLabProtocolVersion),
+      response: engineErrorResponse(e),
       evaluation: null,
     };
     self.postMessage(message);
-    return;
   }
-  const responseJson = engine.gramarkLabEvaluate(JSON.stringify(request));
-  const response: LabResponse = JSON.parse(responseJson);
-  const evaluation = await runEvaluator(response);
-  const message: WorkerResponseMessage = { id, response, evaluation };
-  self.postMessage(message);
 };

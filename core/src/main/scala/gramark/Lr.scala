@@ -380,14 +380,15 @@ object Lr:
       )
     else Right(Lexer.normalizeNewlinesSpanned(docSpanned))
 
-  /** The `SpanIndex` for a `.grmk.md`/`.grmk` document's own `lr` blocks — for locating a name (e.g.
-    * a table conflict's competing production) by re-scanning a grammar already known to parse.
-    * `SpanIndex.empty` on a lexical error, which would already have surfaced from `Lr.parse` itself.
+  /** The `SpanIndex` for a `.grmk.md`/`.grmk` document's own `lr` blocks — for locating a name
+    * (e.g. a table conflict's competing production) by re-scanning a grammar already known to
+    * parse. `SpanIndex.empty` on a lexical error, which would already have surfaced from `Lr.parse`
+    * itself.
     */
   def spanIndexOf(md: String): SpanIndex =
     tokenizeDocument(md) match
-      case Left(_)      => SpanIndex.empty
-      case Right(toks)  => SpanIndex.build(toks)
+      case Left(_)     => SpanIndex.empty
+      case Right(toks) => SpanIndex.build(toks)
 
   // A friendly name for one of the `lr` notation's own internal token classes — used only when no
   // literal spelling is more informative (an IDENT/TERM_LIT/etc.'s CLASS name is implementation
@@ -427,7 +428,8 @@ object Lr:
       else Vector("note: expected one of: " + expected.map(friendlyTerminal).mkString(", "))
     e match
       case ParseError.UnexpectedToken(state, terminal, pos) =>
-        val shown = normalized.lift(pos).map(s => s"`${s.text}`").getOrElse(friendlyTerminal(terminal))
+        val shown =
+          normalized.lift(pos).map(s => s"`${s.text}`").getOrElse(friendlyTerminal(terminal))
         Diagnostic.error(Stage.Parse, s"unexpected $shown", spanFor(pos), expectedNote(state))
       case ParseError.UnexpectedEnd(state, pos) =>
         Diagnostic.error(Stage.Parse, "unexpected end of input", spanFor(pos), expectedNote(state))
@@ -459,12 +461,15 @@ object Lr:
             )
           case Right(table) =>
             Parser.run[SemVal](table, tokenVal, reduce, tokens) match
-              case Left(e)                   => Left(Vector(diagnosticForParseError(e, table, normalized)))
+              case Left(e) => Left(Vector(diagnosticForParseError(e, table, normalized)))
               case Right(SemVal.VGrammar(g)) => Right((g, normalized))
               case Right(_) =>
                 Left(
                   Vector(
-                    Diagnostic.error(Stage.Internal, "parse did not yield a Grammar; please report this")
+                    Diagnostic.error(
+                      Stage.Internal,
+                      "parse did not yield a Grammar; please report this"
+                    )
                   )
                 )
 
@@ -478,7 +483,9 @@ object Lr:
         val spans = SpanIndex.build(normalized)
         Desugar.desugar(g) match
           case Left(msg) =>
-            Left(Vector(Diagnostic.error(Stage.Desugar, msg, SpanIndex.spanFromMessage(msg, spans))))
+            Left(
+              Vector(Diagnostic.error(Stage.Desugar, msg, SpanIndex.spanFromMessage(msg, spans)))
+            )
           case Right(g2) => Diagnostics.checkDefined(g2, spans)
 
   /** Parse using canonical LR(1) tables, rendering any diagnostics to plain text — the stable
@@ -510,7 +517,8 @@ object Lr:
   private def unknownAttrWarnings(g: Grammar, spans: SpanIndex): Vector[Diagnostic] =
     g.rules.flatMap { r =>
       r.attrs.filterNot(knownAttrs.contains).map { attr =>
-        val hint = Diagnostics.nearestMatch(attr, knownAttrs).map(sug => s"help: did you mean `#[$sug]`?")
+        val hint =
+          Diagnostics.nearestMatch(attr, knownAttrs).map(sug => s"help: did you mean `#[$sug]`?")
         Diagnostic.warning(
           Stage.Desugar,
           s"unknown attribute `#[$attr]` on rule `${r.name}` (ignored)",
@@ -577,7 +585,10 @@ object Lr:
             defs
               .filterNot(d => d.skip || used.contains(d.name))
               .map(d =>
-                Diagnostic.warning(Stage.Desugar, s"token class `${d.name}` is declared but never referenced")
+                Diagnostic.warning(
+                  Stage.Desugar,
+                  s"token class `${d.name}` is declared but never referenced"
+                )
               )
 
   /** Soft diagnostics for a `.grmk.md`/`.grmk` document that parses cleanly — none of these reject
