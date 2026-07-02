@@ -538,6 +538,33 @@ function GrammarAnalysisPanel() {
 
   return (
     <div>
+      {current && (
+        <div class="lab__analysis-section">
+          <div class="lab__analysis-heading">railroad diagram</div>
+          <div class="lab__tabs" role="tablist">
+            {ruleNames.map((name) => (
+              <button
+                key={name}
+                type="button"
+                role="tab"
+                aria-selected={current === name}
+                class="lab__tab"
+                onClick={() => (selectedRule.value = name)}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+          {/* The SVG is server-rendered by Railroad.renderSvg from the grammar the user is
+              already editing in this same tab — the same trust boundary as the grammar source
+              itself, not third-party or cross-origin content. */}
+          <div
+            class="lab__railroad-svg"
+            dangerouslySetInnerHTML={{ __html: a.railroad[current] ?? "" }}
+          />
+        </div>
+      )}
+
       <div class="lab__analysis-section">
         <div class="lab__analysis-heading">method comparison</div>
         <table class="lab__table">
@@ -581,33 +608,6 @@ function GrammarAnalysisPanel() {
           </tbody>
         </table>
       </div>
-
-      {current && (
-        <div class="lab__analysis-section">
-          <div class="lab__analysis-heading">railroad diagram</div>
-          <div class="lab__tabs" role="tablist">
-            {ruleNames.map((name) => (
-              <button
-                key={name}
-                type="button"
-                role="tab"
-                aria-selected={current === name}
-                class="lab__tab"
-                onClick={() => (selectedRule.value = name)}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
-          {/* The SVG is server-rendered by Railroad.renderSvg from the grammar the user is
-              already editing in this same tab — the same trust boundary as the grammar source
-              itself, not third-party or cross-origin content. */}
-          <div
-            class="lab__railroad-svg"
-            dangerouslySetInnerHTML={{ __html: a.railroad[current] ?? "" }}
-          />
-        </div>
-      )}
     </div>
   );
 }

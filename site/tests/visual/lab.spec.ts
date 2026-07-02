@@ -81,6 +81,11 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await expect(methodRows.first()).toContainText("Canonical");
   await expect(page.locator(".lab__panel")).toContainText("Expr"); // FIRST/FOLLOW rule + rule tab
   await expect(page.locator(".lab__railroad-svg svg")).toBeVisible();
+  // The railroad diagram is the most visually informative part of this tab — it comes before the
+  // data tables, not after them.
+  await expect(page.locator(".lab__analysis-heading").first()).toHaveText(
+    "railroad diagram",
+  );
 
   await page.click('button[role="tab"]:has-text("Parse trace")');
   const traceRows = page.locator(".lab__panel .lab__table tbody tr");
