@@ -152,8 +152,40 @@ const TEMPLATE = `
 
   @media (max-width: 720px) {
     nav.ctx { display: none; }
-    ::slotted([slot="tools"]) { width: auto; }
-    .tools { flex: 1; }
+    /* .tools is itself display:flex, so its slotted child (a plain <div>)
+       becomes a flex ITEM of it — width:auto on a flex item does NOT
+       mean "fill the container" the way it does on a block element; without
+       flex-grow it resolves via the item's own content size instead,
+       shrinking only as far as flex-shrink's negotiation forces it to. That
+       negotiation is sensitive to the item's OWN intrinsic content width,
+       which is why this rendered inconsistently between pages even though
+       the CSS is identical on both — an explicit flex:1 fills .tools's
+       actual available width deterministically, regardless of content.
+       min-width, not just flex:1, on .tools itself: Starlight's own
+       sidebar-toggle hamburger (rendered outside this element, in
+       PageFrame.astro's sidebar nav — not something this component
+       controls) reserves extra space on its own .header wrapper below its
+       ~50rem breakpoint, which Landing's bare page never has to reserve (no
+       sidebar there at all) — without a floor, the search box was the only
+       flexible item competing for whatever's left and collapsed to a
+       near-invisible size on Starlight pages specifically. */
+    ::slotted([slot="tools"]) { width: auto; min-width: 0; flex: 1; }
+    .tools { flex: 1 1 auto; min-width: 88px; }
+  }
+
+  @media (max-width: 460px) {
+    .bar { gap: 0.625em; padding-inline: 0.875em; }
+    .seg button { padding: 0.25em 0.5em; font-size: 0.6875em; }
+    /* Brand's wordmark alone is wider than the search box's own min-width
+       floor. On a Starlight page, this width band is also where its
+       sidebar-toggle hamburger's reserved space (see the comment above)
+       bites hardest — without reclaiming room somewhere, the segmented
+       theme control had nowhere left to go and rendered completely
+       off-screen (clipped by Starlight's own overflow handling, not even
+       scrollable to) rather than just visually tight like on Landing.
+       Dropping to icon-only keeps the brand recognizable without costing
+       everything else that needs the room more at this width. */
+    .wm { display: none; }
   }
 </style>
 

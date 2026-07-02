@@ -49,6 +49,22 @@
     border: 0 solid;
     padding: 0;
   }
+  /*
+   * Browsers don't inherit font-family into form controls by default —
+   * they get the UA's own control font (Arial, in most) instead. Matches
+   * Starlight's own reset.css exactly (same property, same selector, no
+   * exclusion — safe everywhere, including Pagefind's own <input>, since
+   * an explicit font-family there would still win via normal cascade).
+   * Landing's own search trigger button rendered in Arial, not IBM Plex
+   * Sans, without this — Starlight's reset.css has it, but (as with
+   * everything else in this rule) only loads on Starlight-templated pages.
+   */
+  input,
+  button,
+  textarea,
+  select {
+    font: inherit;
+  }
 }
 
 @font-face {
