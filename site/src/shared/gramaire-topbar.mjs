@@ -217,7 +217,7 @@ const TEMPLATE = `
     <span class="wm"><span class="ink">Gra</span><span class="split">m</span><span class="accent">ark</span></span>
   </a>
 
-  <div class="divider"></div>
+  <div class="divider" id="tools-divider"></div>
   <div class="tools" part="tools"><slot name="tools"></slot></div>
   <div class="spacer"></div>
 
@@ -276,6 +276,22 @@ export class GramaireTopbar extends Base {
     this._media?.addEventListener("change", this._onMediaChange);
     window.addEventListener("storage", this._onStorage);
     this._syncTheme();
+
+    // Lab has no slotted `tools` content (see AppShell.astro's own
+    // comment — a search box with nothing indexed to search is confusing,
+    // not just unhelpful). Without this, the divider meant to separate the
+    // brand from the search box rendered right next to the brand with
+    // nothing after it: an orphaned mark, not an absence.
+    const toolsSlot = this.shadowRoot.querySelector('slot[name="tools"]');
+    this._syncToolsDivider(toolsSlot);
+    toolsSlot.addEventListener("slotchange", () =>
+      this._syncToolsDivider(toolsSlot),
+    );
+  }
+
+  _syncToolsDivider(toolsSlot) {
+    const hasTools = toolsSlot.assignedElements().length > 0;
+    this.shadowRoot.getElementById("tools-divider").hidden = !hasTools;
   }
 
   disconnectedCallback() {
