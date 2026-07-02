@@ -36,15 +36,21 @@ generated parser must read that file back to a value equal to the hand-written
 
 ## The `.grmk.md` format
 
-A grammar file is a canonical Markdown document (see the
+A grammar file is a Markdown document whose headings, prose, and images carry
+no grammar semantics — the grammar lives entirely in fenced code blocks
+tagged `gramark` (one tag, no variants), each self-identifying its role from
+the shape of its own lines (see the
+[language spec](site/src/content/docs/specs/grammar-format.mdx) and the
 [fmt output contract](docs/fmt-output-contract.md)):
 
-- **One H1** naming the grammar.
-- **One H2 section per nonterminal**, each with an `lr` fence of productions
-  and an optional linked railroad diagram.
-- Optional **`## Precedence`** (`lr precedence`), **`## Error messages`**
-  (`lr errors`), and a generated **`## Generated tables`** FIRST/FOLLOW
-  section.
+- A required **`%name <name>`** directive, the grammar's real name — never a
+  heading or the file's path.
+- **One `gramark` fence per nonterminal**, named by the fence's own head, with
+  an optional linked railroad diagram; `fmt`'s canonical layout gives each its
+  own `## <Nonterminal>` heading, purely as a reader convenience.
+- Optional fences for **token classes**, **operator precedence**
+  (`%left`/`%right`/`%nonassoc`), and a generated **`## Generated tables`**
+  FIRST/FOLLOW section.
 
 A grammar with no actions at all is already complete: it fully defines the
 recognized language and a concrete syntax tree (CST) every backend can walk.

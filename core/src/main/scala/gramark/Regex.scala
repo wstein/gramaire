@@ -1,6 +1,6 @@
 package gramark
 
-// The regular sublanguage for `lr tokens` patterns (lexer-spec §3).
+// The regular sublanguage for Tokens-role `gramark` fence patterns (lexer-spec §3).
 //
 // Token patterns MUST be **regular** — no backreferences, lookaround,
 // non-greedy quantifiers, anchors, or named groups — so matching is
