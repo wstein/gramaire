@@ -19,11 +19,12 @@ import gramark.{Analyze, Lr, Railroad}
 object GramarkCheck:
   import Railroad.{DiaSym, Production}
 
-  // The fixed tail of every grammar file, after the per-nonterminal
-  // sections. `Precedence` is optional and slots in before this tail when
-  // present (a grammar with no operator-precedence declarations omits it
-  // entirely).
-  private val expectedTail: Vector[String] = Vector("Error messages", "Generated tables")
+  // The one section every grammar file ends with. `Precedence` and
+  // `Error messages` are each optional and slot in before it, in that order,
+  // when present — a grammar with no operator-precedence declarations, or no
+  // curated per-state messages (a plain ```text fence now, not grammar
+  // notation), omits the corresponding section entirely.
+  private val alwaysTail: Vector[String] = Vector("Generated tables")
 
   // ---- Domain types (mirror the prior TypeScript/reference-implementation ADTs) -------------
 
@@ -161,7 +162,10 @@ object GramarkCheck:
     // (free presentational grouping; ADR D29).
     val ruleNames = doc.blocks.filter(_.kind.contains(Lr.FenceKind.Rule)).flatMap(_.nonterminal)
     val h2 = doc.headings.filter(_.level == 2).map(_.text)
-    val tail = if h2.contains("Precedence") then "Precedence" +: expectedTail else expectedTail
+    val tail =
+      (if h2.contains("Precedence") then Vector("Precedence") else Vector.empty) ++
+        (if h2.contains("Error messages") then Vector("Error messages") else Vector.empty) ++
+        alwaysTail
     val expected =
       (if h2.contains("General settings") then Vector("General settings") else Vector.empty) ++
         (if h2.contains("Tokens") then Vector("Tokens") else Vector.empty) ++
