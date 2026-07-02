@@ -71,15 +71,74 @@ object LabToken:
       )
     )
 
+/** One step of an LR walk (`gramaire.LrStep`, wire-rendered): the action taken and the parse
+  * stack/remaining-input state *before* taking it — the Parse trace tab's flat numbered list and
+  * the LR walk tab's stepper both read the same `trace` array, one rendering it as a table, the
+  * other adding prev/next/slider navigation over it.
+  */
+final case class LrStepInfo(
+    index: Int,
+    stateBefore: Int,
+    action: LrActionInfo,
+    stackSymbols: Vector[String],
+    remainingSymbols: Vector[String]
+)
+
+object LrStepInfo:
+  def toJson(s: LrStepInfo): Json =
+    Json.JObject(
+      Vector(
+        "index" -> Json.JInt(s.index),
+        "stateBefore" -> Json.JInt(s.stateBefore),
+        "action" -> LrActionInfo.toJson(s.action),
+        "stackSymbols" -> Json.JArray(s.stackSymbols.map(Json.JString.apply)),
+        "remainingSymbols" -> Json.JArray(s.remainingSymbols.map(Json.JString.apply))
+      )
+    )
+
+/** `gramaire.TraceAction`, wire-rendered as a `kind`-tagged object (`rhs`/`terminal` already
+  * display-rendered like `ProductionInfo.rhs`).
+  */
+enum LrActionInfo:
+  case Shift(terminal: String, lexeme: String)
+  case Reduce(lhs: String, rhs: Vector[String], prodIndex: Int)
+  case Accept
+
+object LrActionInfo:
+  def toJson(a: LrActionInfo): Json = a match
+    case LrActionInfo.Shift(terminal, lexeme) =>
+      Json.JObject(
+        Vector(
+          "kind" -> Json.JString("shift"),
+          "terminal" -> Json.JString(terminal),
+          "lexeme" -> Json.JString(lexeme)
+        )
+      )
+    case LrActionInfo.Reduce(lhs, rhs, prodIndex) =>
+      Json.JObject(
+        Vector(
+          "kind" -> Json.JString("reduce"),
+          "lhs" -> Json.JString(lhs),
+          "rhs" -> Json.JArray(rhs.map(Json.JString.apply)),
+          "prodIndex" -> Json.JInt(prodIndex)
+        )
+      )
+    case LrActionInfo.Accept =>
+      Json.JObject(Vector("kind" -> Json.JString("accept")))
+
 /** The outcome of parsing `LabRequest.input` against the compiled grammar. `tokens` is populated
-  * even on a reject (so the Tokens tab still has something to show); `cst` is `None` unless
-  * `accepted`.
+  * even on a reject (so the Tokens tab still has something to show); `cst`/`trace` are `None`
+  * unless `accepted` — `trace` shares that lifecycle with `cst` (a rejected/incomplete parse has no
+  * walk to show), which is why it lives here rather than as a top-level `LabResponse` field the way
+  * `forest` does (forest's whole reason to exist is showing data when `buildOk` is false — trace
+  * has no equivalent case).
   */
 final case class ParseResult(
     accepted: Boolean,
     message: Option[String],
     tokens: Vector[LabToken],
-    cst: Option[Json]
+    cst: Option[Json],
+    trace: Option[Vector[LrStepInfo]] = None
 )
 
 object ParseResult:
@@ -89,7 +148,8 @@ object ParseResult:
         "accepted" -> Json.JBool(p.accepted),
         "message" -> p.message.map(Json.JString.apply).getOrElse(Json.JNull),
         "tokens" -> Json.JArray(p.tokens.map(LabToken.toJson)),
-        "cst" -> p.cst.getOrElse(Json.JNull)
+        "cst" -> p.cst.getOrElse(Json.JNull),
+        "trace" -> p.trace.map(ts => Json.JArray(ts.map(LrStepInfo.toJson))).getOrElse(Json.JNull)
       )
     )
 

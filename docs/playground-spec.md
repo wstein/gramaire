@@ -461,9 +461,30 @@ the suite's 5s timeouts (passed reliably in isolation, failed under
 concurrency) — `statsForAll` fixes it by building the canonical automaton
 once and quotienting it per method, cutting the redundant work.
 
+Parse trace and LR walk are also done: `Parser.walk` (`core/src/main/scala/
+gramaire/Parser.scala`) is a new, separate function — not a `run` variant
+with a trace hook — that walks the exact same state-stack shift/reduce
+logic as `run` in lockstep with a parallel `GSym` symbol stack purely for
+display, recording one `LrStep` per action (state before, the action taken,
+and the stack/remaining-input symbols before taking it). Differentially
+tested against `run` (`ParserSuite`: same accept/reject verdict, and
+replaying `walk`'s steps with the same `tokenVal`/`reduce` semantics
+reproduces `run`'s exact value) rather than a hand-derived golden — a
+stronger check than transcribing one grammar's trace by hand. `ParseResult`
+grows `trace: Option[Vector[LrStepInfo]]`, sharing `cst`'s lifecycle
+(`None` unless accepted) rather than living at the top level the way
+`forest` does — `forest`'s reason to be top-level (populated even when
+`buildOk` is false) has no equivalent here: a rejected or not-yet-buildable
+grammar has no completed walk to show. Parse trace renders `trace` as a
+flat numbered table; LR walk adds the stepper (prev/next/first/last +
+range-input slider, an ACTION banner, PARSE STACK / REMAINING INPUT chip
+rows, and the same step table with click-to-jump) — both read the same
+array, no protocol duplication. Verified end-to-end against the real
+engine: `examples/calc.gram.md`'s `1+2*3` produces exactly 14 steps,
+matching the gold-standard mock screenshot's own "step 7/14" 1+2*3 example.
+
 **Not yet done:** the JVM↔JS parity gate below (the main remaining tracked
-gap for this slice), and the rest of the M5+ tabs (Evaluate, Parse trace,
-LR walk) plus the draggable splitter and LR-walk stepper.
+gap for this slice), the Evaluate tab, and the draggable splitter.
 
 **JVM↔JS parity gate** (§8, "no-import" guardrail's sibling; not yet built):
 `Conformance.scala` already exists as differential-oracle infrastructure;
@@ -500,8 +521,8 @@ always reads "valid / green"), matching the gold-standard mock's spec exactly
 | 3   | Tokens           | `Lexer.tokenizeSpanned` (spans)                                                                                                                                                                                       | ✅       |
 | 4   | Grammar analysis | method comparison via `Table.statsForAll` (states + conflicts, one shared canonical-automaton build) + `Table.firstSets`/`followSets` + `Railroad.renderSvg` built from the compiled `Grammar` directly (not `parseProduction` — see §5.1) | ✅ (M5)  |
 | 5   | Parse tree       | `Cst.toJson`                                                                                                                                                                                                          | ✅       |
-| 6   | Parse trace      | derived client-side from the LR walk below, or a new `Table`/`Parser` trace hook                                                                                                                                      | M5+      |
-| 7   | LR walk          | stepper over the same trace data as Parse trace                                                                                                                                                                       | M5+      |
+| 6   | Parse trace      | `Parser.walk` (a new, separate step-recording driver — not a `run` trace hook), rendered as a flat numbered table                                                                                                     | ✅ (M5)  |
+| 7   | LR walk          | stepper over the same `Parser.walk` trace data as Parse trace                                                                                                                                                         | ✅ (M5)  |
 | 8   | All parses       | `Glr.forest`, populated even when `buildOk` is false — a genuinely ambiguous grammar has real conflicts under every method, so this is exactly the case the tab exists for (real; **do not** relabel to "Conflicts" — see `design/README.md`'s override of the stale `IMPLEMENTATION_astro.md` guidance) | ✅ (M5)  |
 | 9   | Diagnostics      | `Diagnostics.undefinedNonterminals` + `Diagnostics.renderConflicts`                                                                                                                                                   | ✅       |
 | 10  | Lowered Core     | `Table.productions(grammar)` zipped with `grammar.rules.flatMap(_.alts)` for each production's raw `{% %}` action text (confirmed: `Desugar.desugar` returns the same `Grammar` type, not a distinct "lowered" type — desugaring is a value-level guarantee, not a type-level one) | ✅ (M5)  |

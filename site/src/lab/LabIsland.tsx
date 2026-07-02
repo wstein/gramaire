@@ -4,6 +4,7 @@ import type {
   CstNode,
   LabRequest,
   LabResponse,
+  LrStepInfo,
   Method,
   ProductionInfo,
 } from "./protocol";
@@ -13,8 +14,8 @@ import "./lab.css";
 // Tier 0/1 v1 slice (docs/playground-spec.md §6) was Result, Tokens, Parse
 // tree, Diagnostics. M5+ adds tabs one increment at a time, following
 // docs/playground-spec.md's tab->core-symbol table; "forest"/"lowered" (All
-// parses / Lowered Core) and "analysis" (Grammar analysis) are done. The
-// remaining two (Evaluate, Parse trace/LR walk) are still M5+.
+// parses / Lowered Core), "analysis" (Grammar analysis), and "trace"/"walk"
+// (Parse trace / LR walk) are done. Only Evaluate remains M5+.
 type Tab =
   | "result"
   | "tokens"
@@ -22,7 +23,9 @@ type Tab =
   | "diagnostics"
   | "forest"
   | "lowered"
-  | "analysis";
+  | "analysis"
+  | "trace"
+  | "walk";
 
 const METHODS = ["Canonical", "LALR", "IELR"] as const;
 
@@ -71,6 +74,7 @@ const activeTab = signal<Tab>("result");
 const response = signal<LabResponse | null>(null);
 const pending = signal(false);
 const selectedRule = signal<string | null>(null);
+const walkStep = signal(0);
 
 const buildStatus = computed<"pending" | "ok" | "fail">(() => {
   if (response.value === null) return "pending";
@@ -190,6 +194,8 @@ export default function LabIsland() {
               "result",
               "tokens",
               "tree",
+              "trace",
+              "walk",
               "diagnostics",
               "forest",
               "lowered",
@@ -212,6 +218,8 @@ export default function LabIsland() {
           {activeTab.value === "result" && <ResultPanel />}
           {activeTab.value === "tokens" && <TokensPanel />}
           {activeTab.value === "tree" && <TreePanel />}
+          {activeTab.value === "trace" && <ParseTracePanel />}
+          {activeTab.value === "walk" && <LrWalkPanel />}
           {activeTab.value === "diagnostics" && <DiagnosticsPanel />}
           {activeTab.value === "forest" && <AllParsesPanel />}
           {activeTab.value === "lowered" && <LoweredCorePanel />}
@@ -230,6 +238,10 @@ function tabLabel(tab: Tab): string {
       return "Tokens";
     case "tree":
       return "Parse tree";
+    case "trace":
+      return "Parse trace";
+    case "walk":
+      return "LR walk";
     case "diagnostics":
       return "Diagnostics";
     case "forest":
@@ -238,6 +250,17 @@ function tabLabel(tab: Tab): string {
       return "Lowered Core";
     case "analysis":
       return "Grammar analysis";
+  }
+}
+
+function actionText(action: LrStepInfo["action"]): string {
+  switch (action.kind) {
+    case "shift":
+      return `shift ${action.terminal} ${JSON.stringify(action.lexeme)}`;
+    case "reduce":
+      return `reduce ${action.lhs} → ${action.rhs.join(" ")} (pop ${action.rhs.length}, goto ${action.lhs})`;
+    case "accept":
+      return "accept";
   }
 }
 
@@ -486,6 +509,151 @@ function GrammarAnalysisPanel() {
           />
         </div>
       )}
+    </div>
+  );
+}
+
+function getTrace(): LrStepInfo[] | null {
+  return response.value?.parse?.trace ?? null;
+}
+
+function ParseTracePanel() {
+  const trace = getTrace();
+  if (!trace || trace.length === 0)
+    return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
+  return (
+    <table class="lab__table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {trace.map((s) => (
+          <tr key={s.index}>
+            <td class="lab__mono">{s.index}</td>
+            <td class="lab__mono">{actionText(s.action)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function LrWalkPanel() {
+  const trace = getTrace();
+  if (!trace || trace.length === 0)
+    return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
+  // Clamped, not reset-on-response: if a new response's trace is shorter than the step the user
+  // was on, this just falls back to the last step instead of needing an effect to watch for it.
+  const current = Math.min(walkStep.value, trace.length - 1);
+  const step = trace[current];
+
+  return (
+    <div class="lab__walk">
+      <div class="lab__walk-controls">
+        <button
+          type="button"
+          disabled={current === 0}
+          onClick={() => (walkStep.value = 0)}
+          aria-label="first step"
+        >
+          ⏮
+        </button>
+        <button
+          type="button"
+          disabled={current === 0}
+          onClick={() => (walkStep.value = current - 1)}
+        >
+          ◀ prev
+        </button>
+        <span class="lab__walk-counter">
+          step {current + 1} / {trace.length}
+        </span>
+        <button
+          type="button"
+          disabled={current === trace.length - 1}
+          onClick={() => (walkStep.value = current + 1)}
+        >
+          next ▶
+        </button>
+        <button
+          type="button"
+          disabled={current === trace.length - 1}
+          onClick={() => (walkStep.value = trace.length - 1)}
+          aria-label="last step"
+        >
+          ⏭
+        </button>
+        <input
+          class="lab__walk-slider"
+          type="range"
+          min={0}
+          max={trace.length - 1}
+          value={current}
+          onInput={(e) => {
+            walkStep.value = Number((e.target as HTMLInputElement).value);
+          }}
+        />
+      </div>
+
+      <div class="lab__walk-action">
+        <span class="lab__analysis-heading">action</span>
+        {actionText(step.action)}
+      </div>
+
+      <div class="lab__walk-panes">
+        <div>
+          <div class="lab__analysis-heading">parse stack</div>
+          <div class="lab__walk-chips">
+            {step.stackSymbols.length === 0 ? (
+              <span class="lab__empty">empty</span>
+            ) : (
+              step.stackSymbols.map((s, i) => (
+                <span key={i} class="lab__chip">
+                  {s}
+                </span>
+              ))
+            )}
+          </div>
+        </div>
+        <div>
+          <div class="lab__analysis-heading">remaining input</div>
+          <div class="lab__walk-chips">
+            {step.remainingSymbols.map((s, i) => (
+              <span key={i} class="lab__chip">
+                {s}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <table class="lab__table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {trace.map((s) => (
+            <tr
+              key={s.index}
+              class={
+                s.index === current
+                  ? "lab__walk-row lab__walk-row--current"
+                  : "lab__walk-row"
+              }
+              onClick={() => (walkStep.value = s.index)}
+            >
+              <td class="lab__mono">{s.index}</td>
+              <td class="lab__mono">{actionText(s.action)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

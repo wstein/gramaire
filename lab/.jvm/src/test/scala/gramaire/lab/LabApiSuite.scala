@@ -189,6 +189,42 @@ class LabApiSuite extends munit.FunSuite:
       case Some(a) => assert(a.perMethod("Canonical").conflicts > 0)
   }
 
+  test("evaluate: an accepted parse carries an LR-walk trace ending in Accept") {
+    val resp = LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.Canonical))
+    assert(resp.buildOk)
+    resp.parse match
+      case None => fail("expected a parse result")
+      case Some(p) =>
+        assert(p.accepted)
+        p.trace match
+          case None => fail("expected a trace for an accepted parse")
+          case Some(steps) =>
+            assert(steps.nonEmpty)
+            assertEquals(steps.last.action, LrActionInfo.Accept)
+            assertEquals(steps.map(_.index), steps.indices.toVector)
+            // Every reduce step's rhs is already display-rendered, same convention as
+            // ProductionInfo.rhs (a terminal backtick-quoted).
+            val firstReduce = steps.collectFirst {
+              case s if s.action.isInstanceOf[LrActionInfo.Reduce] => s
+            }
+            firstReduce match
+              case None => fail("expected at least one reduce step")
+              case Some(s) =>
+                s.action match
+                  case r: LrActionInfo.Reduce => assertEquals(r.lhs, "Factor")
+                  case _                      => fail("unreachable")
+  }
+
+  test("evaluate: a rejected parse has no trace") {
+    val resp = LabApi.evaluate(LabRequest(calcMd, Some("1+"), Method.Canonical))
+    assert(resp.buildOk)
+    resp.parse match
+      case None => fail("expected a parse result")
+      case Some(p) =>
+        assert(!p.accepted)
+        assertEquals(p.trace, None)
+  }
+
   test("evaluate: LALR and IELR methods are honored") {
     val lalr = LabApi.evaluate(LabRequest(calcMd, Some("1+2"), Method.LALR))
     val ielr = LabApi.evaluate(LabRequest(calcMd, Some("1+2"), Method.IELR))

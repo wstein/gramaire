@@ -23,6 +23,24 @@ export interface LabRequest {
  * The same node shape as cst-schema.json's $defs/node (Cst.toJson emits it identically here, just embedded as ParseResult.cst instead of wrapped in the {cstVersion, root} envelope that artifact's own top level adds) — kept in sync by hand, both schemas are hand-authored from the same Cst.scala encoder.
  */
 export type CstNode = CstBranch | CstToken;
+/**
+ * A kind-tagged LR action.
+ */
+export type LrActionInfo =
+  | {
+      kind: "shift";
+      terminal: string;
+      lexeme: string;
+    }
+  | {
+      kind: "reduce";
+      lhs: string;
+      rhs: string[];
+      prodIndex: number;
+    }
+  | {
+      kind: "accept";
+    };
 
 /**
  * The Lab's full response: whether the grammar itself built, any diagnostics, and — if input was given and the grammar built — the parse result.
@@ -55,7 +73,7 @@ export interface LabResponse {
   analysis: GrammarAnalysis | null;
 }
 /**
- * The outcome of parsing LabRequest.input against the compiled grammar. `tokens` is populated even on a reject, so the Tokens tab still has something to show; `cst` is null unless `accepted`.
+ * The outcome of parsing LabRequest.input against the compiled grammar. `tokens` is populated even on a reject, so the Tokens tab still has something to show; `cst`/`trace` are null unless `accepted`.
  */
 export interface ParseResult {
   accepted: boolean;
@@ -65,6 +83,10 @@ export interface ParseResult {
   message: string | null;
   tokens: LabToken[];
   cst: CstNode | null;
+  /**
+   * The Parse trace / LR walk tabs' data: the full shift/reduce/accept sequence, one entry per step. Present only when accepted.
+   */
+  trace: LrStepInfo[] | null;
 }
 /**
  * A single lexed token from the Lab's Tokens tab, with its source span (start/end are code-unit offsets into LabRequest.input, [start, end) — matching gramaire.Spanned's own convention).
@@ -82,6 +104,22 @@ export interface CstBranch {
 export interface CstToken {
   token: string;
   text: string;
+}
+/**
+ * One step of an LR walk: the action taken and the parse stack/remaining-input state before taking it.
+ */
+export interface LrStepInfo {
+  index: number;
+  stateBefore: number;
+  action: LrActionInfo;
+  /**
+   * Bottom to top, before this action; already display-rendered like ProductionInfo.rhs.
+   */
+  stackSymbols: string[];
+  /**
+   * Before this action, including a trailing `$` EOF marker.
+   */
+  remainingSymbols: string[];
 }
 /**
  * One flattened production of the compiled grammar. `lhs`/`rhs` are already display-rendered (a terminal is backtick-quoted, e.g. `` `+` ``; a nonterminal is bare).
