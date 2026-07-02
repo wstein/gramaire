@@ -315,8 +315,8 @@ object Main:
   // the `-->` line as such (rather than silently naming the real file) keeps the caret frame useful
   // for pinpointing the token without implying "open the file at this exact line".
   private def renderDiags(diags: Vector[Diagnostic], file: String, md: String): String =
-    val fenced = Lr.toFenced(md)
-    val sourceName = if fenced == md then file else s"$file (normalized projection)"
+    val (fenced, changed) = Lr.toFencedTagged(md)
+    val sourceName = if changed then s"$file (normalized projection)" else file
     Diagnostic.renderAll(diags, sourceName, fenced)
 
   private def backendNames: String = BackendRegistry.backends.map(_.name).mkString(", ")

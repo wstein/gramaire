@@ -98,12 +98,12 @@ object LabApi:
     * cross-compiled module has one shared source tree for both platforms).
     */
   def evaluate(request: LabRequest): LabResponse =
-    val src = Lr.toFenced(request.source)
+    val (src, projected) = Lr.toFencedTagged(request.source)
     // Whether `src` is actually `request.source` verbatim — false whenever the grammar notation is
     // fence-free (`toFenced` reorders/strips it into a synthetic projection), the one case where a
     // `Diagnostic.span`'s offsets (always relative to `src`) would be wrong if applied to the raw
     // text the Lab frontend actually has. See `toDiagnosticInfo`'s own comment.
-    val spanSafe = src == request.source
+    val spanSafe = !projected
     // `Lr.parseWith` always uses Canonical to build the `lr` NOTATION's OWN tables (parsing the
     // `.gram.md` text itself) — a fixed implementation detail, unrelated to `request.method`, which
     // is the METHOD the caller wants the TARGET grammar's own tables built with, below.
