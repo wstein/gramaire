@@ -1,74 +1,86 @@
 # Json
 
-This grammar is a syntax-first rendering of the official JSON format described
-on json.org. It keeps the prose human-readable and leaves the actual grammar in
-fenced Gramaire blocks, without introducing semantic actions or AST-specific
-explanations outside those fences.
+The complete grammar for [JSON](https://www.json.org) (RFC 8259), written
+as a Gramaire `.gram.md`. It is a single document that is two things at
+once: the page you are reading on GitHub — prose, railroad diagrams, a
+FIRST/FOLLOW table — and the exact input Gramaire's generator consumes.
+Everything outside the fenced `gramaire` blocks is documentation that travels
+with the grammar.
+
+JSON is the canonical small-but-real grammar: everyone recognises it, it
+fits on one screen, and its value-union branch and two bracketed,
+comma-separated lists render into satisfying railroad diagrams. The
+notation is LR(1) by construction and carries no operator precedence, so
+this file deliberately omits the optional `## Precedence` section that the
+[`calc`](calc.gram.md) example shows.
+
+Semantic actions build this AST as plain tagged JS objects: `{ tag: "Obj",
+members }`, `{ tag: "Arr", elements }`, `{ tag: "Str", value }`, `{ tag:
+"Num", value }`, `{ tag: "Bool", value }`, `{ tag: "Null" }` — each entry of
+`members` a plain `{ key, value }` pair, in source order.
 
 ## General settings
 
-```gramaire settings
+```gramaire
 %name Json
 %lang javascript
 ```
 
 ## Tokens
 
-The official JSON syntax allows whitespace between adjacent tokens and uses
-double-quoted strings, decimal numbers, and the literal words `true`, `false`,
-and `null`. The lexer below makes whitespace explicit and leaves the structural
-punctuation and literals to the productions.
+The grammar's lexis (lexer-spec §2). Two open-ended classes plus skipped
+whitespace; the structural punctuation and the `true` / `false` / `null`
+keywords are implicit literals from the productions, so they are not repeated
+here. With this block the grammar is self-contained — no hand-written scanner.
 
-```gramaire tokens
+```gramaire
 STRING : /"(?:[^"\\]|\\.)*"/
 NUMBER : /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/
 WS     : /[ \t\r\n]+/    %skip
 ```
 
-## Json
-
-A JSON text is a single value, optionally surrounded by whitespace.
-
-```gramaire
-Json
-  : Value EOF
-```
-
 ## Value
 
-A value is a string, a number, an object, an array, or one of the three
-literal constants.
+A JSON value is an object, an array, or one of the five primitive forms.
 
 ```gramaire
 Value
-  : STRING
-  | NUMBER
-  | Object
+  : Object
   | Array
-  | 'true'
-  | 'false'
-  | 'null'
+  | STRING    {% (c) => ({ tag: "Str", value: JSON.parse(c.string) }) %}
+  | NUMBER    {% (c) => ({ tag: "Num", value: Number(c.number) }) %}
+  | 'true'    {% (c) => ({ tag: "Bool", value: true }) %}
+  | 'false'   {% (c) => ({ tag: "Bool", value: false }) %}
+  | 'null'    {% (c) => ({ tag: "Null" }) %}
 ```
+
+![Railroad diagram for the Value rule](diagrams/json/value.svg)
 
 ## Object
 
-An object is a brace-delimited list of members.
+An object is brace-delimited and either empty or a list of members. The
+empty case is its own alternative so that a `}` immediately after `{`
+needs no member to reduce — one token of lookahead settles it.
 
 ```gramaire
 Object
-  : '{' '}'
-  | '{' Members '}'
+  : '{' '}'            {% (c) => ({ tag: "Obj", members: [] }) %}
+  | '{' Members '}'    {% (c) => ({ tag: "Obj", members: c.members }) %}
 ```
+
+![Railroad diagram for the Object rule](diagrams/json/object.svg)
 
 ## Members
 
-Members are accumulated in source order.
+Left recursion accumulates members in source order.
 
 ```gramaire
 Members
-  : Member
-  | Members ',' Member
+  : Member                {% (c) => [c.member] %}
+  | Members ',' Member    {% (c) => [...c.members, c.member] %}
 ```
+
+![Railroad diagram for the Members rule](diagrams/json/members.svg)
 
 ## Member
 
@@ -76,34 +88,61 @@ A member is a string key, a colon, and a value.
 
 ```gramaire
 Member
-  : STRING ':' Value
+  : STRING ':' Value    {% (c) => ({ key: JSON.parse(c.string), value: c.value }) %}
 ```
+
+![Railroad diagram for the Member rule](diagrams/json/member.svg)
 
 ## Array
 
-An array is a bracket-delimited list of values.
+An array mirrors an object: bracket-delimited, empty or a list of
+elements, with the empty case split out for the same lookahead reason.
 
 ```gramaire
 Array
-  : '[' ']'
-  | '[' Elements ']'
+  : '[' ']'             {% (c) => ({ tag: "Arr", elements: [] }) %}
+  | '[' Elements ']'    {% (c) => ({ tag: "Arr", elements: c.elements }) %}
 ```
+
+![Railroad diagram for the Array rule](diagrams/json/array.svg)
 
 ## Elements
 
-Elements are accumulated in source order.
+Left recursion accumulates elements in source order.
 
 ```gramaire
 Elements
-  : Value
-  | Elements ',' Value
+  : Value                 {% (c) => [c.value] %}
+  | Elements ',' Value    {% (c) => [...c.elements, c.value] %}
 ```
+
+![Railroad diagram for the Elements rule](diagrams/json/elements.svg)
 
 ## Error messages
 
-```gramaire errors
+Curated messages keyed by the parser state they are reported from.
+
+```text
+after `{`, lookahead is `,`:
+  An object starts with a member or an immediate `}`.
+  Write `{ "key": value }`, or `{}` for the empty object.
+
+after Value, inside an array, lookahead is Value:
+  Array elements are separated by `,`.
+  Two values in a row means a comma is missing between them.
 ```
 
 ## Generated tables
 
 Generated by Gramaire — do not edit; run `gramaire fmt` to refresh.
+
+| Nonterminal | FIRST                                           | FOLLOW          |
+| ----------- | ----------------------------------------------- | --------------- |
+| `Value`     | `STRING` `NUMBER` `true` `false` `null` `{` `[` | `}` `,` `]` `$` |
+| `Object`    | `{`                                             | `}` `,` `]` `$` |
+| `Members`   | `STRING`                                        | `}` `,`         |
+| `Member`    | `STRING`                                        | `}` `,`         |
+| `Array`     | `[`                                             | `}` `,` `]` `$` |
+| `Elements`  | `STRING` `NUMBER` `true` `false` `null` `{` `[` | `,` `]`         |
+
+No shift/reduce or reduce/reduce conflicts: the grammar is LR(1).
