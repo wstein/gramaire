@@ -25,7 +25,15 @@
       "title": "LabResponse",
       "description": "The Lab's full response: whether the grammar itself built, any diagnostics, and — if input was given and the grammar built — the parse result.",
       "type": "object",
-      "required": ["labProtocolVersion", "buildOk", "diagnostics", "parse", "productions", "forest"],
+      "required": [
+        "labProtocolVersion",
+        "buildOk",
+        "diagnostics",
+        "parse",
+        "productions",
+        "forest",
+        "analysis"
+      ],
       "additionalProperties": false,
       "properties": {
         "labProtocolVersion": { "type": "integer", "minimum": 0 },
@@ -52,6 +60,56 @@
         "forest": {
           "oneOf": [{ "$ref": "#/$defs/forestResult" }, { "type": "null" }],
           "description": "The All-parses tab's data: every distinct parse of `input` under the GLR multi-action table, which never fails even when the grammar has real conflicts under every method (that's exactly the ambiguous-grammar case this tab exists for, so `forest` can be populated even when buildOk is false). Present only when the request carried `input` and the grammar notation parsed; null otherwise."
+        },
+        "analysis": {
+          "oneOf": [{ "$ref": "#/$defs/grammarAnalysis" }, { "type": "null" }],
+          "description": "The Grammar analysis tab's data: every method's state/conflict count, FIRST/FOLLOW per rule, and a railroad SVG per rule. Present whenever the grammar notation parsed, independent of buildOk (same reasoning as `productions`); null only when the grammar notation itself failed to parse."
+        }
+      }
+    },
+    "methodStatsInfo": {
+      "title": "MethodStatsInfo",
+      "description": "One table-construction method's automaton size and conflict count.",
+      "type": "object",
+      "required": ["states", "conflicts"],
+      "additionalProperties": false,
+      "properties": {
+        "states": { "type": "integer", "minimum": 0 },
+        "conflicts": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ruleFirstFollow": {
+      "title": "RuleFirstFollow",
+      "description": "One nonterminal's FIRST/FOLLOW sets, display-rendered like ProductionInfo.rhs (a terminal backtick-quoted, EOF as `$`).",
+      "type": "object",
+      "required": ["name", "first", "follow"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "first": { "type": "array", "items": { "type": "string" } },
+        "follow": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "grammarAnalysis": {
+      "title": "GrammarAnalysis",
+      "description": "Every method's state/conflict count (not just the requested method, so the tab can render the three-method comparison without a re-request), FIRST/FOLLOW per rule, and a railroad SVG per rule, built from the compiled grammar directly.",
+      "type": "object",
+      "required": ["perMethod", "firstFollow", "railroad"],
+      "additionalProperties": false,
+      "properties": {
+        "perMethod": {
+          "type": "object",
+          "description": "Keyed by method name (\"Canonical\" | \"LALR\" | \"IELR\").",
+          "additionalProperties": { "$ref": "#/$defs/methodStatsInfo" }
+        },
+        "firstFollow": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ruleFirstFollow" }
+        },
+        "railroad": {
+          "type": "object",
+          "description": "Keyed by rule name; each value is a self-contained SVG string.",
+          "additionalProperties": { "type": "string" }
         }
       }
     },

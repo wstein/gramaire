@@ -598,6 +598,20 @@ object Table:
       refineToFix(ctx, canonical, transSymbols(canonical), initialPartition(canonical))
     )
 
+  // The method-dispatch step `buildTablesForP`/`buildGlrTablesFor`/`statsFor` all share: build the
+  // canonical automaton once, then quotient it per `method`. Factored out so `statsFor` (M5+, the
+  // Grammar analysis tab) can report the resulting *state count* — something `buildTablesForP`
+  // itself computes but, until now, never returned (`States` is otherwise private to this object).
+  private def automatonFor(prec: Precedence, method: Method, g: Grammar): (Ctx, Analysis, States) =
+    val a = analyze(g)
+    val ctx = mkCtx(prec, a)
+    val canonical = buildStates(ctx)
+    val states = method match
+      case Method.Canonical => canonical
+      case Method.LALR      => mergeLALR(canonical)
+      case Method.IELR      => buildIELR(ctx, canonical)
+    (ctx, a, states)
+
   // public entry points ------------------------------------------------------
 
   /** Build parse tables by the chosen method, returning `Left` with every conflict if the grammar
@@ -616,14 +630,44 @@ object Table:
       method: Method,
       g: Grammar
   ): Either[Vector[Conflict], ParseTable] =
+    val (ctx, a, states) = automatonFor(prec, method, g)
+    fillTables(ctx, states, a.prods)
+
+  /** A method's automaton size and conflicts — the Grammar analysis tab's "~N states · M conflicts"
+    * (M5+, `docs/playground-spec.md` T2.1). `fillTables` never fails; it either returns a clean
+    * table (0 conflicts) or `Left` with every conflict, so this always succeeds, unlike
+    * `buildTablesForP`.
+    */
+  final case class MethodStats(states: Int, conflicts: Vector[Conflict])
+
+  def statsFor(prec: Precedence, method: Method, g: Grammar): MethodStats =
+    val (ctx, a, states) = automatonFor(prec, method, g)
+    val conflicts = fillTables(ctx, states, a.prods) match
+      case Left(cs) => cs
+      case Right(_) => Vector.empty
+    MethodStats(states.states.length, conflicts)
+
+  /** `statsFor` for all three methods at once, sharing a single canonical-automaton build
+    * (`buildStates`, the expensive closure/goto fixpoint over LR(1) item sets) instead of
+    * rebuilding it three times — `statsFor(Canonical, ...)`, `statsFor(LALR, ...)`, and
+    * `statsFor(IELR, ...)` all start from the same canonical states, quotienting differently.
+    * Prefer this over three separate `statsFor` calls whenever all three methods are wanted
+    * together (`Glr.explainP`, the Grammar analysis tab).
+    */
+  def statsForAll(prec: Precedence, g: Grammar): Map[Method, MethodStats] =
     val a = analyze(g)
     val ctx = mkCtx(prec, a)
     val canonical = buildStates(ctx)
-    val states = method match
-      case Method.Canonical => canonical
-      case Method.LALR      => mergeLALR(canonical)
-      case Method.IELR      => buildIELR(ctx, canonical)
-    fillTables(ctx, states, a.prods)
+    def statsOf(states: States): MethodStats =
+      val conflicts = fillTables(ctx, states, a.prods) match
+        case Left(cs) => cs
+        case Right(_) => Vector.empty
+      MethodStats(states.states.length, conflicts)
+    Map(
+      Method.Canonical -> statsOf(canonical),
+      Method.LALR -> statsOf(mergeLALR(canonical)),
+      Method.IELR -> statsOf(buildIELR(ctx, canonical))
+    )
 
   /** The default entry point: canonical LR(1). Canonical is the most powerful method and serves as
     * the oracle the LALR/IELR constructions are differentially tested against.

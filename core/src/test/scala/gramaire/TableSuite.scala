@@ -168,3 +168,24 @@ class TableSuite extends munit.FunSuite:
   test("IELR rejects a genuinely ambiguous grammar") {
     assert(Table.buildTablesFor(Method.IELR, ambiguous).isLeft)
   }
+
+  test("statsFor agrees with buildTablesFor on conflicts, and also reports a state count") {
+    // notLalr: canonical and IELR build clean, LALR has a real conflict from merging.
+    val canonical = Table.statsFor(Table.emptyPrec, Method.Canonical, notLalr)
+    val lalr = Table.statsFor(Table.emptyPrec, Method.LALR, notLalr)
+    val ielr = Table.statsFor(Table.emptyPrec, Method.IELR, notLalr)
+    assertEquals(canonical.conflicts, Vector.empty)
+    assert(lalr.conflicts.nonEmpty)
+    assertEquals(ielr.conflicts, Vector.empty)
+    // LALR merges states by LR(0) core, so it never has MORE states than canonical.
+    assert(
+      lalr.states <= canonical.states,
+      s"LALR (${lalr.states}) should merge down from canonical (${canonical.states})"
+    )
+    // IELR only splits states LALR's merge broke; canonical's own states are never merged further,
+    // so IELR sits between LALR and canonical.
+    assert(
+      lalr.states <= ielr.states && ielr.states <= canonical.states,
+      s"expected lalr(${lalr.states}) <= ielr(${ielr.states}) <= canonical(${canonical.states})"
+    )
+  }

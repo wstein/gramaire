@@ -99,22 +99,20 @@ object Glr:
 
   /** `explain`, but folding in the grammar's declared precedence. */
   def explainP(prec: Precedence, g: Grammar): String =
-    def count(m: Method): Int = Table.buildTablesFor(m, g) match
-      case Left(cs) => cs.length
-      case Right(_) => 0
-    val nc = count(Method.Canonical)
-    val nl = count(Method.LALR)
-    val ni = count(Method.IELR)
+    // No declared precedence for nc/nl/ni — every shift/reduce ambiguity surfaces, matching the
+    // old `Table.buildTablesFor` (== `buildTablesForP(emptyPrec, ...)`) calls this replaces.
+    // `statsForAll` builds the canonical automaton once and shares it across all three methods,
+    // instead of three separate `statsFor` calls each rebuilding it from scratch.
+    val allStats = Table.statsForAll(Table.emptyPrec, g)
+    val nc = allStats(Method.Canonical).conflicts.length
+    val nl = allStats(Method.LALR).conflicts.length
+    val ni = allStats(Method.IELR).conflicts.length
 
     val hasPrec = prec.terms.nonEmpty
     // Canonical conflicts that remain after applying the declared precedence.
-    val ncp = Table.buildTablesForP(prec, Method.Canonical, g) match
-      case Left(cs) => cs.length
-      case Right(_) => 0
-
-    val genuineConflicts: Vector[String] = Table.buildTablesForP(prec, Method.Canonical, g) match
-      case Left(cs) => Diagnostics.renderConflicts(g, cs)
-      case Right(_) => Vector.empty
+    val withPrec = Table.statsFor(prec, Method.Canonical, g)
+    val ncp = withPrec.conflicts.length
+    val genuineConflicts: Vector[String] = Diagnostics.renderConflicts(g, withPrec.conflicts)
 
     val verdict: Vector[String] =
       if nc == 0 && nl == 0 then Vector("verdict: conflict-free — the grammar is LALR(1).")

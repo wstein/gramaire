@@ -11,6 +11,20 @@
   flex-direction: column;
   height: calc(100vh - 49px); /* gramaire-topbar.mjs's own .bar height */
   font-family: var(--font-ui);
+  /*
+   * Railroad.renderSvg(themed = true)'s custom properties (Railroad.scala's
+   * styleThemed) aliased to the site's own tokens.css palette — this alone
+   * makes the Grammar analysis tab's SVGs follow the light/dark toggle: a
+   * custom property is just a live reference, so no separate dark-mode
+   * block is needed, unlike Railroad's own *fixed* palette (the CLI's
+   * committed sidecar SVGs, which must render correctly on GitHub with no
+   * toggle at all).
+   */
+  --rr-ink: var(--fg);
+  --rr-track: var(--fg-faint);
+  --rr-term-fill: var(--bg);
+  --rr-term-stroke: var(--accent);
+  --rr-nonterm-fill: var(--bg-1);
 }
 
 .lab__toolbar {
@@ -210,6 +224,27 @@
   text-transform: uppercase;
   color: var(--fg-faint);
   margin-bottom: 6px;
+}
+
+.lab__analysis-section + .lab__analysis-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.lab__analysis-heading {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  margin-bottom: 10px;
+}
+.lab__railroad-svg {
+  margin-top: 10px;
+  overflow-x: auto;
+}
+.lab__railroad-svg svg {
+  max-width: 100%;
 }
 
 @media (max-width: 720px) {
