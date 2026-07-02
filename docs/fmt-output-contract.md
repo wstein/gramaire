@@ -34,15 +34,20 @@ sequence, in order:
 
 1. **One H1** naming the grammar: `# <GrammarName>` (MD041, MD025). Purely a
    caption — the grammar's real name is the required `%name <name>` directive
-   inside the `## General settings` fence (item 3 below); `fmt` keeps the two
-   in sync but the compiler reads only `%name`.
+   inside the Settings fence (item 3 below); `fmt` keeps the two in sync but
+   the compiler reads only `%name`.
 2. Optional intro prose (one or more paragraphs).
-3. An **optional `## General settings`** section containing one bare
-   ` ```gramark ` fence whose lines are all `%name`/`%lang` directives
-   (a Settings-role fence, per the language spec's "case is law" rule) —
-   present whenever the grammar declares `%lang`; the `%name` directive
-   itself may also live in a settings fence with no heading at all, but
-   `fmt`'s canonical layout always gives it one.
+3. **A headless Settings fence**, immediately after the intro: one bare
+   ` ```gramark ` fence, with no heading of its own, whose lines are all
+   `%name`/`%lang` directives (a Settings-role fence, per the language spec's
+   "case is law" rule). `%name` is required, so this fence is always present.
+   It is the one fence role `fmt` deliberately emits **without** a heading —
+   `%name`/`%lang` gate compiler behavior the way an `import`/`package` line
+   gates behavior at the top of any mainstream source file, so they read
+   immediately after the intro rather than being buried under a section a
+   reader might skip. (Older documents may still carry a `## General
+   settings` heading above this fence; `fmt` accepts it as input and rewrites
+   it to headless on the next format.)
 4. An **optional `## Tokens`** section containing one bare ` ```gramark `
    fence whose lines are all token-class definitions (a Tokens-role fence).
    Present only when the grammar declares named token classes.

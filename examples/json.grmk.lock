@@ -6,37 +6,37 @@
     {
       "kind": "railroad",
       "nonterminal": "Value",
-      "path": "diagrams/json/value.svg",
+      "path": "diagrams-json/value.svg",
       "sourceSha256": "e178dd85b3331d029f51c07780b0c4a8536d17c3c62d30c6acd6b43ade17b981"
     },
     {
       "kind": "railroad",
       "nonterminal": "Object",
-      "path": "diagrams/json/object.svg",
+      "path": "diagrams-json/object.svg",
       "sourceSha256": "6ee598eb0e7777e2aafd48030fb065643d088faecab913a71417233506d8a502"
     },
     {
       "kind": "railroad",
       "nonterminal": "Members",
-      "path": "diagrams/json/members.svg",
+      "path": "diagrams-json/members.svg",
       "sourceSha256": "9d84d32776d45a9d228288cbf828948a2d80a24a84cf32486bc78f49891f35f6"
     },
     {
       "kind": "railroad",
       "nonterminal": "Member",
-      "path": "diagrams/json/member.svg",
+      "path": "diagrams-json/member.svg",
       "sourceSha256": "c3b369acbc3f8cc000e48700f4384382a0d9fac5121428e13eb700ea752a9dbf"
     },
     {
       "kind": "railroad",
       "nonterminal": "Array",
-      "path": "diagrams/json/array.svg",
+      "path": "diagrams-json/array.svg",
       "sourceSha256": "5b5242d46beca0ca8f6425e0cdc4ce885691f19348ed0accc3e305c230beb65b"
     },
     {
       "kind": "railroad",
       "nonterminal": "Elements",
-      "path": "diagrams/json/elements.svg",
+      "path": "diagrams-json/elements.svg",
       "sourceSha256": "7788de82fb7f23206e5eadf2be2a35ad111ba2547083a5068fe3b53961092d04"
     },
     {

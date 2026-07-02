@@ -47,12 +47,15 @@ from the concatenated content of every fenced code block whose info string is
   then `:` and its alternatives) names the nonterminal — never a heading.
 - **Presentational headings.** Every heading level, including the `# H1` and
   `## H2` layers, is free grouping the analyzer entirely ignores.
-  `gramark fmt`'s canonical output still uses `## General settings` /
-  `## Tokens` / `## <Nonterminal>` / `## Precedence` / `## Error messages` /
-  `## Generated tables` as a readability convention — see the
+  `gramark fmt`'s canonical output still uses `## Tokens` / `## <Nonterminal>` /
+  `## Precedence` / `## Error messages` / `## Generated tables` as a
+  readability convention — see the
   [fmt output contract](../../../../../docs/fmt-output-contract.md) — but that
   is a STYLE the formatter emits and checks, never a LANGUAGE requirement the
-  compiler enforces.
+  compiler enforces. The Settings fence is the one exception: `fmt` emits it
+  **without** a heading at all, immediately after the intro prose, since
+  `%name`/`%lang` read like a source file's leading `import`/`package` line,
+  not a titled section.
 - **Curated error messages are prose, not grammar notation.** Put them in a
   plain ` ```text ` fence (skipped like any non-`gramark` fence) if you want
   them to survive `gramark fmt`; there is no dedicated notation for them.
