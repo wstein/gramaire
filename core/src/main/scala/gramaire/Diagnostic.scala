@@ -21,13 +21,54 @@ enum Stage derives CanEqual:
 // had no fenced form. Never block-relative.
 final case class SrcSpan(start: Int, end: Int) derives CanEqual
 
+// Unicode-codepoint-aware helpers for `Diagnostic.render`/`LineIndex`'s column and caret-pad math —
+// plain Char comparisons, not java.lang.String/Character codepoint APIs (codePointCount/
+// codePoints/offsetByCodePoints), since this file cross-compiles to Scala.js, where those aren't
+// guaranteed to be polyfilled. A UTF-16 surrogate pair (high surrogate 0xD800-0xDBFF immediately
+// followed by a low surrogate 0xDC00-0xDFFF) counts as ONE codepoint, matching what a human sees as
+// one character/column. `SrcSpan` offsets themselves stay UTF-16 code-unit based, unchanged — this
+// only affects the DISPLAY column/pad width derived from them. File-private (not nested in an
+// object) since both `Diagnostic.render` and `LineIndex.locate` need them.
+private def isHighSurrogate(c: Char): Boolean = c >= '\uD800' && c <= '\uDBFF'
+private def isLowSurrogate(c: Char): Boolean = c >= '\uDC00' && c <= '\uDFFF'
+private def isSurrogatePairAt(s: String, i: Int, until: Int): Boolean =
+  isHighSurrogate(s.charAt(i)) && i + 1 < until && isLowSurrogate(s.charAt(i + 1))
+
+private def codepointCount(s: String, from: Int, until: Int): Int =
+  var i = from
+  var n = 0
+  while i < until do
+    i += (if isSurrogatePairAt(s, i, until) then 2 else 1)
+    n += 1
+  n
+
+// The UTF-16 index reached after consuming `n` codepoints starting at `from`.
+private def advanceByCodepoints(s: String, from: Int, n: Int): Int =
+  var i = from
+  var remaining = n
+  while remaining > 0 && i < s.length do
+    i += (if isSurrogatePairAt(s, i, s.length) then 2 else 1)
+    remaining -= 1
+  i
+
+// One pad character (tab preserved as tab, everything else — including each half of an astral
+// surrogate pair, collapsed to its single codepoint — as a space) per codepoint of
+// `s.substring(0, until)`.
+private def buildPad(s: String, until: Int): String =
+  val sb = StringBuilder()
+  var i = 0
+  while i < until do
+    val c = s.charAt(i)
+    sb.append(if c == '\t' then '\t' else ' ')
+    i += (if isSurrogatePairAt(s, i, until) then 2 else 1)
+  sb.toString
+
 final case class Diagnostic(
     severity: Severity,
     stage: Stage,
     message: String,
     span: Option[SrcSpan] = None,
-    notes: Vector[String] = Vector.empty,
-    code: Option[String] = None
+    notes: Vector[String] = Vector.empty
 ) derives CanEqual
 
 object Diagnostic:
@@ -59,6 +100,11 @@ object Diagnostic:
     * supplies the `note:`/`help:` tag as part of the note text). No ANSI — this is shared verbatim
     * by the CLI and the Lab (whose wire format ships this same string as `rendered`), so any color
     * has to be a post-pass over the result, never baked in here.
+    *
+    * The caret pad preserves any literal tab characters from `lineText` as tabs (not spaces) up to
+    * the caret start, so a terminal's own tab-stop expansion keeps the pad aligned under the source
+    * line above it — building the pad purely from spaces would drift left of the real token
+    * whenever the line has leading/interior tabs (the `lr` notation's own `WS` token allows them).
     */
   def render(d: Diagnostic, sourceName: String, src: String): String =
     val head = s"${severityWord(d.severity)}: ${d.message}"
@@ -68,11 +114,16 @@ object Diagnostic:
         val (line, col) = li.locate(sp.start)
         val lineText = li.lineText(line)
         val indent = "    "
-        val caretStart = math.min(col - 1, lineText.length)
-        val caretLen = math.max(1, math.min(sp.end - sp.start, lineText.length - caretStart))
+        val lineCpLen = codepointCount(lineText, 0, lineText.length)
+        val caretStartCp = math.min(col - 1, lineCpLen)
+        val caretStartIdx = advanceByCodepoints(lineText, 0, caretStartCp)
+        val pad = buildPad(lineText, caretStartIdx)
+        val spanEndClamped = math.max(sp.start, math.min(sp.end, src.length))
+        val spanCpLen = codepointCount(src, sp.start, spanEndClamped)
+        val caretLen = math.max(1, math.min(spanCpLen, lineCpLen - caretStartCp))
         s"\n  --> $sourceName:$line:$col\n" +
           s"$indent$lineText\n" +
-          s"$indent${" " * caretStart}${"^" * caretLen}"
+          s"$indent$pad${"^" * caretLen}"
       case None => ""
     val notesBlock = d.notes.map(n => s"\n  $n").mkString
     head + locBlock + notesBlock
@@ -88,10 +139,13 @@ object Diagnostic:
   * offset mapping both need.
   */
 final class LineIndex private (src: String, starts: Vector[Int]):
+  // The column is a codepoint count from the line start, not a raw UTF-16 code-unit difference — an
+  // astral character earlier on the line (a UTF-16 surrogate pair) would otherwise inflate every
+  // later column on that line by one.
   def locate(offset: Int): (Int, Int) =
     val clamped = math.max(0, math.min(offset, src.length))
     val idx = upperBound(clamped)
-    (idx + 1, clamped - starts(idx) + 1)
+    (idx + 1, codepointCount(src, starts(idx), clamped) + 1)
 
   def lineText(line: Int): String =
     val idx = line - 1
@@ -162,7 +216,10 @@ object SpanIndex:
     val heads = toks.indices.flatMap(p => headIdxs(p))
 
     val ruleHeadSpans =
-      heads.map { case (identIdx, _) => toks(identIdx) }.map(t => t.text -> SrcSpan(t.start, t.end)).toMap
+      heads
+        .map { case (identIdx, _) => toks(identIdx) }
+        .map(t => t.text -> SrcSpan(t.start, t.end))
+        .toMap
 
     val attrSpans = heads
       .collect { case (identIdx, Some(attrIdx)) => toks(identIdx).text -> toks(attrIdx) }

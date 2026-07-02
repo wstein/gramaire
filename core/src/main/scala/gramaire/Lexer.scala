@@ -140,9 +140,9 @@ object Lexer:
     toks.zipWithIndex.flatMap { case (t, i) => decide(i, t) }
 
   /** `normalizeNewlines`, but over a span-carrying token stream — the form `Lr.parseWith` needs to
-    * keep a failing token's source span reachable after normalization drops the insignificant `NL`s.
-    * Mirrors `normalizeNewlines`'s logic exactly (same predicate, `Spanned.terminal` in place of
-    * `Token.terminal`), duplicated rather than shared for the same reason `Scanner.scan`/
+    * keep a failing token's source span reachable after normalization drops the insignificant
+    * `NL`s. Mirrors `normalizeNewlines`'s logic exactly (same predicate, `Spanned.terminal` in
+    * place of `Token.terminal`), duplicated rather than shared for the same reason `Scanner.scan`/
     * `scanSpanned` are two functions instead of one generic over token shape.
     */
   def normalizeNewlinesSpanned(toks: Vector[Spanned]): Vector[Spanned] =

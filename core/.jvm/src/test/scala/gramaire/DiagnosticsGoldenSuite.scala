@@ -167,8 +167,48 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
             assert(d.notes.exists(_.contains("reduce B -> `x`")), d.notes.toString)
             // Points at whichever competing rule's head the conflict names first — a real,
             // in-bounds location either way, not a guess at exactly which one wins.
-            val located = d.span.exists(sp => sp.start >= 0 && sp.end > sp.start && sp.end <= md.length)
+            val located =
+              d.span.exists(sp => sp.start >= 0 && sp.end > sp.start && sp.end <= md.length)
             assert(located, s"expected an in-bounds span, got ${d.span}")
+  }
+
+  test("tab-indented line: the caret pad preserves the tab so the underline stays aligned") {
+    // A tab before the rule body (legal — the `lr` notation's own WS token is /[ \t]+/).
+    val md =
+      "# T\n\n## Rule\n\n```gramaire\nRule\n\t: NUMBER Undefined\n```\n\n## Tokens\n\n```gramaire tokens\nNUMBER : /[0-9]+/\n```\n"
+    Lr.parseWith(Method.Canonical, md) match
+      case Right(_) => fail("expected an undefined-nonterminal diagnostic")
+      case Left(diags) =>
+        assertEquals(diags.length, 1)
+        val rendered = Diagnostic.render(diags.head, "t.gram.md", Lr.toFenced(md))
+        assert(rendered.contains("\t: NUMBER Undefined"), rendered)
+        // The caret line (the one right after the source line, before any trailing note/help
+        // lines) must start with the SAME literal tab as the source line above it — not a space
+        // standing in for one — so a terminal's own tab-stop expansion keeps both aligned.
+        val lines = rendered.linesIterator.toVector
+        val sourceLineIdx = lines.indexWhere(_.contains("\t: NUMBER Undefined"))
+        val caretLine = lines(sourceLineIdx + 1)
+        assert(
+          caretLine.startsWith("    \t") && caretLine.endsWith("^" * "Undefined".length),
+          caretLine.flatMap { case '\t' => "\\t"; case c => c.toString }
+        )
+  }
+
+  test("LineIndex.locate: an astral character earlier on the line doesn't inflate later columns") {
+    val src = "abc😀def" // "abc" + U+1F600 (a UTF-16 surrogate pair) + "def"
+    val li = LineIndex(src)
+    // A human counts "d" as the 5th character (a, b, c, the emoji, d) — column 5, not the column 6
+    // a raw UTF-16 code-unit difference would report (the emoji occupies 2 code units).
+    assertEquals(li.locate(src.indexOf('d')), (1, 5))
+  }
+
+  test("Diagnostic.render: an astral character earlier on the line doesn't misalign the caret") {
+    val src = "abc😀def"
+    val d =
+      Diagnostic.error(Stage.Lex, "boom", Some(SrcSpan(src.indexOf('d'), src.indexOf('d') + 3)))
+    val rendered = Diagnostic.render(d, "t", src)
+    // 4 pad characters (a, b, c, the emoji — each one codepoint) then 3 carets for "def".
+    assert(rendered.contains(s"\n    $src\n    ${" " * 4}${"^" * 3}"), rendered)
   }
 
   test("unknown attribute warning: names the rule, suggests the one known attribute") {
@@ -190,7 +230,8 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       |""".stripMargin
     val warnings = Lr.warningsFor(md)
     assertEquals(warnings.length, 2) // unknown attr + Expr unreachable
-    val attrWarning = warnings.find(_.message.contains("inlien")).getOrElse(fail("expected an attr warning"))
+    val attrWarning =
+      warnings.find(_.message.contains("inlien")).getOrElse(fail("expected an attr warning"))
     assertEquals(attrWarning.severity, Severity.Warning)
     assertEquals(attrWarning.message, "unknown attribute `#[inlien]` on rule `Aux` (ignored)")
     assertEquals(attrWarning.notes, Vector("help: did you mean `#[inline]`?"))

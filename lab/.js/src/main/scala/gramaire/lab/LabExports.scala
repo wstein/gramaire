@@ -24,12 +24,33 @@ object LabExports:
     */
   @JSExportTopLevel("gramaireLabEvaluate")
   def evaluate(requestJson: String): String =
-    val response = gramaire.Json.parse(requestJson).flatMap(LabRequest.fromJson) match
-      case Left(err) =>
-        val d = DiagnosticInfo("error", "internal", err, None, Vector.empty, s"error: $err")
-        LabResponse(LabResponse.version, buildOk = false, diagnostics = Vector(d), parse = None)
-      case Right(request) =>
-        LabApi.evaluate(request)
+    val response =
+      try
+        gramaire.Json.parse(requestJson).flatMap(LabRequest.fromJson) match
+          case Left(err) =>
+            val d = DiagnosticInfo("error", "internal", err, None, Vector.empty, s"error: $err")
+            LabResponse(LabResponse.version, buildOk = false, diagnostics = Vector(d), parse = None)
+          case Right(request) =>
+            LabApi.evaluate(request)
+      catch
+        // `LabApi.evaluate` composes several core routines (Table.buildTablesFor, Glr.forest,
+        // Railroad.renderSvg, IR.irGrammarOf, BackendJs.emitTraced, ...) whose totality over every
+        // possible live-edited grammar/input isn't formally established — this doc comment's own
+        // "never throws" promise was previously unenforced here. A Scala exception crossing the
+        // @JSExportTopLevel boundary becomes a synchronous JS throw inside worker.ts's `onmessage`,
+        // which (before that file's own try/catch) left the Lab UI stuck on "building…" forever
+        // with no diagnostic. This catch is the actual boundary the header comment always claimed.
+        case e: Throwable =>
+          val msg = Option(e.getMessage).getOrElse(e.toString)
+          val d = DiagnosticInfo(
+            "error",
+            "internal",
+            s"internal error: $msg; please report this",
+            None,
+            Vector.empty,
+            s"error: internal error: $msg; please report this"
+          )
+          LabResponse(LabResponse.version, buildOk = false, diagnostics = Vector(d), parse = None)
     LabResponse.serialize(response)
 
   /** The wire-format version this build exports — lets the Worker fail loudly on a stale cached

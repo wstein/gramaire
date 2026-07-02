@@ -103,9 +103,8 @@ object Main:
                       case Left(diags) =>
                         die(s"emit: parse error in $file:\n\n" + renderDiags(diags, file, md))
                       case Right(g) =>
-                        Lr.warningsFor(md).foreach(w =>
-                          Console.err.println(renderDiags(Vector(w), file, md))
-                        )
+                        Lr.warningsFor(md)
+                          .foreach(w => Console.err.println(renderDiags(Vector(w), file, md)))
                         IR.buildIRP(
                           Lr.precedenceOf(md),
                           Method.Canonical,
@@ -116,7 +115,11 @@ object Main:
                             val spans = Lr.spanIndexOf(md)
                             die(
                               s"emit: $file has unresolved LR(1) conflicts:\n\n" +
-                                renderDiags(Diagnostics.conflictDiagnostics(g, spans, conflicts), file, md)
+                                renderDiags(
+                                  Diagnostics.conflictDiagnostics(g, spans, conflicts),
+                                  file,
+                                  md
+                                )
                             )
                           case Right(ir0) =>
                             if !b.strategies.contains(opts.strategy) then

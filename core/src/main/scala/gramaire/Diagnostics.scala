@@ -74,15 +74,23 @@ object Diagnostics:
   // A `help:` suggestion for an undefined name: a case-insensitive match against a token class
   // first (the casing-convention footgun — `Number` meaning `NUMBER`), else the closest defined
   // rule name within a tight edit-distance budget.
-  private def didYouMean(bad: String, ruleNames: Vector[String], termNames: Vector[String]): Option[String] =
+  private def didYouMean(
+      bad: String,
+      ruleNames: Vector[String],
+      termNames: Vector[String]
+  ): Option[String] =
     termNames.find(_.equalsIgnoreCase(bad)) match
       case Some(t) => Some(s"help: did you mean the token class `$t`? (token classes are ALL-CAPS)")
       case None    => nearestMatch(bad, ruleNames).map(n => s"help: did you mean `$n`?")
 
   /** Reject a grammar that references an undefined nonterminal — one diagnostic per reference site
-    * (via `spans`, if given), each naming the symbol and, where a close match exists, suggesting one.
+    * (via `spans`, if given), each naming the symbol and, where a close match exists, suggesting
+    * one.
     */
-  def checkDefined(g: Grammar, spans: SpanIndex = SpanIndex.empty): Either[Vector[Diagnostic], Grammar] =
+  def checkDefined(
+      g: Grammar,
+      spans: SpanIndex = SpanIndex.empty
+  ): Either[Vector[Diagnostic], Grammar] =
     undefinedNonterminals(g) match
       case Vector() => Right(g)
       case bad =>
@@ -148,14 +156,21 @@ object Diagnostics:
       stripped.flatMap(n => sourceRuleNameGuess(n, ruleHeads))
 
   private def spanForProd(prods: Vector[Prod], spans: SpanIndex, i: Int): Option[SrcSpan] =
-    prods.lift(i).flatMap(p => sourceRuleNameGuess(p.lhs, spans.ruleHeadSpans)).flatMap(
-      spans.ruleHeadSpans.get
-    )
+    prods
+      .lift(i)
+      .flatMap(p => sourceRuleNameGuess(p.lhs, spans.ruleHeadSpans))
+      .flatMap(
+        spans.ruleHeadSpans.get
+      )
 
-  /** Every conflict as a located `Diagnostic`, pointing at the offending rule's own head — the state
-    * number (LR-implementation jargon) demoted to a trailing note instead of the headline.
+  /** Every conflict as a located `Diagnostic`, pointing at the offending rule's own head — the
+    * state number (LR-implementation jargon) demoted to a trailing note instead of the headline.
     */
-  def conflictDiagnostics(g: Grammar, spans: SpanIndex, conflicts: Vector[Conflict]): Vector[Diagnostic] =
+  def conflictDiagnostics(
+      g: Grammar,
+      spans: SpanIndex,
+      conflicts: Vector[Conflict]
+  ): Vector[Diagnostic] =
     val prods = Table.productions(g)
     conflicts.map(conflictDiagnostic(prods, spans, _))
 

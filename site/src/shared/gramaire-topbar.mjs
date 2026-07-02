@@ -246,9 +246,15 @@ export class GramaireTopbar extends Base {
     super();
     this.attachShadow({ mode: "open" });
     this.shadowRoot.innerHTML = TEMPLATE;
+    // Queries the LIGHT preference specifically (not dark), matching index.astro/lab.astro's own
+    // inline seed scripts exactly — both branches must default the SAME way when neither preference
+    // matches (a browser with no prefers-color-scheme support), or first paint (seeded from the
+    // inline script, before this element upgrades) and this element's own later recomputation could
+    // disagree and flash. Matching the query direction, not just the resulting light/dark string, is
+    // what keeps `_effective` a literal mirror of the seed's own ternary below.
     this._media =
       typeof matchMedia === "function"
-        ? matchMedia("(prefers-color-scheme: dark)")
+        ? matchMedia("(prefers-color-scheme: light)")
         : null;
     this._onThemeClick = this._onThemeClick.bind(this);
     this._onMediaChange = this._onMediaChange.bind(this);
@@ -333,8 +339,11 @@ export class GramaireTopbar extends Base {
     }
     return stored === "light" || stored === "dark" ? stored : "auto";
   }
+  // Mirrors index.astro/lab.astro's own inline seed script exactly: query the LIGHT preference,
+  // default to dark when it doesn't match (covers both "prefers dark" and "prefers neither" —
+  // matchMedia queries never throw, they just never match on an unsupported/absent preference).
   _effective(mode) {
-    return mode === "auto" ? (this._media?.matches ? "dark" : "light") : mode;
+    return mode === "auto" ? (this._media?.matches ? "light" : "dark") : mode;
   }
   _syncTheme() {
     const mode = this._mode();

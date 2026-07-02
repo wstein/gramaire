@@ -55,6 +55,23 @@ for (const name of defNames) {
   parts.push(ts.trim());
 }
 
+// The schema's own `default` on labResponse.properties.labProtocolVersion (LabProtocol.scala's
+// LabResponse.version, mirrored here via `default` rather than `const` specifically because `const`
+// would narrow the generated interface's field to the literal type `1` and break worker.ts's
+// staleEngineResponse, which deliberately reports a DIFFERENT, mismatched version number as
+// diagnostic data — `default` is a standard, ajv-strict-mode-safe keyword that documents the
+// expected value without constraining validation). This generated constant is worker.ts's single
+// source of truth for the "is my cached engine.mjs stale" check — no second hand-maintained literal
+// that could drift from LabResponse.version independently and go undetected (nothing in the parity
+// gate imports worker.ts).
+const protocolVersion = schema.$defs.labResponse.properties.labProtocolVersion.default;
+if (typeof protocolVersion !== "number") {
+  throw new Error(
+    "expected a numeric `default` on labResponse.properties.labProtocolVersion in spec/lab-protocol-schema.json",
+  );
+}
+parts.push(`export const LAB_PROTOCOL_VERSION = ${protocolVersion};`);
+
 await mkdir(path.dirname(outPath), { recursive: true });
 await writeFile(outPath, banner + parts.join("\n\n") + "\n");
 console.log(`wrote ${path.relative(siteDir, outPath)}`);
