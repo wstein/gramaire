@@ -64,7 +64,10 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await expect(page.locator(".lab__result")).toContainText("1+2*3 =", {
     timeout: 5000,
   });
-  await expect(page.locator(".lab__tree")).toContainText("rule 0");
+  // Rule NAME, not the raw production index — AnnotatedNodeView maps rule -> productions[rule].lhs,
+  // same fix as CstNodeView (Parse tree/All parses).
+  await expect(page.locator(".lab__tree")).toContainText("Expr");
+  await expect(page.locator(".lab__tree")).not.toContainText("rule 0");
   await expect(page.locator(".lab__panel")).toContainText(
     "No actions in this grammar",
   );
@@ -167,6 +170,8 @@ test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthro
   const reductionRows = page.locator(".lab__panel .lab__table tbody tr");
   await expect(reductionRows).toHaveCount(3); // NUMBER"1", Sum+NUMBER"2", Sum+NUMBER"3"
   await expect(reductionRows.last()).toContainText("6");
+  // Rule NAME ("Sum"), not the raw production index — same fix as CstNodeView.
+  await expect(reductionRows.last()).toContainText("Sum");
   // The displayed action text is the grammar author's own "(c) => ...", not
   // Desugar.normalizeAction's synthesized "\_ _ -> (c) => ..." binder prefix.
   await expect(reductionRows.last()).toContainText(
@@ -176,6 +181,55 @@ test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthro
 
   await page.click('button[role="tab"]:has-text("Lowered Core")');
   await expect(page.locator(".lab__panel")).not.toContainText("\\_");
+});
+
+test("the Lab's Evaluate tab renders a non-primitive action result as a collapsed, expandable chip", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+
+  const md = [
+    "# Node",
+    "",
+    "## General settings",
+    "",
+    "```gramaire settings",
+    "%lang javascript",
+    "```",
+    "",
+    "## Tokens",
+    "",
+    "```gramaire tokens",
+    "NUMBER : /[0-9]+/",
+    "```",
+    "",
+    "## Expr",
+    "",
+    "```gramaire",
+    "Expr",
+    '  : NUMBER {% (c) => ({ tag: "Num", value: Number(c.number) }) %}',
+    "```",
+    "",
+  ].join("\n");
+  await page.locator(".lab__pane--grammar .lab__editor").fill(md);
+  await page.locator(".lab__pane--fill .lab__editor").fill("42");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+
+  await page.click('button[role="tab"]:has-text("Evaluate")');
+  const resultChip = page.locator(".lab__result .lab__value-chip");
+  // A compact size-hint chip ("Object"), not the raw JSON.stringify inline.
+  await expect(resultChip).toHaveText("= Object");
+
+  const jsonBlock = page.locator(".lab__result .lab__value-json");
+  await expect(jsonBlock).not.toBeVisible();
+  await resultChip.click();
+  await expect(jsonBlock).toBeVisible();
+  await expect(jsonBlock).toContainText('"tag": "Num"');
 });
 
 test("the Lab reflects a rejected input", async ({ page }) => {

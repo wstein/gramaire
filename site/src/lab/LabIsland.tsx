@@ -720,13 +720,48 @@ function LrWalkPanel() {
   );
 }
 
-function formatValue(v: unknown): string {
+function formatPrimitive(v: unknown): string {
   if (v === undefined) return "undefined";
   try {
     return JSON.stringify(v) ?? String(v);
   } catch {
     return String(v);
   }
+}
+
+// A grammar action can return anything — a number, a nested AST object, whatever the author's
+// {% %} code builds. Primitives render as a small inline chip; objects/arrays render as a chip
+// too (a size hint, not the value itself) that expands to the full JSON.stringify on click — the
+// annotated tree can be deep, so a raw inline JSON dump at every node would swamp the page.
+function isPrimitive(v: unknown): boolean {
+  return v === null || typeof v !== "object";
+}
+
+function ValueChip({
+  value,
+  prefix = "= ",
+}: {
+  value: unknown;
+  prefix?: string;
+}) {
+  if (isPrimitive(value)) {
+    return (
+      <span class="lab__value-chip">
+        {prefix}
+        {formatPrimitive(value)}
+      </span>
+    );
+  }
+  const label = Array.isArray(value) ? `Array(${value.length})` : "Object";
+  return (
+    <details class="lab__value-details">
+      <summary class="lab__value-chip">
+        {prefix}
+        {label}
+      </summary>
+      <pre class="lab__value-json">{JSON.stringify(value, null, 2)}</pre>
+    </details>
+  );
 }
 
 function EvaluatePanel() {
@@ -761,7 +796,7 @@ function EvaluatePanel() {
     <div>
       <div class="lab__result lab__result--accept">
         <strong>
-          {targetInput.value} = {formatValue(ev.tree.value)}
+          {targetInput.value} <ValueChip value={ev.tree.value} />
         </strong>
       </div>
 
@@ -790,9 +825,11 @@ function EvaluatePanel() {
             <tbody>
               {reductions.map((red, i) => (
                 <tr key={i}>
-                  <td class="lab__mono">{red.rule}</td>
+                  <td class="lab__mono">{ruleName(red.rule)}</td>
                   <td class="lab__mono">{red.action}</td>
-                  <td class="lab__mono">{formatValue(red.value)}</td>
+                  <td class="lab__mono">
+                    <ValueChip value={red.value} prefix="" />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -816,15 +853,15 @@ function AnnotatedNodeView({
       <div>
         {indent}
         {node.token} {JSON.stringify(node.text)}{" "}
-        <span class="lab__annotated-value">= {formatValue(node.value)}</span>
+        <ValueChip value={node.value} />
       </div>
     );
   }
   return (
     <div>
       <div>
-        {indent}rule {node.rule}{" "}
-        <span class="lab__annotated-value">= {formatValue(node.value)}</span>
+        {indent}
+        {ruleName(node.rule)} <ValueChip value={node.value} />
       </div>
       {node.children.map((c, i) => (
         <AnnotatedNodeView key={i} node={c} depth={depth + 1} />
