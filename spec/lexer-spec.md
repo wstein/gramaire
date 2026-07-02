@@ -1,4 +1,4 @@
-# Lexer specification — `gramaire tokens`
+# Lexer specification — the Tokens-role `gramaire` fence
 
 Status: **draft**, tracks `irVersion: 0`. Defines how a `.gram.md` grammar
 specifies its own lexis, so a grammar is self-contained and every backend can
@@ -22,13 +22,14 @@ self-contained, the "tables-only" backend and generic interpreter can't produce
 a working parser from the IR, and `Gramaire.Lexer` sits _outside_ the self-host
 loop. Defining the lexer in the grammar fixes all three.
 
-## 2. The `gramaire tokens` block
+## 2. The Tokens-role `gramaire` fence
 
-Lexis is declared in a fenced block whose info string is `gramaire tokens`. Each line
-defines one **named token class**:
+Lexis is declared in a bare ` ```gramaire ` fence — the same, only fence tag the
+whole notation has — whose role is inferred from its own content shape ("case
+is law", grammar-format spec §1): a fence classifies as **Tokens** when every
+one of its non-blank lines defines a named token class:
 
 ```text
-gramaire tokens
 NAME : <definition> [ modifiers ]
 ```
 
@@ -40,11 +41,16 @@ NAME : <definition> [ modifiers ]
   (§6); a `/regex/` may also carry a glued `i` case-insensitivity flag (`/…/i`).
 
 A grammar MUST place all its named classes here; an ALL-CAPS symbol used in a
-production but absent from `gramaire tokens` is an error ("token class `X` used but
-never defined") unless the block is in `%external` mode (§6).
+production but absent from a Tokens-role fence is an error ("token class `X`
+used but never defined") unless the block is in `%external` mode (§6).
 
-Like `gramaire precedence` and `gramaire errors`, the `gramaire tokens` block is a
-hand-parsed sidecar notation, not itself a `gramaire` grammar.
+Like the Settings- and Precedence-role fences, a Tokens-role fence is a
+hand-parsed sidecar notation, not itself a `gramaire` grammar — but unlike
+those two, it is never ambiguous with production content: a token
+definition's ALL-CAPS-name-before-`:` shape can never overlap a valid
+production, since the `lr` notation requires a newline between a rule's name
+and its `:` (`IDENT NL :`) while a token definition's `:` is on the same line
+as its name.
 
 ## 3. The regular sublanguage
 
@@ -83,10 +89,10 @@ not match differently), so it does not weaken this guarantee.
 
 The effective token set a grammar lexes is the union of:
 
-1. **Named classes** — defined in `gramaire tokens` (§2).
+1. **Named classes** — defined in the Tokens-role `gramaire` fence (§2).
 2. **Implicit literals** — every terminal literal that appears in a production
    (`'{'`, `','`, `'true'`, and in `gramaire` itself `':'` / `'|'`) is a token defined
-   by its exact spelling. These need **no** `gramaire tokens` entry; the productions
+   by its exact spelling. These need **no** Tokens-role fence entry; the productions
    define them. A literal may be written in either of two interchangeable
    delimiters — `'x'` or `"x"` — all identical (ADR D34); the author picks
    whichever needs no escaping (`'"'`, `"'"`). The chosen delimiter is escaped
@@ -95,8 +101,8 @@ The effective token set a grammar lexes is the union of:
    the whole quoted lexeme; the consumer unquotes and unescapes to the spelling.
 
 All of these are merged into **one** scanner DFA. A grammar therefore never needs
-to repeat its punctuation/keyword literals in `gramaire tokens`; it declares only the
-open-ended classes.
+to repeat its punctuation/keyword literals in its Tokens-role fence; it declares
+only the open-ended classes.
 
 ## 5. Matching semantics
 
@@ -188,7 +194,7 @@ reference token stream byte-for-byte.
 
 ## 8. Self-host
 
-`grammar/lr.gram.md` carries its own `gramaire tokens` block (§10), and the scanner
+`grammar/lr.gram.md` carries its own Tokens-role `gramaire` fence (§10), and the scanner
 built from it is the **production** lexer for `gramaire` grammar source: `Gramaire.Lr`
 scans with `lrScanItems` (that block plus the implicit `` `:` `` / `` `|` ``
 literals), trimming each `ACTION` body in the consumer (M5). `Gramaire.Lexer` is
@@ -204,10 +210,11 @@ and the whole grammar corpus are themselves an end-to-end check on it.
 
 ## 9. fmt and structure
 
-- A grammar's lexis lives in a single reserved `## Tokens` H2 section holding the
-  `gramaire tokens` block. It SHOULD appear **before the first nonterminal section**
-  (alphabet before grammar); the structure gate treats `Tokens` as a reserved
-  section like `Precedence` (fmt-output-contract amendment).
+- A grammar's lexis lives in a single, reserved `## Tokens` heading holding a
+  Tokens-role `gramaire` fence — purely a STYLE convention `fmt` emits and
+  checks (fmt-output-contract), never a language requirement (headings carry
+  no grammar semantics). It SHOULD appear **before the first nonterminal
+  section** (alphabet before grammar).
 - fmt MUST align the `:` column within the block and preserve declaration order
   (it is significant — M2). The `*.gram.lock` hashes the normalized token
   definitions so a pattern change is drift-visible.
@@ -221,8 +228,7 @@ its keep/drop via `%external`, while capture gives it a `\n` text); `WS` is
 skipped (extras); operator tokens use the string-literal form; `` `:` `` and
 `` `|` `` stay implicit literals from the productions.
 
-```text
-lr tokens
+```gramaire
 WS       : /[ \t]+/                       %skip
 NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      %external(layout)
 ATTR     : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/
@@ -245,8 +251,7 @@ punctuation and the `true`/`false`/`null` keywords are implicit literals from th
 productions, so they are not repeated here. `STRING` and `NUMBER` carry the whole
 match as their text (no capture), and use non-capturing groups for structure.
 
-```text
-lr tokens
+```gramaire
 STRING : /"(?:[^"\\]|\\.)*"/
 NUMBER : /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/
 WS     : /[ \t\r\n]+/    %skip
@@ -268,8 +273,8 @@ tie-breaks needed.
 - **L4 (self-host lexer).** The generated `gramaire` lexer reproduces the bootstrap
   lexer's token stream on `grammar/lr.gram.md` (§8) — terminals now, text once
   capture lands.
-- **L5 (json self-contained).** `json.gram.md` plus its `gramaire tokens` block parses a
-  JSON corpus with no hand-written scanner.
+- **L5 (json self-contained).** `json.gram.md` plus its Tokens-role `gramaire`
+  fence parses a JSON corpus with no hand-written scanner.
 
 ## 13. Resolved questions
 

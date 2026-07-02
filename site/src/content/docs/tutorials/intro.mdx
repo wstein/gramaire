@@ -32,35 +32,52 @@ is no separate "tutorial mode."
 
 ## 1. The shape of a `.gram.md` file
 
-A grammar file is a canonical Markdown document with a fixed structure:
+A grammar file is a Markdown document, but **headings, prose, and images carry
+no grammar semantics at all** — they're free presentation the compiler
+ignores completely. The grammar itself lives entirely in fenced code blocks
+tagged `gramaire` (one tag, no variants), each self-identifying its role by
+the shape of its own lines:
 
 <Steps>
 
-1. **One `# H1`** — the grammar's name.
+1. **A required `%name <name>` directive** — the grammar's name. It lives
+   inside a `gramaire` fence (conventionally under a `## General settings`
+   heading); there's no fallback to a heading or a file name, so a `.gram.md`
+   stays self-describing on its own.
 
-2. **One `## H2` per nonterminal** — the heading names the rule; a `gramaire`
-   fenced block under it holds its productions.
+2. **One `gramaire` fence per nonterminal** — the fence's own head (`Name`
+   on its own line, then `:` and its alternatives) names the rule; a `## H2`
+   heading above it is just a reader-friendly label, never load-bearing.
 
-3. **Reserved `## H2` sections** — `General settings`, `Precedence`, `Error
-messages`, and `Generated tables`, in that order, when present.
+3. **Optional `gramaire` fences for tokens and precedence** — a fence whose
+   every line is an ALL-CAPS `NAME : …` definition declares token classes; a
+   fence whose every line is `%left`/`%right`/`%nonassoc` declares operator
+   precedence. `gramaire fmt`'s canonical layout groups these under
+   `## Tokens` / `## Precedence` headings, but that's a formatting
+   convention, not a language rule.
 
-4. **Everything else is prose** — paragraphs, images, and `###`+ headings are
-   free presentational grouping the compiler ignores.
+4. **Everything else is prose** — paragraphs, images, and headings at every
+   level are free presentational grouping the compiler ignores.
 
 </Steps>
 
-One file is exactly one grammar: one start symbol, one namespace. Productions
-live in fenced blocks whose info string is `gramaire`; everything outside them is
-documentation that travels with the grammar.
+One file is exactly one grammar: one start symbol, one namespace.
 
 ## 2. Your first rule
 
-Create `calc.gram.md` and give it a title and a first nonterminal:
+Create `calc.gram.md`, name it with the required `%name` directive, and add a
+first nonterminal:
 
 ````md
 # Calc
 
 A small arithmetic grammar.
+
+## General settings
+
+```gramaire
+%name Calc
+```
 
 ## Expr
 
@@ -114,7 +131,7 @@ ALL-CAPS name bound to a `/regex/`; mark throwaway classes (whitespace) `%skip`:
 ````md
 ## Tokens
 
-```gramaire tokens
+```gramaire
 NUMBER : /[0-9]+/
 WS     : /[ \t\r\n]+/   %skip
 ```
@@ -186,7 +203,7 @@ section to resolve it — earlier declarations bind more loosely:
 ````md
 ## Precedence
 
-```gramaire precedence
+```gramaire
 %left '+' '-'
 %left '*' '/'
 ```
@@ -234,12 +251,14 @@ verdict there is the same verdict the CLI would give a specific input.
 
 A recognizer throws its work away. To keep it — to build a number, or an AST —
 attach a host-language **action** between `{%` and `%}`. Declare the action
-language once, in a reserved `## General settings` section:
+language once, by adding `%lang` to the `%name` fence you already have from
+§2:
 
 ````md
 ## General settings
 
-```gramaire settings
+```gramaire
+%name Calc
 %lang javascript
 ```
 ````

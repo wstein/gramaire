@@ -303,8 +303,11 @@ plan ADR that resolves it, so the spec and plan agree.
    tie-break of R10, so it stays deterministic (R12); a descriptor declares which
    mode its expected error tree assumes, so C3 holds per mode. Repair is promoted
    to a default only after the descriptor corpus measures its quality.
-3. **Error-message text — Core-owned, localization deferred (ADR D17).** Message
-   text lives in the grammar's `gramaire errors` block as one canonical set, keyed by
-   the D6 hybrid item-set signature. It is not a per-target profile (errors are
-   input-facing prose, not host code) and not per-locale in v0; localization is
-   an additive runtime/LSP catalog keyed by the same ids, with no consumer yet.
+3. **Error-message text — Core-owned, localization deferred (ADR D17).** Curated,
+   state-keyed message text is authored as plain prose (a ```text fence, not a
+   grammar-notation construct — the prior `gramaire errors` fence had no
+   consumer and was removed) and, when a real consumer lands, would be keyed by
+   the D6 hybrid item-set signature as one canonical set. It is not a
+   per-target profile (errors are input-facing prose, not host code) and not
+   per-locale in v0; localization is an additive runtime/LSP catalog keyed by
+   the same ids, with no consumer yet.
