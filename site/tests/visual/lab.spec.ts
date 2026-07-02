@@ -40,7 +40,9 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await expect(rows.first()).toContainText("NUMBER");
 
   await page.click('button[role="tab"]:has-text("Parse tree")');
-  await expect(page.locator(".lab__tree")).toContainText("rule 0");
+  // Rule NAME, not the raw production index — CstNodeView maps rule -> productions[rule].lhs.
+  await expect(page.locator(".lab__tree")).toContainText("Expr");
+  await expect(page.locator(".lab__tree")).not.toContainText("rule 0");
 
   await page.click('button[role="tab"]:has-text("Diagnostics")');
   await expect(page.locator(".lab__panel")).toContainText("No diagnostics");
@@ -113,6 +115,11 @@ test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", 
     "Ambiguous · 2 distinct parse tree",
   );
   await expect(page.locator(".lab__forest-item")).toHaveCount(2);
+  // Rule NAME ("E"), not the raw production index — same CstNodeView fix as Parse tree.
+  await expect(page.locator(".lab__forest-item").first()).toContainText("E");
+  await expect(page.locator(".lab__forest-item").first()).not.toContainText(
+    "rule 0",
+  );
 });
 
 test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthrough", async ({
