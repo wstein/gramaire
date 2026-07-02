@@ -44,6 +44,40 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
 
   await page.click('button[role="tab"]:has-text("Diagnostics")');
   await expect(page.locator(".lab__panel")).toContainText("No diagnostics");
+
+  await page.click('button[role="tab"]:has-text("All parses")');
+  await expect(page.locator(".lab__forest-status")).toContainText(
+    "Unambiguous",
+  );
+  await expect(page.locator(".lab__forest-item")).toHaveCount(1);
+
+  await page.click('button[role="tab"]:has-text("Lowered Core")');
+  const productionRows = page.locator(".lab__table tbody tr");
+  await expect(productionRows).toHaveCount(8); // Expr(x3) + Term(x3) + Factor(x2)
+  await expect(productionRows.first()).toContainText("Expr");
+});
+
+test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+
+  await page
+    .locator(".lab__pane:nth-child(1) .lab__editor")
+    .fill("# Ambiguous\n\n## E\n\n```gramaire\nE\n: E E\n| 'x'\n```\n");
+  await page.locator(".lab__pane:nth-child(2) .lab__editor").fill("xxx");
+  await expect(page.locator(".lab__status")).toHaveText("build failed", {
+    timeout: 5000,
+  });
+
+  await page.click('button[role="tab"]:has-text("All parses")');
+  await expect(page.locator(".lab__forest-status")).toContainText(
+    "Ambiguous · 2 distinct parse tree",
+  );
+  await expect(page.locator(".lab__forest-item")).toHaveCount(2);
 });
 
 test("the Lab reflects a rejected input", async ({ page }) => {

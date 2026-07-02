@@ -1,10 +1,9 @@
 /*
- * The Lab's own styling — v1 slice only (two fixed panes + a tabbed
- * drawer, no draggable splitter, no LR-walk stepper; both deferred to M5+
- * per docs/playground-spec.md §6). Uses the same tokens.css custom
- * properties as the rest of the site (var(--bg), var(--accent), etc.) so
- * it themes identically under the shared light/dark toggle without its own
- * separate wiring.
+ * The Lab's own styling. Two fixed panes + a tabbed drawer; the draggable
+ * splitter and LR-walk stepper are still M5+ (docs/playground-spec.md §6).
+ * Uses the same tokens.css custom properties as the rest of the site
+ * (var(--bg), var(--accent), etc.) so it themes identically under the
+ * shared light/dark toggle without its own separate wiring.
  */
 
 .lab {
@@ -186,6 +185,31 @@
 }
 .lab__diagnostics li {
   margin-bottom: 10px;
+}
+
+.lab__forest-status {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  margin: 0 0 12px;
+}
+.lab__forest-status--ok {
+  color: var(--accent);
+}
+.lab__forest-status--ambiguous {
+  color: var(--warning, #b45309);
+}
+.lab__forest-item + .lab__forest-item {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.lab__forest-item-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  margin-bottom: 6px;
 }
 
 @media (max-width: 720px) {

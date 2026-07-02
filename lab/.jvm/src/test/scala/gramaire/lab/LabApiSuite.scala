@@ -104,6 +104,56 @@ class LabApiSuite extends munit.FunSuite:
     assertEquals(resp.diagnostics.length, 1)
   }
 
+  test("evaluate: productions lists every flattened rule with its lhs/rhs/action") {
+    val resp = LabApi.evaluate(LabRequest(calcMd, None, Method.Canonical))
+    assert(resp.buildOk)
+    resp.productions match
+      case None     => fail("expected productions")
+      case Some(ps) =>
+        // 8 flattened alternatives: Expr(+,-,pass-through), Term(*,/,pass-through), Factor(paren,NUMBER)
+        assertEquals(ps.length, 8)
+        assertEquals(ps.head.lhs, "Expr")
+        assertEquals(ps.head.rhs, Vector("Expr", "`+`", "Term"))
+        assert(
+          ps.head.action.exists(_.contains("Add")),
+          s"expected an Add action, got ${ps.head.action}"
+        )
+        // Expr -> Term (the third alt) has no {% %} action
+        assertEquals(ps(2).rhs, Vector("Term"))
+        assertEquals(ps(2).action, None)
+  }
+
+  test("evaluate: forest is populated for accepted input, unambiguous grammars yield one parse") {
+    val resp = LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.Canonical))
+    assert(resp.buildOk)
+    resp.forest match
+      case None => fail("expected a forest")
+      case Some(f) =>
+        assertEquals(f.parses.length, 1)
+        assertEquals(f.truncated, false)
+  }
+
+  test("evaluate: forest surfaces every derivation of a genuinely ambiguous grammar") {
+    // Ambiguous grammars have real conflicts under every method, so buildOk is false here —
+    // the forest must still be populated (this is the All-parses tab's whole reason to exist).
+    // No spaces: this fixture has no `## Tokens`/`%skip` block, so whitespace isn't lexable.
+    val resp = LabApi.evaluate(LabRequest(ambiguousMd, Some("xxx"), Method.Canonical))
+    assert(!resp.buildOk)
+    resp.forest match
+      case None    => fail("expected a forest even though buildOk is false")
+      case Some(f) =>
+        // "xxx" under E : E E | 'x' has exactly 2 distinct parse trees (Catalan(2)).
+        assertEquals(f.parses.length, 2)
+        assertEquals(f.truncated, false)
+  }
+
+  test("evaluate: no input means no forest, even though productions are still populated") {
+    val resp = LabApi.evaluate(LabRequest(calcMd, None, Method.Canonical))
+    assert(resp.buildOk)
+    assertEquals(resp.forest, None)
+    assert(resp.productions.isDefined)
+  }
+
   test("evaluate: LALR and IELR methods are honored") {
     val lalr = LabApi.evaluate(LabRequest(calcMd, Some("1+2"), Method.LALR))
     val ielr = LabApi.evaluate(LabRequest(calcMd, Some("1+2"), Method.IELR))

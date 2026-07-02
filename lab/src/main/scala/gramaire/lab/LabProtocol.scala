@@ -10,11 +10,11 @@ package gramaire.lab
 // every encoder (e.g. Cst.toJson) is a manual pattern match, and each
 // type's codec lives in that type's own companion object.
 //
-// Deliberately the M4 v1 slice only — sized to the four v1 tabs (Result,
-// Tokens, Parse tree, Diagnostics), not all ten of the mock's tabs.
-// LabResponse.version exists so M5+ fields (FIRST/FOLLOW, per-method
-// state/conflict counts, the parse forest, lowered-core productions) are
-// additive, never a breaking change to what's already shipped.
+// Started as the M4 v1 slice — sized to the four v1 tabs (Result, Tokens,
+// Parse tree, Diagnostics). LabResponse.version exists so M5+ fields
+// (productions, forest, and further additions for the remaining tabs) are
+// additive, never a breaking change to what's already shipped — new fields
+// default to None so pre-M5 callers/tests need no changes.
 
 import gramaire.{Json, Method}
 
@@ -93,6 +93,36 @@ object ParseResult:
       )
     )
 
+/** One flattened production of the compiled (already-desugared) grammar — the Lowered Core tab's
+  * row shape, and the per-production `{% %}` action text the Evaluate tab's reductions list looks
+  * up by index (M5+, avoiding a second copy of the same action text in the wire format).
+  * `lhs`/`rhs` are already display-rendered (a terminal is backtick-quoted, e.g. `` `+` ``; a
+  * nonterminal is bare) — see `LabApi.renderSym`.
+  */
+final case class ProductionInfo(lhs: String, rhs: Vector[String], action: Option[String])
+
+object ProductionInfo:
+  def toJson(p: ProductionInfo): Json =
+    Json.JObject(
+      Vector(
+        "lhs" -> Json.JString(p.lhs),
+        "rhs" -> Json.JArray(p.rhs.map(Json.JString.apply)),
+        "action" -> p.action.map(Json.JString.apply).getOrElse(Json.JNull)
+      )
+    )
+
+/** The All-parses tab's data: every distinct parse of `LabRequest.input` under the GLR multi-action
+  * table (`Glr.forest`), capped so a wildly ambiguous grammar can't blow up the response —
+  * `truncated` is true when more parses existed than `parses` holds.
+  */
+final case class ForestResult(parses: Vector[Json], truncated: Boolean)
+
+object ForestResult:
+  def toJson(f: ForestResult): Json =
+    Json.JObject(
+      Vector("parses" -> Json.JArray(f.parses), "truncated" -> Json.JBool(f.truncated))
+    )
+
 /** The Lab's full response: whether the grammar itself built, any diagnostics, and — if input was
   * given and the grammar built — the parse result.
   */
@@ -100,7 +130,9 @@ final case class LabResponse(
     labProtocolVersion: Int,
     buildOk: Boolean,
     diagnostics: Vector[String],
-    parse: Option[ParseResult]
+    parse: Option[ParseResult],
+    productions: Option[Vector[ProductionInfo]] = None,
+    forest: Option[ForestResult] = None
 )
 
 object LabResponse:
@@ -115,7 +147,11 @@ object LabResponse:
         "labProtocolVersion" -> Json.JInt(r.labProtocolVersion),
         "buildOk" -> Json.JBool(r.buildOk),
         "diagnostics" -> Json.JArray(r.diagnostics.map(Json.JString.apply)),
-        "parse" -> r.parse.map(ParseResult.toJson).getOrElse(Json.JNull)
+        "parse" -> r.parse.map(ParseResult.toJson).getOrElse(Json.JNull),
+        "productions" -> r.productions
+          .map(ps => Json.JArray(ps.map(ProductionInfo.toJson)))
+          .getOrElse(Json.JNull),
+        "forest" -> r.forest.map(ForestResult.toJson).getOrElse(Json.JNull)
       )
     )
 

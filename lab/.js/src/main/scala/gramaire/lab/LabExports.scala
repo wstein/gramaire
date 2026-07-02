@@ -18,9 +18,9 @@ package gramaire.lab
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 object LabExports:
-  /** Evaluate a `LabRequest` JSON string, returning a `LabResponse` JSON string. Never throws:
-    * a malformed request becomes a `LabResponse` with `buildOk = false` and the decode error as
-    * its one diagnostic, the same shape a real compile failure would produce.
+  /** Evaluate a `LabRequest` JSON string, returning a `LabResponse` JSON string. Never throws: a
+    * malformed request becomes a `LabResponse` with `buildOk = false` and the decode error as its
+    * one diagnostic, the same shape a real compile failure would produce.
     */
   @JSExportTopLevel("gramaireLabEvaluate")
   def evaluate(requestJson: String): String =

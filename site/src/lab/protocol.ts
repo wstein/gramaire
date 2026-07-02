@@ -41,6 +41,14 @@ export interface LabResponse {
    * Present only when the request carried `input` and the grammar built successfully; null otherwise (compile-only requests, or any build failure).
    */
   parse: ParseResult | null;
+  /**
+   * The Lowered Core tab's data: every flattened production of the desugared grammar. Present whenever the grammar notation parsed (Lr.parse succeeded), independent of buildOk — a grammar with genuine LR conflicts still has a well-defined production list. Null only when the grammar notation itself failed to parse.
+   */
+  productions: ProductionInfo[] | null;
+  /**
+   * The All-parses tab's data: every distinct parse of `input` under the GLR multi-action table, which never fails even when the grammar has real conflicts under every method (that's exactly the ambiguous-grammar case this tab exists for, so `forest` can be populated even when buildOk is false). Present only when the request carried `input` and the grammar notation parsed; null otherwise.
+   */
+  forest: ForestResult | null;
 }
 /**
  * The outcome of parsing LabRequest.input against the compiled grammar. `tokens` is populated even on a reject, so the Tokens tab still has something to show; `cst` is null unless `accepted`.
@@ -70,4 +78,25 @@ export interface CstBranch {
 export interface CstToken {
   token: string;
   text: string;
+}
+/**
+ * One flattened production of the compiled grammar. `lhs`/`rhs` are already display-rendered (a terminal is backtick-quoted, e.g. `` `+` ``; a nonterminal is bare).
+ */
+export interface ProductionInfo {
+  lhs: string;
+  rhs: string[];
+  /**
+   * The production's raw `{% … %}` action source text, or null when the alternative has no action.
+   */
+  action: string | null;
+}
+/**
+ * Every distinct parse of the target input, capped so a wildly ambiguous grammar can't blow up the response.
+ */
+export interface ForestResult {
+  parses: CstNode[];
+  /**
+   * True when more distinct parses existed than `parses` holds.
+   */
+  truncated: boolean;
 }
