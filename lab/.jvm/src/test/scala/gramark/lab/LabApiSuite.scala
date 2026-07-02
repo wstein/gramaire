@@ -37,6 +37,20 @@ class LabApiSuite extends munit.FunSuite:
     |```
     |""".stripMargin
 
+  // `Baz` is mixed-case (so Diagnostics.undefinedNonterminals flags it, unlike an ALL-CAPS token
+  // reference) and never defined as a rule — Table.buildTablesFor's resolve step silently treats
+  // it as a phantom terminal instead of failing, so this still builds cleanly; the warning is the
+  // only signal a grammar author gets that `Baz` probably wasn't meant to be a terminal.
+  private val undefinedRefMd = """# UndefinedRef
+    |
+    |## Expr
+    |
+    |```gramark
+    |Expr
+    |: Baz
+    |```
+    |""".stripMargin
+
   test("evaluate: a valid grammar and accepted input yields a CST") {
     val resp = LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.Canonical))
     assert(resp.buildOk, s"expected buildOk, diagnostics: ${resp.diagnostics}")
@@ -102,6 +116,28 @@ class LabApiSuite extends munit.FunSuite:
     assert(!resp.buildOk)
     assertEquals(resp.parse, None)
     assertEquals(resp.diagnostics.length, 1)
+  }
+
+  test(
+    "evaluate: an undefined mixed-case reference is a hard rejection, not a soft warning"
+  ) {
+    // Lr.parseWith's last step is Desugar.desugar(g).flatMap(Diagnostics.checkDefined)
+    // (core/src/main/scala/gramark/Lr.scala:325) — checkDefined REJECTS a grammar with an
+    // undefined mixed-case reference outright, so `Baz` here never even reaches Table.
+    // buildTablesFor's resolve step. This means Diagnostics.undefinedNonterminals is already
+    // exercised by every LabApi.evaluate call via Lr.parse itself — LabApi has no need to call it
+    // a second time, and doing so would be dead code (any Grammar reaching evaluate's
+    // Right(grammar) branch is already guaranteed reference-complete).
+    val resp = LabApi.evaluate(LabRequest(undefinedRefMd, None, Method.Canonical))
+    assert(!resp.buildOk)
+    assertEquals(resp.parse, None)
+    assertEquals(resp.diagnostics.length, 1)
+    assert(
+      resp.diagnostics.head.contains("`Baz`") && resp.diagnostics.head.contains(
+        "must be defined by some rule"
+      ),
+      s"expected Diagnostics.checkDefined's rejection message naming Baz, got: ${resp.diagnostics}"
+    )
   }
 
   test("evaluate: productions lists every flattened rule with its lhs/rhs/action") {
