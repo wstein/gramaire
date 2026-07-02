@@ -61,6 +61,37 @@ test("both editors show line numbers that track content and scroll", async ({
   ).toHaveCSS("transform", "matrix(1, 0, 0, 1, 0, -100)");
 });
 
+test("the line-number gutter widens for 4+ digit line counts instead of crowding the text", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  const gutter = page.locator(".lab__pane--grammar .lab__editor-gutter-clip");
+  const editor = page.locator(".lab__pane--grammar .lab__editor");
+  // Baseline: up to 3-digit line counts use the CSS default (44px gutter / 58px padding).
+  await expect(gutter).toHaveCSS("width", "44px");
+  await expect(editor).toHaveCSS("padding-left", "58px");
+
+  const padded = await editor.evaluate(
+    (el) =>
+      (el as HTMLTextAreaElement).value +
+      "\n" +
+      Array.from({ length: 1200 }, (_, i) => `# pad ${i}`).join("\n"),
+  );
+  await editor.fill(padded);
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  // 1200+ lines needs 4 digits — the gutter grows by one glyph, and the textarea's own inline
+  // padding-left override grows to match so the wider gutter never overlaps the first character.
+  await expect(gutter).toHaveCSS("width", "52px");
+  await expect(editor).toHaveCSS("padding-left", "66px");
+});
+
 test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await page.goto("/lab/");
   await expect(page.locator(".lab__status")).toHaveText("accepted", {
