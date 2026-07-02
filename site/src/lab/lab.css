@@ -52,22 +52,20 @@
   padding: 4px 8px;
 }
 
+/* Plain colored text, not a badge/pill — it sits inline in the status bar next to the error/warning
+   counts (also plain colored text, .lab__statusbar-errors/-warnings), so a bordered chip here would
+   be the only boxed element in an otherwise flat, dense strip. */
 .lab__status {
   font-family: var(--font-mono);
   font-size: 12px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
+  font-weight: 600;
   color: var(--fg-muted);
 }
 .lab__status--ok {
   color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
-  background: var(--accent-softer);
 }
 .lab__status--fail {
   color: var(--danger, #b91c1c);
-  border-color: color-mix(in srgb, var(--danger, #b91c1c) 40%, var(--border));
 }
 
 .lab__statusbar {
@@ -83,9 +81,22 @@
   color: var(--fg-faint);
   flex: none;
 }
+.lab__statusbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .lab__statusbar-right {
   display: flex;
   gap: 16px;
+}
+.lab__statusbar-errors {
+  color: var(--danger, #b91c1c);
+  font-weight: 600;
+}
+.lab__statusbar-warnings {
+  color: var(--warning, #b45309);
+  font-weight: 600;
 }
 
 .lab__panes {
