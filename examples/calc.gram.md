@@ -28,7 +28,7 @@ Expr
   | Term
 ```
 
-![Railroad diagram for the Expr rule](diagrams/calc/expr.svg)
+![Railroad diagram for the Expr rule](diagrams-calc/expr.svg)
 
 ## Term
 
@@ -41,7 +41,7 @@ Term
   | Factor
 ```
 
-![Railroad diagram for the Term rule](diagrams/calc/term.svg)
+![Railroad diagram for the Term rule](diagrams-calc/term.svg)
 
 ## Factor
 
@@ -53,7 +53,7 @@ Factor
   | NUMBER          {% (c) => ({ tag: "Lit", value: Number(c.number) }) %}
 ```
 
-![Railroad diagram for the Factor rule](diagrams/calc/factor.svg)
+![Railroad diagram for the Factor rule](diagrams-calc/factor.svg)
 
 ## Precedence
 

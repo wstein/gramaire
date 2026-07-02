@@ -289,6 +289,9 @@ object GramaireCheck:
   private val imageRe = "^!\\[Railroad diagram for the (\\S+) rule\\]\\([^)]*\\)\\s*$".r
   private val mermaidTagRe = "^%% Railroad diagram for the (\\S+) rule\\s*$".r
 
+  private def diagramDirectory(stem: String): String =
+    if stem.nonEmpty then s"diagrams-$stem" else "diagrams"
+
   private def diagramFor(
       name: String,
       content: String,
@@ -298,7 +301,7 @@ object GramaireCheck:
   ): Vector[String] =
     mode match
       case DiagramMode.Sidecar =>
-        val dir = if stem.nonEmpty then s"diagrams/$stem" else "diagrams"
+        val dir = diagramDirectory(stem)
         Vector(s"![Railroad diagram for the $name rule]($dir/${name.toLowerCase}.svg)")
       case DiagramMode.Mermaid =>
         val body = Railroad
@@ -403,22 +406,22 @@ object GramaireCheck:
     for b <- doc.blocks if b.kind.contains(Lr.FenceKind.Rule) do
       b.nonterminal.foreach(nt => contentByRule = contentByRule.updated(nt, b.content))
 
-    // Diagrams live in a per-grammar subdirectory (`diagrams/<stem>/`) so
-    // two grammars sharing a dir can't clobber each other's same-named rule
+    // Diagrams live in a per-grammar directory (`diagrams-<stem>/`) so two
+    // grammars sharing a directory can't clobber each other's same-named rule
     // SVGs.
     val fileName = Path.of(file).getFileName.toString
     val stem = fileName.replaceAll("\\.gram\\.md$", "")
     val fileDir = Option(Path.of(file).getParent).getOrElse(Path.of("."))
     val artifacts = Vector.newBuilder[Artifact]
     if mode == DiagramMode.Sidecar then
-      val dir = fileDir.resolve("diagrams").resolve(stem)
+      val dir = fileDir.resolve(diagramDirectory(stem))
       if !Files.exists(dir) then Files.createDirectories(dir)
       // Iterate in a stable order (matches source declaration order) rather
       // than hash-map order, so re-running is byte-for-byte a no-op.
       val ntOrder =
         doc.blocks.filter(_.kind.contains(Lr.FenceKind.Rule)).flatMap(_.nonterminal).distinct
       for nt <- ntOrder do
-        val path = s"diagrams/$stem/${nt.toLowerCase}.svg"
+        val path = s"${diagramDirectory(stem)}/${nt.toLowerCase}.svg"
         Files.writeString(
           fileDir.resolve(path),
           Railroad.renderSvg(

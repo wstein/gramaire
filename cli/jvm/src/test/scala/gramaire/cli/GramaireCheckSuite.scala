@@ -93,6 +93,20 @@ class GramaireCheckSuite extends munit.FunSuite:
     assert(fails.exists(_.contains("stale tables")))
   }
 
+  test("fmt: sidecar diagrams are written under diagrams-<stem> and linked from the document") {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-diagrams")
+    val file = dir.resolve("sample.gram.md")
+    val src =
+      "# T\n\n## General settings\n\n```gramaire\n%name T\n```\n\n## Value\n\n![Railroad diagram for the Value rule](diagrams/value.svg)\n\n```gramaire\nValue\n  : 'x'\n```\n\n## Error messages\n\nx\n\n## Generated tables\n\n| a |\n"
+    java.nio.file.Files.writeString(file, src)
+
+    val doc = GramaireCheck.parse(src)
+    val _ = GramaireCheck.fmt(file.toString, doc, GramaireCheck.DiagramMode.Sidecar)
+
+    assert(java.nio.file.Files.exists(dir.resolve("diagrams-sample/value.svg")))
+    assert(java.nio.file.Files.readString(file).contains("](diagrams-sample/value.svg)"))
+  }
+
   test("sha256/longestBacktickRun/lockPathFor: the small building blocks") {
     assertEquals(
       GramaireCheck.sha256(""),

@@ -134,13 +134,13 @@ Diagrams are **never** inline `<svg>` (stripped by GitHub, and trips MD033).
 `fmt` emits them in one of two modes, selected with `--diagrams`:
 
 - **`sidecar`** (default) — a self-contained railroad SVG per rule, written to
-  `diagrams/<grammar-stem>/<rule>.svg` (a per-grammar subdirectory, so two
-  grammars sharing a `diagrams/` dir can't clobber each other's same-named
-  rules) and referenced as an image with mandatory alt text (MD045). The alt
+  `diagrams-<grammar-stem>/<rule>.svg` (a per-grammar directory, so two
+  grammars sharing a `diagrams/`-style root can't clobber each other's
+  same-named rules) and referenced as an image with mandatory alt text (MD045). The alt
   text names the rule, so the reference is self-identifying:
 
   ```text
-  ![Railroad diagram for the Expr rule](diagrams/calc/expr.svg)
+  ![Railroad diagram for the Expr rule](diagrams-calc/expr.svg)
   ```
 
 - **`mermaid`** — a GitHub-native ```mermaid flowchart embedded directly after

@@ -90,7 +90,7 @@ Grammar
   : RuleList   {% (c) => ({ tag: "Grammar", rules: c[0] }) %}
 ```
 
-![Railroad diagram for the Grammar rule](diagrams/lr/grammar.svg)
+![Railroad diagram for the Grammar rule](diagrams-lr/grammar.svg)
 
 ## RuleList
 
@@ -103,7 +103,7 @@ RuleList
   | RuleList NL Rule   {% (c) => [...c[0], c[2]] %}
 ```
 
-![Railroad diagram for the RuleList rule](diagrams/lr/rulelist.svg)
+![Railroad diagram for the RuleList rule](diagrams-lr/rulelist.svg)
 
 ## Rule
 
@@ -121,7 +121,7 @@ Rule
   | IDENT NL ':' Body        {% (c) => ({ tag: "Rule", name: c[0], attrs: [], alts: c[3] }) %}
 ```
 
-![Railroad diagram for the Rule rule](diagrams/lr/rule.svg)
+![Railroad diagram for the Rule rule](diagrams-lr/rule.svg)
 
 ## Body
 
@@ -135,7 +135,7 @@ Body
   | Body '|' Alt   {% (c) => [...c[0], c[2]] %}
 ```
 
-![Railroad diagram for the Body rule](diagrams/lr/body.svg)
+![Railroad diagram for the Body rule](diagrams-lr/body.svg)
 
 ## Alt
 
@@ -150,7 +150,7 @@ Alt
   | SymList                {% (c) => ({ tag: "Alt", syms: c[0], label: null, action: null }) %}
 ```
 
-![Railroad diagram for the Alt rule](diagrams/lr/alt.svg)
+![Railroad diagram for the Alt rule](diagrams-lr/alt.svg)
 
 ## SymList
 
@@ -160,7 +160,7 @@ SymList
   | SymList Sym   {% (c) => [...c[0], c[1]] %}
 ```
 
-![Railroad diagram for the SymList rule](diagrams/lr/symlist.svg)
+![Railroad diagram for the SymList rule](diagrams-lr/symlist.svg)
 
 ## Sym
 
@@ -201,7 +201,7 @@ Sym
   | Atom QUESTION                 {% (c) => ({ tag: "Opt", sym: c[0] }) %}
 ```
 
-![Railroad diagram for the Sym rule](diagrams/lr/sym.svg)
+![Railroad diagram for the Sym rule](diagrams-lr/sym.svg)
 
 ## Args
 
@@ -213,7 +213,7 @@ Args
   | Args COMMA Sym    {% (c) => [...c[0], c[2]] %}
 ```
 
-![Railroad diagram for the Args rule](diagrams/lr/args.svg)
+![Railroad diagram for the Args rule](diagrams-lr/args.svg)
 
 ## Action
 
@@ -222,7 +222,7 @@ Action
   : ACTION   {% (c) => c[0] %}
 ```
 
-![Railroad diagram for the Action rule](diagrams/lr/action.svg)
+![Railroad diagram for the Action rule](diagrams-lr/action.svg)
 
 ## Label
 
@@ -234,7 +234,7 @@ Label
   : LABEL   {% (c) => c[0] %}
 ```
 
-![Railroad diagram for the Label rule](diagrams/lr/label.svg)
+![Railroad diagram for the Label rule](diagrams-lr/label.svg)
 
 ## GroupBody
 
@@ -248,7 +248,7 @@ GroupBody
   | GroupBody '|' SymList    {% (c) => [...c[0], c[2]] %}
 ```
 
-![Railroad diagram for the GroupBody rule](diagrams/lr/groupbody.svg)
+![Railroad diagram for the GroupBody rule](diagrams-lr/groupbody.svg)
 
 ## Atom
 
@@ -262,7 +262,7 @@ Atom
   | '~' NotArg      {% (c) => ({ tag: "Not", set: c[1] }) %}
 ```
 
-![Railroad diagram for the Atom rule](diagrams/lr/atom.svg)
+![Railroad diagram for the Atom rule](diagrams-lr/atom.svg)
 
 ## NotArg
 
@@ -272,7 +272,7 @@ NotArg
   | '(' SetBody ')'    {% (c) => c[1] %}
 ```
 
-![Railroad diagram for the NotArg rule](diagrams/lr/notarg.svg)
+![Railroad diagram for the NotArg rule](diagrams-lr/notarg.svg)
 
 ## SetBody
 
@@ -282,7 +282,7 @@ SetBody
   | SetBody '|' SetItem   {% (c) => [...c[0], c[2]] %}
 ```
 
-![Railroad diagram for the SetBody rule](diagrams/lr/setbody.svg)
+![Railroad diagram for the SetBody rule](diagrams-lr/setbody.svg)
 
 ## SetItem
 
@@ -294,7 +294,7 @@ SetItem
   | TERM_LIT   {% (c) => ({ tag: "Lit", text: c[0] }) %}
 ```
 
-![Railroad diagram for the SetItem rule](diagrams/lr/setitem.svg)
+![Railroad diagram for the SetItem rule](diagrams-lr/setitem.svg)
 
 ## Error messages
 
