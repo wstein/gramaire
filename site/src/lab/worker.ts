@@ -53,13 +53,47 @@ export interface WorkerResponseMessage {
   evaluation: EvaluationResult | null;
 }
 
-type Engine = { gramarkLabEvaluate: (requestJson: string) => string };
+type Engine = {
+  gramarkLabEvaluate: (requestJson: string) => string;
+  gramarkLabProtocolVersion: number;
+};
 
 const engineUrl = new URL(
   `${import.meta.env.BASE_URL}lab/engine.mjs`,
   self.location.href,
 ).href;
 const enginePromise: Promise<Engine> = import(/* @vite-ignore */ engineUrl);
+
+// spec/lab-protocol-schema.json's own labProtocolVersion — kept in sync by hand (this file has no
+// derivation mechanism to read the schema's value at build time). A mismatch means the browser is
+// still running an engine.mjs built before the last protocol change (a long-open tab across a
+// redeploy, or a stale local `npm run build:engine`) — the exact bundle/page skew
+// `gramarkLabProtocolVersion` was exported to let this Worker catch, so a stale response fails
+// loudly as one clear diagnostic instead of the UI throwing on fields the old shape never had.
+const EXPECTED_PROTOCOL_VERSION = 1;
+
+function staleEngineResponse(actualVersion: number): LabResponse {
+  const message = `Lab engine bundle is out of date (protocol v${actualVersion}, page expects v${EXPECTED_PROTOCOL_VERSION}) — reload the page.`;
+  return {
+    labProtocolVersion: actualVersion,
+    buildOk: false,
+    diagnostics: [
+      {
+        severity: "error",
+        stage: "internal",
+        message,
+        span: null,
+        notes: [],
+        rendered: `error: ${message}`,
+      },
+    ],
+    parse: null,
+    productions: null,
+    forest: null,
+    analysis: null,
+    evaluatorJs: null,
+  };
+}
 
 // Run the grammar author's own generated evaluator (LabResponse.evaluatorJs) against the accepted
 // parse's CST. This executes arbitrary JS compiled from the grammar's `{% %}` actions — the same
@@ -88,8 +122,17 @@ async function runEvaluator(
 
 self.onmessage = async (event: MessageEvent<WorkerRequestMessage>) => {
   const { id, request } = event.data;
-  const { gramarkLabEvaluate } = await enginePromise;
-  const responseJson = gramarkLabEvaluate(JSON.stringify(request));
+  const engine = await enginePromise;
+  if (engine.gramarkLabProtocolVersion !== EXPECTED_PROTOCOL_VERSION) {
+    const message: WorkerResponseMessage = {
+      id,
+      response: staleEngineResponse(engine.gramarkLabProtocolVersion),
+      evaluation: null,
+    };
+    self.postMessage(message);
+    return;
+  }
+  const responseJson = engine.gramarkLabEvaluate(JSON.stringify(request));
   const response: LabResponse = JSON.parse(responseJson);
   const evaluation = await runEvaluator(response);
   const message: WorkerResponseMessage = { id, response, evaluation };
