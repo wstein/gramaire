@@ -208,13 +208,14 @@ test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthro
     "",
     "## General settings",
     "",
-    "```gramaire settings",
+    "```gramaire",
+    "%name Sum",
     "%lang javascript",
     "```",
     "",
     "## Tokens",
     "",
-    "```gramaire tokens",
+    "```gramaire",
     "NUMBER : /[0-9]+/",
     "```",
     "",
@@ -266,13 +267,14 @@ test("the Lab's Evaluate tab renders a non-primitive action result as a collapse
     "",
     "## General settings",
     "",
-    "```gramaire settings",
+    "```gramaire",
+    "%name Node",
     "%lang javascript",
     "```",
     "",
     "## Tokens",
     "",
-    "```gramaire tokens",
+    "```gramaire",
     "NUMBER : /[0-9]+/",
     "```",
     "",
@@ -353,7 +355,7 @@ test("a successful build still surfaces warnings in Output and the status bar", 
   // An unreachable rule warns without failing the build (LabResponse.diagnostics carries warnings
   // "either way" — protocol.ts's own doc comment).
   const md =
-    "# Warn\n\n## Expr\n\n```gramaire\nExpr\n: NUMBER\n```\n\n## Unused\n\n```gramaire\nUnused\n: NUMBER\n```\n\n## Tokens\n\n```gramaire tokens\nNUMBER : /[0-9]+/\n```\n";
+    "# Warn\n\n## Expr\n\n```gramaire\nExpr\n: NUMBER\n```\n\n## Unused\n\n```gramaire\nUnused\n: NUMBER\n```\n\n## Tokens\n\n```gramaire\nNUMBER : /[0-9]+/\n```\n";
   await page.locator(".lab__pane--grammar .lab__editor").fill(md);
   // The leftover default input "1+2*3" no longer matches this grammar (Expr: NUMBER alone) — the
   // build is still healthy (just a warning), so the status is "ok", not "errors": a rejected input

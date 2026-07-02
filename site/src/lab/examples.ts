@@ -14,6 +14,12 @@ export interface LabExample {
 
 export const DEFAULT_SOURCE = `# Expr
 
+## General settings
+
+\`\`\`gramaire
+%name Expr
+\`\`\`
+
 ## Expr
 
 \`\`\`gramaire
@@ -42,7 +48,7 @@ Factor
 
 ## Tokens
 
-\`\`\`gramaire tokens
+\`\`\`gramaire
 NUMBER : /[0-9]+/
 WS     : /[ \\t\\r\\n]+/   %skip
 \`\`\`
