@@ -190,8 +190,7 @@ function ensureWorker(): Worker {
     // carries fresh rule names (the grammar parsed) — a transient parse failure mid-edit shouldn't
     // discard the user's selection, since `analysis` being absent tells us nothing about it.
     if (resp.analysis && startRule.value !== null) {
-      const names = resp.analysis.firstFollow.map((r) => r.name);
-      if (!names.includes(startRule.value)) startRule.value = null;
+      if (!ruleNames.value.includes(startRule.value)) startRule.value = null;
     }
     evaluation.value = evalResult;
     pending.value = false;
@@ -1435,13 +1434,19 @@ function LrWalkPanel() {
   );
 }
 
-function formatPrimitive(v: unknown): string {
-  if (v === undefined) return "undefined";
+// A grammar action's return value can be a cyclic structure or contain a BigInt, both of which
+// JSON.stringify throws on — fall back to String(v) rather than breaking the render.
+function safeStringify(v: unknown, indent?: number): string {
   try {
-    return JSON.stringify(v) ?? String(v);
+    return JSON.stringify(v, null, indent) ?? String(v);
   } catch {
     return String(v);
   }
+}
+
+function formatPrimitive(v: unknown): string {
+  if (v === undefined) return "undefined";
+  return safeStringify(v);
 }
 
 // A grammar action can return anything — a number, a nested AST object, whatever the author's
@@ -1468,15 +1473,7 @@ function ValueChip({
     );
   }
   const label = Array.isArray(value) ? `Array(${value.length})` : "Object";
-  // A grammar author's {% %} action can return a cyclic structure or a BigInt, both of which
-  // JSON.stringify throws on — fall back to String(value) the same way formatPrimitive does,
-  // rather than breaking the whole Evaluate tab's render.
-  let json: string;
-  try {
-    json = JSON.stringify(value, null, 2) ?? String(value);
-  } catch {
-    json = String(value);
-  }
+  const json = safeStringify(value, 2);
   return (
     <details class="lab__value-details">
       <summary class="lab__value-chip">
