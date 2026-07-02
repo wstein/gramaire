@@ -11,6 +11,7 @@ class LabApiSuite extends munit.FunSuite:
     java.nio.file.Files.readString(java.nio.file.Path.of(path))
 
   private lazy val calcMd = readFile("examples/calc.grmk.md")
+  private lazy val calcPrecMd = readFile("examples/calc-prec.grmk.md")
 
   // E : E E | 'x' — no precedence declared, so it's genuinely ambiguous
   // (the same shape as core's own TableSuite `ambiguous` fixture, as
@@ -69,6 +70,28 @@ class LabApiSuite extends munit.FunSuite:
           p.tokens.map(t => (t.start, t.end)),
           Vector((0, 1), (1, 2), (2, 3), (3, 4), (4, 5))
         )
+  }
+
+  // Regression: `evaluate` used to build tables with `Table.emptyPrec`, ignoring the grammar's own
+  // `## Precedence` block entirely. `calc-prec.grmk.md`'s natural ambiguous `expr op expr` shape has
+  // real shift/reduce conflicts that ONLY its `%left` declarations resolve — unlike `calcMd` above
+  // (stratified, already conflict-free without precedence), so this fixture actually exercises the
+  // bug: dropping precedence must fail to build, and `1+2*3` must be refused.
+  test("evaluate: a grammar whose parseability depends on ## Precedence builds and parses") {
+    val resp = LabApi.evaluate(LabRequest(calcPrecMd, Some("1+2*3"), Method.Canonical))
+    assert(resp.buildOk, s"expected buildOk, diagnostics: ${resp.diagnostics}")
+    assertEquals(resp.diagnostics, Vector.empty)
+    resp.analysis match
+      case None => fail("expected analysis")
+      case Some(a) =>
+        val canonical = a.perMethod("Canonical")
+        assertEquals(canonical.conflicts, 0, "declared precedence should resolve every conflict")
+    resp.parse match
+      case None => fail("expected a parse result")
+      case Some(p) =>
+        assert(p.accepted, s"expected accepted, message: ${p.message}")
+        assert(p.cst.isDefined)
+    assert(resp.evaluatorJs.isDefined, "the traced evaluator should build with precedence too")
   }
 
   test("evaluate: a valid grammar and rejected input yields no CST, with a message") {
