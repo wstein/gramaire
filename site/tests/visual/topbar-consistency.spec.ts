@@ -1,15 +1,18 @@
 import { test, expect } from "@playwright/test";
 import { pages, setTheme } from "./pages";
 
-// Three cross-page regression checks added after this session found three
-// real bugs that shell.spec.ts's closed-state, default-theme, whole-page
-// screenshots never caught: a padding-doubling bug (small enough to fit
-// inside the 1% pixel-diff tolerance), a missing webfont (shifted text
-// metrics but nothing broke layout enough to fail a diff), and a search-
-// modal cascade-layer bug (only visible when the modal is OPEN, which the
-// snapshot suite never triggers). These assert the SPECIFIC properties that
-// broke, directly — not hoping a screenshot diff threshold catches the next
-// one of these.
+// Cross-page regression checks added after real bugs shell.spec.ts's
+// closed-state, default-theme, whole-page screenshots never caught: a
+// padding-doubling bug (small enough to fit inside the 1% pixel-diff
+// tolerance), a missing webfont (shifted text metrics but nothing broke
+// layout enough to fail a diff), a search-modal cascade-layer bug (only
+// visible when the modal is OPEN, which the snapshot suite never
+// triggers), a topbar-not-sticky bug (only visible after scrolling, which
+// a scrollTop-0 screenshot never triggers), and a search shortcut-badge
+// cascade-layer/missing-token bug (visible with the modal CLOSED — the
+// opposite state from the dialog-open bug above). These assert the
+// SPECIFIC properties that broke, directly — not hoping a screenshot diff
+// threshold catches the next one of these.
 
 const REPRESENTATIVE_PAGES = pages.filter((p) =>
   ["home", "docs-overview"].includes(p.name),
@@ -156,6 +159,59 @@ for (const { name, path } of REPRESENTATIVE_PAGES) {
       info.bodyScrollWidth,
       `${name}: page should not need significant horizontal scroll at 320px`,
     ).toBeLessThan(340);
+  });
+}
+
+for (const { name, path } of REPRESENTATIVE_PAGES) {
+  test(`topbar stays pinned to the top on scroll — ${name}`, async ({
+    page,
+  }) => {
+    // Starlight wraps its own Header slot in a position:fixed `.header` box
+    // (PageFrame.astro), so Docs/Specs/Tutorials/Brand always stayed pinned.
+    // The bare Landing/Lab pages mount <gramark-topbar> with no such
+    // wrapper — before gramark-topbar.mjs's own :host got `position:
+    // sticky`, it scrolled away with the rest of the page there, the one
+    // page pipeline this suite's screenshot tests (taken at scrollTop 0)
+    // never exercised.
+    await page.goto(path);
+    await page.locator("gramark-topbar").waitFor();
+    await page.evaluate(() => window.scrollBy(0, 800));
+    const y = await page.evaluate(
+      () => document.querySelector("gramark-topbar")!.getBoundingClientRect().y,
+    );
+    expect(y, `${name}: topbar should stay at the top after scrolling`).toBe(0);
+  });
+}
+
+for (const { name, path } of REPRESENTATIVE_PAGES) {
+  test(`search shortcut badge renders styled (padding/size) — ${name}`, async ({
+    page,
+  }) => {
+    // The ⌘K shortcut badge is Search.astro's own scoped `kbd` styling
+    // (`@layer starlight.core`), gated behind the same layer-order flip as
+    // the dialog/frame below, plus its font-size reads a Starlight core
+    // token (`--sl-text-2xs`) only ever defined on Starlight-templated
+    // pages — so on the bare Landing/Lab pipeline it silently fell back to
+    // inherited body text size with zero padding, an invisible pill rather
+    // than a visible badge. Only visible with the trigger closed (the
+    // shortcut hint), the opposite state from the dialog-open test below.
+    await page.goto(path);
+    const badge = page.locator("gramark-topbar button[data-open-modal] > kbd");
+    await badge.waitFor();
+    const paddingInline = await badge.evaluate((el) =>
+      parseFloat(getComputedStyle(el).paddingInlineStart),
+    );
+    expect(
+      paddingInline,
+      `${name}: shortcut badge should have real horizontal padding, not 0`,
+    ).toBeGreaterThan(0);
+    const fontSize = await badge.evaluate((el) =>
+      parseFloat(getComputedStyle(el).fontSize),
+    );
+    expect(
+      fontSize,
+      `${name}: shortcut badge font-size should be smaller than body text`,
+    ).toBeLessThan(16);
   });
 }
 
