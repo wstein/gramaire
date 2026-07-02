@@ -1,0 +1,199 @@
+/*
+ * The Lab's own styling — v1 slice only (two fixed panes + a tabbed
+ * drawer, no draggable splitter, no LR-walk stepper; both deferred to M5+
+ * per docs/playground-spec.md §6). Uses the same tokens.css custom
+ * properties as the rest of the site (var(--bg), var(--accent), etc.) so
+ * it themes identically under the shared light/dark toggle without its own
+ * separate wiring.
+ */
+
+.lab {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 49px); /* gramaire-topbar.mjs's own .bar height */
+  font-family: var(--font-ui);
+}
+
+.lab__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+
+.lab__method {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+.lab__method select {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 6px);
+  padding: 4px 8px;
+}
+
+.lab__status {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+}
+.lab__status--ok {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: var(--accent-softer);
+}
+.lab__status--fail {
+  color: var(--danger, #b91c1c);
+  border-color: color-mix(in srgb, var(--danger, #b91c1c) 40%, var(--border));
+}
+
+.lab__panes {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  border-bottom: 1px solid var(--border);
+}
+.lab__pane {
+  flex: 1 1 50%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.lab__pane + .lab__pane {
+  border-left: 1px solid var(--border);
+}
+.lab__pane-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+.lab__editor {
+  flex: 1 1 auto;
+  resize: none;
+  border: 0;
+  outline: none;
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+.lab__drawer {
+  flex: 0 0 clamp(220px, 30vh, 360px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.lab__tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0;
+  flex: none;
+  border-bottom: 1px solid var(--border);
+}
+.lab__tab {
+  all: unset;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  padding: 8px 12px;
+  border-radius: 6px 6px 0 0;
+}
+.lab__tab:hover {
+  color: var(--fg);
+}
+.lab__tab[aria-selected="true"] {
+  color: var(--accent);
+  font-weight: 600;
+  background: var(--bg-1);
+}
+.lab__panel {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 14px 18px;
+  font-size: 13px;
+}
+.lab__empty {
+  color: var(--fg-faint);
+  font-style: italic;
+}
+
+.lab__result {
+  font-size: 14px;
+}
+.lab__result--accept strong {
+  color: var(--accent);
+}
+.lab__result--reject strong {
+  color: var(--danger, #b91c1c);
+}
+
+.lab__mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.lab__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.lab__table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  padding: 4px 10px 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.lab__table td {
+  padding: 4px 10px 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.lab__tree {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre;
+}
+
+.lab__diagnostics {
+  margin: 0;
+  padding-left: 20px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.lab__diagnostics li {
+  margin-bottom: 10px;
+}
+
+@media (max-width: 720px) {
+  .lab__panes {
+    flex-direction: column;
+  }
+  .lab__pane + .lab__pane {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+}

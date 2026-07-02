@@ -382,18 +382,47 @@ Preact-side work, per the round-2 debate's "engine work gates only M4"):
   (`Table.States` is private and never escapes `Table.scala`). Deferred past
   v1 deliberately; tracked here so M5 doesn't rediscover it.
 
-**Implementation status (v1 engine slice — done):** `lab/src/main/scala/gramaire/lab/LabProtocol.scala`
-(the case classes + hand-written JSON codecs) and `LabApi.scala` (the
-composition pipeline above, as `LabApi.evaluate: LabRequest => LabResponse`)
-are built, compile and link on both `labJVM` and `labJS`, and pass 11 tests
-in `lab/.jvm/src/test/scala/gramaire/lab/LabApiSuite.scala` (accept/reject/
+**Implementation status (v1 — engine, JS export, UI, and CI, all done):**
+`lab/src/main/scala/gramaire/lab/LabProtocol.scala` (the case classes +
+hand-written JSON codecs) and `LabApi.scala` (the composition pipeline
+above, as `LabApi.evaluate: LabRequest => LabResponse`) are built, compile
+and link on both `labJVM` and `labJS`, and pass 11 tests in
+`lab/.jvm/src/test/scala/gramaire/lab/LabApiSuite.scala` (accept/reject/
 lexical-error/no-input/conflict/malformed-grammar cases, all three
 `Table.Method`s, and a `LabResponse.serialize` JSON round-trip) — JVM-only,
 matching `core/.jvm/src/test/scala/gramaire/ConformanceSuite.scala`'s own
-convention (reads `examples/calc.gram.md`). **Not yet done:** the
-`@JSExportTopLevel` wrapper around `LabApi.evaluate` (needs its own
-platform-specific source dir — see the note in `LabApi.scala` — not written
-yet), the Preact-side Worker wiring, and the JVM↔JS parity gate below.
+convention (reads `examples/calc.gram.md`).
+`lab/.js/src/main/scala/gramaire/lab/LabExports.scala` wraps
+`LabApi.evaluate` behind `@JSExportTopLevel("gramaireLabEvaluate")`, linked
+as an ES module (`build.sbt`'s `labJS` `.jsSettings`). `spec/lab-protocol-
+schema.json` is the hand-authored, `ajv`-validated JSON Schema for
+`LabRequest`/`LabResponse`; `site/scripts/gen-lab-types.mjs` generates
+`site/src/lab/protocol.ts` from it (never hand-written; CI diffs the
+committed output against a fresh regen, same pattern as `spec/cst-
+schema.json`). `site/src/lab/worker.ts` loads the linked engine and drives
+`gramaireLabEvaluate`; `site/src/lab/LabIsland.tsx` is the Preact + `@preact/
+signals` UI for the four v1 tabs (Result, Tokens, Parse tree, Diagnostics),
+mounted at `site/src/pages/lab.astro`. All of it is exercised against the
+real compiled engine (no mocking) by `site/tests/visual/lab.spec.ts`.
+
+One non-obvious build-pipeline finding worth preserving: Vite's own
+bundler/minifier (esbuild) corrupts the Scala.js linker's ES module output
+when it's statically `import`ed into a bundle — the same grammar source
+that built and parsed correctly via a direct Node import of the raw linked
+file produced a false `"lexical error in grammar source"` once bundled,
+because Vite's minification pass silently mistransformed the linker's
+output (confirmed by comparing bundled-chunk size, ~1.08 MB, against the
+raw linked file, ~2.2 MB). Fix: the engine is never routed through Vite's
+JS pipeline at all — `site/scripts/build-engine.mjs` copies the linked
+bundle to `site/public/lab/engine.mjs` (Astro's `public/`, copied
+byte-for-byte, gitignored, rebuilt by `npm run build:engine`), and
+`worker.ts` loads it via a runtime `import(/* @vite-ignore */ engineUrl)`
+instead of a static `import … from "./engine.mjs"`.
+
+**Not yet done:** the JVM↔JS parity gate below (the main remaining tracked
+gap for this slice), and the M5+ tabs (Evaluate, Grammar analysis, Parse
+trace, LR walk, All parses, Lowered Core) plus the `Glr.explain` refactor,
+draggable splitter, and LR-walk stepper.
 
 **JVM↔JS parity gate** (§8, "no-import" guardrail's sibling; not yet built):
 `Conformance.scala` already exists as differential-oracle infrastructure;

@@ -1,5 +1,6 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import preact from "@astrojs/preact";
 import { pageHeadTags } from "./src/shared/page-head.mjs";
 
 const base = process.env.CI ? "/gramaire/" : "/";
@@ -51,5 +52,6 @@ export default defineConfig({
         "./src/styles/starlight-bridge.css",
       ],
     }),
+    preact(),
   ],
 });

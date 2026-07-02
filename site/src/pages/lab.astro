@@ -1,0 +1,86 @@
+---
+// The Lab — a bare Astro page outside the Starlight shell, same reasoning
+// as index.astro (Landing): docs/playground-spec.md's v1 slice (Result,
+// Tokens, Parse tree, Diagnostics), backed by the real Scala engine
+// through a Web Worker (LabIsland.tsx), not the gold-standard mock's
+// stand-in Earley engine — see design/README.md's gold-standard boundary
+// (interaction/layout are gold-standard; computed data is the real Core's
+// job).
+import AppShell from "../components/AppShell.astro";
+import LabIsland from "../lab/LabIsland";
+import { pageHeadTags } from "../shared/page-head.mjs";
+import "../styles/tokens.css";
+import "../styles/starlight-bridge.css";
+
+const base = import.meta.env.BASE_URL;
+const headTags = pageHeadTags(base);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {
+      /*
+        Same FOUC-prevention seed as index.astro's own <head> — this page
+        also sits outside Starlight's Page.astro/ThemeProvider. See that
+        file's comment for the full rationale; kept identical here so both
+        bare pages agree on the same "starlight-theme" key.
+      */
+    }
+    <script is:inline>
+      (() => {
+        const stored = localStorage.getItem("starlight-theme");
+        const theme =
+          stored === "light" || stored === "dark"
+            ? stored
+            : matchMedia("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark";
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+    <title>Gramaire — Lab</title>
+    <meta name="description" content="Try Gramaire grammars in the browser." />
+    {headTags.map((t) => t.tag === "link" && <link {...t.attrs} />)}
+  </head>
+  <body>
+    <div class="shell">
+      <AppShell />
+      <main class="content">
+        <LabIsland client:load />
+      </main>
+    </div>
+  </body>
+</html>
+
+<style>
+  :global(html, body) {
+    margin: 0;
+    height: 100%;
+  }
+  :global(body) {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+  }
+  .shell {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  /*
+   * Unlike index.astro's normal document flow, the Lab genuinely needs the
+   * fixed-shell + internally-scrolling-region pattern the mock's SPA
+   * architecture uses everywhere — this is the one page that pattern was
+   * always meant for (see index.astro's own comment on why Landing
+   * deliberately does NOT use it).
+   */
+  .content {
+    flex: 1;
+    min-height: 0;
+  }
+</style>

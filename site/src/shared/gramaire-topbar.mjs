@@ -53,7 +53,7 @@ export function resolveHref(section, base = "/") {
   const b = base.endsWith("/") ? base : base + "/";
   if (section === "tutorial") return `${b}tutorials/intro/`;
   if (section === "docs") return `${b}docs/overview/`;
-  if (section === "lab") return null; // planned, not yet built — see docs/playground-spec.md
+  if (section === "lab") return `${b}lab/`;
   return b; // home
 }
 

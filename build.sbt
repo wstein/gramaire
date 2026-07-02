@@ -41,6 +41,15 @@ lazy val lab = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies += "org.scalameta" %%% "munit" % munitVersion % Test,
     testFrameworks += new TestFramework("munit.Framework"),
   )
+  .jsSettings(
+    // ESModule output so Vite/Astro can `import` the linked bundle directly
+    // in the Worker (site/src/lab/worker.ts) — no bundler-specific loader
+    // shim needed. No @main entry point exists; only the
+    // @JSExportTopLevel functions in the JS-only lab/.js/src/main/scala
+    // supplementary source dir (LabExports.scala) are called from JS.
+    scalaJSUseMainModuleInitializer := false,
+    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.ESModule)),
+  )
 
 lazy val labJS = lab.js
 lazy val labJVM = lab.jvm
