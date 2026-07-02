@@ -673,3 +673,38 @@ test("hovering/clicking a nonterminal box in the railroad diagram cross-links th
     "Term",
   );
 });
+
+test("the LR walk tab keeps its controls/action/stack panels pinned while only the step-history table scrolls", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+  await page.locator(".lab__pane--fill .lab__editor").fill("1+2*3+4*5-6+7*8-9");
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+  await page.click('button[role="tab"]:has-text("LR walk")');
+  await page.waitForSelector(".lab__walk-history");
+
+  const controls = page.locator(".lab__walk-controls");
+  const action = page.locator(".lab__walk-action");
+  const panes = page.locator(".lab__walk-panes");
+  const controlsTopBefore = (await controls.boundingBox())?.y;
+
+  await page
+    .locator(".lab__walk-history")
+    .evaluate((el) => (el.scrollTop = el.scrollHeight));
+
+  await expect(controls).toBeVisible();
+  await expect(action).toBeVisible();
+  await expect(panes).toBeVisible();
+  const controlsTopAfter = (await controls.boundingBox())?.y;
+  expect(controlsTopAfter).toBe(controlsTopBefore);
+
+  const scrollTop = await page
+    .locator(".lab__walk-history")
+    .evaluate((el) => el.scrollTop);
+  expect(scrollTop).toBeGreaterThan(0);
+});

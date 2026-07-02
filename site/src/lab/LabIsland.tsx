@@ -590,7 +590,13 @@ export default function LabIsland() {
             </button>
           ))}
         </div>
-        <div class="lab__panel">
+        <div
+          class={
+            activeTab.value === "walk"
+              ? "lab__panel lab__panel--walk"
+              : "lab__panel"
+          }
+        >
           {activeTab.value === "result" && <ResultPanel />}
           {activeTab.value === "evaluate" && <EvaluatePanel />}
           {activeTab.value === "tokens" && <TokensPanel />}
@@ -1297,30 +1303,32 @@ function LrWalkPanel() {
         </div>
       </div>
 
-      <table class="lab__table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {trace.map((s) => (
-            <tr
-              key={s.index}
-              class={
-                s.index === current
-                  ? "lab__walk-row lab__walk-row--current"
-                  : "lab__walk-row"
-              }
-              onClick={() => (walkStep.value = s.index)}
-            >
-              <td class="lab__mono">{s.index}</td>
-              <td class="lab__mono">{actionText(s.action)}</td>
+      <div class="lab__walk-history">
+        <table class="lab__table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>action</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {trace.map((s) => (
+              <tr
+                key={s.index}
+                class={
+                  s.index === current
+                    ? "lab__walk-row lab__walk-row--current"
+                    : "lab__walk-row"
+                }
+                onClick={() => (walkStep.value = s.index)}
+              >
+                <td class="lab__mono">{s.index}</td>
+                <td class="lab__mono">{actionText(s.action)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
