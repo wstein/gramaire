@@ -23,7 +23,16 @@
 
   --sl-color-white: var(--fg);
   --sl-color-black: var(--bg);
-  --sl-color-gray-1: var(--bg-3);
+  /*
+   * gray-1 is a TEXT color in Starlight's own palette (near-white in its
+   * dark-first default, near-black in its light override — see the
+   * search trigger, the Pagefind result text, and the language/theme
+   * <Select>), not a background tint. Mapping it to a --bg-* token gave
+   * washed-out, low-contrast search placeholder text once the search
+   * trigger's own bordered box (which had been hiding the contrast
+   * issue) was stripped for the gold-standard borderless style below.
+   */
+  --sl-color-gray-1: var(--fg-muted);
   --sl-color-gray-2: var(--bg-2);
   --sl-color-gray-3: var(--border-strong);
   --sl-color-gray-4: var(--border);
@@ -39,9 +48,48 @@
   --sl-color-hairline: var(--border);
   --sl-color-hairline-shade: var(--border-strong);
   --sl-color-text: var(--fg-secondary);
+
+  /*
+   * Starlight always wraps the Header override (AppShell.astro) in its
+   * own `.header` box (PageFrame.astro), which carries its own
+   * `padding: var(--sl-nav-pad-y) var(--sl-nav-pad-x)` — doubling up on
+   * AppShell's own `.topbar` padding and showing as extra space around
+   * the topbar on every Starlight-templated page (Docs/Specs/Tutorials/
+   * Brand) that the bare Landing page, with no such wrapper, never had.
+   * Zeroing these here (an unlayered rule beats Starlight's own
+   * `@layer starlight.base` unconditionally) makes `.topbar` the only
+   * padding source everywhere. `--sl-nav-height` is left alone — it
+   * already matches `.topbar`'s natural rendered height, so the fixed
+   * header's content offset (`.main-frame`'s padding-top) stays correct.
+   */
+  --sl-nav-pad-x: 0px;
+  --sl-nav-pad-y: 0px;
 }
 
-.site-title {
-  font-weight: 700;
-  letter-spacing: -0.04em;
+/*
+ * Starlight's own `Search.astro` gives its trigger button a bordered,
+ * filled pill at desktop widths (`@layer starlight.core`) — the
+ * gold-standard topbar has no such box, just the icon, placeholder text,
+ * and a light `⌘K` badge inline against the topbar itself. Unlayered so
+ * it wins unconditionally over Starlight's own media-query-gated rule.
+ */
+.search button[data-open-modal] {
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  max-width: none;
+  padding-inline: 0;
+  /*
+   * Starlight's own desktop-width rule (>=50rem, which every topbar
+   * layout here qualifies for) colors this button with --sl-color-gray-2
+   * — mapped to --bg-2, a background tint, not a text color, so the
+   * placeholder text and icon were nearly invisible. --sl-color-gray-2
+   * is used far too widely elsewhere (hover fills, code-block chrome) to
+   * safely remap wholesale, so fix it here, scoped to just this button.
+   */
+  color: var(--fg-muted);
+}
+.search button[data-open-modal]:hover {
+  border-color: transparent;
+  color: var(--fg-secondary);
 }
