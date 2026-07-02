@@ -73,6 +73,22 @@
 }
 
 /*
+ * Starlight's own reset.css sets `body { line-height: var(--sl-line-height) }`
+ * (1.75) — only loaded on Starlight-templated pages, via its own Page.astro.
+ * Search.astro's slotted Pagefind results inherit line-height from body and
+ * don't set their own, so on the bare Landing page they fell back to the UA
+ * default ("normal", ~1.2) instead: result-item text rendered visibly
+ * shorter/tighter there than on Starlight pages. Scoped to the dialog, NOT
+ * set on `body` globally — Landing's own UI text (hero, tiles, buttons)
+ * doesn't set its own line-height either, and inherited 1.75 breaks its
+ * layout just as much as the mismatch broke Pagefind's (verified: first
+ * attempt here regressed Home's own screenshot baseline).
+ */
+gramaire-topbar dialog {
+  line-height: 1.75;
+}
+
+/*
  * Starlight's own `Search.astro` gives its trigger button a bordered,
  * filled pill at desktop widths (`@layer starlight.core`) — the
  * gold-standard topbar has no such box, just the icon, placeholder text,

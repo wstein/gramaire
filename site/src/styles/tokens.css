@@ -13,29 +13,40 @@
  * effect of Tailwind's Preflight, even though this site never used a single
  * Tailwind utility class; that framework was removed (it directly caused a
  * cascade-layer bug — see starlight-bridge.css's dialog-frame comment), but
- * several components (tiles, buttons, code blocks) turned out to silently
- * depend on its box-sizing/margin/padding reset. Made explicit and owned
- * here instead of resurrecting an otherwise-unused framework for it.
+ * several components (tiles, buttons, Expressive Code's rendered blocks,
+ * Starlight's own asides/callouts) turned out to silently depend on its
+ * box-sizing/margin/border/padding reset.
  *
  * Wrapped in `@layer reset`, NOT left unlayered: an unlayered rule beats
  * every layer unconditionally, which broke every Starlight page's own
  * prose spacing on the first attempt here — Starlight's own typography
  * rules are themselves layered specifically so they can override ITS OWN
- * base reset, and an unlayered `margin: 0` sat above even that. Declaring
- * this layer FIRST (tokens.css loads before every other stylesheet on both
- * pipelines) makes it the lowest-priority layer in the whole document, so
- * anything Starlight declares afterward — layered or not — still wins,
- * exactly like Tailwind's own `@layer base` did before it was removed.
+ * base reset, and an unlayered `margin: 0` sat above even that.
+ *
+ * border/padding are excluded on Pagefind's own subtree specifically
+ * (verified: without this exclusion, the search dialog's actively-typing
+ * state — the input's border/icon padding, individual result-item sizing
+ * — differed between Landing and Starlight pages). `.pagefind-ui--reset`
+ * (from @pagefind/default-ui, wired in by Search.astro) ships its own
+ * internal box-sizing reset and expects its own calc()-based padding/
+ * border (`--pagefind-ui-scale` etc.) to reach the DOM untouched — margin
+ * is NOT excluded there, since Starlight's own native reset.css (which
+ * Pagefind IS built assuming, having shipped as a Starlight plugin) reaches
+ * `margin: 0` into every element including third-party widgets like this
+ * one; only its border/padding scope stops at the component boundary.
  */
-
 @layer reset {
   *,
   *::before,
-  *::after,
-  ::backdrop {
+  *::after {
     box-sizing: border-box;
-    border: 0 solid;
     margin: 0;
+  }
+  *:not(.pagefind-ui--reset):not(.pagefind-ui--reset *),
+  *:not(.pagefind-ui--reset):not(.pagefind-ui--reset *)::before,
+  *:not(.pagefind-ui--reset):not(.pagefind-ui--reset *)::after,
+  ::backdrop {
+    border: 0 solid;
     padding: 0;
   }
 }

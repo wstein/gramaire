@@ -84,6 +84,37 @@ test("the Google Fonts stylesheet loads on every page template", async ({
   }
 });
 
+test("search results render with identical text metrics across page pipelines", async ({
+  page,
+}) => {
+  // Caught (after the two tests above already passed) by a user report of
+  // a subtle visual difference while actively typing a query — not the
+  // closed trigger, not the freshly-opened empty dialog, both of which
+  // this file already covered. Root cause was two-fold: the reset added
+  // when Tailwind was removed clobbered Pagefind's own border/padding, and
+  // separately Search.astro's slotted results inherit line-height from
+  // body, which Landing's own body style never set explicitly (Starlight's
+  // own reset.css sets it, but only loads on Starlight-templated pages).
+  const rects: Record<string, { w: number; h: number }> = {};
+  for (const { name, path } of REPRESENTATIVE_PAGES) {
+    await page.goto(path);
+    await page.locator("gramaire-topbar button[data-open-modal]").click();
+    const input = page.locator("gramaire-topbar .pagefind-ui__search-input");
+    await input.click();
+    await input.type("grammar", { delay: 20 });
+    const result = page.locator("gramaire-topbar .pagefind-ui__result").first();
+    await result.waitFor({ state: "visible" });
+    rects[name] = await result.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { w: r.width, h: r.height };
+    });
+  }
+  const [first, ...rest] = REPRESENTATIVE_PAGES.map((p) => rects[p.name]);
+  for (const r of rest) {
+    expect(r).toEqual(first);
+  }
+});
+
 for (const { name, path } of REPRESENTATIVE_PAGES) {
   test(`search dialog renders styled (border/padding) when open — ${name}`, async ({
     page,
