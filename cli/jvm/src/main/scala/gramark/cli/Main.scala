@@ -304,8 +304,16 @@ object Main:
   // placeholder) — `Diagnostic.render`'s `-->` line and caret frame both need the source text in
   // the same coordinate space the diagnostics' spans are relative to, which is always `Lr.toFenced`
   // applied to the document (a no-op on the standard already-fenced `.grmk.md` case).
+  //
+  // `toFenced` is NOT a no-op for a fence-free `.grmk` source: it hoists every token definition
+  // above the productions and drops comments, reordering lines. When that happens, a diagnostic's
+  // line:col is a position in that reordered projection, not in the real file on disk — labeling
+  // the `-->` line as such (rather than silently naming the real file) keeps the caret frame useful
+  // for pinpointing the token without implying "open the file at this exact line".
   private def renderDiags(diags: Vector[Diagnostic], file: String, md: String): String =
-    Diagnostic.renderAll(diags, file, Lr.toFenced(md))
+    val fenced = Lr.toFenced(md)
+    val sourceName = if fenced == md then file else s"$file (normalized projection)"
+    Diagnostic.renderAll(diags, sourceName, fenced)
 
   private def backendNames: String = BackendRegistry.backends.map(_.name).mkString(", ")
 
