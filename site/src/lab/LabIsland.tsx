@@ -2,6 +2,7 @@ import { signal, computed } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import type {
   CstNode,
+  DiagnosticInfo,
   LabRequest,
   LabResponse,
   LrStepInfo,
@@ -30,7 +31,6 @@ type Tab =
   | "tree"
   | "trace"
   | "walk"
-  | "diagnostics"
   | "forest"
   | "lowered"
   | "analysis";
@@ -80,7 +80,7 @@ const DRAWER_MAX = 640;
 
 // The two source textareas' live DOM nodes, set via callback refs where they render (inside the
 // main component) — plain module-level mutables, same convention as `worker`/`requestId` below,
-// so DiagnosticsPanel/ResultPanel (separate top-level components) can reach them to select a
+// so DiagnosticsList/ResultPanel (separate top-level components) can reach them to select a
 // diagnostic's span without threading a prop down.
 let grammarEditorEl: HTMLTextAreaElement | null = null;
 let inputEditorEl: HTMLTextAreaElement | null = null;
@@ -421,17 +421,6 @@ export default function LabIsland() {
             </select>
           </label>
         )}
-        <span
-          class={`lab__status lab__status--${pending.value ? "pending" : buildStatus.value}`}
-        >
-          {pending.value
-            ? "building…"
-            : buildStatus.value === "ok"
-              ? "build ok"
-              : buildStatus.value === "fail"
-                ? "build failed"
-                : "—"}
-        </span>
       </div>
 
       <div class="lab__panes" ref={panesRef}>
@@ -525,7 +514,6 @@ export default function LabIsland() {
               "tree",
               "trace",
               "walk",
-              "diagnostics",
               "forest",
               "lowered",
               "analysis",
@@ -550,7 +538,6 @@ export default function LabIsland() {
           {activeTab.value === "tree" && <TreePanel />}
           {activeTab.value === "trace" && <ParseTracePanel />}
           {activeTab.value === "walk" && <LrWalkPanel />}
-          {activeTab.value === "diagnostics" && <DiagnosticsPanel />}
           {activeTab.value === "forest" && <AllParsesPanel />}
           {activeTab.value === "lowered" && <LoweredCorePanel />}
           {activeTab.value === "analysis" && <GrammarAnalysisPanel />}
@@ -562,19 +549,51 @@ export default function LabIsland() {
 }
 
 // Always visible regardless of which tab is active (unlike the automaton stats otherwise buried
-// inside the Grammar analysis tab alone) — a user editing the grammar from any tab can watch state/
-// conflict counts change live. Reads data every response already carries (analysis.perMethod,
-// parse.tokens) — no extra request, no protocol change.
+// inside the Grammar analysis tab alone) — a user editing the grammar from any tab can watch
+// build/state/conflict status change live. Reads data every response already carries
+// (buildOk/diagnostics, analysis.perMethod, parse.tokens) — no extra request, no protocol change.
+// The build-status badge itself used to live in the toolbar (same .lab__status class/text, just
+// relocated) — this is the one place build state is shown now, alongside the stats it explains.
 function StatusBar() {
   const r = response.value;
   const stats = r?.analysis?.perMethod[method.value];
   const tokenCount = r?.parse?.tokens.length;
+  // diagnostics carries warnings even when buildOk is true (protocol.ts's own doc comment on
+  // LabResponse.diagnostics) — count each severity separately rather than assuming "any entry
+  // present" means "build failed".
+  const errorCount =
+    r?.diagnostics.filter((d) => d.severity === "error").length ?? 0;
+  const warningCount =
+    r?.diagnostics.filter((d) => d.severity === "warning").length ?? 0;
   return (
     <div class="lab__statusbar">
-      <span>
-        {stats
-          ? `${method.value}(1) · ${stats.states} state${stats.states === 1 ? "" : "s"} · ${stats.conflicts} conflict${stats.conflicts === 1 ? "" : "s"}`
-          : "—"}
+      <span class="lab__statusbar-left">
+        <span
+          class={`lab__status lab__status--${pending.value ? "pending" : buildStatus.value}`}
+        >
+          {pending.value
+            ? "building…"
+            : buildStatus.value === "ok"
+              ? "build ok"
+              : buildStatus.value === "fail"
+                ? "build failed"
+                : "—"}
+        </span>
+        {errorCount > 0 && (
+          <span class="lab__statusbar-errors">
+            {errorCount} error{errorCount === 1 ? "" : "s"}
+          </span>
+        )}
+        {warningCount > 0 && (
+          <span class="lab__statusbar-warnings">
+            {warningCount} warning{warningCount === 1 ? "" : "s"}
+          </span>
+        )}
+        <span>
+          {stats
+            ? `${method.value}(1) · ${stats.states} state${stats.states === 1 ? "" : "s"} · ${stats.conflicts} conflict${stats.conflicts === 1 ? "" : "s"}`
+            : "—"}
+        </span>
       </span>
       <span class="lab__statusbar-right">
         {startRule.value && <span>start: {startRule.value}</span>}
@@ -591,7 +610,7 @@ function StatusBar() {
 function tabLabel(tab: Tab): string {
   switch (tab) {
     case "result":
-      return "Result";
+      return "Output";
     case "evaluate":
       return "Evaluate";
     case "tokens":
@@ -602,8 +621,6 @@ function tabLabel(tab: Tab): string {
       return "Parse trace";
     case "walk":
       return "LR walk";
-    case "diagnostics":
-      return "Diagnostics";
     case "forest":
       return "All parses";
     case "lowered":
@@ -624,12 +641,39 @@ function actionText(action: LrStepInfo["action"]): string {
   }
 }
 
+// `r.diagnostics` carries errors (only when !buildOk) AND warnings (either way — an unreachable
+// rule, an unused token class, etc. don't fail the build) — see protocol.ts's own doc comment on
+// LabResponse.diagnostics. Folded directly into Output instead of a separate Diagnostics tab: on a
+// build failure this is the actual reason, not a "go check another tab" pointer; on a successful
+// build it's the only place a warning is ever visible at all.
 function ResultPanel() {
   const r = response.value;
   if (!r) return <p class="lab__empty">Building…</p>;
+
+  const diagnosticsSection = r.diagnostics.length > 0 && (
+    <div class="lab__analysis-section">
+      <div class="lab__analysis-heading">
+        {r.buildOk ? "warnings" : "diagnostics"}
+      </div>
+      <DiagnosticsList diagnostics={r.diagnostics} />
+    </div>
+  );
+
   if (!r.buildOk)
-    return <p class="lab__empty">Grammar did not build — see Diagnostics.</p>;
-  if (!r.parse) return <p class="lab__empty">No input given — compile-only.</p>;
+    return (
+      <div>
+        {diagnosticsSection || <p class="lab__empty">Grammar did not build.</p>}
+      </div>
+    );
+
+  if (!r.parse)
+    return (
+      <div>
+        <p class="lab__empty">No input given — compile-only.</p>
+        {diagnosticsSection}
+      </div>
+    );
+
   const tokens = r.parse.tokens;
   return (
     <div>
@@ -655,6 +699,7 @@ function ResultPanel() {
           )}
         </div>
       </div>
+      {diagnosticsSection}
       {tokens.length > 0 && (
         <div class="lab__analysis-section">
           <div class="lab__analysis-heading">token stream</div>
@@ -828,10 +873,10 @@ function CstNodeView({
   );
 }
 
-function DiagnosticsPanel() {
-  const diagnostics = response.value?.diagnostics ?? [];
-  if (diagnostics.length === 0)
-    return <p class="lab__empty">No diagnostics.</p>;
+// Shared by ResultPanel's Output tab — errors and warnings render identically, distinguished only
+// by each entry's own `severity` chip. Used to be a standalone Diagnostics tab's whole panel; now
+// it's just the list, since Output is the only place diagnostics are shown at all.
+function DiagnosticsList({ diagnostics }: { diagnostics: DiagnosticInfo[] }) {
   return (
     <ul class="lab__diagnostics">
       {diagnostics.map((d, i) => {

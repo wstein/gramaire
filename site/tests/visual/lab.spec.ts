@@ -44,8 +44,9 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await expect(page.locator(".lab__tree")).toContainText("Expr");
   await expect(page.locator(".lab__tree")).not.toContainText("rule 0");
 
-  await page.click('button[role="tab"]:has-text("Diagnostics")');
-  await expect(page.locator(".lab__panel")).toContainText("No diagnostics");
+  // Diagnostics is folded into Output now, not a separate tab — a clean build shows none.
+  await page.click('button[role="tab"]:has-text("Output")');
+  await expect(page.locator(".lab__diagnostics")).toHaveCount(0);
 
   await page.click('button[role="tab"]:has-text("All parses")');
   await expect(page.locator(".lab__forest-status")).toContainText(
@@ -244,13 +245,13 @@ test("the Lab reflects a rejected input", async ({ page }) => {
   });
 
   await page.locator(".lab__pane--fill .lab__editor").fill("1+");
-  await page.click('button[role="tab"]:has-text("Result")');
+  await page.click('button[role="tab"]:has-text("Output")');
   await expect(page.locator(".lab__result")).toContainText("Rejected", {
     timeout: 5000,
   });
 });
 
-test("the Lab reflects a grammar that fails to build, with real diagnostics", async ({
+test("the Lab reflects a grammar that fails to build, with diagnostics folded into Output", async ({
   page,
 }) => {
   await page.goto("/lab/");
@@ -264,8 +265,39 @@ test("the Lab reflects a grammar that fails to build, with real diagnostics", as
   await expect(page.locator(".lab__status")).toHaveText("build failed", {
     timeout: 5000,
   });
-  await page.click('button[role="tab"]:has-text("Diagnostics")');
-  await expect(page.locator(".lab__diagnostics li")).toHaveCount(1);
+  // Output is the default/active tab already — no separate Diagnostics tab to switch to.
+  // .lab__diagnostic (singular), not the generic "li" — a diagnostic's own notes are also <li>s,
+  // nested one level deeper (.lab__diagnostic-notes), so a bare "li" selector overcounts.
+  await expect(page.locator(".lab__diagnostic")).toHaveCount(1);
+  await expect(
+    page.locator('button[role="tab"]:has-text("Diagnostics")'),
+  ).toHaveCount(0);
+  await expect(page.locator(".lab__statusbar-errors")).toHaveText("1 error");
+});
+
+test("a successful build still surfaces warnings in Output and the status bar", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+
+  // An unreachable rule warns without failing the build (LabResponse.diagnostics carries warnings
+  // "either way" — protocol.ts's own doc comment).
+  const md =
+    "# Warn\n\n## Expr\n\n```gramark\nExpr\n: NUMBER\n```\n\n## Unused\n\n```gramark\nUnused\n: NUMBER\n```\n\n## Tokens\n\n```gramark tokens\nNUMBER : /[0-9]+/\n```\n";
+  await page.locator(".lab__pane--grammar .lab__editor").fill(md);
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+
+  await expect(page.locator(".lab__diagnostic")).toHaveCount(1);
+  await expect(page.locator(".lab__chip--warning")).toHaveText("warning");
+  await expect(page.locator(".lab__statusbar-errors")).toHaveCount(0);
+  await expect(page.locator(".lab__statusbar-warnings")).toHaveText(
+    "1 warning",
+  );
 });
 
 test("the Lab's splitter resizes the panes and clamps at 28%/72%", async ({
@@ -374,7 +406,7 @@ test("the Lab's example switcher loads a real examples/*.grmk.md fixture", async
   await expect(page.locator(".lab__pane--fill .lab__editor")).toHaveValue(
     /"a": 1/,
   );
-  await page.click('button[role="tab"]:has-text("Result")');
+  await page.click('button[role="tab"]:has-text("Output")');
   await expect(page.locator(".lab__result")).toContainText("Accepted");
 });
 
@@ -437,13 +469,15 @@ test("the Lab shows a persistent status bar with live automaton stats, visible a
   });
 
   const bar = page.locator(".lab__statusbar");
+  // The build-status badge lives in the status bar now, not the toolbar.
+  await expect(bar.locator(".lab__status")).toHaveText("build ok");
   await expect(bar).toContainText(
     /Canonical\(1\) · \d+ states? · 0 conflicts?/,
   );
   await expect(bar).toContainText("5 tokens"); // "1+2*3" -> 5 tokens
 
   // Lives outside .lab__panel, not reset by a tab switch.
-  await page.click('button[role="tab"]:has-text("Diagnostics")');
+  await page.click('button[role="tab"]:has-text("Tokens")');
   await expect(bar).toContainText(
     /Canonical\(1\) · \d+ states? · 0 conflicts?/,
   );
