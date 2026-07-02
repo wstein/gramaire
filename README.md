@@ -22,7 +22,7 @@ Expr
   | Term
 ```
 
-![Railroad diagram for the Expr rule](examples/diagrams/calc-js/expr.svg)
+![Railroad diagram for the Expr rule](examples/diagrams-calc-js/expr.svg)
 
 On GitHub that fence renders as a code block; to Gramark it is the `Expr`
 rule. The prose around it, the railroad diagram beside it, and the

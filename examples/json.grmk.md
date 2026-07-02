@@ -54,7 +54,7 @@ Value
   | 'null'    {% (c) => ({ tag: "Null" }) %}
 ```
 
-![Railroad diagram for the Value rule](diagrams/json/value.svg)
+![Railroad diagram for the Value rule](diagrams-json/value.svg)
 
 ## Object
 
@@ -68,7 +68,7 @@ Object
   | '{' Members '}'    {% (c) => ({ tag: "Obj", members: c.members }) %}
 ```
 
-![Railroad diagram for the Object rule](diagrams/json/object.svg)
+![Railroad diagram for the Object rule](diagrams-json/object.svg)
 
 ## Members
 
@@ -80,7 +80,7 @@ Members
   | Members ',' Member    {% (c) => [...c.members, c.member] %}
 ```
 
-![Railroad diagram for the Members rule](diagrams/json/members.svg)
+![Railroad diagram for the Members rule](diagrams-json/members.svg)
 
 ## Member
 
@@ -91,7 +91,7 @@ Member
   : STRING ':' Value    {% (c) => ({ key: JSON.parse(c.string), value: c.value }) %}
 ```
 
-![Railroad diagram for the Member rule](diagrams/json/member.svg)
+![Railroad diagram for the Member rule](diagrams-json/member.svg)
 
 ## Array
 
@@ -104,7 +104,7 @@ Array
   | '[' Elements ']'    {% (c) => ({ tag: "Arr", elements: c.elements }) %}
 ```
 
-![Railroad diagram for the Array rule](diagrams/json/array.svg)
+![Railroad diagram for the Array rule](diagrams-json/array.svg)
 
 ## Elements
 
@@ -116,7 +116,7 @@ Elements
   | Elements ',' Value    {% (c) => [...c.elements, c.value] %}
 ```
 
-![Railroad diagram for the Elements rule](diagrams/json/elements.svg)
+![Railroad diagram for the Elements rule](diagrams-json/elements.svg)
 
 ## Error messages
 

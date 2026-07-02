@@ -36,7 +36,7 @@ Readme
   : SentenceList    {% (c) => ({ tag: "Readme", sentences: c.sentencelist }) %}
 ```
 
-![Railroad diagram for the Readme rule](diagrams/readme/readme.svg)
+![Railroad diagram for the Readme rule](diagrams-readme/readme.svg)
 
 ## SentenceList
 
@@ -48,7 +48,7 @@ SentenceList
   | SentenceList Sentence     {% (c) => [...c.sentencelist, c.sentence] %}
 ```
 
-![Railroad diagram for the SentenceList rule](diagrams/readme/sentencelist.svg)
+![Railroad diagram for the SentenceList rule](diagrams-readme/sentencelist.svg)
 
 ## Sentence
 
@@ -61,7 +61,7 @@ Sentence
   : Words '.'    {% (c) => ({ tag: "Sentence", words: c.words }) %}
 ```
 
-![Railroad diagram for the Sentence rule](diagrams/readme/sentence.svg)
+![Railroad diagram for the Sentence rule](diagrams-readme/sentence.svg)
 
 ## Words
 
@@ -71,7 +71,7 @@ Words
   | Words WORD    {% (c) => [...c.words, c.word] %}
 ```
 
-![Railroad diagram for the Words rule](diagrams/readme/words.svg)
+![Railroad diagram for the Words rule](diagrams-readme/words.svg)
 
 ## Error messages
 

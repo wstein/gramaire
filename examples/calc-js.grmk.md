@@ -26,7 +26,7 @@ Expr
   | Term
 ```
 
-![Railroad diagram for the Expr rule](diagrams/calc-js/expr.svg)
+![Railroad diagram for the Expr rule](diagrams-calc-js/expr.svg)
 
 ## Term
 
@@ -37,7 +37,7 @@ Term
   | Factor
 ```
 
-![Railroad diagram for the Term rule](diagrams/calc-js/term.svg)
+![Railroad diagram for the Term rule](diagrams-calc-js/term.svg)
 
 ## Factor
 
@@ -47,7 +47,7 @@ Factor
   | NUMBER        {% (c) => parseFloat(c.number) %}
 ```
 
-![Railroad diagram for the Factor rule](diagrams/calc-js/factor.svg)
+![Railroad diagram for the Factor rule](diagrams-calc-js/factor.svg)
 
 ## Generated tables
 

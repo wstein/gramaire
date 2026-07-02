@@ -93,6 +93,20 @@ class GramarkCheckSuite extends munit.FunSuite:
     assert(fails.exists(_.contains("stale tables")))
   }
 
+  test("fmt: sidecar diagrams are written under diagrams-<stem> and linked from the document") {
+    val dir = java.nio.file.Files.createTempDirectory("gramark-diagrams")
+    val file = dir.resolve("sample.grmk.md")
+    val src =
+      "# T\n\n## General settings\n\n```gramark\n%name T\n```\n\n## Value\n\n![Railroad diagram for the Value rule](diagrams/value.svg)\n\n```gramark\nValue\n  : 'x'\n```\n\n## Error messages\n\nx\n\n## Generated tables\n\n| a |\n"
+    java.nio.file.Files.writeString(file, src)
+
+    val doc = GramarkCheck.parse(src)
+    val _ = GramarkCheck.fmt(file.toString, doc, GramarkCheck.DiagramMode.Sidecar)
+
+    assert(java.nio.file.Files.exists(dir.resolve("diagrams-sample/value.svg")))
+    assert(java.nio.file.Files.readString(file).contains("](diagrams-sample/value.svg)"))
+  }
+
   test("sha256/longestBacktickRun/lockPathFor: the small building blocks") {
     assertEquals(
       GramarkCheck.sha256(""),
