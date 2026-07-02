@@ -2,7 +2,7 @@ package gramaire.cli
 
 import java.nio.file.{Files, Path}
 import java.security.MessageDigest
-import gramaire.{Analyze, Railroad}
+import gramaire.{Analyze, Lr, Railroad}
 
 // Verifies the three guarantees from the Gramaire `fmt` output contract:
 //   1. STRUCTURE - canonical-form subset (H1-first, section order, fence
@@ -28,9 +28,12 @@ object GramaireCheck:
   // ---- Domain types (mirror the prior TypeScript/reference-implementation ADTs) -------------
 
   final case class Block(
-      info: String, // full info string, e.g. "gramaire precedence"
+      info: String, // full info string, e.g. "gramaire" or "mermaid" — never a suffixed "gramaire …"
       lang: String, // first word of info, e.g. "gramaire"
-      nonterminal: Option[String],
+      // `Some` only for a legal (unsuffixed) `gramaire` fence, classified by its own content shape —
+      // `None` for every other fence (a diagram embed, an illustrative snippet, …).
+      kind: Option[Lr.FenceKind],
+      nonterminal: Option[String], // `Some` only when `kind` is `Rule`
       content: String,
       fenceLen: Int,
       startLine: Int
@@ -107,13 +110,17 @@ object GramaireCheck:
                 content += lines(j)
                 j += 1
           val lang = info.split("\\s+", -1).headOption.getOrElse("")
+          val contentStr = content.result().mkString("\n")
+          // A suffixed opener (`gramaire tokens`, …) is legacy and never classified — it fails
+          // `checkStructure` outright instead of being silently treated as a rule/sidecar.
+          val kind = if info == "gramaire" then Some(Lr.classifyFenceContent(contentStr)) else None
           val nonterminal =
-            if info == "gramaire" then
-              val contentLines = content.result()
-              val first = contentLines.find(_.trim.nonEmpty).getOrElse("")
-              first.trim.split("\\s+", -1).headOption.filter(_.nonEmpty)
+            if kind.contains(Lr.FenceKind.Rule) then
+              contentStr.split("\n", -1).toVector.find(_.trim.nonEmpty).flatMap { first =>
+                first.trim.split("\\s+", -1).headOption.filter(_.nonEmpty)
+              }
             else None
-          blocks += Block(info, lang, nonterminal, content.result().mkString("\n"), len, i + 1)
+          blocks += Block(info, lang, kind, nonterminal, contentStr, len, i + 1)
           i = j + 1
         case headingRe(hashes, text) =>
           headings += Heading(hashes.length, text, i + 1)
@@ -126,13 +133,9 @@ object GramaireCheck:
   def grammarHashes(doc: Doc): GrammarHashes =
     var ruleHashes = Map.empty[String, String]
     val grammarParts = Vector.newBuilder[String]
-    for b <- doc.blocks if b.lang == "gramaire" do
-      if b.info == "gramaire" then
-        b.nonterminal.foreach(nt =>
-          ruleHashes = ruleHashes.updated(nt, sha256(s"lr\n${b.content}"))
-        )
-      if b.info == "gramaire" || b.info == "gramaire precedence" || b.info == "gramaire tokens" then
-        grammarParts += s"${b.info}\n${b.content}"
+    for b <- doc.blocks; k <- b.kind do
+      b.nonterminal.foreach(nt => ruleHashes = ruleHashes.updated(nt, sha256(s"lr\n${b.content}")))
+      grammarParts += s"$k\n${b.content}"
     GrammarHashes(ruleHashes, sha256(grammarParts.result().mkString("\n--\n")))
 
   // ---- Gate 1: structure ----------------------------------------------------
@@ -156,8 +159,7 @@ object GramaireCheck:
     // section, then Error messages and Generated tables. Only the H1 and H2
     // layers are structural — `###`+ headings are deliberately ignored here
     // (free presentational grouping; ADR D29).
-    val ruleNames =
-      doc.blocks.filter(b => b.info == "gramaire" && b.nonterminal.isDefined).flatMap(_.nonterminal)
+    val ruleNames = doc.blocks.filter(_.kind.contains(Lr.FenceKind.Rule)).flatMap(_.nonterminal)
     val h2 = doc.headings.filter(_.level == 2).map(_.text)
     val tail = if h2.contains("Precedence") then "Precedence" +: expectedTail else expectedTail
     val expected =
@@ -173,6 +175,15 @@ object GramaireCheck:
       val want = math.max(3, 1 + longestBacktickRun(b.content))
       if b.fenceLen != want then
         fails += s"fence at line ${b.startLine} uses ${b.fenceLen} backticks; contract requires $want"
+
+    // A suffixed opener (`gramaire tokens`, `gramaire errors`, …) is a removed notation: every role
+    // is now carried by a bare ```gramaire fence's own content shape.
+    for b <- doc.blocks if b.lang == "gramaire" && b.info != "gramaire" do
+      fails += s"legacy `${b.info}` fence at line ${b.startLine}; merge its content into a bare " +
+        "```gramaire fence — run `gramaire fmt --migrate`"
+
+    if Lr.nameOf(doc.src).isEmpty then
+      fails += "missing required `%name` directive (add `%name <name>` inside a General-settings ```gramaire fence)"
 
     if !doc.src.endsWith("\n") then fails += "file does not end with a newline (MD047)"
     if doc.src.endsWith("\n\n") then fails += "file ends with more than one trailing newline"
@@ -385,7 +396,7 @@ object GramaireCheck:
     val GrammarHashes(ruleHashes, grammarSha256) = grammarHashes(doc)
     val nonterminals = ruleHashes.keySet
     var contentByRule = Map.empty[String, String]
-    for b <- doc.blocks if b.info == "gramaire" do
+    for b <- doc.blocks if b.kind.contains(Lr.FenceKind.Rule) do
       b.nonterminal.foreach(nt => contentByRule = contentByRule.updated(nt, b.content))
 
     // Diagrams live in a per-grammar subdirectory (`diagrams/<stem>/`) so
@@ -400,7 +411,8 @@ object GramaireCheck:
       if !Files.exists(dir) then Files.createDirectories(dir)
       // Iterate in a stable order (matches source declaration order) rather
       // than hash-map order, so re-running is byte-for-byte a no-op.
-      val ntOrder = doc.blocks.filter(_.info == "gramaire").flatMap(_.nonterminal).distinct
+      val ntOrder =
+        doc.blocks.filter(_.kind.contains(Lr.FenceKind.Rule)).flatMap(_.nonterminal).distinct
       for nt <- ntOrder do
         val path = s"diagrams/$stem/${nt.toLowerCase}.svg"
         Files.writeString(
@@ -414,7 +426,8 @@ object GramaireCheck:
 
     // Regenerate the derived document regions: the FIRST/FOLLOW table and
     // the per-rule diagrams (in the chosen mode).
-    val ntOrderForTables = doc.blocks.filter(_.info == "gramaire").flatMap(_.nonterminal).distinct
+    val ntOrderForTables =
+      doc.blocks.filter(_.kind.contains(Lr.FenceKind.Rule)).flatMap(_.nonterminal).distinct
     val prods = ntOrderForTables.map(nt =>
       Railroad.parseProduction(contentByRule.getOrElse(nt, ""), nonterminals)
     )

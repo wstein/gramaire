@@ -36,10 +36,16 @@ class MainSuite extends munit.FunSuite:
     assertEquals(Main.parseEmit(Vector("--backend")), Left("--backend requires a value"))
   }
 
-  test("grammarName: the document's H1 wins over the file's base name") {
-    assertEquals(Main.grammarName("# Calc\n\nbody", "examples/whatever.gram.md"), "Calc")
+  test("grammarName: reads the required %name directive from a General-settings fence") {
+    val md = "# Ignored heading\n\n## General settings\n\n```gramaire\n%name Calc\n```\n"
+    assertEquals(Main.grammarName(md), Right("Calc"))
   }
 
-  test("grammarName: falls back to the file's base name, stripping .gram.md") {
-    assertEquals(Main.grammarName("no heading here", "examples/calc.gram.md"), "calc")
+  test("grammarName: missing %name is a hard error — no H1 or file-name fallback") {
+    assertEquals(
+      Main.grammarName("# Calc\n\nno settings fence here"),
+      Left(
+        "missing required `%name` directive (add `%name <name>` inside a General-settings ```gramaire fence)"
+      )
+    )
   }
