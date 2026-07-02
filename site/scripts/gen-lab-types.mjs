@@ -64,7 +64,8 @@ for (const name of defNames) {
 // source of truth for the "is my cached engine.mjs stale" check — no second hand-maintained literal
 // that could drift from LabResponse.version independently and go undetected (nothing in the parity
 // gate imports worker.ts).
-const protocolVersion = schema.$defs.labResponse.properties.labProtocolVersion.default;
+const protocolVersion =
+  schema.$defs.labResponse.properties.labProtocolVersion.default;
 if (typeof protocolVersion !== "number") {
   throw new Error(
     "expected a numeric `default` on labResponse.properties.labProtocolVersion in spec/lab-protocol-schema.json",

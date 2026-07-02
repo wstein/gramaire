@@ -18,10 +18,9 @@ test("the Lab evaluates the default grammar against the real engine", async ({
   });
 
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
-  await expect(page.locator(".lab__result")).toContainText("Accepted");
   expect(
     errors,
     `unexpected console/page errors: ${errors.join("; ")}`,
@@ -30,7 +29,7 @@ test("the Lab evaluates the default grammar against the real engine", async ({
 
 test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
@@ -107,7 +106,7 @@ test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", 
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
@@ -115,7 +114,7 @@ test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", 
     .locator(".lab__pane--grammar .lab__editor")
     .fill("# Ambiguous\n\n## E\n\n```gramaire\nE\n: E E\n| 'x'\n```\n");
   await page.locator(".lab__pane--fill .lab__editor").fill("xxx");
-  await expect(page.locator(".lab__status")).toHaveText("build failed", {
+  await expect(page.locator(".lab__status")).toHaveText("errors", {
     timeout: 5000,
   });
 
@@ -135,7 +134,7 @@ test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthro
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
@@ -165,7 +164,7 @@ test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthro
   ].join("\n");
   await page.locator(".lab__pane--grammar .lab__editor").fill(md);
   await page.locator(".lab__pane--fill .lab__editor").fill("1+2+3");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
@@ -193,7 +192,7 @@ test("the Lab's Evaluate tab renders a non-primitive action result as a collapse
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
@@ -222,7 +221,7 @@ test("the Lab's Evaluate tab renders a non-primitive action result as a collapse
   ].join("\n");
   await page.locator(".lab__pane--grammar .lab__editor").fill(md);
   await page.locator(".lab__pane--fill .lab__editor").fill("42");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
@@ -240,7 +239,7 @@ test("the Lab's Evaluate tab renders a non-primitive action result as a collapse
 
 test("the Lab reflects a rejected input", async ({ page }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
@@ -249,20 +248,23 @@ test("the Lab reflects a rejected input", async ({ page }) => {
   await expect(page.locator(".lab__result")).toContainText("Rejected", {
     timeout: 5000,
   });
+  // The grammar itself is still fine — only this specific input doesn't match — so the status
+  // bar reads "ok", not "errors".
+  await expect(page.locator(".lab__status")).toHaveText("ok");
 });
 
 test("the Lab reflects a grammar that fails to build, with diagnostics folded into Output", async ({
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
   await page
     .locator(".lab__pane--grammar .lab__editor")
     .fill("# Broken\n\n## Foo\n\n```gramaire\nFoo Bar\n```\n");
-  await expect(page.locator(".lab__status")).toHaveText("build failed", {
+  await expect(page.locator(".lab__status")).toHaveText("errors", {
     timeout: 5000,
   });
   // Output is the default/active tab already — no separate Diagnostics tab to switch to.
@@ -279,7 +281,7 @@ test("a successful build still surfaces warnings in Output and the status bar", 
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
@@ -288,7 +290,10 @@ test("a successful build still surfaces warnings in Output and the status bar", 
   const md =
     "# Warn\n\n## Expr\n\n```gramaire\nExpr\n: NUMBER\n```\n\n## Unused\n\n```gramaire\nUnused\n: NUMBER\n```\n\n## Tokens\n\n```gramaire tokens\nNUMBER : /[0-9]+/\n```\n";
   await page.locator(".lab__pane--grammar .lab__editor").fill(md);
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  // The leftover default input "1+2*3" no longer matches this grammar (Expr: NUMBER alone) — the
+  // build is still healthy (just a warning), so the status is "ok", not "errors": a rejected input
+  // never implies a broken grammar.
+  await expect(page.locator(".lab__status")).toHaveText("ok", {
     timeout: 5000,
   });
 
@@ -300,11 +305,39 @@ test("a successful build still surfaces warnings in Output and the status bar", 
   );
 });
 
+test("the status bar cycles through all three states: accepted, ok, errors", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  // Default grammar + default input "1+2*3": the grammar builds AND the input matches. Output
+  // never shows a bare "Accepted" banner for this case — the status bar is the one place that
+  // confirmation lives now; Output only carries content when there's something to explain (a
+  // reject reason, a diagnostic).
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+  await expect(page.locator(".lab__result")).toHaveCount(0);
+
+  // Same grammar, no input: builds fine, nothing to confirm yet.
+  await page.locator(".lab__pane--fill .lab__editor").fill("");
+  await expect(page.locator(".lab__status")).toHaveText("ok", {
+    timeout: 5000,
+  });
+
+  // A grammar that fails to build outright.
+  await page
+    .locator(".lab__pane--grammar .lab__editor")
+    .fill("# Broken\n\n## Foo\n\n```gramaire\nFoo Bar\n```\n");
+  await expect(page.locator(".lab__status")).toHaveText("errors", {
+    timeout: 5000,
+  });
+});
+
 test("the Lab's splitter resizes the panes and clamps at 28%/72%", async ({
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
@@ -347,7 +380,7 @@ test("the Lab's drawer splitter resizes the drawer and clamps at 160px/640px", a
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
@@ -391,12 +424,12 @@ test("the Lab's example switcher loads a real examples/*.gram.md fixture", async
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
   await page.getByLabel("Example").selectOption("JSON");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
   // The raw-imported examples/json.gram.md's own prose, not a hand-copied approximation.
@@ -406,27 +439,25 @@ test("the Lab's example switcher loads a real examples/*.gram.md fixture", async
   await expect(page.locator(".lab__pane--fill .lab__editor")).toHaveValue(
     /"a": 1/,
   );
-  await page.click('button[role="tab"]:has-text("Output")');
-  await expect(page.locator(".lab__result")).toContainText("Accepted");
 });
 
 test("the Lab's start-rule picker narrows which rule anchors parsing", async ({
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  // Default grammar (Expr -> Term -> Factor), default input "1+2*3". Under the default (Expr)
+  // start, it's accepted.
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
-  // Default grammar (Expr -> Term -> Factor), default input "1+2*3". Under the default (Expr)
-  // start, it's accepted.
-  await expect(page.locator(".lab__result")).toContainText("Accepted");
-
   // Narrowed to Term as the start rule, "1+2*3" is a Term (the leading NUMBER) followed by
   // trailing input the augmented grammar never expected — rejected, the same real-engine behavior
-  // verified server-side by LabApiSuite's "startRule overrides..." test.
+  // verified server-side by LabApiSuite's "startRule overrides..." test. The grammar itself is
+  // still perfectly fine, so the status word is "ok", not "errors" — only the current input
+  // doesn't match; that reason shows in Output's own Rejected banner.
   await page.getByLabel("Start rule").selectOption("Term");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("ok", {
     timeout: 5000,
   });
   await expect(page.locator(".lab__result")).toContainText("Rejected");
@@ -436,7 +467,7 @@ test("cross-tab hover-linking keeps the same token highlighted across tabs", asy
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
@@ -464,13 +495,13 @@ test("the Lab shows a persistent status bar with live automaton stats, visible a
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
 
   const bar = page.locator(".lab__statusbar");
   // The build-status badge lives in the status bar now, not the toolbar.
-  await expect(bar.locator(".lab__status")).toHaveText("build ok");
+  await expect(bar.locator(".lab__status")).toHaveText("accepted");
   await expect(bar).toContainText(
     /Canonical\(1\) · \d+ states? · 0 conflicts?/,
   );
@@ -491,7 +522,7 @@ test("hovering a rule in Parse tree highlights its source lines in the grammar e
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
   await page.click('button[role="tab"]:has-text("Parse tree")');
@@ -515,7 +546,7 @@ test("clicking a rule in Parse tree folds/unfolds its children", async ({
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
   await page.click('button[role="tab"]:has-text("Parse tree")');
@@ -541,7 +572,7 @@ test("the Parse tree tab's copy LISP button copies an S-expression and shows fee
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
   await page.click('button[role="tab"]:has-text("Parse tree")');
@@ -557,7 +588,7 @@ test("clicking a token chip in Parse tree reveals the matching leaf even in a fo
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
   await page.click('button[role="tab"]:has-text("Parse tree")');
@@ -579,7 +610,7 @@ test("hovering/clicking a nonterminal box in the railroad diagram cross-links th
   page,
 }) => {
   await page.goto("/lab/");
-  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
     timeout: 5000,
   });
   await page.click('button[role="tab"]:has-text("Grammar analysis")');

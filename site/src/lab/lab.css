@@ -61,10 +61,10 @@
   font-weight: 600;
   color: var(--fg-muted);
 }
-.lab__status--ok {
+.lab__status--accepted {
   color: var(--accent);
 }
-.lab__status--fail {
+.lab__status--errors {
   color: var(--danger, #b91c1c);
 }
 
