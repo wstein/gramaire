@@ -19,3 +19,6 @@ site/.vite/
 # Derived raw grammar projections (gramaire strip); never authoritative (ADR D36)
 *.gram
 scratchpad/
+
+# Metals build artifacts
+.metals/metals.lock.db
