@@ -1,7 +1,7 @@
 package gramaire.cli
 
 // Ported from the structural half of bootstrap/gramaire-check.test.ts, plus
-// a real drift check against the 5 gated grammar files' committed
+// a real drift check against the 7 gated grammar files' committed
 // `.gram.lock` sidecars — the exact CI idempotence gate this CLI replaces.
 class GramaireCheckSuite extends munit.FunSuite:
   private def readFile(path: String): String =
@@ -11,11 +11,20 @@ class GramaireCheckSuite extends munit.FunSuite:
     "grammar/lr.gram.md",
     "examples/calc.gram.md",
     "examples/calc-prec.gram.md",
+    "examples/calc-js.gram.md",
     "examples/json.gram.md",
-    "examples/readme.gram.md"
+    "examples/readme.gram.md",
+    "examples/antlr/antlr4.gram.md"
   )
 
-  test("the 5 CI-gated grammar files pass both the structure and drift gates") {
+  // NOTE: this gate is STRUCTURE + DRIFT only — canonical Markdown shape and
+  // artifact freshness, never whether the grammar itself parses/builds.
+  // antlr4.gram.md currently does NOT parse (`Lr.parseWith` rejects an empty
+  // `| ` alternative, e.g. `lexerAlt`/`lexerElements`/`alternative`/`element`
+  // — the `lr` notation's `Alt`/`SymList` productions require at least one
+  // symbol, so ANTLR's "empty alt" idiom has no home yet); that is a
+  // pre-existing notation gap unrelated to this gate and is not fixed here.
+  test("the 7 CI-gated grammar files pass both the structure and drift gates") {
     for file <- gatedFiles do
       val doc = GramaireCheck.parse(readFile(file))
       assertEquals(GramaireCheck.checkStructure(doc), Vector.empty, s"$file: structure")
@@ -44,6 +53,15 @@ class GramaireCheckSuite extends munit.FunSuite:
     )
     val fails = GramaireCheck.checkStructure(doc)
     assert(fails.exists(f => f.contains("legacy") && f.contains("gramaire fmt --migrate")), fails)
+  }
+
+  test(
+    "checkStructure: a document with no ## Error messages section still passes (optional, like Precedence)"
+  ) {
+    val doc = GramaireCheck.parse(
+      "# T\n\n## General settings\n\n```gramaire\n%name T\n```\n\n## A\n\n```gramaire\nA\n  : 'x'\n```\n\n## Generated tables\n\n| a |\n"
+    )
+    assertEquals(GramaireCheck.checkStructure(doc), Vector.empty)
   }
 
   test("checkStructure: a missing %name directive fails, even when everything else is clean") {
