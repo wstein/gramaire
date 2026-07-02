@@ -127,11 +127,34 @@ object Lr:
     case (44, Vector(SemVal.VStr(t))) => SemVal.VSym(Lit(t)) // SetItem : TERM_LIT
     case _                            => SemVal.VErr(s"unexpected reduce shape for production $p")
 
-  // One ```gramark rule block's content, with the document (or fence-free-projection) character
-  // offset where that content begins — the anchor `SrcSpan`s are built relative to.
-  private final case class BlockOrigin(content: String, docStart: Int)
+  // A `.grmk.md` grammar has exactly one fence tag — ```gramark — and its four possible roles are
+  // self-identifying from the SHAPE of its own lines, never from a fence info-string or a heading: a
+  // fence is `Settings`/`Precedence`/`Tokens` only when EVERY one of its non-blank lines has that
+  // shape; anything else (including a fence mixing shapes) is `Rule` content and is handed to the
+  // `lr`-notation scanner/parser verbatim, which rejects a genuine mix with an ordinary lex/parse
+  // error naming the offending line. This is "case is law": an unindented `ALLCAPS : …` line is
+  // unambiguously a token definition, because the `lr` notation's own grammar requires a newline
+  // between a rule's name and its `:` (`Rule : IDENT NL ':' Body`, `grammar/lr.grmk.md`) — no valid
+  // production can ever share a token definition's one-line `NAME : …` shape.
+  enum FenceKind derives CanEqual:
+    case Rule, Tokens, Settings, Precedence
 
-  private def lrBlocksWithOrigins(md: String): Vector[BlockOrigin] =
+  // One ```gramark fence's content, its self-identified role, and the document (or
+  // fence-free-projection) character offset where that content begins — the anchor `SrcSpan`s are
+  // built relative to.
+  final case class FenceOrigin(kind: FenceKind, content: String, docStart: Int)
+
+  private[gramark] def classifyFenceContent(content: String): FenceKind =
+    val nonBlank = content.split("\n", -1).toVector.filter(_.trim.nonEmpty)
+    if nonBlank.nonEmpty && nonBlank.forall(isSettingDecl) then FenceKind.Settings
+    else if nonBlank.nonEmpty && nonBlank.forall(isPrecDecl) then FenceKind.Precedence
+    else if nonBlank.nonEmpty && nonBlank.forall(isTokenDef) then FenceKind.Tokens
+    else FenceKind.Rule
+
+  // Every bare ```gramark fence (the only legal marker — a suffixed opener like ```gramark tokens
+  // is legacy and caught by `legacyFenceDiagnostics` before this ever runs), classified by content
+  // shape, in document order.
+  private def fenceOrigins(md: String): Vector[FenceOrigin] =
     val lines = md.split("\n", -1).toVector
     // lineStarts(i) = the character offset where lines(i) begins, reconstructing `md` as
     // `lines.mkString("\n")` (every line, including the last, is treated as `\n`-terminated; safe
@@ -143,51 +166,57 @@ object Lr:
         inside: Boolean,
         cur: Vector[String],
         curStart: Int,
-        blocks: Vector[BlockOrigin]
+        out: Vector[FenceOrigin]
     )
     lines.zipWithIndex
       .foldLeft(Acc(false, Vector.empty, 0, Vector.empty)) { case (acc, (line, i)) =>
         if acc.inside then
           if line.trim == "```" then
+            val content = acc.cur.mkString("\n")
             Acc(
               false,
               Vector.empty,
               0,
-              acc.blocks :+ BlockOrigin(acc.cur.mkString("\n"), acc.curStart)
+              acc.out :+ FenceOrigin(classifyFenceContent(content), content, acc.curStart)
             )
           else acc.copy(cur = acc.cur :+ line)
         else if line.trim == "```gramark" then
           acc.copy(inside = true, cur = Vector.empty, curStart = startOf(i + 1))
         else acc
       }
-      .blocks
-
-  /** Extract the contents of every ```gramark fenced block — the rule blocks, not `gramark
-    * precedence`/`gramark errors` — from a `.grmk.md` document, in order.
-    */
-  def lrBlocks(md: String): Vector[String] = lrBlocksWithOrigins(md).map(_.content)
-
-  private final case class GBlock(info: String, content: String)
-
-  // Every ` ```gramark `* fenced block with its info suffix — `""` for
-  // the production blocks, `"tokens"`/`"precedence"`/`"errors"` for the
-  // sidecars — in document order.
-  private def gramarkBlocks(md: String): Vector[GBlock] =
-    final case class Acc(inside: Boolean, info: String, cur: Vector[String], out: Vector[GBlock])
-    md.split("\n", -1)
-      .toVector
-      .foldLeft(Acc(false, "", Vector.empty, Vector.empty)) { (acc, line) =>
-        if acc.inside then
-          if line.trim == "```" then
-            acc.copy(inside = false, out = acc.out :+ GBlock(acc.info, acc.cur.mkString("\n")))
-          else acc.copy(cur = acc.cur :+ line)
-        else
-          val t = line.trim
-          if t.startsWith("```gramark") then
-            acc.copy(inside = true, info = t.stripPrefix("```gramark").trim, cur = Vector.empty)
-          else acc
-      }
       .out
+
+  /** Extract the content of every RULE-role ```gramark fence — not the tokens/settings/precedence
+    * sidecars — from a `.grmk.md` document, in order.
+    */
+  def lrBlocks(md: String): Vector[String] =
+    fenceOrigins(toFenced(md)).filter(_.kind == FenceKind.Rule).map(_.content)
+
+  // A suffixed opener (` ```gramark tokens `, ` ```gramark errors `, …) is a removed notation: every
+  // role is now carried by a bare ` ```gramark ` fence's own content shape. Never silently ignored
+  // (an extractor that only recognizes the bare marker would otherwise make such a fence invisible —
+  // e.g. silently building a lexer with zero token classes) — always a hard, located error.
+  private def legacyFenceDiagnostics(md: String): Vector[Diagnostic] =
+    val lines = md.split("\n", -1).toVector
+    val lineStarts: Vector[Int] = lines.scanLeft(0)((acc, l) => acc + l.length + 1).init
+    lines.zipWithIndex.flatMap { case (line, i) =>
+      val t = line.trim
+      if t.startsWith("```gramark") && t != "```gramark" then
+        val suffix = t.stripPrefix("```gramark").trim
+        val help =
+          if suffix == "errors" then
+            "help: move this content to a plain ```text fence; curated per-state error messages are no longer a grammar-notation feature"
+          else "help: merge this content into a bare ```gramark fence; run `gramark fmt --migrate`"
+        Vector(
+          Diagnostic.error(
+            Stage.Parse,
+            s"legacy ```gramark $suffix``` fence is no longer supported",
+            Some(SrcSpan(lineStarts(i), lineStarts(i) + line.length)),
+            Vector(help)
+          )
+        )
+      else Vector.empty
+    }
 
   private final case class Sectionized(preamble: Vector[String], sections: Vector[Vector[String]])
 
@@ -216,16 +245,11 @@ object Lr:
     def dropBlank(v: Vector[String]): Vector[String] = v.dropWhile(_.trim == "")
     dropBlank(dropBlank(ls).reverse).reverse
 
-  private def keepInfo(info: String): Boolean =
-    info == "" || info == "tokens" || info == "precedence" || info == "settings"
-
   private def keepProse(line: String): Boolean =
     val t = line.trim
     t != "" && !t.startsWith("![")
 
-  private def keepableOpen(line: String): Boolean =
-    val t = line.trim
-    if t.startsWith("```gramark") then keepInfo(t.stripPrefix("```gramark").trim) else false
+  private def keepableOpen(line: String): Boolean = line.trim == "```gramark"
 
   private final case class WalkAcc(keep: Option[Boolean], out: Vector[String])
 
@@ -237,8 +261,7 @@ object Lr:
         else if k then acc.copy(out = acc.out :+ line)
         else acc // inside a dropped fence (errors / illustrative code)
       case None =>
-        if t.startsWith("```gramark") then
-          acc.copy(keep = Some(keepInfo(t.stripPrefix("```gramark").trim)))
+        if t.startsWith("```gramark") then acc.copy(keep = Some(t == "```gramark"))
         else if t.startsWith("```") then
           acc.copy(keep = Some(false)) // some other fence: skip its body
         else if !keepProse(line) then acc // diagram image / blank: dropped
@@ -292,8 +315,10 @@ object Lr:
     Vector("%left ", "%right ", "%nonassoc ").exists(t.startsWith)
 
   // A document-level settings directive (the `## General settings`
-  // block), e.g. `%lang javascript`.
-  private def isSettingDecl(l: String): Boolean = l.trim.startsWith("%lang ")
+  // block): `%name <Ident>` (required) or `%lang <host>` (optional).
+  private def isSettingDecl(l: String): Boolean =
+    val t = l.trim
+    t.startsWith("%lang ") || t.startsWith("%name ")
 
   // Drop `//` line comments and `/* … */` block comments (the prose
   // `strip` writes into a `.grmk`), so the grammar lexer never sees them.
@@ -308,7 +333,9 @@ object Lr:
     }.out
 
   /** Read a fence-free `.grmk` projection back to the fenced form the parser expects (a no-op on
-    * already-fenced `.grmk.md`).
+    * already-fenced `.grmk.md`). Each classified line-group becomes its own bare ```gramark fence —
+    * `fenceOrigins`/`classifyFenceContent` re-derive its role from content, exactly as for any
+    * `.grmk.md` fence.
     */
   def toFenced(src: String): String =
     if src.contains("```gramark") then src
@@ -316,12 +343,13 @@ object Lr:
       val ls = decomment(src.split("\n", -1).toVector)
       val settingLines = ls.filter(isSettingDecl)
       val tokenLines = ls.filter(isTokenDef)
+      val precLines = ls.filter(isPrecDecl)
       val prodLines = ls.filter(l => !isTokenDef(l) && !isPrecDecl(l) && !isSettingDecl(l))
-      def block(info: String, body: Vector[String]): Vector[String] =
+      def block(body: Vector[String]): Vector[String] =
         val trimmed = trimBlankEnds(body)
         if trimmed.isEmpty then Vector.empty
-        else Vector(s"```gramark$info\n${trimmed.mkString("\n")}\n```")
-      (block(" settings", settingLines) ++ block(" tokens", tokenLines) ++ block("", prodLines))
+        else Vector(s"```gramark\n${trimmed.mkString("\n")}\n```")
+      (block(settingLines) ++ block(tokenLines) ++ block(precLines) ++ block(prodLines))
         .mkString("\n\n")
 
   // The production lexer for `lr` grammar source: the scanner built from
@@ -340,7 +368,7 @@ object Lr:
   // line-by-line reconstruction.
   private final case class Seg(virtualStart: Int, docStart: Int, len: Int)
 
-  private def buildSegs(origins: Vector[BlockOrigin]): Vector[Seg] =
+  private def buildSegs(origins: Vector[FenceOrigin]): Vector[Seg] =
     val b = Vector.newBuilder[Seg]
     var voffset = 0
     origins.foreach { o =>
@@ -361,24 +389,50 @@ object Lr:
   // scanning hit any. Shared by `parseWith` (which needs the tokens to actually parse) and
   // `spanIndexOf` (which only needs them to locate a name for a diagnostic about a LATER stage,
   // e.g. a table conflict in a grammar that already parsed successfully).
+  // Every Tokens-role fence must be a fully valid `lr tokens` block — a shape-matched but malformed
+  // token line (e.g. an unterminated regex) used to be silently swallowed by every caller
+  // (`unusedTokenWarnings`/`withLexisOf`/the Lab's `tokenDefsOf` each treated `Left` as "no tokens"),
+  // building a lexer with zero token classes instead of failing. Surfaced here, once, as a hard
+  // diagnostic every `parseWith` caller now sees.
+  private def tokenValidityDiagnostics(origins: Vector[FenceOrigin]): Vector[Diagnostic] =
+    origins.filter(_.kind == FenceKind.Tokens).flatMap { o =>
+      Tokens.parseTokens(o.content) match
+        case Left(msg) =>
+          Vector(
+            Diagnostic.error(
+              Stage.Lex,
+              s"invalid token definition: $msg",
+              Some(SrcSpan(o.docStart, o.docStart + o.content.length))
+            )
+          )
+        case Right(_) => Vector.empty
+    }
+
   private def tokenizeDocument(md: String): Either[Vector[Diagnostic], Vector[Spanned]] =
     val fenced = toFenced(md)
-    val origins = lrBlocksWithOrigins(fenced)
-    val segs = buildSegs(origins)
-    val virtualSrc = origins.map(_.content).mkString("\n") + "\n"
-    val docSpanned = Scanner.scanSpanned(lrScanItems, virtualSrc).map(mapSpanned(segs, _))
-    val errorRuns = Scanner.mergeErrorRuns(docSpanned)
-    if errorRuns.nonEmpty then
-      Left(
-        errorRuns.map(s =>
-          Diagnostic.error(
-            Stage.Lex,
-            s"""unexpected character `${s.text}`""",
-            Some(SrcSpan(s.start, s.end))
+    val legacy = legacyFenceDiagnostics(fenced)
+    if legacy.nonEmpty then Left(legacy)
+    else
+      val origins = fenceOrigins(fenced)
+      val tokenDiags = tokenValidityDiagnostics(origins)
+      if tokenDiags.nonEmpty then Left(tokenDiags)
+      else
+        val ruleOrigins = origins.filter(_.kind == FenceKind.Rule)
+        val segs = buildSegs(ruleOrigins)
+        val virtualSrc = ruleOrigins.map(_.content).mkString("\n") + "\n"
+        val docSpanned = Scanner.scanSpanned(lrScanItems, virtualSrc).map(mapSpanned(segs, _))
+        val errorRuns = Scanner.mergeErrorRuns(docSpanned)
+        if errorRuns.nonEmpty then
+          Left(
+            errorRuns.map(s =>
+              Diagnostic.error(
+                Stage.Lex,
+                s"""unexpected character `${s.text}`""",
+                Some(SrcSpan(s.start, s.end))
+              )
+            )
           )
-        )
-      )
-    else Right(Lexer.normalizeNewlinesSpanned(docSpanned))
+        else Right(Lexer.normalizeNewlinesSpanned(docSpanned))
 
   /** The `SpanIndex` for a `.grmk.md`/`.grmk` document's own `lr` blocks — for locating a name
     * (e.g. a table conflict's competing production) by re-scanning a grammar already known to
@@ -498,7 +552,7 @@ object Lr:
       case Left(diags) => Left(Diagnostic.renderAll(diags, "<grammar>", toFenced(md)))
 
   private val knownAttrs: Vector[String] = Vector("inline")
-  private val knownSettingDirectives: Vector[String] = Vector("%lang")
+  private val knownSettingDirectives: Vector[String] = Vector("%lang", "%name")
 
   private def refsOf(s: Sym): Vector[String] = s match
     case Ref(n)          => Vector(n)
@@ -528,20 +582,23 @@ object Lr:
       }
     }
 
-  // Every `%directive` line in the `## General settings` block that isn't `%lang` (the only
-  // directive `Lr`/`toFenced` recognizes) — same silent-typo risk as an unknown `#[attr]`.
+  // Every Settings-role fence's lines, across the whole document, in order.
+  private def settingsLinesOf(md: String): Vector[String] =
+    fenceOrigins(toFenced(md))
+      .filter(_.kind == FenceKind.Settings)
+      .flatMap(_.content.split("\n", -1).toVector)
+
+  // Every `%directive` line in a General-settings fence that isn't `%lang`/`%name` (the only
+  // directives `Lr` recognizes) — same silent-typo risk as an unknown `#[attr]`.
   private def unknownSettingWarnings(md: String): Vector[Diagnostic] =
-    gramarkBlocks(toFenced(md)).find(_.info == "settings") match
-      case None => Vector.empty
-      case Some(block) =>
-        block.content.split("\n", -1).toVector.flatMap { line =>
-          val t = line.trim
-          if t.isEmpty || t.startsWith("//") then None
-          else
-            val directive = t.split("\\s+", 2).headOption.getOrElse(t)
-            if knownSettingDirectives.contains(directive) then None
-            else Some(Diagnostic.warning(Stage.Desugar, s"unknown setting `$directive` (ignored)"))
-        }
+    settingsLinesOf(md).flatMap { line =>
+      val t = line.trim
+      if t.isEmpty || t.startsWith("//") then None
+      else
+        val directive = t.split("\\s+", 2).headOption.getOrElse(t)
+        if knownSettingDirectives.contains(directive) then None
+        else Some(Diagnostic.warning(Stage.Desugar, s"unknown setting `$directive` (ignored)"))
+    }
 
   // A rule defined but never reachable (by reference) from the start rule — almost always a typo'd
   // reference elsewhere, or a rule the author forgot to delete.
@@ -575,11 +632,11 @@ object Lr:
   // reference (the intended rule then silently resolves the misspelled name as a phantom terminal,
   // per `Diagnostics.checkDefined`'s own ALL-CAPS carve-out) or a leftover declaration.
   private def unusedTokenWarnings(md: String, g: Grammar): Vector[Diagnostic] =
-    ConformanceLexers.tokensBlock(toFenced(md)) match
+    tokensContentOf(md) match
       case None => Vector.empty
       case Some(block) =>
         Tokens.parseTokens(block) match
-          case Left(_) => Vector.empty
+          case Left(_) => Vector.empty // malformed tokens already rejected `parseWith` itself
           case Right(defs) =>
             val used: Set[String] = g.rules.flatMap(_.alts.flatMap(_.syms.flatMap(refsOf))).toSet
             defs
@@ -606,23 +663,40 @@ object Lr:
         unknownAttrWarnings(g, spans) ++ unknownSettingWarnings(md) ++
           unreachableRuleWarnings(g, spans) ++ unusedTokenWarnings(md, g)
 
-  /** The declared operator precedence of a `.grmk.md` (its `## Precedence` block), or empty if it
-    * has none.
+  /** The declared operator precedence of a `.grmk.md` (its Precedence-role fence content, gathered
+    * across the whole document), or empty if it has none.
     */
   def precedenceOf(md: String): Precedence =
-    gramarkBlocks(md).find(_.info == "precedence") match
-      case Some(b) => Table.parsePrecedence(b.content)
-      case None    => Table.emptyPrec
+    val fenced = toFenced(md)
+    val content = fenceOrigins(fenced).filter(_.kind == FenceKind.Precedence).map(_.content)
+    if content.isEmpty then Table.emptyPrec else Table.parsePrecedence(content.mkString("\n"))
 
-  /** The declared inline-action host language of a `.grmk.md` — its `## General settings` block's
-    * `%lang <ident>` line. The ident is normalized: `js`, `javascript`, `ecmascript`, and
+  /** The content of every Tokens-role fence, concatenated in document order — `None` if the
+    * document declares no token classes at all.
+    */
+  private[gramark] def tokensContentOf(md: String): Option[String] =
+    val blocks = fenceOrigins(toFenced(md)).filter(_.kind == FenceKind.Tokens)
+    if blocks.isEmpty then None else Some(blocks.map(_.content).mkString("\n"))
+
+  /** The declared inline-action host language of a `.grmk.md` — its General-settings fence's `%lang
+    * <ident>` line. The ident is normalized: `js`, `javascript`, `ecmascript`, and
     * `esNNNN`/`esnext` all fold to `"js"`.
     */
   def actionLangOf(md: String): Option[String] =
-    def langLine(line: String): Option[String] =
-      val t = line.trim
-      if t.startsWith("%lang ") then Some(t.stripPrefix("%lang ").trim) else None
-    md.split("\n", -1).toVector.flatMap(langLine).headOption.map(normalizeLang)
+    settingsLinesOf(md)
+      .map(_.trim)
+      .collectFirst { case t if t.startsWith("%lang ") => t.stripPrefix("%lang ").trim }
+      .map(normalizeLang)
+
+  /** The grammar's required `%name <Ident>` directive, from its General-settings fence — `None` if
+    * absent (a `.grmk.md`/`.grmk` with no `%name` is incomplete; callers that need a name reject
+    * this outright rather than falling back to a heading or a file path).
+    */
+  def nameOf(md: String): Option[String] =
+    settingsLinesOf(md)
+      .map(_.trim)
+      .collectFirst { case t if t.startsWith("%name ") => t.stripPrefix("%name ").trim }
+      .filter(_.nonEmpty)
 
   // Fold the recognized JavaScript aliases onto the canonical `"js"`
   // profile; any other language name is carried through lowercased.

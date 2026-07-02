@@ -59,23 +59,7 @@ object ConformanceLexers:
       case _               => Vector.empty
     g.rules.flatMap(_.alts.flatMap(_.syms.flatMap(symLits))).distinct
 
-  /** Extract the content of the first ```gramark tokens``` block from a `.grmk.md` document, or
-    * `None` if it has none.
+  /** The content of every Tokens-role ```gramark fence in a `.grmk.md` document, concatenated in
+    * order, or `None` if it declares no token classes at all.
     */
-  def tokensBlock(md0: String): Option[String] =
-    final case class Acc(inside: Boolean, cur: Vector[String], found: Option[String])
-    def orFirst(found: Option[String], content: String): Option[String] = found match
-      case Some(_) => found
-      case None    => Some(content)
-    Lr.toFenced(md0)
-      .split("\n", -1)
-      .toVector
-      .foldLeft(Acc(false, Vector.empty, None)) { (acc, line) =>
-        if acc.inside then
-          if line.trim == "```" then
-            acc.copy(inside = false, found = orFirst(acc.found, acc.cur.mkString("\n")))
-          else acc.copy(cur = acc.cur :+ line)
-        else if line.trim == "```gramark tokens" then acc.copy(inside = true, cur = Vector.empty)
-        else acc
-      }
-      .found
+  def tokensBlock(md0: String): Option[String] = Lr.tokensContentOf(md0)

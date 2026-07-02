@@ -1,6 +1,6 @@
 package gramark
 
-// The `lr tokens` block parser (lexer-spec §2): a grammar's lexis.
+// The Tokens-role ```gramark fence parser (lexer-spec §2): a grammar's lexis.
 //
 // Each non-blank line defines one named token class:
 //
@@ -33,8 +33,7 @@ object Tokens:
     * stops the parse and names the offending line.
     */
   def parseTokens(content: String): Either[String, Vector[TokenDef]] =
-    val lines =
-      content.split("\n", -1).toVector.map(_.trim).filter(l => l != "" && l != "gramark tokens")
+    val lines = content.split("\n", -1).toVector.map(_.trim).filter(_ != "")
     lines.foldLeft[Either[String, Vector[TokenDef]]](Right(Vector.empty)) { (acc, line) =>
       for
         defs <- acc

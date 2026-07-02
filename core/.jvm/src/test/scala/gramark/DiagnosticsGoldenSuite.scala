@@ -175,7 +175,7 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
   test("tab-indented line: the caret pad preserves the tab so the underline stays aligned") {
     // A tab before the rule body (legal — the `lr` notation's own WS token is /[ \t]+/).
     val md =
-      "# T\n\n## Rule\n\n```gramark\nRule\n\t: NUMBER Undefined\n```\n\n## Tokens\n\n```gramark tokens\nNUMBER : /[0-9]+/\n```\n"
+      "# T\n\n## Rule\n\n```gramark\nRule\n\t: NUMBER Undefined\n```\n\n## Tokens\n\n```gramark\nNUMBER : /[0-9]+/\n```\n"
     Lr.parseWith(Method.Canonical, md) match
       case Right(_) => fail("expected an undefined-nonterminal diagnostic")
       case Left(diags) =>

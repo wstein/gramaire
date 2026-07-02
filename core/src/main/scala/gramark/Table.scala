@@ -105,12 +105,11 @@ final case class GlrTable(
 object Table:
   val emptyPrec: Precedence = Precedence(Map.empty)
 
-  /** Parse a `## Precedence` block's content into declared precedence (ADR D37). Each
+  /** Parse a Precedence-role ```gramark fence's content into declared precedence (ADR D37). Each
     * `%left`/`%right`/`%nonassoc` line is one level; later lines bind tighter (yacc's convention).
     */
   def parsePrecedence(content: String): Precedence =
-    val meaningful =
-      content.split("\n", -1).toVector.map(_.trim).filter(l => l != "" && l != "gramark precedence")
+    val meaningful = content.split("\n", -1).toVector.map(_.trim).filter(_ != "")
 
     def assocOf(line: String): Option[Assoc] =
       if line.startsWith("%left") then Some(Assoc.LeftA)
