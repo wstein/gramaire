@@ -182,6 +182,17 @@ function ensureWorker(): Worker {
     const { id, response: resp, evaluation: evalResult } = event.data;
     if (id !== latestSentId) return; // stale — a newer request has already been sent
     response.value = resp;
+    // An edit can remove the rule the start-rule picker had selected (e.g. renaming/deleting it).
+    // `withStartRule` (lab/.../LabApi.scala) silently falls back to the grammar's natural first
+    // rule when the requested name doesn't match any rule — clear the stale override here so the
+    // picker and the StatusBar's "start: …" readout reflect that same fallback instead of
+    // continuing to show a rule name that no longer exists. Only act when this response actually
+    // carries fresh rule names (the grammar parsed) — a transient parse failure mid-edit shouldn't
+    // discard the user's selection, since `analysis` being absent tells us nothing about it.
+    if (resp.analysis && startRule.value !== null) {
+      const names = resp.analysis.firstFollow.map((r) => r.name);
+      if (!names.includes(startRule.value)) startRule.value = null;
+    }
     evaluation.value = evalResult;
     pending.value = false;
   };
@@ -1457,13 +1468,22 @@ function ValueChip({
     );
   }
   const label = Array.isArray(value) ? `Array(${value.length})` : "Object";
+  // A grammar author's {% %} action can return a cyclic structure or a BigInt, both of which
+  // JSON.stringify throws on — fall back to String(value) the same way formatPrimitive does,
+  // rather than breaking the whole Evaluate tab's render.
+  let json: string;
+  try {
+    json = JSON.stringify(value, null, 2) ?? String(value);
+  } catch {
+    json = String(value);
+  }
   return (
     <details class="lab__value-details">
       <summary class="lab__value-chip">
         {prefix}
         {label}
       </summary>
-      <pre class="lab__value-json">{JSON.stringify(value, null, 2)}</pre>
+      <pre class="lab__value-json">{json}</pre>
     </details>
   );
 }
