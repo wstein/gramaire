@@ -1,14 +1,12 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
-import tailwindcss from "@tailwindcss/vite";
-import { GOOGLE_FONTS_HREF } from "./src/shared/fonts.mjs";
+import { pageHeadTags } from "./src/shared/page-head.mjs";
 
 const base = process.env.CI ? "/gramark/" : "/";
 
 export default defineConfig({
   site: "https://wstein.github.io/gramark/",
   base,
-  vite: { plugins: [tailwindcss()] },
   integrations: [
     starlight({
       title: "Gramark",
@@ -17,44 +15,15 @@ export default defineConfig({
       // topbar (logomark + wordmark, nav, search, theme toggle) used on the
       // bare Landing page, so there's one topbar design, not two. AppShell
       // folds in Starlight's own <Search /> rather than dropping it.
-      // Starlight's `logo` option goes unused; the favicon link below is
-      // the browser-tab icon.
+      // Starlight's `logo` option goes unused; pageHeadTags's favicon link
+      // is the browser-tab icon.
       //
-      // The font preconnect/stylesheet links are NOT optional here: without
-      // them Starlight pages never load IBM Plex Sans as a real webfont at
-      // all (tokens.css's own @font-face is `src: local(...)`-only, which
-      // resolves to nothing on a machine without it installed), silently
-      // falling back to a system sans font — invisible in prose, but a real,
-      // measurable few-px difference in gramark-topbar.mjs's segmented
-      // control and search trigger versus the bare Landing page, which
-      // loads them via its own <head>. Keep both surfaces pulling from
-      // src/shared/fonts.mjs so they can't diverge again.
-      head: [
-        {
-          tag: "link",
-          attrs: {
-            rel: "icon",
-            href: `${base}favicon.svg`,
-            type: "image/svg+xml",
-          },
-        },
-        {
-          tag: "link",
-          attrs: { rel: "preconnect", href: "https://fonts.googleapis.com" },
-        },
-        {
-          tag: "link",
-          attrs: {
-            rel: "preconnect",
-            href: "https://fonts.gstatic.com",
-            crossorigin: true,
-          },
-        },
-        {
-          tag: "link",
-          attrs: { rel: "stylesheet", href: GOOGLE_FONTS_HREF },
-        },
-      ],
+      // pageHeadTags(base) is the single source of every document-level
+      // <head> tag both this pipeline and the bare Landing page
+      // (src/pages/index.astro) need — see its own header comment for why
+      // that matters (a previous divergence silently dropped the real
+      // webfont on every Starlight page).
+      head: pageHeadTags(base),
       components: {
         Header: "./src/components/AppShell.astro",
       },
@@ -80,7 +49,6 @@ export default defineConfig({
       customCss: [
         "./src/styles/tokens.css",
         "./src/styles/starlight-bridge.css",
-        "./src/styles/tailwind-theme.css",
       ],
     }),
   ],
