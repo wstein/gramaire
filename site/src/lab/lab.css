@@ -161,13 +161,43 @@
 }
 
 .lab__result {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 8px;
   font-size: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+}
+.lab__result::before {
+  font-size: 18px;
+  line-height: 1;
+  color: var(--accent);
+}
+.lab__result--accept::before {
+  content: "✓";
+}
+.lab__result--reject {
+  border-color: color-mix(in srgb, var(--danger, #b91c1c) 40%, transparent);
+  background: color-mix(in srgb, var(--danger, #b91c1c) 11%, var(--bg));
+}
+.lab__result--reject::before {
+  content: "✕";
+  color: var(--danger, #b91c1c);
 }
 .lab__result--accept strong {
   color: var(--accent);
 }
 .lab__result--reject strong {
   color: var(--danger, #b91c1c);
+}
+.lab__result p {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  font-weight: 400;
+  font-family: var(--font-mono);
+  color: var(--fg-muted);
 }
 
 .lab__mono {
@@ -212,20 +242,43 @@
 }
 
 .lab__forest-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border-radius: 8px;
+  margin: 0 0 16px;
   font-family: var(--font-mono);
-  font-size: 12px;
-  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+}
+.lab__forest-status::before {
+  font-size: 16px;
+  line-height: 1;
 }
 .lab__forest-status--ok {
   color: var(--accent);
 }
+.lab__forest-status--ok::before {
+  content: "✓";
+}
 .lab__forest-status--ambiguous {
   color: var(--warning, #b45309);
+  border-color: color-mix(in srgb, var(--warning, #b45309) 40%, transparent);
+  background: color-mix(in srgb, var(--warning, #b45309) 9%, var(--bg));
+}
+.lab__forest-status--ambiguous::before {
+  content: "⚠";
+}
+.lab__forest-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
 }
 .lab__forest-item + .lab__forest-item {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
+  margin-top: 12px;
 }
 .lab__forest-item-label {
   font-family: var(--font-mono);
@@ -233,7 +286,13 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--fg-faint);
-  margin-bottom: 6px;
+  padding: 7px 12px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+}
+.lab__forest-item .lab__tree {
+  margin: 0;
+  padding: 11px 13px;
 }
 
 .lab__analysis-section + .lab__analysis-section {

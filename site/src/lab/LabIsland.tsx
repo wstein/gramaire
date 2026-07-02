@@ -325,8 +325,10 @@ function ResultPanel() {
     <div
       class={`lab__result lab__result--${r.parse.accepted ? "accept" : "reject"}`}
     >
-      <strong>{r.parse.accepted ? "Accepted" : "Rejected"}</strong>
-      {r.parse.message && <p>{r.parse.message}</p>}
+      <div>
+        <strong>{r.parse.accepted ? "Accepted" : "Rejected"}</strong>
+        {r.parse.message && <p>{r.parse.message}</p>}
+      </div>
     </div>
   );
 }
