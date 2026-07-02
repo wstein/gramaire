@@ -187,7 +187,7 @@ can be built without new engine work unless noted.
   each rule as you type, and show the generated FIRST/FOLLOW table (the same
   artifact `gramark fmt` writes).
 - **T2.4 Desugar lens.** Toggle "show lowered Core" to see how `X+ / X* / X? /
-  Comma<X> / #[inline]` expand to epsilon-free productions (`Gramark.Desugar`) —
+Comma<X> / #[inline]` expand to epsilon-free productions (`Gramark.Desugar`) —
   a teaching tool and a debugging aid.
 - **T2.5 Codegen export.** Download buttons for `ir.json`, `.ebnf`, `.dot`, and a
   runnable `parser.ts` + `parser.d.ts` (the real `ts` backend), plus "copy as".
@@ -240,24 +240,184 @@ flowchart LR
 
 - **Worker protocol.** `{type:"COMPILE", source}` and `{type:"EVALUATE", input}`
   in; `{cst, diagnostics, firstFollow, method, conflicts}` out. Debounced;
-  latest-wins (drop stale responses).
+  latest-wins (drop stale responses). Formalized as **LabProtocol**, below.
 - **Spans everywhere.** The worker returns CST nodes carrying source ranges so
   the main thread can hover-link without re-lexing.
 - **No filesystem dependency.** The Core's FS-freedom guard means the parse path
   imports no `node:fs`; the same code runs unchanged in the worker.
+
+### 5.1 LabProtocol — the typed engine boundary
+
+The Lab UI is Preact/TypeScript (`site/`); the engine is Scala, compiled to
+Scala.js and run in a Web Worker (round 2 of the site-rebuild debate: two
+different projects with two different toolchain needs, in one monorepo — see
+`design/README.md`). Nothing in `core` is exported to JS today (confirmed: zero
+`@JSExport`/`@JSExportTopLevel` annotations anywhere in the repo as of this
+writing) — the entire JS-facing boundary is new work, formalized here as
+**LabProtocol** rather than left as the ad-hoc `{cst, diagnostics, ...}` object
+literal above.
+
+**Module.** A new `crossProject(JSPlatform, JVMPlatform)`, `CrossType.Pure`,
+named `lab` (`labJS`/`labJVM`), depending on `core`, alongside the existing
+`core`/`cli` split in `build.sbt`. Shared source at
+`lab/src/main/scala/gramark/lab/`. `labJVM` exists so the same request can run
+through `Lr.parse` on the JVM and the linked `labJS` module under Node for the
+JVM↔JS parity gate (§8) — not for any CLI feature.
+
+**Why a new module, not `@JSExport` scattered into `core` directly.** `core` is
+the narrow-waist compiler (lexer → tables → CST → backends); LabProtocol is a
+presentation-layer request/response shape for one specific consumer. Keeping it
+in its own module means `core`'s public API stays the compiler's API, not the
+Lab's, and a future second consumer (or a Scala UI, if Preact's dev-loop ever
+proves the wrong bet — round-2 debate, "the door stays open") depends on the
+same `core` without inheriting Lab-specific types.
+
+**Wire format.** JSON strings across the `@JSExportTopLevel` boundary (not
+typed Scala.js facades) — matching how the Worker protocol above is already
+described, and avoiding Scala.js facade-interop complexity for what's really
+just structured data. Encoders/decoders are **hand-written**, matching
+`Json.scala`'s own convention (confirmed: `Json` has no `derives`-based
+automatic codec mechanism anywhere in this codebase — every existing encoder,
+e.g. `Cst.toJson`, is a manual pattern match). LabProtocol does the same,
+in `lab/src/main/scala/gramark/lab/LabProtocol.scala`:
+
+```scala
+package gramark.lab
+
+import gramark.{Grammar, Json, Table}
+
+final case class LabRequest(
+  source: String,           // the full .grmk.md document text
+  input: Option[String],    // the target-language input; None = compile-only
+  method: Table.Method      // Canonical | LALR | IELR
+)
+
+final case class LabResponse(
+  labProtocolVersion: Int,      // versioned envelope, like cstVersion/irVersion
+  buildOk: Boolean,              // grammar compiled, tables built, no fatal conflicts
+  diagnostics: Vector[String],   // undefined-rule warnings + rendered conflicts
+  parse: Option[ParseResult]     // present only when input was given and buildOk
+)
+
+final case class ParseResult(
+  accepted: Boolean,
+  message: Option[String],   // reject reason when accepted = false
+  tokens: Vector[LabToken],
+  cst: Option[Json]           // Cst.toJson output; None when rejected
+)
+
+final case class LabToken(text: String, terminal: String, start: Int, end: Int)
+```
+
+This is deliberately the **M4 v1 slice only** — sized to the four v1 tabs
+(§4 Tier 0/1: Result, Tokens, Parse tree, Diagnostics), not all ten of the
+mock's tabs. `labProtocolVersion` exists so M5+ fields (FIRST/FOLLOW, per-method
+state/conflict counts, the parse forest, lowered-core productions) are
+**additive**, never a breaking change to what's already shipped.
+
+**TS types.** No hand-written `.d.ts` (round-2 debate guardrail). A build-time
+sbt task emits a JSON Schema for `LabRequest`/`LabResponse` from these case
+classes; `json-schema-to-typescript` generates the `.ts` types during the Astro
+build. One caveat found while grounding this design: `Json.scala` has no
+reflection or macro-derivation capability (by design — it's dependency-free),
+so the schema is **hand-authored** in `spec/lab-protocol-schema.json`, in the
+same JSON-Schema-draft-2020-12 / `$defs` / `additionalProperties:false` style
+already established by `spec/cst-schema.json` and `spec/ir-schema.json` — not
+mechanically derived from the case classes via reflection, which this
+codebase's tooling doesn't support. The conformance gate (§8) is what keeps the
+hand-written schema honest: it validates real `LabResponse` JSON against
+`lab-protocol-schema.json`, so schema/code drift fails CI instead of rotting
+silently.
+
+**Composition pipeline** (`LabApi.evaluate`, `lab/src/main/scala/gramark/lab/LabApi.scala`).
+`core`'s functions are separate concerns today (confirmed: `Parser.run` bundles
+no diagnostics, no CST, no tokens by itself) — LabProtocol's job is composing
+them, the same way the CLI already does:
+
+1. `Lr.parse(source): Either[String, Grammar]` — parses the `.grmk.md` document
+   (already desugared + `checkDefined`-checked internally; this is _not_ the
+   same concern as parsing a user's target input — see the note below).
+2. `Table.buildTablesFor(method, grammar): Either[Vector[Conflict], ParseTable]`
+   — `Left` conflicts become `diagnostics` via `Diagnostics.renderConflicts`;
+   `buildOk = false`.
+3. If `input` is present: extract the grammar's own token declarations
+   (`ConformanceLexers.tokensBlock(source)` + `Tokens.parseTokens`) and lex the
+   _input_ — not the grammar notation — with
+   `ConformanceLexers.scannerLexer(defs, grammar)`. This mechanism **already
+   exists**, built for the conformance suite; LabProtocol reuses it rather than
+   inventing a second input lexer.
+4. `Parser.run(table, Cst.cstToken, Cst.cstReduce, tokens): Either[ParseError, Cst]`
+   — `Left` becomes `ParseResult(accepted = false, message = Some(err.render), ...)`;
+   `Right(cst)` becomes `ParseResult(accepted = true, cst = Some(Cst.toJson(cst)), ...)`.
+
+**Don't conflate `Lr.parse` with parsing a user's input.** `Lr.parse`/`parseWith`
+parse the **grammar-definition notation** itself (`.grmk.md` → `Grammar`, via
+the self-hosting bootstrap grammar) — a completely different concern from
+`Parser.run`, which parses a **target input** against a _compiled_ `ParseTable`.
+Step 1 above runs once per `COMPILE`; step 4 runs once per `EVALUATE`.
+
+**Engine work still required for v1** (owner: core; runs in parallel with the
+Preact-side work, per the round-2 debate's "engine work gates only M4"):
+
+- **Nothing new for Result/Tokens/Parse tree** — `Lexer.tokenizeSpanned`
+  already gives spanned tokens, `Cst.toJson` already gives the tree JSON,
+  `ParseError` is already structured (not prose). The composition pipeline
+  above is real glue code, but no core module needs new capability.
+- **Diagnostics needs no new capability either** — `Diagnostics.renderConflicts`
+  and `undefinedNonterminals` already return exactly what v1 needs.
+- The one genuine gap: `Glr.explain`'s String→structured refactor (needed for
+  Grammar analysis, **M5+**, not v1) is confirmed necessary — `explainP`
+  currently discards everything but a conflict _count_ per method, and no
+  function anywhere exposes a per-method _state_ count (`Table.States` is
+  private and never escapes `Table.scala`). Deferred past v1 deliberately;
+  tracked here so M5 doesn't rediscover it.
+
+**JVM↔JS parity gate** (§8, "no-import" guardrail's sibling): `Conformance.scala`
+already exists as differential-oracle infrastructure; extend its fixtures to
+run one `LabRequest` through `labJVM` directly and through the linked `labJS`
+worker module under Node, byte-comparing the serialized `LabResponse`. This
+proves the wire format is right; it does **not** prove the UI renders it
+right — the drift that actually hurt this project once (`b335a75`, a docs/copy
+bug, not a serialization bug) needs a second check: the tab→core-symbol
+provenance table below, extended to grep component source for the field name,
+not just prose.
 
 ---
 
 ## 6. UX & layout
 
 Three zones, Flatbars-clean, one emerald accent (per `docs/BRANDING.md` — emerald
-always reads "valid / green"):
+always reads "valid / green"), matching the gold-standard mock's spec exactly
+(`design/gramark-site-handoff/README.md` → "Screen 4"):
 
-- **Top bar.** Grammar name, method switch (Tier 2), build-status pill (emerald
-  when green), Share, Download ▾.
-- **Split body.** Grammar (left, ~60%) · Input (right, ~40%), resizable.
-- **Bottom drawer (tabbed).** _Result_ (accept/reject + CST) · _Diagnostics_ ·
-  _Railroad_ · _FIRST/FOLLOW_ · _Lowered Core_ · _Conformance_.
+- **Top bar.** Grammar name / example tabs, method switch (Tier 2), build-status
+  pill (emerald when green).
+- **Split body.** Grammar (left, ~55%) · Input (right, ~45%), resizable
+  (deferred to M5+, see below).
+- **Bottom drawer, ten tabs** — reconciled here against the mock's actual tab
+  bar; this replaces an earlier six-tab list in this section that predated the
+  mock import and dropped four of the mock's tabs while keeping one
+  (_Conformance_) the mock never had as a drawer tab at all (it's the distinct
+  Tier 3 feature T3.1, not part of the Lab's main drawer).
+
+| #   | Tab              | Core symbol                                                                                                                                                                                                           | v1 (M4)? |
+| --- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| 1   | Result           | `Lexer.tokenizeSpanned` + `Parser.run`/`ParseError`                                                                                                                                                                   | ✅       |
+| 2   | Evaluate         | `BackendJs`-generated JS, run in a sandboxed Worker — **not** a core interpreter (honors `8d93997`)                                                                                                                   | M5+      |
+| 3   | Tokens           | `Lexer.tokenizeSpanned` (spans)                                                                                                                                                                                       | ✅       |
+| 4   | Grammar analysis | method switch + `Railroad.renderSvg`/`parseProduction` + `Table.firstSets`/`followSets`; per-method state/conflict counts need the `Glr.explain` refactor (§5.1)                                                      | M5+      |
+| 5   | Parse tree       | `Cst.toJson`                                                                                                                                                                                                          | ✅       |
+| 6   | Parse trace      | derived client-side from the LR walk below, or a new `Table`/`Parser` trace hook                                                                                                                                      | M5+      |
+| 7   | LR walk          | stepper over the same trace data as Parse trace                                                                                                                                                                       | M5+      |
+| 8   | All parses       | `Glr.forest` (real; **do not** relabel to "Conflicts" — see `design/README.md`'s override of the stale `IMPLEMENTATION_astro.md` guidance)                                                                            | M5+      |
+| 9   | Diagnostics      | `Diagnostics.undefinedNonterminals` + `Diagnostics.renderConflicts`                                                                                                                                                   | ✅       |
+| 10  | Lowered Core     | render the already-desugared `Grammar` `Lr.parse` returns (confirmed: `Desugar.desugar` returns the same `Grammar` type, not a distinct "lowered" type — desugaring is a value-level guarantee, not a type-level one) | M5+      |
+
+This table **is** the provenance mapping the round-2 review guardrails called
+for (`docs-lint`-checked once the M5+ tabs land); it's the single source that
+keeps a future contributor from re-deriving "which tab needs what" from
+scratch, and from re-introducing the mock's stand-in Earley engine's behavior
+by accident.
 
 Accessibility: full keyboard nav, ARIA on the tree, prefers-reduced-motion
 respected, monospace for all grammar / CLI text (branding).
