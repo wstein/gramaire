@@ -14,12 +14,14 @@ package gramaire.lab
 // step 4 (`parseInput`) once per `EVALUATE`.
 
 import gramaire.{
+  BackendJs,
   Cst,
   ConformanceLexers,
   Diagnostics,
   GSym,
   Glr,
   Grammar,
+  IR,
   LrStep,
   Lr,
   Method,
@@ -79,7 +81,8 @@ object LabApi:
               parse = parse,
               productions = productions,
               forest = forest,
-              analysis = analysis
+              analysis = analysis,
+              evaluatorJs = Some(evaluatorJsFor(request.source, grammar))
             )
 
   // A terminal renders backtick-quoted (matching the grammar notation's own literal spelling and
@@ -133,6 +136,22 @@ object LabApi:
     }.toMap
 
     GrammarAnalysis(perMethod, firstFollow, railroad)
+
+  // The Evaluate tab's data (M5+): BackendJs.emitTraced's generated ES module source text — the
+  // Worker dynamically imports and runs it, never this module (Scala never executes the grammar
+  // author's JS). Uses IR.irGrammarOf, not the table-building IR.buildIRP/buildIR, since
+  // evaluate() already confirmed the table builds via Table.buildTablesFor above — irGrammarOf
+  // skips the redundant automaton build BackendJs never needed in the first place (it only reads
+  // IR.grammar).
+  private def evaluatorJsFor(source: String, grammar: Grammar): String =
+    // No CLI-shaped `file` path exists in the Lab's browser context to fall back to; "grammar" is
+    // only ever cosmetic (BackendJs's header comment), mirroring cli/jvm's own grammarName's H1
+    // extraction (that helper is CLI-only, reading a file path this module doesn't have).
+    val name =
+      source.split("\n", -1).find(_.startsWith("# ")).map(_.drop(2).trim).getOrElse("grammar")
+    val irGrammar = IR.irGrammarOf(Table.emptyPrec, name, grammar)
+    val tagged = IR.withActionLangGrammar(Lr.actionLangOf(source), irGrammar)
+    BackendJs.emitTraced(tagged)
 
   private def toDiaSym(nts: Set[String], s: Sym): Railroad.DiaSym = s match
     case Sym.Ref(name)       => Railroad.DiaSym(name, term = !nts.contains(name))

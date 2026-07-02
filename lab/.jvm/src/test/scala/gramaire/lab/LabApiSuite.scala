@@ -225,6 +225,41 @@ class LabApiSuite extends munit.FunSuite:
         assertEquals(p.trace, None)
   }
 
+  test("evaluate: a buildOk grammar carries a self-contained evaluatorJs module") {
+    val resp = LabApi.evaluate(LabRequest(calcMd, None, Method.Canonical))
+    assert(resp.buildOk)
+    resp.evaluatorJs match
+      case None => fail("expected an evaluatorJs module")
+      case Some(js) =>
+        assert(js.contains("export function evaluateTraced(cst)"))
+        assert(js.contains("const actions = ["))
+        // calc.gram.md declares `%lang javascript`, so its {% %} bodies must actually bake in,
+        // not just an all-null action table.
+        assert(
+          js.contains("Add") || js.contains("tag"),
+          s"expected real actions baked in, got: $js"
+        )
+  }
+
+  test("evaluate: a grammar with no `%lang` declaration bakes an all-null action table") {
+    // No %lang line, so IRRule.actions stays tagged "default" — BackendJs only reads the "js" tag
+    // — this is the real gramaire emit --backend js behavior, not a Lab-specific shortcut.
+    val noLangMd = """# NoLang
+      |
+      |## S
+      |
+      |```gramaire
+      |S
+      |: 'x' {% (c) => c.x %}
+      |```
+      |""".stripMargin
+    val resp2 = LabApi.evaluate(LabRequest(noLangMd, None, Method.Canonical))
+    assert(resp2.buildOk)
+    resp2.evaluatorJs match
+      case None     => fail("expected an evaluatorJs module")
+      case Some(js) => assert(js.contains("const actions = [null]"))
+  }
+
   test("evaluate: LALR and IELR methods are honored") {
     val lalr = LabApi.evaluate(LabRequest(calcMd, Some("1+2"), Method.LALR))
     val ielr = LabApi.evaluate(LabRequest(calcMd, Some("1+2"), Method.IELR))

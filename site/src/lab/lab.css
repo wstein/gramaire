@@ -317,6 +317,10 @@
   background: var(--accent-softer);
 }
 
+.lab__annotated-value {
+  color: var(--accent);
+}
+
 @media (max-width: 720px) {
   .lab__panes {
     flex-direction: column;

@@ -56,6 +56,17 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await expect(productionRows).toHaveCount(8); // Expr(x3) + Term(x3) + Factor(x2)
   await expect(productionRows.first()).toContainText("Expr");
 
+  // DEFAULT_SOURCE has no {% %} actions, so this exercises the real, no-op-passthrough evaluator
+  // (not a mocked one) — every node's value is just its own matched text, no computation.
+  await page.click('button[role="tab"]:has-text("Evaluate")');
+  await expect(page.locator(".lab__result")).toContainText("1+2*3 =", {
+    timeout: 5000,
+  });
+  await expect(page.locator(".lab__tree")).toContainText("rule 0");
+  await expect(page.locator(".lab__panel")).toContainText(
+    "No actions in this grammar",
+  );
+
   await page.click('button[role="tab"]:has-text("Grammar analysis")');
   const methodRows = page
     .locator(".lab__panel .lab__table")
@@ -102,6 +113,53 @@ test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", 
     "Ambiguous · 2 distinct parse tree",
   );
   await expect(page.locator(".lab__forest-item")).toHaveCount(2);
+});
+
+test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthrough", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+
+  const md = [
+    "# Sum",
+    "",
+    "## General settings",
+    "",
+    "```gramaire settings",
+    "%lang javascript",
+    "```",
+    "",
+    "## Tokens",
+    "",
+    "```gramaire tokens",
+    "NUMBER : /[0-9]+/",
+    "```",
+    "",
+    "## Sum",
+    "",
+    "```gramaire",
+    "Sum",
+    "  : Sum '+' NUMBER {% (c) => c.sum + Number(c.number) %}",
+    "  | NUMBER            {% (c) => Number(c.number) %}",
+    "```",
+    "",
+  ].join("\n");
+  await page.locator(".lab__pane:nth-child(1) .lab__editor").fill(md);
+  await page.locator(".lab__pane:nth-child(2) .lab__editor").fill("1+2+3");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+
+  await page.click('button[role="tab"]:has-text("Evaluate")');
+  await expect(page.locator(".lab__result")).toContainText("1+2+3 = 6", {
+    timeout: 5000,
+  });
+  const reductionRows = page.locator(".lab__panel .lab__table tbody tr");
+  await expect(reductionRows).toHaveCount(3); // NUMBER"1", Sum+NUMBER"2", Sum+NUMBER"3"
+  await expect(reductionRows.last()).toContainText("6");
 });
 
 test("the Lab reflects a rejected input", async ({ page }) => {

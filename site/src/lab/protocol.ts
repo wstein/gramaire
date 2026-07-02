@@ -71,6 +71,10 @@ export interface LabResponse {
    * The Grammar analysis tab's data: every method's state/conflict count, FIRST/FOLLOW per rule, and a railroad SVG per rule. Present whenever the grammar notation parsed, independent of buildOk (same reasoning as `productions`); null only when the grammar notation itself failed to parse.
    */
   analysis: GrammarAnalysis | null;
+  /**
+   * The Evaluate tab's data: BackendJs.emitTraced's generated ES module source text, run by the Worker (not this schema's owner — Scala never executes it). Present only when buildOk is true (it needs a valid compiled table); null otherwise.
+   */
+  evaluatorJs: string | null;
 }
 /**
  * The outcome of parsing LabRequest.input against the compiled grammar. `tokens` is populated even on a reject, so the Tokens tab still has something to show; `cst`/`trace` are null unless `accepted`.

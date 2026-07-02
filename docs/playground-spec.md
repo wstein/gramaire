@@ -483,8 +483,38 @@ array, no protocol duplication. Verified end-to-end against the real
 engine: `examples/calc.gram.md`'s `1+2*3` produces exactly 14 steps,
 matching the gold-standard mock screenshot's own "step 7/14" 1+2*3 example.
 
+The Evaluate tab is also done — the last of the ten mock tabs. It
+deliberately reuses `BackendJs`, the CLI's own `gramaire emit --backend js`
+artifact, rather than a second, hand-rolled evaluator reading
+`IRRule.actions` directly: `BackendJs.emitTraced(grammar: IRGrammar):
+String` is a sibling of `emit`, sharing `emit`'s exact `actions`/`fields`
+tables (`tablesBlock`) so the two can never bake different actions for the
+same grammar, wrapped in a runtime whose `fold` returns an _annotated
+tree_ — every node decorated with its own computed `value` — instead of a
+bare final value. Both `emit`/`emitTraced` were narrowed from `IR => String`
+to `IRGrammar => String`, since this backend never reads `IR.tables` (or
+`.conflicts`/`.lexer`/`.atn`); this let `LabApi` call the new
+`IR.irGrammarOf` (extracted from `IR.buildIRP`, no automaton build) instead
+of the table-building `IR.buildIR`, avoiding a second redundant automaton
+construction on top of the one `Table.buildTablesFor` already did.
+`LabResponse` grows `evaluatorJs: Option[String]` — the generated ES
+module's source TEXT, not a computed value: Scala never executes it.
+`site/src/lab/worker.ts` does, via a `Blob` URL dynamic import (the exact
+same trust boundary `gramaire emit --backend js` already crosses when a user
+runs the downloaded file themselves — the grammar author's own code, in
+their own tab, against their own input, nothing server-side or
+cross-origin), posting the annotated tree back as a new
+`WorkerResponseMessage.evaluation` field alongside (not inside) the
+Scala-computed `LabResponse`. The Evaluate tab renders the result banner
+(`<input> = <value>`), the annotated tree, and a bottom-up reductions list
+(each rule's own `{% %}` action text, looked up from `productions`, paired
+with its computed value) — verified end-to-end against the real engine with
+an actual `%lang javascript` grammar with real actions (not just the
+default action-free grammar): `1+2+3` correctly reduces to `6` through
+three real reduction steps.
+
 **Not yet done:** the JVM↔JS parity gate below (the main remaining tracked
-gap for this slice), the Evaluate tab, and the draggable splitter.
+gap for this slice), and the draggable splitter.
 
 **JVM↔JS parity gate** (§8, "no-import" guardrail's sibling; not yet built):
 `Conformance.scala` already exists as differential-oracle infrastructure;
@@ -517,7 +547,7 @@ always reads "valid / green"), matching the gold-standard mock's spec exactly
 | #   | Tab              | Core symbol                                                                                                                                                                                                           | v1 (M4)? |
 | --- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | 1   | Result           | `Lexer.tokenizeSpanned` + `Parser.run`/`ParseError`                                                                                                                                                                   | ✅       |
-| 2   | Evaluate         | `BackendJs`-generated JS, run in a sandboxed Worker — **not** a core interpreter (honors `8d93997`)                                                                                                                   | M5+      |
+| 2   | Evaluate         | `BackendJs.emitTraced`-generated JS, run by the Worker via a `Blob` URL dynamic import — **not** a core interpreter (honors `8d93997`)                                                                              | ✅ (M5)  |
 | 3   | Tokens           | `Lexer.tokenizeSpanned` (spans)                                                                                                                                                                                       | ✅       |
 | 4   | Grammar analysis | method comparison via `Table.statsForAll` (states + conflicts, one shared canonical-automaton build) + `Table.firstSets`/`followSets` + `Railroad.renderSvg` built from the compiled `Grammar` directly (not `parseProduction` — see §5.1) | ✅ (M5)  |
 | 5   | Parse tree       | `Cst.toJson`                                                                                                                                                                                                          | ✅       |
