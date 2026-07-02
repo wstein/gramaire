@@ -25,8 +25,6 @@ The ANTLR `X (s X)*` idioms become Gramark `Sep<X, s>`, and `(…)` groups —
 which Gramark defers (ADR D27) — become helper rules (`*Decl`, `*Op`, …). Empty
 alternatives are kept verbatim; Gramark accepts them.
 
-## General settings
-
 ```gramark
 %name ANTLRv4
 ```

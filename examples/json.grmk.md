@@ -19,8 +19,6 @@ members }`, `{ tag: "Arr", elements }`, `{ tag: "Str", value }`, `{ tag:
 "Num", value }`, `{ tag: "Bool", value }`, `{ tag: "Null" }` — each entry of
 `members` a plain `{ key, value }` pair, in source order.
 
-## General settings
-
 ```gramark
 %name Json
 %lang javascript

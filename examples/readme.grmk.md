@@ -20,8 +20,6 @@ Semantic actions build this AST as plain tagged JS objects: `{ tag:
 "Readme", sentences }`, `{ tag: "Sentence", words }` — each a plain array,
 in reading order.
 
-## General settings
-
 ```gramark
 %name Readme
 %lang javascript

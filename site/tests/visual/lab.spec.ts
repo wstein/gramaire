@@ -206,8 +206,6 @@ test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthro
   const md = [
     "# Sum",
     "",
-    "## General settings",
-    "",
     "```gramark",
     "%name Sum",
     "%lang javascript",
@@ -264,8 +262,6 @@ test("the Lab's Evaluate tab renders a non-primitive action result as a collapse
 
   const md = [
     "# Node",
-    "",
-    "## General settings",
     "",
     "```gramark",
     "%name Node",

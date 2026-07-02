@@ -3,8 +3,6 @@
 A small arithmetic grammar demonstrating the Gramark fenced envelope.
 Operators are left-associative; `*` and `/` bind tighter than `+` and `-`.
 
-## General settings
-
 ```gramark
 %name Calc
 %lang javascript

@@ -48,8 +48,6 @@ action }` (`label`/`action` are `null` when absent), and one tagged object per
 `Any`, `Not` — mirroring the real Scala types in
 [`Syntax.scala`](../core/src/main/scala/gramark/Syntax.scala).
 
-## General settings
-
 ```gramark
 %name Lr
 %lang javascript
