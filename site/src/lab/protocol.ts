@@ -17,6 +17,10 @@ export interface LabRequest {
   source: string;
   input?: string | null;
   method: Method;
+  /**
+   * The rule to treat as the grammar's start/entry rule, overriding the default of the first declared rule. Null (or omitted) means use the grammar's own declaration order, exactly like every non-Lab caller (the CLI, core test suites).
+   */
+  startRule?: string | null;
 }
 
 /**

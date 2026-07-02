@@ -13,7 +13,11 @@
       "properties": {
         "source": { "type": "string" },
         "input": { "type": ["string", "null"] },
-        "method": { "$ref": "#/$defs/method" }
+        "method": { "$ref": "#/$defs/method" },
+        "startRule": {
+          "type": ["string", "null"],
+          "description": "The rule to treat as the grammar's start/entry rule, overriding the default of the first declared rule. Null (or omitted) means use the grammar's own declaration order, exactly like every non-Lab caller (the CLI, core test suites)."
+        }
       }
     },
     "method": {

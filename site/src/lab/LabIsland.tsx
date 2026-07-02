@@ -14,6 +14,8 @@ import type {
   WorkerRequestMessage,
   WorkerResponseMessage,
 } from "./worker";
+import { DEFAULT_SOURCE, DEFAULT_INPUT, EXAMPLES } from "./examples";
+import type { LabExample } from "./examples";
 import "./lab.css";
 
 // Tier 0/1 v1 slice (docs/playground-spec.md §6) was Result, Tokens, Parse
@@ -35,47 +37,12 @@ type Tab =
 
 const METHODS = ["Canonical", "LALR", "IELR"] as const;
 
-const DEFAULT_SOURCE = `# Expr
-
-## Expr
-
-\`\`\`gramaire
-Expr
-  : Expr '+' Term
-  | Expr '-' Term
-  | Term
-\`\`\`
-
-## Term
-
-\`\`\`gramaire
-Term
-  : Term '*' Factor
-  | Term '/' Factor
-  | Factor
-\`\`\`
-
-## Factor
-
-\`\`\`gramaire
-Factor
-  : '(' Expr ')'
-  | NUMBER
-\`\`\`
-
-## Tokens
-
-\`\`\`gramaire tokens
-NUMBER : /[0-9]+/
-WS     : /[ \\t\\r\\n]+/   %skip
-\`\`\`
-`;
-
-const DEFAULT_INPUT = "1+2*3";
-
 const grammarSource = signal(DEFAULT_SOURCE);
 const targetInput = signal(DEFAULT_INPUT);
 const method = signal<Method>("Canonical");
+// null means "no override" — the request omits startRule, so the engine uses the grammar's own
+// natural declaration order (its first rule). Set only by the start-rule picker.
+const startRule = signal<string | null>(null);
 const activeTab = signal<Tab>("result");
 const response = signal<LabResponse | null>(null);
 const evaluation = signal<EvaluationResult | null>(null);
@@ -93,6 +60,14 @@ const buildStatus = computed<"pending" | "ok" | "fail">(() => {
   if (response.value === null) return "pending";
   return response.value.buildOk ? "ok" : "fail";
 });
+
+// Every rule name, in the compiled grammar's current declaration order — same source `analysis`
+// already has (GrammarAnalysisPanel's rule tabs), reused here to populate the start-rule picker
+// without a second request. Present whenever the grammar notation parsed, same lifecycle as
+// `productions`.
+const ruleNames = computed<string[]>(
+  () => response.value?.analysis?.firstFollow.map((r) => r.name) ?? [],
+);
 
 // Debounced, latest-wins (docs/playground-spec.md §5's Worker protocol):
 // every keystroke re-evaluates, but only the response matching the most
@@ -129,10 +104,20 @@ function scheduleEvaluate() {
       source: grammarSource.value,
       input: targetInput.value.length > 0 ? targetInput.value : null,
       method: method.value,
+      startRule: startRule.value,
     };
     const message: WorkerRequestMessage = { id, request };
     ensureWorker().postMessage(message);
   }, DEBOUNCE_MS);
+}
+
+// Loading a new example resets the start-rule override — the previous grammar's rule names have no
+// bearing on the new one, and the engine falls back to the new grammar's own natural start anyway.
+function loadExample(ex: LabExample) {
+  grammarSource.value = ex.source;
+  targetInput.value = ex.input;
+  startRule.value = null;
+  scheduleEvaluate();
 }
 
 // Draggable splitter (M5+, docs/playground-spec.md §6): default 55/45, clamped 28-72. Position is
@@ -193,6 +178,22 @@ export default function LabIsland() {
     <div class="lab" ref={labRef}>
       <div class="lab__toolbar">
         <label class="lab__method">
+          Example
+          <select
+            onChange={(e) => {
+              const name = (e.target as HTMLSelectElement).value;
+              const ex = EXAMPLES.find((x) => x.name === name);
+              if (ex) loadExample(ex);
+            }}
+          >
+            {EXAMPLES.map((ex) => (
+              <option key={ex.name} value={ex.name}>
+                {ex.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label class="lab__method">
           Method
           <select
             value={method.value}
@@ -206,6 +207,24 @@ export default function LabIsland() {
             <option value="IELR">IELR(1)</option>
           </select>
         </label>
+        {ruleNames.value.length > 0 && (
+          <label class="lab__method">
+            Start rule
+            <select
+              value={startRule.value ?? ruleNames.value[0]}
+              onChange={(e) => {
+                startRule.value = (e.target as HTMLSelectElement).value;
+                scheduleEvaluate();
+              }}
+            >
+              {ruleNames.value.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <span
           class={`lab__status lab__status--${pending.value ? "pending" : buildStatus.value}`}
         >

@@ -52,7 +52,8 @@ object LabApi:
     Lr.parse(request.source) match
       case Left(err) =>
         LabResponse(LabResponse.version, buildOk = false, diagnostics = Vector(err), parse = None)
-      case Right(grammar) =>
+      case Right(parsedGrammar) =>
+        val grammar = withStartRule(parsedGrammar, request.startRule)
         // `productions`/`forest` depend only on the grammar notation having parsed, not on
         // `Table.buildTablesFor` succeeding — `Glr.forest`'s multi-action table never fails (it
         // keeps every conflicting action instead of rejecting), which is exactly what lets a
@@ -90,6 +91,22 @@ object LabApi:
               analysis = analysis,
               evaluatorJs = Some(evaluatorJsFor(request.source, grammar))
             )
+
+  // The Lab's start-rule picker (M5+): core has no separate "start rule" concept anywhere —
+  // `Table.analyze`'s startSymbol and `IR.irGrammarOf`'s startSymbol both just take
+  // `grammar.rules.head` (the first `##` heading in declaration order), and that's what
+  // `Table.buildTablesFor`'s augmented-start production keys off. Reordering `rules` so the
+  // requested rule is first, once, right here, lets every downstream computation (table-building,
+  // FIRST/FOLLOW, the railroad diagram, the traced evaluator) pick it up for free — zero changes to
+  // core, and the CLI/every other caller is untouched since they never pass a `startRule`. A name
+  // that doesn't match any rule (shouldn't happen — the picker UI only ever offers the grammar's
+  // own real rule names) is ignored, falling back to the grammar's natural declaration order.
+  private def withStartRule(grammar: Grammar, startRule: Option[String]): Grammar =
+    startRule match
+      case Some(name) if grammar.rules.exists(_.name == name) =>
+        val (matched, rest) = grammar.rules.partition(_.name == name)
+        Grammar(matched ++ rest)
+      case _ => grammar
 
   // A terminal renders backtick-quoted (matching the grammar notation's own literal spelling and
   // the LR-walk ACTION line's format, M5+); a nonterminal renders bare; EOF as `$`.
