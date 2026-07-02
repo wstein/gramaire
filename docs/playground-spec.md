@@ -8,13 +8,21 @@ Status: **draft / north-star**. Tiers 1–3 are the roadmap; every feature is
 grounded in a capability the Gramaire Core already exposes, so the target Lab is
 a thin skin over real machinery, never a mock.
 
-> **Current state (be honest about it).** No Lab exists in the repository
-> today. The previous implementation (Astro + Starlight, with a Scala.js
-> Tier 1 keystone) was deleted in `4133cab` after the PureScript→Scala core
-> migration made it stale. This document remains the target specification
-> for the rebuild on `feature/reimplement-site`; treat every Tier/T-item
-> below as **not yet built** until this callout says otherwise, and keep it
-> current as work lands.
+> **Current state (be honest about it).** The Lab exists and is live at
+> `/lab` on `feature/reimplement-site`: all ten of the gold-standard mock's
+> drawer tabs (Result, Evaluate, Tokens, Grammar analysis, Parse tree, Parse
+> trace, LR walk, All parses, Diagnostics, Lowered Core), the JVM↔JS parity
+> gate (§8), and the draggable splitter are done — §5.1's per-tab
+> "Implementation status"/progress notes are the source of truth for what
+> shipped and when, not this callout. What's still **not yet built**: every
+> Tier 2/3 T-item below that isn't one of those ten tabs (Conformance panel
+> T3.1, Recovery preview T3.3, Gallery T3.4, Embeddable lab T3.5, Codegen
+> export T2.5) and the tab→core-symbol provenance table's own
+> `docs-lint`-checked guardrail (§5.1, deliberately deferred). The previous
+> implementation (Astro + Starlight, with a Scala.js Tier 1 keystone) was
+> deleted in `4133cab` after the PureScript→Scala core migration made it
+> stale, which is why this rebuild started from the mock, not from that
+> code. Keep this callout current as further work lands.
 
 ---
 
@@ -513,7 +521,33 @@ an actual `%lang javascript` grammar with real actions (not just the
 default action-free grammar): `1+2+3` correctly reduces to `6` through
 three real reduction steps.
 
-**Not yet done:** the draggable splitter.
+The draggable splitter is also done — the last item in this slice.
+`site/src/lab/LabIsland.tsx`'s `.lab__panes` grid grew a real DOM sibling
+between the grammar/input panes (`.lab__splitter`, `role="separator"`,
+`7px`, `cursor: col-resize`), not a CSS-only affordance: `mousedown` on it
+starts a `document`-level `mousemove`/`mouseup` listener pair that computes
+the grammar pane's percentage live from the cursor's X position relative to
+`.lab__panes`' own bounding rect (measured fresh on every move, not cached
+at drag-start, so a mid-drag window resize can't go stale), clamped to
+28–72% via a `splitPercent` signal (default 55, matching the mock spec) —
+in-memory only, no `localStorage`, since the spec doesn't call for
+persistence and this doesn't add one speculatively. The input pane always
+gets `flex: 1 1 auto` (fills whatever's left) rather than a second computed
+percentage, so the two panes never need to sum to exactly 100% by hand. On
+the `≤720px` stacked-mobile layout the splitter is hidden and each pane
+falls back to its natural height (dragging a horizontal grip on a vertical
+stack isn't a meaningful gesture the mock speced, so this doesn't invent
+one). One real regression caught by the existing suite, not this feature's
+own new test: the splitter's DOM position shifted `.lab__panes`' children
+from `[grammarPane, inputPane]` to `[grammarPane, splitter, inputPane]`,
+which silently broke three existing Playwright tests that targeted the
+input editor via `.lab__pane:nth-child(2)` (now the splitter, not the input
+pane) — fixed by replacing every positional pane selector in `lab.spec.ts`
+with the panes' own `.lab__pane--grammar`/`.lab__pane--fill` modifier
+classes, which don't depend on sibling order.
+
+**Not yet done:** nothing — every M5+ item tracked in this section (all ten
+tabs, the JVM↔JS parity gate, the draggable splitter) is now done.
 
 **JVM↔JS parity gate** (§8, "no-import" guardrail's sibling — done). Rather
 than extending `Conformance.scala` (a differential oracle over accept/reject
@@ -556,8 +590,8 @@ always reads "valid / green"), matching the gold-standard mock's spec exactly
 
 - **Top bar.** Grammar name / example tabs, method switch (Tier 2), build-status
   pill (emerald when green).
-- **Split body.** Grammar (left, ~55%) · Input (right, ~45%), resizable
-  (deferred to M5+, see below).
+- **Split body.** Grammar (left, ~55%) · Input (right, ~45%), resizable via
+  the draggable splitter (§5.1).
 - **Bottom drawer, ten tabs** — reconciled here against the mock's actual tab
   bar; this replaces an earlier six-tab list in this section that predated the
   mock import and dropped four of the mock's tabs while keeping one
