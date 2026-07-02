@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   core:
-    name: Scala core (cross-build)
+    name: Scala core & lab (cross-build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -32,7 +32,7 @@ jobs:
             sbt-${{ runner.os }}-
 
       - name: Cross-compile check (catches JVM-only stdlib leaks into core/shared)
-        run: sbt coreJVM/compile coreJS/compile cli/compile
+        run: sbt coreJVM/compile coreJS/compile labJVM/compile labJS/compile cli/compile
 
       - name: Format check (scalafmt)
         run: sbt scalafmtCheckAll
@@ -51,7 +51,7 @@ jobs:
           fi
 
       - name: Test (cross-platform, JVM + Scala.js from one shared suite)
-        run: sbt coreJVM/test coreJS/test
+        run: sbt coreJVM/test coreJS/test labJVM/test labJS/test
 
   cli:
     name: Unified CLI (gramaire)
