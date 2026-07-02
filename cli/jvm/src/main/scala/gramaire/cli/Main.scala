@@ -99,9 +99,13 @@ object Main:
                 readFile(file) match
                   case Left(err) => die(s"emit: cannot read $file: $err")
                   case Right(md) =>
-                    Lr.parse(md) match
-                      case Left(pe) => die(s"emit: parse error in $file: $pe")
+                    Lr.parseWith(Method.Canonical, md) match
+                      case Left(diags) =>
+                        die(s"emit: parse error in $file:\n\n" + renderDiags(diags, file, md))
                       case Right(g) =>
+                        Lr.warningsFor(md).foreach(w =>
+                          Console.err.println(renderDiags(Vector(w), file, md))
+                        )
                         IR.buildIRP(
                           Lr.precedenceOf(md),
                           Method.Canonical,
@@ -109,9 +113,10 @@ object Main:
                           g
                         ) match
                           case Left(conflicts) =>
+                            val spans = Lr.spanIndexOf(md)
                             die(
                               s"emit: $file has unresolved LR(1) conflicts:\n\n" +
-                                Diagnostics.renderConflicts(g, conflicts).mkString("\n\n")
+                                renderDiags(Diagnostics.conflictDiagnostics(g, spans, conflicts), file, md)
                             )
                           case Right(ir0) =>
                             if !b.strategies.contains(opts.strategy) then
@@ -223,8 +228,9 @@ object Main:
         readFile(file) match
           case Left(err) => die(s"explain-conflict: cannot read $file: $err")
           case Right(md) =>
-            Lr.parse(md) match
-              case Left(pe) => die(s"explain-conflict: parse error in $file: $pe")
+            Lr.parseWith(Method.Canonical, md) match
+              case Left(diags) =>
+                die(s"explain-conflict: parse error in $file:\n\n" + renderDiags(diags, file, md))
               case Right(g) => println(Glr.explainP(Lr.precedenceOf(md), g))
 
   // `gramaire check <file.gram.md>`: the structure + drift gates (see
@@ -290,6 +296,13 @@ object Main:
   private def die(msg: String): Unit =
     Console.err.println(s"gramaire: $msg")
     sys.exit(1)
+
+  // Render located diagnostics against the real file path (not `Lr.parse`'s generic `<grammar>`
+  // placeholder) — `Diagnostic.render`'s `-->` line and caret frame both need the source text in
+  // the same coordinate space the diagnostics' spans are relative to, which is always `Lr.toFenced`
+  // applied to the document (a no-op on the standard already-fenced `.gram.md` case).
+  private def renderDiags(diags: Vector[Diagnostic], file: String, md: String): String =
+    Diagnostic.renderAll(diags, file, Lr.toFenced(md))
 
   private def backendNames: String = BackendRegistry.backends.map(_.name).mkString(", ")
 
