@@ -50,17 +50,18 @@
   --sl-color-text: var(--fg-secondary);
 
   /*
-   * Starlight always wraps the Header override (AppShell.astro) in its
-   * own `.header` box (PageFrame.astro), which carries its own
+   * Starlight always wraps the Header override (AppShell.astro, which
+   * mounts the shared <gramark-topbar> custom element) in its own
+   * `.header` box (PageFrame.astro), which carries its own
    * `padding: var(--sl-nav-pad-y) var(--sl-nav-pad-x)` — doubling up on
-   * AppShell's own `.topbar` padding and showing as extra space around
-   * the topbar on every Starlight-templated page (Docs/Specs/Tutorials/
-   * Brand) that the bare Landing page, with no such wrapper, never had.
-   * Zeroing these here (an unlayered rule beats Starlight's own
-   * `@layer starlight.base` unconditionally) makes `.topbar` the only
-   * padding source everywhere. `--sl-nav-height` is left alone — it
-   * already matches `.topbar`'s natural rendered height, so the fixed
-   * header's content offset (`.main-frame`'s padding-top) stays correct.
+   * the topbar's own padding and showing as extra space around it on
+   * every Starlight-templated page (Docs/Specs/Tutorials/Brand) that the
+   * bare Landing page, with no such wrapper, never had. Zeroing these
+   * here (an unlayered rule beats Starlight's own `@layer starlight.base`
+   * unconditionally) makes the topbar's own padding the only source
+   * everywhere. `--sl-nav-height` is left alone — it already matches the
+   * topbar's natural rendered height, so the fixed header's content
+   * offset (`.main-frame`'s padding-top) stays correct.
    */
   --sl-nav-pad-x: 0px;
   --sl-nav-pad-y: 0px;
@@ -70,10 +71,14 @@
  * Starlight's own `Search.astro` gives its trigger button a bordered,
  * filled pill at desktop widths (`@layer starlight.core`) — the
  * gold-standard topbar has no such box, just the icon, placeholder text,
- * and a light `⌘K` badge inline against the topbar itself. Unlayered so
- * it wins unconditionally over Starlight's own media-query-gated rule.
+ * and a light `⌘K` badge inline against the topbar itself. `<Search />`
+ * is slotted into <gramark-topbar>'s `tools` slot as a plain light-DOM
+ * child (gramark-topbar.mjs) — Shadow DOM only encapsulates the shadow
+ * tree itself, so this global stylesheet still reaches it like any other
+ * element. Unlayered so it wins unconditionally over Starlight's own
+ * media-query-gated rule.
  */
-.search button[data-open-modal] {
+gramark-topbar button[data-open-modal] {
   border: 0;
   border-radius: 0;
   background-color: transparent;
@@ -89,7 +94,7 @@
    */
   color: var(--fg-muted);
 }
-.search button[data-open-modal]:hover {
+gramark-topbar button[data-open-modal]:hover {
   border-color: transparent;
   color: var(--fg-secondary);
 }
