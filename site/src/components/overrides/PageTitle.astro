@@ -1,0 +1,11 @@
+---
+// Home (src/pages/index.astro, a `template: "splash"` StarlightPage) has
+// its own hero <h1> — Starlight's own PageTitle would print a second,
+// redundant one above it. Every other Starlight-templated page keeps the
+// stock component untouched.
+import Default from "@astrojs/starlight/components/PageTitle.astro";
+
+const isHome = Astro.locals.starlightRoute.id === "";
+---
+
+{!isHome && <Default />}

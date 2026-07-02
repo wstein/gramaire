@@ -1,0 +1,11 @@
+---
+// Home (src/pages/index.astro, a `template: "splash"` StarlightPage) has
+// its own footer (Apache-2.0 line + nav links) — Starlight's own Footer
+// (edit link, last-updated, prev/next pagination) doesn't apply to it.
+// Every other Starlight-templated page keeps the stock component untouched.
+import Default from "@astrojs/starlight/components/Footer.astro";
+
+const isHome = Astro.locals.starlightRoute.id === "";
+---
+
+{!isHome && <Default />}
