@@ -352,6 +352,18 @@ object Lr:
       (block(settingLines) ++ block(tokenLines) ++ block(precLines) ++ block(prodLines))
         .mkString("\n\n")
 
+  /** `toFenced` plus whether it actually changed anything — i.e. whether `src` was a fence-free
+    * `.gram` projection that got lossily reconstructed (reordered, comments stripped), as opposed
+    * to an already-fenced `.gram.md` passed through unchanged. Callers that report a diagnostic's
+    * location (the CLI's `--> file:line:col`) or decide whether a `SrcSpan` is safe to expose
+    * against the caller's own original text (the Lab's `spanSafe`) both need exactly this fact;
+    * centralizing it here keeps their definition of "changed" from drifting apart if `toFenced`
+    * ever does.
+    */
+  def toFencedTagged(src: String): (String, Boolean) =
+    val fenced = toFenced(src)
+    (fenced, fenced != src)
+
   // The production lexer for `lr` grammar source: the scanner built from
   // the notation's own `## Tokens` block, with `:` and `|` as the
   // implicit literals.
