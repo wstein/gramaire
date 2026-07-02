@@ -5,9 +5,11 @@
 // `homeView()` (design/gramark-site-handoff/Gramark Site.dc.html).
 //
 // The mock's showcase is *live* (editable, re-parses on keystroke) because
-// it's backed by its stand-in engine. The real Lab doesn't exist yet (M4 of
-// the site rebuild), so this renders the same content statically instead of
-// faking interactivity — see design/README.md's gold-standard boundary.
+// it's backed by its stand-in engine. This showcase stays static and links
+// out to /lab/ instead of embedding a real live editor here — the Lab (M4)
+// now exists as its own page (src/pages/lab.astro), but an embedded preview
+// island on Landing is its own increment, not bundled into this one — see
+// design/README.md's gold-standard boundary.
 import AppShell from "../components/AppShell.astro";
 import Button from "../components/Button.astro";
 import FeatureTile from "../components/FeatureTile.astro";
@@ -86,9 +88,7 @@ const headTags = pageHeadTags(base);
               <Button kind="primary" href={`${base}tutorials/intro/`}
                 >Start the tutorial <span class="hero__arrow">→</span></Button
               >
-              <Button kind="ghost" title="Planned — not yet built"
-                >Open the Lab</Button
-              >
+              <Button kind="ghost" href={`${base}lab/`}>Open the Lab</Button>
             </div>
           </div>
 
@@ -97,9 +97,7 @@ const headTags = pageHeadTags(base);
               <span class="showcase__label"
                 >one file · live — edit the source</span
               >
-              <Button kind="chip" title="Planned — not yet built"
-                >Open in Lab ↗</Button
-              >
+              <Button kind="chip" href={`${base}lab/`}>Open in Lab ↗</Button>
             </div>
             <div class="showcase__body">
               <pre class="showcase__source"><code>{showcaseSource}</code></pre>
@@ -134,8 +132,7 @@ const headTags = pageHeadTags(base);
             <span>Gramark · Apache-2.0</span>
             <a href={`${base}docs/overview/`}>Docs</a>
             <a href={`${base}tutorials/intro/`}>Tutorial</a>
-            <span class="footer__soon" title="Planned — not yet built">Lab</span
-            >
+            <a href={`${base}lab/`}>Lab</a>
             <a
               href="https://github.com/wstein/gramark"
               target="_blank"
@@ -312,8 +309,5 @@ const headTags = pageHeadTags(base);
   }
   .footer a:hover {
     color: var(--accent);
-  }
-  .footer__soon {
-    opacity: 0.55;
   }
 </style>

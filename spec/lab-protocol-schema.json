@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gramark.dev/spec/lab-protocol-schema.json",
+  "title": "gramark-lab-protocol",
+  "description": "The typed JSON boundary the in-browser Lab (site/src/lab/) talks to across the Scala.js/Worker seam: LabRequest sent in, LabResponse returned. Hand-authored (lab/src/main/scala/gramark/lab/LabProtocol.scala's codecs have no derivation mechanism to generate this from) and validated against real serialized LabResponse output by the JVM<->JS conformance gate, so schema/code drift fails CI instead of rotting silently. labProtocolVersion 0 is draft/unstable and carries no compatibility promise.",
+  "$defs": {
+    "labRequest": {
+      "title": "LabRequest",
+      "description": "A request from the Lab UI: the full .grmk.md source, an optional target-language input to parse, and the table-construction method to build with. Omitting `input` (or sending null) means compile-only.",
+      "type": "object",
+      "required": ["source", "method"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string" },
+        "input": { "type": ["string", "null"] },
+        "method": { "$ref": "#/$defs/method" }
+      }
+    },
+    "method": {
+      "description": "Which table-construction method to build with — mirrors gramark.Method exactly.",
+      "type": "string",
+      "enum": ["Canonical", "LALR", "IELR"]
+    },
+    "labResponse": {
+      "title": "LabResponse",
+      "description": "The Lab's full response: whether the grammar itself built, any diagnostics, and — if input was given and the grammar built — the parse result.",
+      "type": "object",
+      "required": ["labProtocolVersion", "buildOk", "diagnostics", "parse"],
+      "additionalProperties": false,
+      "properties": {
+        "labProtocolVersion": { "type": "integer", "minimum": 0 },
+        "buildOk": {
+          "type": "boolean",
+          "description": "True iff the grammar compiled and its tables built with no unresolved conflicts. When false, `diagnostics` names why and `parse` is always null."
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Rendered conflict/undefined-nonterminal messages (Diagnostics.renderConflicts), or a single grammar-notation parse error, when buildOk is false. Empty when buildOk is true."
+        },
+        "parse": {
+          "oneOf": [{ "$ref": "#/$defs/parseResult" }, { "type": "null" }],
+          "description": "Present only when the request carried `input` and the grammar built successfully; null otherwise (compile-only requests, or any build failure)."
+        }
+      }
+    },
+    "parseResult": {
+      "title": "ParseResult",
+      "description": "The outcome of parsing LabRequest.input against the compiled grammar. `tokens` is populated even on a reject, so the Tokens tab still has something to show; `cst` is null unless `accepted`.",
+      "type": "object",
+      "required": ["accepted", "message", "tokens", "cst"],
+      "additionalProperties": false,
+      "properties": {
+        "accepted": { "type": "boolean" },
+        "message": {
+          "type": ["string", "null"],
+          "description": "The reject reason (a lexical-error notice, or ParseError.render) when accepted is false; null when accepted."
+        },
+        "tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/labToken" }
+        },
+        "cst": {
+          "oneOf": [{ "$ref": "#/$defs/cstNode" }, { "type": "null" }]
+        }
+      }
+    },
+    "labToken": {
+      "title": "LabToken",
+      "description": "A single lexed token from the Lab's Tokens tab, with its source span (start/end are code-unit offsets into LabRequest.input, [start, end) — matching gramark.Spanned's own convention).",
+      "type": "object",
+      "required": ["text", "terminal", "start", "end"],
+      "additionalProperties": false,
+      "properties": {
+        "text": { "type": "string" },
+        "terminal": { "type": "string" },
+        "start": { "type": "integer", "minimum": 0 },
+        "end": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "cstNode": {
+      "description": "The same node shape as cst-schema.json's $defs/node (Cst.toJson emits it identically here, just embedded as ParseResult.cst instead of wrapped in the {cstVersion, root} envelope that artifact's own top level adds) — kept in sync by hand, both schemas are hand-authored from the same Cst.scala encoder.",
+      "oneOf": [{ "$ref": "#/$defs/cstBranch" }, { "$ref": "#/$defs/cstToken" }]
+    },
+    "cstBranch": {
+      "type": "object",
+      "required": ["rule", "children"],
+      "additionalProperties": false,
+      "properties": {
+        "rule": { "type": "integer", "minimum": 0 },
+        "children": { "type": "array", "items": { "$ref": "#/$defs/cstNode" } }
+      }
+    },
+    "cstToken": {
+      "type": "object",
+      "required": ["token", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "token": { "type": "string" },
+        "text": { "type": "string" }
+      }
+    }
+  }
+}

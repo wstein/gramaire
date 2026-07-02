@@ -133,6 +133,24 @@ jobs:
           cache: npm
           cache-dependency-path: site/package-lock.json
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Coursier and sbt
+        # Same cache as the core/lab job — building the Lab engine here
+        # needs sbt too (npm run build:engine shells out to it).
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/coursier
+            ~/.sbt
+            ~/.ivy2/cache
+          key: sbt-${{ runner.os }}-${{ hashFiles('project/build.properties', 'project/plugins.sbt', 'build.sbt') }}
+          restore-keys: |
+            sbt-${{ runner.os }}-
+
       - name: Install dependencies
         run: npm ci
 
@@ -154,6 +172,20 @@ jobs:
             echo "$hits"
             exit 1
           fi
+
+      - name: Lab TS types are up to date (no drift)
+        # Same "generate, commit, CI diffs" pattern as spec/cst-schema.json /
+        # spec/ir-schema.json — regenerate from spec/lab-protocol-schema.json
+        # and fail if the committed src/lab/protocol.ts disagrees.
+        run: |
+          npm run gen:lab-types
+          git diff --exit-code src/lab/protocol.ts
+
+      - name: Build the Lab engine (Scala.js, optimized)
+        # docs/playground-spec.md's "Worker bundle: placeholder locally, CI
+        # builds the real one" — fullLinkJS, not the fastLinkJS local dev
+        # uses, into public/lab/engine.mjs (gitignored, never committed).
+        run: npm run build:engine -- --full
 
       - name: Build
         run: npm run build
