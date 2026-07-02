@@ -264,6 +264,27 @@
   padding: 14px 18px;
   font-size: 13px;
 }
+/* LR walk: the controls/action/parse-stack panels above the step-history table stay pinned in
+   view — only the table itself scrolls, so the stepper stays reachable no matter how long the
+   trace is. lab__panel's own overflow is turned off in favor of lab__walk-history's, or the two
+   scroll containers would fight each other. */
+.lab__panel--walk {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.lab__walk {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+.lab__walk-history {
+  flex: 1 1 auto;
+  min-height: 40px;
+  overflow-y: auto;
+}
 .lab__empty {
   color: var(--fg-faint);
   font-style: italic;
@@ -564,6 +585,9 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 14px;
+  /* flex:none — a flex child's default flex-shrink:1 would otherwise let a cramped drawer squash
+     the controls themselves instead of the (deliberately shrinkable) history table below. */
+  flex: none;
 }
 .lab__walk-controls button {
   font: inherit;
@@ -597,12 +621,20 @@
   border-radius: var(--radius, 6px);
   background: var(--bg-1);
   margin-bottom: 14px;
+  flex: none;
 }
 .lab__walk-panes {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
   margin-bottom: 18px;
+  /* A long input can wrap the parse-stack/remaining-input chips across many lines — capping this
+     region and letting it scroll internally keeps the step-history table from being squeezed down
+     to nothing below it. flex:none for the same reason as .lab__walk-controls above: this must
+     hold its natural (capped) size, not shrink to help the flexbox make room. */
+  max-height: 140px;
+  overflow-y: auto;
+  flex: none;
 }
 .lab__walk-chips {
   display: flex;
