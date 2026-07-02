@@ -144,9 +144,9 @@
     },
     "parseResult": {
       "title": "ParseResult",
-      "description": "The outcome of parsing LabRequest.input against the compiled grammar. `tokens` is populated even on a reject, so the Tokens tab still has something to show; `cst` is null unless `accepted`.",
+      "description": "The outcome of parsing LabRequest.input against the compiled grammar. `tokens` is populated even on a reject, so the Tokens tab still has something to show; `cst`/`trace` are null unless `accepted`.",
       "type": "object",
-      "required": ["accepted", "message", "tokens", "cst"],
+      "required": ["accepted", "message", "tokens", "cst", "trace"],
       "additionalProperties": false,
       "properties": {
         "accepted": { "type": "boolean" },
@@ -160,8 +160,72 @@
         },
         "cst": {
           "oneOf": [{ "$ref": "#/$defs/cstNode" }, { "type": "null" }]
+        },
+        "trace": {
+          "oneOf": [
+            { "type": "array", "items": { "$ref": "#/$defs/lrStepInfo" } },
+            { "type": "null" }
+          ],
+          "description": "The Parse trace / LR walk tabs' data: the full shift/reduce/accept sequence, one entry per step. Present only when accepted."
         }
       }
+    },
+    "lrStepInfo": {
+      "title": "LrStepInfo",
+      "description": "One step of an LR walk: the action taken and the parse stack/remaining-input state before taking it.",
+      "type": "object",
+      "required": ["index", "stateBefore", "action", "stackSymbols", "remainingSymbols"],
+      "additionalProperties": false,
+      "properties": {
+        "index": { "type": "integer", "minimum": 0 },
+        "stateBefore": { "type": "integer", "minimum": 0 },
+        "action": { "$ref": "#/$defs/lrActionInfo" },
+        "stackSymbols": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Bottom to top, before this action; already display-rendered like ProductionInfo.rhs."
+        },
+        "remainingSymbols": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Before this action, including a trailing `$` EOF marker."
+        }
+      }
+    },
+    "lrActionInfo": {
+      "title": "LrActionInfo",
+      "description": "A kind-tagged LR action.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "terminal", "lexeme"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "shift" },
+            "terminal": { "type": "string" },
+            "lexeme": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "lhs", "rhs", "prodIndex"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "reduce" },
+            "lhs": { "type": "string" },
+            "rhs": { "type": "array", "items": { "type": "string" } },
+            "prodIndex": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "accept" }
+          }
+        }
+      ]
     },
     "labToken": {
       "title": "LabToken",

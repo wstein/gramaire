@@ -20,6 +20,7 @@ import gramark.{
   GSym,
   Glr,
   Grammar,
+  LrStep,
   Lr,
   Method,
   ParseTable,
@@ -30,6 +31,7 @@ import gramark.{
   Table,
   Token,
   TokenDef,
+  TraceAction,
   Tokens
 }
 import gramark.ParseError.render
@@ -188,4 +190,32 @@ object LabApi:
         case Left(err) =>
           ParseResult(accepted = false, message = Some(err.render), labTokens, cst = None)
         case Right(cst) =>
-          ParseResult(accepted = true, message = None, labTokens, cst = Some(Cst.toJson(cst)))
+          // walk and run are differentially tested to agree (core/src/test/scala/gramark/
+          // ParserSuite.scala) — `.toOption` here is defensive, not expected to ever discard a
+          // Left in practice, since run() just accepted the exact same table/tokens.
+          val trace = Parser.walk(table, plainTokens).toOption.map(_.map(toLrStepInfo))
+          ParseResult(
+            accepted = true,
+            message = None,
+            labTokens,
+            cst = Some(Cst.toJson(cst)),
+            trace
+          )
+
+  // The Parse trace / LR walk tabs' data: gramark.LrStep, wire-rendered — GSym stack/remaining-
+  // input symbols and the reduce action's rhs all go through `renderSym`, same as everywhere else
+  // in this file.
+  private def toLrStepInfo(step: LrStep): LrStepInfo =
+    val action = step.action match
+      case TraceAction.Shift(terminal, lexeme) =>
+        LrActionInfo.Shift(renderSym(GSym.Term(terminal)), lexeme)
+      case TraceAction.Reduce(lhs, rhs, prodIndex) =>
+        LrActionInfo.Reduce(lhs, rhs.map(renderSym), prodIndex)
+      case TraceAction.Accept => LrActionInfo.Accept
+    LrStepInfo(
+      step.index,
+      step.stateBefore,
+      action,
+      step.stackSymbols.map(renderSym),
+      step.remainingSymbols.map(renderSym)
+    )

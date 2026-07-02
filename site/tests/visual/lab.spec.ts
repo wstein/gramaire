@@ -57,11 +57,28 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await expect(productionRows.first()).toContainText("Expr");
 
   await page.click('button[role="tab"]:has-text("Grammar analysis")');
-  const methodRows = page.locator(".lab__panel .lab__table").first().locator("tbody tr");
+  const methodRows = page
+    .locator(".lab__panel .lab__table")
+    .first()
+    .locator("tbody tr");
   await expect(methodRows).toHaveCount(3); // Canonical, LALR, IELR
   await expect(methodRows.first()).toContainText("Canonical");
   await expect(page.locator(".lab__panel")).toContainText("Expr"); // FIRST/FOLLOW rule + rule tab
   await expect(page.locator(".lab__railroad-svg svg")).toBeVisible();
+
+  await page.click('button[role="tab"]:has-text("Parse trace")');
+  const traceRows = page.locator(".lab__panel .lab__table tbody tr");
+  await expect(traceRows).toHaveCount(14); // "1+2*3" under calc.grmk.md's shape: 14 shift/reduce/accept steps
+  await expect(traceRows.last()).toContainText("accept");
+
+  await page.click('button[role="tab"]:has-text("LR walk")');
+  await expect(page.locator(".lab__walk-counter")).toHaveText("step 1 / 14");
+  await expect(page.locator(".lab__walk-action")).toContainText("shift");
+  await page.click('button:has-text("next")');
+  await expect(page.locator(".lab__walk-counter")).toHaveText("step 2 / 14");
+  await page.click('button[aria-label="last step"]');
+  await expect(page.locator(".lab__walk-counter")).toHaveText("step 14 / 14");
+  await expect(page.locator(".lab__walk-action")).toContainText("accept");
 });
 
 test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", async ({
