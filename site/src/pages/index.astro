@@ -12,6 +12,10 @@ import AppShell from "../components/AppShell.astro";
 import Button from "../components/Button.astro";
 import FeatureTile from "../components/FeatureTile.astro";
 import "../styles/tokens.css";
+// AppShell renders Starlight's <Search />, which themes itself off Starlight's
+// own --sl-* variables — needed here too since this page sits outside the
+// Starlight layout that would otherwise supply them automatically.
+import "../styles/starlight-bridge.css";
 import "../styles/tailwind-theme.css";
 
 const showcaseSource = `Expr
@@ -37,7 +41,7 @@ const showcaseSource = `Expr
   </head>
   <body>
     <div class="shell">
-      <AppShell active="home" />
+      <AppShell />
 
       <main class="content">
         <div class="container">

@@ -1,26 +1,21 @@
 ---
-// The app-shell topbar for pages that live OUTSIDE the Starlight layout
-// (Landing, and later the Lab) — see design/gramark-site-handoff/README.md
-// "Global Shell". Starlight pages get their own chrome via SiteTitle.astro
-// and don't use this component.
+// The single, unified topbar for every route — Starlight pages (Docs,
+// Specs, Tutorials, Brand) via the `Header` component override in
+// astro.config.mjs, and the bare Landing page directly. One design instead
+// of two: Starlight's own default header is fully replaced here, with its
+// search folded in rather than dropped.
 //
-// Unlike Starlight (which manages its own theme state), this shell owns its
-// own [data-theme] toggle + localStorage persistence, per
-// IMPLEMENTATION_astro.md §4: "Since this page is outside Starlight, it
-// needs its own data-theme toggle + localStorage persistence."
+// Unlike Starlight (which manages its own theme state on the pages it
+// fully controls), this shell owns its own [data-theme] toggle +
+// localStorage persistence, per IMPLEMENTATION_astro.md §4, so the same
+// toggle works identically whether Starlight is present or not.
+import Search from "@astrojs/starlight/components/Search.astro";
 import Logomark from "./Logomark.astro";
 import Wordmark from "./Wordmark.astro";
 
-interface Props {
-  active?: "home" | "tutorial" | "docs" | "lab";
-}
-const { active } = Astro.props;
+type NavId = "home" | "tutorial" | "docs" | "lab";
 
-const navItems: Array<{
-  id: "home" | "tutorial" | "docs" | "lab";
-  label: string;
-  href: string | null;
-}> = [
+const navItems: Array<{ id: NavId; label: string; href: string | null }> = [
   { id: "home", label: "Home", href: "/" },
   { id: "tutorial", label: "Tutorial", href: "/tutorials/intro/" },
   { id: "docs", label: "Docs", href: "/docs/overview/" },
@@ -28,6 +23,25 @@ const navItems: Array<{
   // docs/playground-spec.md. Rendered as inert rather than a dead link.
   { id: "lab", label: "Lab", href: null },
 ];
+
+// Auto-detect from the URL rather than requiring every caller (Landing,
+// every Starlight page) to pass it explicitly — this component is now
+// Starlight's Header override too, and Starlight doesn't know about our
+// nav's id scheme to pass one in.
+const path = Astro.url.pathname;
+function detectActive(path: string): NavId | null {
+  if (path === "/" || path.endsWith("/index.html")) return "home";
+  if (path.includes("/tutorials/")) return "tutorial";
+  if (
+    path.includes("/docs/") ||
+    path.includes("/specs/") ||
+    path.includes("/brand")
+  )
+    return "docs";
+  if (path.includes("/lab")) return "lab";
+  return null;
+}
+const active = detectActive(path);
 ---
 
 <div class="topbar">
@@ -35,6 +49,9 @@ const navItems: Array<{
     <Logomark size={28} />
     <span class="brand__wordmark"><Wordmark /></span>
   </a>
+  <div class="search">
+    <Search />
+  </div>
   <div class="spacer"></div>
   <nav class="nav">
     {
@@ -81,12 +98,14 @@ const navItems: Array<{
     border-bottom: 1px solid var(--border);
     flex: none;
     z-index: 10;
+    background: var(--bg);
   }
   .brand {
     display: flex;
     align-items: center;
     gap: 9px;
     text-decoration: none;
+    flex: none;
   }
   .brand__wordmark {
     font-size: 19px;
@@ -97,6 +116,7 @@ const navItems: Array<{
   .nav {
     display: flex;
     gap: 22px;
+    flex: none;
   }
   .nav__item {
     font-size: 14px;
@@ -113,10 +133,15 @@ const navItems: Array<{
     cursor: default;
     opacity: 0.55;
   }
+  .search {
+    flex: none;
+    width: 200px;
+  }
   .divider {
     width: 1px;
     height: 18px;
     background: var(--border);
+    flex: none;
   }
   .theme-toggle {
     all: unset;
@@ -158,6 +183,16 @@ const navItems: Array<{
   }
   [data-theme="dark"] .theme-toggle__knob {
     transform: translateX(21px);
+  }
+
+  @media (max-width: 720px) {
+    .nav {
+      display: none;
+    }
+    .search {
+      width: auto;
+      flex: 1;
+    }
   }
 </style>
 

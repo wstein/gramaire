@@ -12,9 +12,12 @@ export default defineConfig({
     starlight({
       title: "Gramark",
       description: "Grammars that render themselves.",
-      // SiteTitle is fully overridden with the logomark + wordmark lockup
-      // (src/components/SiteTitle.astro), so Starlight's own `logo` option
-      // goes unused here; the favicon link below is the browser-tab icon.
+      // Header is fully overridden with AppShell.astro — the same unified
+      // topbar (logomark + wordmark, nav, search, theme toggle) used on the
+      // bare Landing page, so there's one topbar design, not two. AppShell
+      // folds in Starlight's own <Search /> rather than dropping it.
+      // Starlight's `logo` option goes unused; the favicon link below is
+      // the browser-tab icon.
       head: [
         {
           tag: "link",
@@ -26,7 +29,7 @@ export default defineConfig({
         },
       ],
       components: {
-        SiteTitle: "./src/components/SiteTitle.astro",
+        Header: "./src/components/AppShell.astro",
       },
       // `gramark` (Gramark's production blocks) has no Shiki grammar; render
       // it as plain monospace text — matching how GitHub shows the same fences.
