@@ -2,6 +2,7 @@ import { signal, computed } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import type {
   CstNode,
+  CstToken,
   DiagnosticInfo,
   LabRequest,
   LabResponse,
@@ -264,13 +265,76 @@ function copyToClipboard(text: string) {
   copyTimer = setTimeout(() => (copied.value = false), 1400);
 }
 
-// A LISP-like S-expression rendering of a CST, for the Parse tree tab's "copy LISP" button — a
-// leaf is its own matched text, backtick-quoted; a childless rule is bare; anything else is
-// `(RuleName child child ...)`. Ported from the design mock's own `lispOf`.
+// A LISP-like S-expression rendering of a CST, for the Parse tree tab's "copy LISP" button.
+//
+// Two things beyond a literal 1:1 dump of the CST:
+//  - Leaves render as a bare numeric literal (`1`) when their text looks like one, single-quoted
+//    otherwise (`'+'`) — a plain reader convention, easier to scan than uniformly backtick-quoting
+//    every token regardless of kind.
+//  - "Chain" nodes — a rule with exactly one non-leaf child, which is what every level of a
+//    left-recursive precedence-climbing grammar (Expr -> Term -> Factor, with no operator at that
+//    level) produces — are elided ONE level at each child position: the child is spliced in
+//    directly instead of its (redundant, unary-derivation) wrapper. This is a single, non-repeated
+//    unwrap per position (see collapseChild/collapse below), not a fixed-point collapse — a node
+//    keeps its own wrapper once it's the thing actually being printed, so `Term -> Factor` above a
+//    bare token leaf still prints as `(Factor 1)`, not just `1`.
+type LispDoc =
+  | { kind: "atom"; text: string }
+  | { kind: "list"; head: string; kids: LispDoc[] };
+
+function isNumericLeaf(text: string): boolean {
+  return /^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(text);
+}
+
+function renderLeaf(node: CstToken): LispDoc {
+  return {
+    kind: "atom",
+    text: isNumericLeaf(node.text) ? node.text : `'${node.text}'`,
+  };
+}
+
+function collapse(node: CstNode): LispDoc {
+  if ("token" in node) return renderLeaf(node);
+  if (node.children.length === 0)
+    return { kind: "atom", text: ruleName(node.rule) };
+  return {
+    kind: "list",
+    head: ruleName(node.rule),
+    kids: node.children.map(collapseChild),
+  };
+}
+
+function collapseChild(node: CstNode): LispDoc {
+  if ("token" in node) return renderLeaf(node);
+  const [only] = node.children;
+  if (node.children.length === 1 && only && !("token" in only)) {
+    return collapse(only);
+  }
+  return collapse(node);
+}
+
+function oneLine(doc: LispDoc): string {
+  if (doc.kind === "atom") return doc.text;
+  return `(${doc.head} ${doc.kids.map(oneLine).join(" ")})`;
+}
+
+// Width-based line breaking (Wadler-style: try one line, break to one child per line if it
+// doesn't fit) — general-purpose readability for large trees, not an attempt to reproduce any one
+// specific hand-formatted example verbatim.
+const LISP_PRINT_WIDTH = 60;
+
+function printDoc(doc: LispDoc, indent: number): string {
+  if (doc.kind === "atom") return doc.text;
+  const compact = oneLine(doc);
+  if (compact.length + indent <= LISP_PRINT_WIDTH) return compact;
+  const childIndent = indent + 2;
+  const pad = " ".repeat(childIndent);
+  const lines = doc.kids.map((k) => pad + printDoc(k, childIndent));
+  return `(${doc.head}\n${lines.join("\n")})`;
+}
+
 function lispOf(node: CstNode): string {
-  if ("token" in node) return `\`${node.text}\``;
-  if (node.children.length === 0) return ruleName(node.rule);
-  return `(${ruleName(node.rule)} ${node.children.map(lispOf).join(" ")})`;
+  return printDoc(collapse(node), 0);
 }
 
 // The structural paths of every ancestor of the Nth leaf (source-lexed order, same indexing as
