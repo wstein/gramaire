@@ -19,12 +19,13 @@ package gramark.lab
 import gramark.{Json, Method}
 
 /** A request from the Lab UI: the full .grmk.md source, an optional target-language input to parse,
-  * and the table-construction method to build with.
+  * the table-construction method to build with, and an optional start-rule override.
   */
 final case class LabRequest(
     source: String,
     input: Option[String],
-    method: Method
+    method: Method,
+    startRule: Option[String] = None
 )
 
 object LabRequest:
@@ -45,7 +46,11 @@ object LabRequest:
         method <- m.get("method") match
           case Some(mj) => methodFromJson(mj)
           case None     => Left("LabRequest.method is required")
-      yield LabRequest(source, input, method)
+        startRule <- m.get("startRule") match
+          case Some(Json.JString(s))   => Right(Some(s))
+          case Some(Json.JNull) | None => Right(None)
+          case _                       => Left("LabRequest.startRule must be a string or null")
+      yield LabRequest(source, input, method, startRule)
     case _ => Left("LabRequest must be a JSON object")
 
   private def methodFromJson(j: Json): Either[String, Method] = j match

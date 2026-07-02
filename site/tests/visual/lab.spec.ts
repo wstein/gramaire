@@ -354,3 +354,48 @@ test("the Lab's drawer splitter resizes the drawer and clamps at 160px/640px", a
   await page.mouse.up();
   await expect(hsplitter).toHaveAttribute("aria-valuenow", "160");
 });
+
+test("the Lab's example switcher loads a real examples/*.grmk.md fixture", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+
+  await page.getByLabel("Example").selectOption("JSON");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+  // The raw-imported examples/json.grmk.md's own prose, not a hand-copied approximation.
+  await expect(page.locator(".lab__pane--grammar .lab__editor")).toHaveValue(
+    /RFC 8259/,
+  );
+  await expect(page.locator(".lab__pane--fill .lab__editor")).toHaveValue(
+    /"a": 1/,
+  );
+  await page.click('button[role="tab"]:has-text("Result")');
+  await expect(page.locator(".lab__result")).toContainText("Accepted");
+});
+
+test("the Lab's start-rule picker narrows which rule anchors parsing", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+
+  // Default grammar (Expr -> Term -> Factor), default input "1+2*3". Under the default (Expr)
+  // start, it's accepted.
+  await expect(page.locator(".lab__result")).toContainText("Accepted");
+
+  // Narrowed to Term as the start rule, "1+2*3" is a Term (the leading NUMBER) followed by
+  // trailing input the augmented grammar never expected — rejected, the same real-engine behavior
+  // verified server-side by LabApiSuite's "startRule overrides..." test.
+  await page.getByLabel("Start rule").selectOption("Term");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+  await expect(page.locator(".lab__result")).toContainText("Rejected");
+});

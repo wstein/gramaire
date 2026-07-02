@@ -312,6 +312,38 @@ class LabApiSuite extends munit.FunSuite:
     assert(lalr.parse.exists(_.accepted) && ielr.parse.exists(_.accepted))
   }
 
+  test("evaluate: startRule overrides which rule anchors the augmented grammar") {
+    // calc.grmk.md: Expr -> Term -> Factor. Under the default (Expr) start, "1+2" is a complete
+    // Expr. Narrowed to Factor as the start rule, "1+2" is a Factor (the leading NUMBER) followed
+    // by trailing input the augmented grammar never expected — rejected, not a parse error thrown.
+    val default = LabApi.evaluate(LabRequest(calcMd, Some("1+2"), Method.Canonical))
+    assert(
+      default.parse.exists(_.accepted),
+      "expected the default (Expr) start to accept \"1+2\""
+    )
+
+    val narrowed =
+      LabApi.evaluate(LabRequest(calcMd, Some("1+2"), Method.Canonical, startRule = Some("Factor")))
+    assert(narrowed.buildOk, s"expected buildOk, diagnostics: ${narrowed.diagnostics}")
+    assert(
+      !narrowed.parse.exists(_.accepted),
+      "expected the Factor start to reject \"1+2\" (trailing input after a complete Factor)"
+    )
+
+    val single = LabApi.evaluate(
+      LabRequest(calcMd, Some("1"), Method.Canonical, startRule = Some("Factor"))
+    )
+    assert(single.parse.exists(_.accepted), "expected the Factor start to accept a bare NUMBER")
+  }
+
+  test("evaluate: an unknown startRule name is ignored, falling back to natural start") {
+    val resp = LabApi.evaluate(
+      LabRequest(calcMd, Some("1+2*3"), Method.Canonical, startRule = Some("NoSuchRule"))
+    )
+    assert(resp.buildOk, s"expected buildOk, diagnostics: ${resp.diagnostics}")
+    assert(resp.parse.exists(_.accepted))
+  }
+
   test("LabResponse.serialize is valid, canonical JSON (parse . stringify is the identity)") {
     // Json.stringify sorts object keys ascending; Json.parse preserves
     // whatever order the text had, so comparing a parsed JObject's Vector
@@ -354,6 +386,21 @@ class LabApiSuite extends munit.FunSuite:
     )
     assertEquals(LabRequest.fromJson(withNull).map(_.input), Right(None))
     assertEquals(LabRequest.fromJson(withoutKey).map(_.input), Right(None))
+  }
+
+  test("LabRequest.fromJson decodes startRule, defaulting to None when absent") {
+    val withStart = Json.JObject(
+      Vector(
+        "source" -> Json.JString(calcMd),
+        "method" -> Json.JString("Canonical"),
+        "startRule" -> Json.JString("Factor")
+      )
+    )
+    val withoutKey = Json.JObject(
+      Vector("source" -> Json.JString(calcMd), "method" -> Json.JString("Canonical"))
+    )
+    assertEquals(LabRequest.fromJson(withStart).map(_.startRule), Right(Some("Factor")))
+    assertEquals(LabRequest.fromJson(withoutKey).map(_.startRule), Right(None))
   }
 
   test("LabRequest.fromJson rejects an unknown method") {
