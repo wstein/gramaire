@@ -31,11 +31,26 @@ class GramarkCheckSuite extends munit.FunSuite:
 
   test("checkStructure: a fence narrower than the contract requires fails") {
     val doc = GramarkCheck.parse(
-      "# T\n\n```gramark\nA : 'x'\n```\n\n## Error messages\n\nx\n\n## Generated tables\n\n| a |\n"
+      "# T\n\n## General settings\n\n```gramark\n%name T\n```\n\n## A\n\n```gramark\nA\n  : 'x'\n```\n\n## Error messages\n\nx\n\n## Generated tables\n\n| a |\n"
     )
     // A body containing a run of 3 backticks would need a 4-backtick fence;
     // this body has none, so the minimum (3) is already satisfied.
-    assertEquals(GramarkCheck.checkStructure(doc).filter(_.contains("fence")), Vector.empty)
+    assertEquals(GramarkCheck.checkStructure(doc), Vector.empty)
+  }
+
+  test("checkStructure: a legacy suffixed fence fails, naming the fix") {
+    val doc = GramarkCheck.parse(
+      "# T\n\n## General settings\n\n```gramark\n%name T\n```\n\n## Tokens\n\n```gramark tokens\nNUMBER : /[0-9]+/\n```\n\n## A\n\n```gramark\nA\n  : NUMBER\n```\n\n## Error messages\n\nx\n\n## Generated tables\n\n| a |\n"
+    )
+    val fails = GramarkCheck.checkStructure(doc)
+    assert(fails.exists(f => f.contains("legacy") && f.contains("gramark fmt --migrate")), fails)
+  }
+
+  test("checkStructure: a missing %name directive fails, even when everything else is clean") {
+    val doc = GramarkCheck.parse(
+      "# T\n\n## A\n\n```gramark\nA\n  : 'x'\n```\n\n## Error messages\n\nx\n\n## Generated tables\n\n| a |\n"
+    )
+    assert(GramarkCheck.checkStructure(doc).exists(_.contains("missing required `%name`")))
   }
 
   test("checkStructure: a file with no trailing newline fails MD047") {

@@ -53,16 +53,14 @@ object Main:
         case None    => Left(s"$name requires a value")
     go(defaultEmit, args)
 
-  /** The grammar name: the document's H1 if present, else the file's base name with the `.grmk.md`
-    * suffix stripped.
-    */
-  def grammarName(md: String, file: String): String =
-    val h1 = md.split("\n", -1).find(_.startsWith("# ")).map(_.drop(2).trim)
-    h1.getOrElse(baseName(file))
+  private val missingNameError: String =
+    "missing required `%name` directive (add `%name <name>` inside a General-settings ```gramark fence)"
 
-  private def baseName(path: String): String =
-    val last = path.split("/").lastOption.getOrElse(path)
-    if last.endsWith(".grmk.md") then last.dropRight(".grmk.md".length) else last
+  /** The grammar's name: its required `%name <name>` directive — never a heading (headings are
+    * presentation, not grammar semantics) and never a fallback to the file's path (a `.grmk.md`/
+    * `.grmk` must be self-describing on its own, independent of how it was loaded).
+    */
+  def grammarName(md: String): Either[String, String] = Lr.nameOf(md).toRight(missingNameError)
 
   def main(args: Array[String]): Unit =
     val argv = args.toVector
@@ -103,12 +101,13 @@ object Main:
                       case Left(diags) =>
                         die(s"emit: parse error in $file:\n\n" + renderDiags(diags, file, md))
                       case Right(g) =>
+                        val name = grammarName(md).fold(err => die(s"emit: $file: $err"), identity)
                         Lr.warningsFor(md)
                           .foreach(w => Console.err.println(renderDiags(Vector(w), file, md)))
                         IR.buildIRP(
                           Lr.precedenceOf(md),
                           Method.Canonical,
-                          grammarName(md, file),
+                          name,
                           g
                         ) match
                           case Left(conflicts) =>
@@ -179,8 +178,11 @@ object Main:
                     opts.out match
                       case None => println(result.markdown)
                       case Some(dir) =>
+                        val name =
+                          grammarName(result.markdown)
+                            .fold(err => die(s"import: $file: $err"), identity)
                         Files.createDirectories(Path.of(dir))
-                        val path = s"$dir/${grammarName(result.markdown, file)}.grmk.md"
+                        val path = s"$dir/$name.grmk.md"
                         Files.writeString(Path.of(path), result.markdown)
                         println(s"wrote $path")
 
@@ -296,7 +298,9 @@ object Main:
     try Right(Files.readString(Path.of(path)))
     catch case e: Exception => Left(e.getMessage)
 
-  private def die(msg: String): Unit =
+  // `Nothing`-returning (not `Unit`) so a call can stand in an expression position — e.g.
+  // `grammarName(md).fold(err => die(...), identity)` — not just a statement.
+  private def die(msg: String): Nothing =
     Console.err.println(s"gramark: $msg")
     sys.exit(1)
 
