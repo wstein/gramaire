@@ -370,6 +370,14 @@ function TreePanel() {
   );
 }
 
+// The CST only carries a production INDEX per branch (Cst.Branch's own shape — see Cst.scala);
+// `productions` (already fetched for the Lowered Core tab) is the lookup that turns that back into
+// the rule name a grammar author actually wrote. Falls back to the raw index only if productions
+// hasn't loaded yet or the index is somehow out of range — should not happen in practice.
+function ruleName(rule: number): string {
+  return response.value?.productions?.[rule]?.lhs ?? `rule ${rule}`;
+}
+
 function CstNodeView({
   node,
   depth = 0,
@@ -390,7 +398,8 @@ function CstNodeView({
   return (
     <div>
       <div>
-        {indent}rule {node.rule}
+        {indent}
+        {ruleName(node.rule)}
       </div>
       {node.children.map((c, i) => (
         <CstNodeView key={i} node={c} depth={depth + 1} />
