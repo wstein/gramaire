@@ -102,11 +102,15 @@ object LabApi:
   // its original `{% %}` action text. `Table.productions` and `grammar.rules.flatMap(_.alts)` are
   // built by the same flatMap-over-rules-then-alts traversal (Table.scala's `productions`), so
   // zipping them by index pairs each resolved production with its source alternative correctly.
+  // `alt.action` is Desugar.normalizeAction's WRAPPED form (`\_ _ _ -> (c) => ...`) — every
+  // action gets this synthesized positional-binder prefix regardless of host language; it's an
+  // internal codegen convenience (BackendJs strips it the same way before baking an action into
+  // the generated evaluator), never something a grammar author should see reflected back at them.
   private def productionsOf(grammar: Grammar): Vector[ProductionInfo] =
     val prods = Table.productions(grammar)
     val alts = grammar.rules.flatMap(_.alts)
     prods.zip(alts).map { case (p, alt) =>
-      ProductionInfo(p.lhs, p.rhs.map(renderSym), alt.action)
+      ProductionInfo(p.lhs, p.rhs.map(renderSym), alt.action.map(BackendJs.unwrapBinder))
     }
 
   // The Grammar analysis tab's data: every method's state/conflict count (not just

@@ -154,6 +154,15 @@ class LabApiSuite extends munit.FunSuite:
           ps.head.action.exists(_.contains("Add")),
           s"expected an Add action, got ${ps.head.action}"
         )
+        // Desugar.normalizeAction wraps every action in a synthesized positional binder
+        // (`\_ _ _ -> ...`) before table/IR construction ever sees it — BackendJs.unwrapBinder
+        // strips that back off before display, so the Lowered Core/Evaluate UI shows the grammar
+        // author's own action text, not the internal codegen convention.
+        assert(
+          ps.head.action.exists(a => !a.startsWith("\\") && !a.contains(" -> ")),
+          s"expected the synthesized binder stripped, got ${ps.head.action}"
+        )
+        assertEquals(ps.head.action, Some("(c) => ({ tag: \"Add\", left: c.expr, right: c.term })"))
         // Expr -> Term (the third alt) has no {% %} action
         assertEquals(ps(2).rhs, Vector("Term"))
         assertEquals(ps(2).action, None)
