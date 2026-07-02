@@ -58,6 +58,12 @@ object LabApi:
         // keeps every conflicting action instead of rejecting), which is exactly what lets a
         // genuinely ambiguous grammar (real conflicts under every method, so `buildOk` is always
         // false for it) still show the All-parses tab's forest instead of only a diagnostic.
+        //
+        // No separate `Diagnostics.undefinedNonterminals` call belongs here: `Lr.parse` already
+        // runs it, as the last step of `Lr.parseWith` (`Desugar.desugar(g).flatMap(Diagnostics.
+        // checkDefined)`) — an undefined mixed-case reference is a hard `Left(err)` from `Lr.parse`
+        // itself, caught above, not a soft warning `LabApi` needs to compute separately. A grammar
+        // that reaches this `Right(grammar)` branch is guaranteed already free of them.
         val productions = Some(productionsOf(grammar))
         val forest = request.input.map(forestFor(request.source, request.method, grammar, _))
         val analysis = Some(analysisOf(grammar))
