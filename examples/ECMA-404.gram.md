@@ -23,9 +23,14 @@ A compact example of the syntax is shown below:
 This document focuses on the syntactic structure of JSON texts and leaves
 application-level semantics to the consuming implementation.
 
+<details>
+<summary>Declarations</summary>
+
 ```gramaire
 %name Json
 ```
+
+</details>
 
 ## Tokens
 

@@ -367,6 +367,7 @@ object GramaireCheck:
 
   private val detailsOpenLine = "<details>"
   private val summarySourceLine = "<summary>Source</summary>"
+  private val summaryDeclarationsLine = "<summary>Declarations</summary>"
   private val detailsCloseLine = "</details>"
 
   // Every COLLAPSED rule region — its own image link, then a blank line, `<details>`,
@@ -376,11 +377,24 @@ object GramaireCheck:
   // fence avoids needing to inspect what's already been emitted. A no-op on a file that's already
   // inline, so `toCollapsedLayout` can always start from one known shape instead of having to
   // recognize every possible input.
+  //
+  // A COLLAPSED Settings region has no image to key off of — it's `<details>`,
+  // `<summary>Declarations</summary>`, a blank line, the fence, and a closing blank +
+  // `</details>`, with nothing hoisted above it — so it's detected separately, starting from
+  // `<details>` itself rather than an image line.
   private def toInlineLayout(src: String): String =
     val lines = src.split("\n", -1).toVector
     val out = Vector.newBuilder[String]
     var i = 0
     while i < lines.length do
+      val collapsedDeclarations =
+        for
+          _ <- Option.when(lines(i) == detailsOpenLine)(())
+          if lines.lift(i + 1).contains(summaryDeclarationsLine)
+          if lines.lift(i + 2).exists(_.trim.isEmpty)
+          m <- lines.lift(i + 3).flatMap(fenceOpenRe.findFirstMatchIn)
+          if m.group(2).trim == "gramaire"
+        yield m.group(1).length
       val collapsedFence =
         for
           _ <- imageRe.findFirstMatchIn(lines(i))
@@ -391,8 +405,21 @@ object GramaireCheck:
           m <- lines.lift(i + 5).flatMap(fenceOpenRe.findFirstMatchIn)
           if m.group(2).trim == "gramaire"
         yield m.group(1).length
-      collapsedFence match
-        case Some(fenceLen) =>
+      (collapsedDeclarations, collapsedFence) match
+        case (Some(fenceLen), _) =>
+          val close = fenceCloseAt(lines, i + 4, fenceLen)
+          val afterClose = close + 1
+          if lines.lift(afterClose).exists(_.trim.isEmpty)
+            && lines.lift(afterClose + 1).contains(detailsCloseLine)
+          then
+            out += lines(i + 3) // fence open
+            out ++= lines.slice(i + 4, close) // fence content
+            out += lines(close) // fence close
+            i = afterClose + 2
+          else
+            out += lines(i)
+            i += 1
+        case (None, Some(fenceLen)) =>
           val close = fenceCloseAt(lines, i + 6, fenceLen)
           val afterClose = close + 1
           if lines.lift(afterClose).exists(_.trim.isEmpty)
@@ -407,7 +434,7 @@ object GramaireCheck:
           else
             out += lines(i)
             i += 1
-        case None =>
+        case (None, None) =>
           out += lines(i)
           i += 1
     out.result().mkString("\n")
@@ -421,11 +448,16 @@ object GramaireCheck:
     do k += 1
     k
 
-  // The inverse of `toInlineLayout`: every rule fence (one whose content matches a known rule —
-  // this never touches Tokens/Settings/Precedence fences, which have no diagram to pair with)
+  // The inverse of `toInlineLayout`: every rule fence (one whose content matches a known rule)
   // that has its own image link directly after it is rewritten to image-first, fence collapsed
   // behind `<details><summary>Source</summary>`. A rule with no existing image link is left
-  // untouched (nothing to hoist in front of it).
+  // untouched (nothing to hoist in front of it). The Settings fence (`%name`/`%lang` — content
+  // shape "case is law", per `Lr.classifyFenceContent`) has no diagram to pair with, so it's
+  // collapsed behind `<details><summary>Declarations</summary>` instead, with nothing hoisted
+  // above it. Tokens and Precedence fences are left alone — collapsing them was explicitly
+  // scoped out (see the headless-Settings plan): Tokens sections run long enough that losing
+  // their heading and visibility is a real cost, and Precedence reads better fully visible right
+  // next to the rules it resolves conflicts for.
   private def toCollapsedLayout(src: String, contentByRule: Map[String, String]): String =
     val lines = src.split("\n", -1).toVector
     val out = Vector.newBuilder[String]
@@ -435,7 +467,10 @@ object GramaireCheck:
         case fenceOpenRe(backticks, rawInfo) if rawInfo.trim == "gramaire" =>
           val close = fenceCloseAt(lines, i + 1, backticks.length)
           val content = lines.slice(i + 1, close)
-          val isRuleFence = contentByRule.values.exists(_ == content.mkString("\n"))
+          val contentStr = content.mkString("\n")
+          val isRuleFence = contentByRule.values.exists(_ == contentStr)
+          val isSettingsFence =
+            !isRuleFence && Lr.classifyFenceContent(contentStr) == Lr.FenceKind.Settings
           val afterFenceImageIdx =
             if isRuleFence then
               var k = close + 1
@@ -456,6 +491,16 @@ object GramaireCheck:
               out += ""
               out += detailsCloseLine
               i = imgIdx + 1
+            case None if isSettingsFence =>
+              out += detailsOpenLine
+              out += summaryDeclarationsLine
+              out += ""
+              out += lines(i)
+              out ++= content
+              out += lines(close)
+              out += ""
+              out += detailsCloseLine
+              i = close + 1
             case None =>
               out += lines(i)
               out ++= content

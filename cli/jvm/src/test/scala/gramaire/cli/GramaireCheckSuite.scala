@@ -206,6 +206,87 @@ class GramaireCheckSuite extends munit.FunSuite:
     assertEquals(twice, once)
   }
 
+  // A headless Settings fence right after the intro, same as `fmt`'s canonical layout — for the
+  // Declarations-collapsing tests below. Kept separate from `inlineFixture` so the existing
+  // rule-only assertions above don't need updating.
+  private val inlineFixtureWithSettings =
+    """# T
+      |
+      |Intro prose.
+      |
+      |```gramaire
+      |%name T
+      |```
+      |
+      |## Expr
+      |
+      |```gramaire
+      |Expr
+      |  : NUMBER
+      |```
+      |
+      |![Railroad diagram for the Expr rule](diagrams-t/expr.svg)
+      |""".stripMargin
+
+  test("applySourceLayout: Collapsed wraps the Settings fence behind <details><summary>Declarations</summary>") {
+    val collapsed = GramaireCheck.applySourceLayout(
+      inlineFixtureWithSettings,
+      contentByRule,
+      GramaireCheck.SourceLayout.Collapsed
+    )
+    assertEquals(
+      collapsed,
+      """# T
+        |
+        |Intro prose.
+        |
+        |<details>
+        |<summary>Declarations</summary>
+        |
+        |```gramaire
+        |%name T
+        |```
+        |
+        |</details>
+        |
+        |## Expr
+        |
+        |![Railroad diagram for the Expr rule](diagrams-t/expr.svg)
+        |
+        |<details>
+        |<summary>Source</summary>
+        |
+        |```gramaire
+        |Expr
+        |  : NUMBER
+        |```
+        |
+        |</details>
+        |""".stripMargin
+    )
+  }
+
+  test("applySourceLayout: Settings collapse then un-collapse round-trips to the exact original") {
+    val collapsed = GramaireCheck.applySourceLayout(
+      inlineFixtureWithSettings,
+      contentByRule,
+      GramaireCheck.SourceLayout.Collapsed
+    )
+    val roundTripped =
+      GramaireCheck.applySourceLayout(collapsed, contentByRule, GramaireCheck.SourceLayout.Inline)
+    assertEquals(roundTripped, inlineFixtureWithSettings)
+  }
+
+  test("applySourceLayout: collapsing an already-collapsed Settings fence is idempotent") {
+    val once = GramaireCheck.applySourceLayout(
+      inlineFixtureWithSettings,
+      contentByRule,
+      GramaireCheck.SourceLayout.Collapsed
+    )
+    val twice = GramaireCheck.applySourceLayout(once, contentByRule, GramaireCheck.SourceLayout.Collapsed)
+    assertEquals(twice, once)
+  }
+
   test("fmt: collapses source by default, records sourceLayout in the lock, and survives check") {
     val dir = java.nio.file.Files.createTempDirectory("gramaire-collapse")
     val file = dir.resolve("sample.gram.md")
@@ -219,6 +300,7 @@ class GramaireCheckSuite extends munit.FunSuite:
 
     val written = java.nio.file.Files.readString(file)
     assert(written.contains("<details>\n<summary>Source</summary>"), written)
+    assert(written.contains("<details>\n<summary>Declarations</summary>"), written)
     val lockText = java.nio.file.Files.readString(java.nio.file.Path.of(GramaireCheck.lockPathFor(file.toString)))
     assert(lockText.contains(""""sourceLayout": "collapsed""""), lockText)
 
