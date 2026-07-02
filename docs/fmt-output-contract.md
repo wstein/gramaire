@@ -23,32 +23,56 @@ into foreign repositories, and a file that is clean only under our own
 
 ## Canonical document structure
 
-A formatted file is exactly this sequence, in order:
+**Every heading in this section is a STYLE convention `fmt` emits and checks,
+never a LANGUAGE requirement — the compiler ignores headings entirely (see the
+[language specification](../site/src/content/docs/specs/grammar-format.mdx)
+§1). A grammar's real structure is the concatenated content of its
+` ```gramark ` fences, each self-identifying by content shape ("case is law");
+`gramark`/`gramark tokens`/`gramark settings`/`gramark precedence` are gone —
+there is exactly one fence tag now.** A formatted file is exactly this
+sequence, in order:
 
-1. **One H1** naming the grammar: `# <GrammarName>` (MD041, MD025).
+1. **One H1** naming the grammar: `# <GrammarName>` (MD041, MD025). Purely a
+   caption — the grammar's real name is the required `%name <name>` directive
+   inside the `## General settings` fence (item 3 below); `fmt` keeps the two
+   in sync but the compiler reads only `%name`.
 2. Optional intro prose (one or more paragraphs).
-3. **One section per nonterminal**, each consisting of:
+3. An **optional `## General settings`** section containing one bare
+   ` ```gramark ` fence whose lines are all `%name`/`%lang` directives
+   (a Settings-role fence, per the language spec's "case is law" rule) —
+   present whenever the grammar declares `%lang`; the `%name` directive
+   itself may also live in a settings fence with no heading at all, but
+   `fmt`'s canonical layout always gives it one.
+4. An **optional `## Tokens`** section containing one bare ` ```gramark `
+   fence whose lines are all token-class definitions (a Tokens-role fence).
+   Present only when the grammar declares named token classes.
+5. **One section per nonterminal**, each consisting of:
    - an H2 heading `## <Nonterminal>`, unique across the file (MD024);
    - optional prose describing the rule;
-   - exactly one `gramark` payload fence holding that rule's productions;
+   - exactly one bare ` ```gramark ` fence holding that rule's productions;
    - an optional linked railroad image.
-4. An **optional `## Precedence`** section containing one `gramark precedence`
-   fence. It is present only when the grammar declares operator precedence;
-   a grammar with no `%left` / `%right` / `%nonassoc` declarations omits the
+6. An **optional `## Precedence`** section containing one bare ` ```gramark `
+   fence whose lines are all `%left`/`%right`/`%nonassoc` declarations
+   (a Precedence-role fence). It is present only when the grammar declares
+   operator precedence; a grammar with no such declarations omits the
    section entirely rather than emitting an empty fence.
-5. An **`## Error messages`** section containing one `gramark errors` fence.
-6. A **`## Generated tables`** section: a short caption line, then the
+7. An **optional `## Error messages`** section containing one plain
+   ` ```text ` fence of curated, state-keyed prose messages. This is not a
+   `gramark`-tagged fence at all (curated errors are prose, not grammar
+   notation) and is skipped by the compiler like any non-`gramark` fence.
+8. A **`## Generated tables`** section: a short caption line, then the
    FIRST/FOLLOW pipe table and the conflict summary.
-7. A single trailing newline (MD047).
+9. A single trailing newline (MD047).
 
 Section order is fixed so that `fmt` is a pure function of the grammar:
 the same grammar always serializes to byte-identical Markdown, which is
 what makes the drift hash and reproducible builds work.
 
-**Heading layers (ADR D29).** Only the H1 and H2 layers are structural.
-An H2 is **a nonterminal or a reserved section** (`Precedence`,
-`Error messages`, `Generated tables`) — not a pure bijection — and that is
-the whole of what the structure gate and the per-section drift hash check.
+**Heading layers (ADR D29).** Only the H1 and H2 layers are structural to
+`fmt`'s own style gate — never to the compiler. An H2 is **a nonterminal or a
+reserved section name** (`General settings`, `Tokens`, `Precedence`,
+`Error messages`, `Generated tables`) — not a pure bijection — and that is the
+whole of what the structure gate and the per-section drift hash check.
 Headings at `###` and deeper are **presentational grouping** ("Expressions",
 "Statements", or a subsection): the gate ignores them for structure, the
 drift hash never covers them, and authors may place them freely (the GitHub
@@ -56,18 +80,25 @@ table of contents still nests them). They remain ordinary Markdown and are
 linted as such — in particular `###` must follow the usual heading-increment
 rule (MD001). One file is always exactly one grammar: one start symbol, one
 namespace; reuse across grammars is a future cross-file `import` (see
-`spec/import-rfc.md`), never in-file sub-grammars or multiple H1s (ADR D30).
+`spec/import-rfc.md`), never in-file sub-grammars or multiple `%name`
+directives (ADR D30).
 
 ## Block specifications
 
-### Payload fences
+### The payload fence
 
-Productions, precedence, and curated errors live in fenced blocks whose
-info string begins with `gramark`:
+Every role — productions, settings, tokens, precedence — lives in a fence
+whose info string is **exactly** `gramark` (bare, no suffix):
 
-- ` ```gramark ` — productions, including `{% ... %}` semantic actions.
-- ` ```gramark precedence ` — `%left` / `%right` / `%nonassoc` declarations.
-- ` ```gramark errors ` — Menhir-style state-keyed messages.
+- ` ```gramark ` — self-identified by content shape: a nonterminal's
+  productions (including `{% ... %}` semantic actions) by default; Settings
+  when every line is a `%name`/`%lang` directive; Tokens when every line is an
+  unindented `ALLCAPS : …` definition; Precedence when every line is a
+  `%left`/`%right`/`%nonassoc` declaration.
+
+Curated per-state error messages are no longer a `gramark`-tagged fence — use
+a plain ` ```text ` fence, which `fmt`/the compiler both skip like any other
+non-`gramark` fence.
 
 Every fence carries a non-empty info string, which satisfies MD040 and is
 _why_ Gramark fences pass a rule that bare ` ``` ` fences fail. GFM treats
@@ -186,7 +217,9 @@ backticks. `fmt` computes this; authors never reason about it.
 Two artifact classes are derived, not authored: railroad diagrams and the
 generated-tables section. `fmt` records the diagram mode and each derived
 artifact — for sidecar diagrams, the path plus a SHA-256 of the rule it was
-built from; for the tables, a SHA-256 of the whole grammar — in a sidecar
+built from; for the tables, a SHA-256 of the whole grammar (every classified
+fence — Settings, Tokens, Precedence, and each Rule — folded in, so editing a
+`%lang`/`%name` line is drift-visible too, not just a rule body) — in a sidecar
 **`<file>.grmk.lock`**. In mermaid mode there are no sidecar files: the
 diagrams live in the document and their freshness is guaranteed by `fmt`
 idempotence (re-running makes no change), while grammar edits are still caught

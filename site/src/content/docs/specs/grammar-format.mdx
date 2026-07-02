@@ -20,23 +20,45 @@ compiler emits. Keywords MUST / SHOULD / MAY per RFC 2119.
 ## 1. Document envelope
 
 A Gramark grammar is hosted in a GitHub-Flavored Markdown document. The compiler
-ignores prose, list markers, and images; it extracts the grammar by scanning ATX
-headings and fenced code blocks whose info string begins with `gramark`.
+ignores **every** heading, prose paragraph, list marker, and image — they are
+pure presentation and carry no grammar semantics — and extracts the grammar
+from the concatenated content of every fenced code block whose info string is
+**exactly** `gramark` (bare, no suffix).
 
-- **Grammar name.** The single `# H1`. There MUST be exactly one.
-- **Nonterminal rules.** Every non-reserved `## H2` names a nonterminal; the
-  `lr` block beneath it holds that rule's productions.
-- **Reserved `## H2` sections.** `General settings` (a `gramark settings` block
-  of document-level directives — currently `%lang <host>`, which declares the
-  language of inline `{% … %}` actions), `Precedence` (an `lr precedence` block),
-  `Error messages` (an `lr errors` block), and `Generated tables` (the emitted
-  FIRST/FOLLOW table). They appear in that order when present.
-- **Presentational headings.** `###` and deeper headings carry no structural
-  meaning; they are free grouping the analyzer skips. Only the H1 and H2 layers
-  are structural.
+- **Single fence tag, self-identifying content ("case is law").** There is
+  exactly one fence tag, ` ```gramark `. A fence's role is never named by the
+  fence itself; it is inferred from the SHAPE of its own non-blank lines: every
+  line a `%name`/`%lang` directive → **Settings**; every line a
+  `%left`/`%right`/`%nonassoc` declaration → **Precedence**; every line an
+  unindented `ALLCAPS : …` token definition → **Tokens**; anything else → a
+  nonterminal's **productions**. This is unambiguous by construction: no valid
+  production can share a token definition's one-line shape, since a rule's `:`
+  MUST follow a newline (`IDENT NL :`, §2) while a token definition's `:` is on
+  the same line as its name. A suffixed opener (` ```gramark tokens `,
+  ` ```gramark settings `, ` ```gramark precedence `, ` ```gramark errors `) is
+  a removed notation and MUST be rejected with a located, actionable error
+  (`gramark fmt --migrate` merges it into a bare fence).
+- **Grammar name.** The required `%name <name>` directive, declared in a
+  Settings-role fence. A document with no `%name` is a hard error — there is no
+  fallback to the `# H1` or to the file's path, so a `.grmk.md`/`.grmk` stays
+  fully self-describing independent of how it was loaded (a file on disk, pasted
+  into the Lab, piped over stdin).
+- **Nonterminal rules.** A Rule-role fence's own head (`Name` on its own line,
+  then `:` and its alternatives) names the nonterminal — never a heading.
+- **Presentational headings.** Every heading level, including the `# H1` and
+  `## H2` layers, is free grouping the analyzer entirely ignores.
+  `gramark fmt`'s canonical output still uses `## General settings` /
+  `## Tokens` / `## <Nonterminal>` / `## Precedence` / `## Error messages` /
+  `## Generated tables` as a readability convention — see the
+  [fmt output contract](../../../../../docs/fmt-output-contract.md) — but that
+  is a STYLE the formatter emits and checks, never a LANGUAGE requirement the
+  compiler enforces.
+- **Curated error messages are prose, not grammar notation.** Put them in a
+  plain ` ```text ` fence (skipped like any non-`gramark` fence) if you want
+  them to survive `gramark fmt`; there is no dedicated notation for them.
 - **One grammar per file.** A file defines exactly one start symbol and one
   nonterminal namespace. Reuse across files is a future cross-file `import`,
-  never in-file sub-grammars or multiple H1s.
+  never in-file sub-grammars or multiple `%name` directives.
 
 ## 2. Lexical grammar of an `lr` block
 
