@@ -34,9 +34,10 @@
     // different parent sections
 
     // `gramark fmt`'s default source-collapsing (sidecar mode) is the only thing that ever emits
-    // raw HTML — a `<details><summary>Source</summary>` disclosure wrapped around a rule's fence
-    // — so MD033 stays the injection guard for everything else and only allow-lists those two
-    // tags, rather than being switched off wholesale.
+    // raw HTML — a `<details><summary>Source</summary>` (or `Declarations`, for the Settings
+    // fence) disclosure wrapped around a fence — so MD033 stays the injection guard for
+    // everything else and only allow-lists those two tags, rather than being switched off
+    // wholesale.
     "MD033": { "allowed_elements": ["details", "summary"] },
 
     // MD060 table-column-style: disabled because ADR rationale cells in

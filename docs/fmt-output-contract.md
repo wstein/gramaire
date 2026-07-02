@@ -183,7 +183,7 @@ first and expanding source on demand reads better than a wall of fences, so
 by default `fmt` hoists each rule's diagram above its fence and tucks the
 fence behind a disclosure:
 
-```text
+````text
 ![Railroad diagram for the Value rule](diagrams-json/value.svg)
 
 <details>
@@ -196,7 +196,35 @@ Value
 ```
 
 </details>
+````
+
+The Settings fence (`%name`/`%lang` — see "Canonical document structure"
+above) has no diagram to pair with, so it collapses the same way but without
+hoisting anything above it:
+
+````text
+```gramark
+%name Json
 ```
+````
+
+becomes
+
+````text
+<details>
+<summary>Declarations</summary>
+
+```gramark
+%name Json
+```
+
+</details>
+````
+
+Tokens and Precedence fences are never collapsed — Tokens sections run long
+enough in real grammars that losing the heading and default visibility is a
+real cost with no compensating benefit, and Precedence reads better fully
+visible next to the rules whose conflicts it resolves.
 
 This is the one place `fmt` ever emits raw HTML — see the exception carved
 out of guarantee 2 above — and it emits _only_ `<details>`/`<summary>`,

@@ -206,6 +206,87 @@ class GramarkCheckSuite extends munit.FunSuite:
     assertEquals(twice, once)
   }
 
+  // A headless Settings fence right after the intro, same as `fmt`'s canonical layout — for the
+  // Declarations-collapsing tests below. Kept separate from `inlineFixture` so the existing
+  // rule-only assertions above don't need updating.
+  private val inlineFixtureWithSettings =
+    """# T
+      |
+      |Intro prose.
+      |
+      |```gramark
+      |%name T
+      |```
+      |
+      |## Expr
+      |
+      |```gramark
+      |Expr
+      |  : NUMBER
+      |```
+      |
+      |![Railroad diagram for the Expr rule](diagrams-t/expr.svg)
+      |""".stripMargin
+
+  test("applySourceLayout: Collapsed wraps the Settings fence behind <details><summary>Declarations</summary>") {
+    val collapsed = GramarkCheck.applySourceLayout(
+      inlineFixtureWithSettings,
+      contentByRule,
+      GramarkCheck.SourceLayout.Collapsed
+    )
+    assertEquals(
+      collapsed,
+      """# T
+        |
+        |Intro prose.
+        |
+        |<details>
+        |<summary>Declarations</summary>
+        |
+        |```gramark
+        |%name T
+        |```
+        |
+        |</details>
+        |
+        |## Expr
+        |
+        |![Railroad diagram for the Expr rule](diagrams-t/expr.svg)
+        |
+        |<details>
+        |<summary>Source</summary>
+        |
+        |```gramark
+        |Expr
+        |  : NUMBER
+        |```
+        |
+        |</details>
+        |""".stripMargin
+    )
+  }
+
+  test("applySourceLayout: Settings collapse then un-collapse round-trips to the exact original") {
+    val collapsed = GramarkCheck.applySourceLayout(
+      inlineFixtureWithSettings,
+      contentByRule,
+      GramarkCheck.SourceLayout.Collapsed
+    )
+    val roundTripped =
+      GramarkCheck.applySourceLayout(collapsed, contentByRule, GramarkCheck.SourceLayout.Inline)
+    assertEquals(roundTripped, inlineFixtureWithSettings)
+  }
+
+  test("applySourceLayout: collapsing an already-collapsed Settings fence is idempotent") {
+    val once = GramarkCheck.applySourceLayout(
+      inlineFixtureWithSettings,
+      contentByRule,
+      GramarkCheck.SourceLayout.Collapsed
+    )
+    val twice = GramarkCheck.applySourceLayout(once, contentByRule, GramarkCheck.SourceLayout.Collapsed)
+    assertEquals(twice, once)
+  }
+
   test("fmt: collapses source by default, records sourceLayout in the lock, and survives check") {
     val dir = java.nio.file.Files.createTempDirectory("gramark-collapse")
     val file = dir.resolve("sample.grmk.md")
@@ -219,6 +300,7 @@ class GramarkCheckSuite extends munit.FunSuite:
 
     val written = java.nio.file.Files.readString(file)
     assert(written.contains("<details>\n<summary>Source</summary>"), written)
+    assert(written.contains("<details>\n<summary>Declarations</summary>"), written)
     val lockText = java.nio.file.Files.readString(java.nio.file.Path.of(GramarkCheck.lockPathFor(file.toString)))
     assert(lockText.contains(""""sourceLayout": "collapsed""""), lockText)
 
