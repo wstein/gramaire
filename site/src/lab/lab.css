@@ -145,6 +145,42 @@
   background: var(--bg);
 }
 
+/* Cross-pane rule-hover highlight (hoverRule): the overlay-clip div paints BEHIND the textarea (its
+   only later DOM sibling) in normal stacking order, so the textarea's own background must be
+   transparent for the overlay's highlight bands (LabIsland.tsx's EDITOR_LINE_HEIGHT/EDITOR_PAD_TOP,
+   onScroll-synced) to actually show through — the wrapper (.lab__editor-wrap) supplies the real
+   opaque background instead, one level further down. */
+.lab__editor-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--bg);
+}
+.lab__editor--overlaid {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
+.lab__editor-overlay-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.lab__editor-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+.lab__editor-hl {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-left: 2px solid var(--accent);
+}
+
 .lab__drawer {
   /* flex-basis set inline from the drawerHeight signal (px, draggable via .lab__hsplitter) —
      same pattern as .lab__pane--grammar's splitPercent. */
@@ -266,12 +302,62 @@
   background: var(--accent-softer);
   border-radius: 4px;
 }
+
+/* A rule node's clickable/hoverable header line (fold toggle + hoverRule editor cross-link) in
+   CstNodeView/AnnotatedNodeView. */
+.lab__rule-header {
+  cursor: default;
+  user-select: none;
+}
+.lab__rule-header:hover {
+  background: var(--accent-softer);
+  border-radius: 4px;
+}
+.lab__fold-marker {
+  display: inline-block;
+  width: 11px;
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.lab__tree-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.lab__tree-hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-faint);
+}
+.lab__copy-btn {
+  cursor: pointer;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-secondary);
+  background: var(--bg-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+.lab__token-strip--tight {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
 .lab__token-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
-.lab__chip {
+/* .lab__tok-chip, not .lab__chip — .lab__chip already names the LR walk tab's differently-styled
+   parse-stack/remaining-input symbol chips (a pill, var(--border-strong)); reusing that name here
+   silently overrode the walk tab's own styling via CSS source order. */
+.lab__tok-chip {
   font-family: var(--font-mono);
   font-size: 12px;
   padding: 3px 9px;
@@ -280,10 +366,13 @@
   color: var(--fg-secondary);
   border: 1px solid var(--border);
 }
-.lab__chip--hover {
+.lab__tok-chip--hover {
   background: var(--accent-softer);
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
   color: var(--accent);
+}
+.lab__token-strip--tight .lab__tok-chip {
+  cursor: pointer;
 }
 
 .lab__diagnostics {

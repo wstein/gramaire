@@ -409,10 +409,10 @@ test("cross-tab hover-linking keeps the same token highlighted across tabs", asy
   });
 
   // Default input "1+2*3" -> 5 tokens; index 2 is the middle NUMBER "2".
-  const resultChip = page.locator(".lab__chip").nth(2);
+  const resultChip = page.locator(".lab__tok-chip").nth(2);
   await expect(resultChip).toHaveText("2");
   await resultChip.hover();
-  await expect(resultChip).toHaveClass(/lab__chip--hover/);
+  await expect(resultChip).toHaveClass(/lab__tok-chip--hover/);
 
   await page.click('button[role="tab"]:has-text("Tokens")');
   const tokenRow = page.locator(".lab__table tbody tr").nth(2);
@@ -451,4 +451,126 @@ test("the Lab shows a persistent status bar with live automaton stats, visible a
   // Reacts live to the Method picker.
   await page.getByLabel("Method").selectOption("LALR");
   await expect(bar).toContainText(/LALR\(1\) · \d+ states? · 0 conflicts?/);
+});
+
+test("hovering a rule in Parse tree highlights its source lines in the grammar editor", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+  await page.click('button[role="tab"]:has-text("Parse tree")');
+
+  const bands = page.locator(".lab__editor-hl");
+  await expect(bands).toHaveCount(0);
+
+  await page
+    .locator(".lab__rule-header", { hasText: "Factor" })
+    .first()
+    .hover();
+  await expect(bands.first()).toBeVisible();
+
+  // Moving off the rule header clears the highlight — genuinely simultaneous panes, so this is a
+  // real (ephemeral) hover, unlike hoverToken's deliberate cross-tab persistence.
+  await page.locator(".lab__pane-label", { hasText: "Grammar" }).hover();
+  await expect(bands).toHaveCount(0);
+});
+
+test("clicking a rule in Parse tree folds/unfolds its children", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+  await page.click('button[role="tab"]:has-text("Parse tree")');
+
+  const rootHeader = page.locator(".lab__rule-header").first();
+  await expect(rootHeader.locator(".lab__fold-marker")).toHaveText("▼");
+  const before = await page.locator(".lab__rule-header").count();
+  expect(before).toBeGreaterThan(1);
+
+  await rootHeader.click();
+  await expect(rootHeader.locator(".lab__fold-marker")).toHaveText("▶");
+  await expect(page.locator(".lab__rule-header")).toHaveCount(1);
+  await expect(page.locator(".lab__leaf")).toHaveCount(0);
+
+  await rootHeader.click();
+  await expect(rootHeader.locator(".lab__fold-marker")).toHaveText("▼");
+  await expect(page.locator(".lab__rule-header")).toHaveCount(before);
+});
+
+test("the Parse tree tab's copy LISP button copies an S-expression and shows feedback", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+  await page.click('button[role="tab"]:has-text("Parse tree")');
+
+  await page.click(".lab__copy-btn");
+  await expect(page.locator(".lab__copy-btn")).toHaveText("✓ copied");
+  const clip = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clip).toContain("(Expr");
+  expect(clip).toContain("`1`");
+});
+
+test("clicking a token chip in Parse tree reveals the matching leaf even in a folded tree", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+  await page.click('button[role="tab"]:has-text("Parse tree")');
+
+  // Collapse the whole tree.
+  await page.locator(".lab__rule-header").first().click();
+  await expect(page.locator(".lab__leaf")).toHaveCount(0);
+
+  // Default input "1+2*3" -> index 2 is the middle NUMBER "2". Collapsing only the root means
+  // revealing any leaf necessarily un-collapses the whole tree (root is the sole collapse gate) —
+  // this just confirms the click reaches revealLeaf and the target leaf ends up visible, not that
+  // reveal is somehow "partial" here.
+  await page.locator(".lab__token-strip--tight .lab__tok-chip").nth(2).click();
+  await expect(page.locator(".lab__leaf")).not.toHaveCount(0);
+  await expect(page.locator(".lab__leaf", { hasText: '"2"' })).toBeVisible();
+});
+
+test("hovering/clicking a nonterminal box in the railroad diagram cross-links the editor and rule selector", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+  await page.click('button[role="tab"]:has-text("Grammar analysis")');
+  await page.waitForSelector(".lab__railroad-svg svg");
+
+  const found = await page.evaluate(() => {
+    const rects = document.querySelectorAll(
+      ".lab__railroad-svg rect.rr-nonterm",
+    );
+    for (const r of rects) {
+      if (r.nextElementSibling?.textContent === "Term") {
+        const rect = r.getBoundingClientRect();
+        return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+      }
+    }
+    return null;
+  });
+  if (!found) throw new Error("expected a Term nonterminal box in the diagram");
+
+  await page.mouse.move(found.x, found.y);
+  await expect(page.locator(".lab__editor-hl").first()).toBeVisible();
+
+  await page.mouse.click(found.x, found.y);
+  const ruleTabs = page.locator(".lab__panel .lab__tabs").last();
+  await expect(ruleTabs.locator('button[aria-selected="true"]')).toHaveText(
+    "Term",
+  );
 });

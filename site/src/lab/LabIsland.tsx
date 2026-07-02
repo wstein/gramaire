@@ -58,6 +58,19 @@ const walkStep = signal(0);
 // ephemeral hover would never visibly link anything across tabs, since the mouse has to leave the
 // hovered element (clearing it) before you can click a different tab.
 const hoverToken = signal<number | null>(null);
+// Cross-PANE hover-linking: the grammar editor pane is always visible alongside the drawer (unlike
+// the drawer's own mutually-exclusive tabs), so hovering a rule name anywhere (a tree node, a
+// railroad diagram box, a Lowered Core row) can live-highlight that rule's source lines in the
+// editor — genuinely simultaneous, so this DOES clear on mouseleave (no "last touched" persistence
+// trick needed, unlike hoverToken).
+const hoverRule = signal<string | null>(null);
+// Tree fold/unfold (Parse tree/All parses/Evaluate): a node is collapsed iff its structural path
+// (root "r", then ".<childIndex>" per level — stable across re-renders as long as the tree shape
+// doesn't change) is in this set. A fresh Set is required on every toggle since @preact/signals
+// compares by reference, not by contents.
+const collapsedPaths = signal<Set<string>>(new Set());
+// "copy LISP" transient feedback (Parse tree tab).
+const copied = signal(false);
 const splitPercent = signal(55);
 const SPLIT_MIN = 28;
 const SPLIT_MAX = 72;
@@ -129,6 +142,92 @@ function loadExample(ex: LabExample) {
   scheduleEvaluate();
 }
 
+// Finds the grammar source LINES a rule is defined on — the `RuleName` / `: ...` / `| ...` lines
+// inside its ```gramark fence, not the `## RuleName` markdown heading — so hovering that rule
+// elsewhere on the page can highlight exactly the lines it's defined on in the editor. Ported from
+// the interactive design mock's own `ruleLines`: scan for a bare line whose first whitespace-split
+// token equals the rule name, then collect it plus every immediately-following continuation line
+// starting with `:` or `|`.
+function ruleLines(text: string, ruleName: string): number[] {
+  const lines = text.split("\n");
+  const out: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const tt = lines[i].trim();
+    if (!tt || tt[0] === "#" || tt[0] === ":" || tt[0] === "|") continue;
+    if (tt.split(/\s+/)[0] === ruleName) {
+      out.push(i);
+      for (let j = i + 1; j < lines.length; j++) {
+        const t2 = lines[j].trim();
+        if (t2 && (t2[0] === ":" || t2[0] === "|")) out.push(j);
+        else break;
+      }
+      break;
+    }
+  }
+  return out;
+}
+
+function toggleFold(path: string) {
+  const next = new Set(collapsedPaths.value);
+  if (next.has(path)) next.delete(path);
+  else next.add(path);
+  collapsedPaths.value = next;
+}
+
+let copyTimer: ReturnType<typeof setTimeout> | undefined;
+function copyToClipboard(text: string) {
+  navigator.clipboard?.writeText(text).catch(() => {});
+  copied.value = true;
+  clearTimeout(copyTimer);
+  copyTimer = setTimeout(() => (copied.value = false), 1400);
+}
+
+// A LISP-like S-expression rendering of a CST, for the Parse tree tab's "copy LISP" button — a
+// leaf is its own matched text, backtick-quoted; a childless rule is bare; anything else is
+// `(RuleName child child ...)`. Ported from the design mock's own `lispOf`.
+function lispOf(node: CstNode): string {
+  if ("token" in node) return `\`${node.text}\``;
+  if (node.children.length === 0) return ruleName(node.rule);
+  return `(${ruleName(node.rule)} ${node.children.map(lispOf).join(" ")})`;
+}
+
+// The structural paths of every ancestor of the Nth leaf (source-lexed order, same indexing as
+// hoverToken) in a CST — used to un-collapse just enough of the tree to reveal one clicked token,
+// without touching fold state anywhere else. Ported from the design mock's own `revealLeaf`.
+function ancestorPathsOfLeaf(
+  node: CstNode,
+  targetIdx: number,
+  path: string,
+  counter: LeafCounter,
+  acc: string[],
+): boolean {
+  if ("token" in node) return counter.i++ === targetIdx;
+  for (let i = 0; i < node.children.length; i++) {
+    if (
+      ancestorPathsOfLeaf(
+        node.children[i],
+        targetIdx,
+        `${path}.${i}`,
+        counter,
+        acc,
+      )
+    ) {
+      acc.push(path);
+      return true;
+    }
+  }
+  return false;
+}
+
+function revealLeaf(cst: CstNode, idx: number) {
+  const acc: string[] = [];
+  ancestorPathsOfLeaf(cst, idx, "r", { i: 0 }, acc);
+  if (acc.length === 0) return;
+  const next = new Set(collapsedPaths.value);
+  acc.forEach((p) => next.delete(p));
+  collapsedPaths.value = next;
+}
+
 // Draggable splitter (M5+, docs/playground-spec.md §6): default 55/45, clamped 28-72. Position is
 // in-memory only (not persisted) — the spec doesn't call for localStorage, so this doesn't add one
 // speculatively. `panesEl` is measured live on every move rather than cached at drag-start, since
@@ -172,8 +271,15 @@ function startDrawerDrag(labEl: HTMLDivElement) {
   };
 }
 
+// The grammar editor's highlight-band geometry, in px — must track .lab__editor's own
+// font-size/line-height/padding (lab.css) exactly, or the bands drift out of alignment with the
+// text they're meant to underline. Same coupling the design mock's own hardcoded LH/PADT accept.
+const EDITOR_LINE_HEIGHT = 20.8; // font-size: 13px * line-height: 1.6
+const EDITOR_PAD_TOP = 14; // padding: 14px
+
 export default function LabIsland() {
   const initialized = useRef(false);
+  const editorOverlayRef = useRef<HTMLDivElement>(null);
   const labRef = useRef<HTMLDivElement>(null);
   const panesRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -253,15 +359,38 @@ export default function LabIsland() {
           style={{ flex: `0 0 ${splitPercent.value}%` }}
         >
           <div class="lab__pane-label">Grammar (.grmk.md)</div>
-          <textarea
-            class="lab__editor"
-            spellcheck={false}
-            value={grammarSource.value}
-            onInput={(e) => {
-              grammarSource.value = (e.target as HTMLTextAreaElement).value;
-              scheduleEvaluate();
-            }}
-          />
+          <div class="lab__editor-wrap">
+            <div class="lab__editor-overlay-clip">
+              <div class="lab__editor-overlay" ref={editorOverlayRef}>
+                {hoverRule.value &&
+                  ruleLines(grammarSource.value, hoverRule.value).map(
+                    (line) => (
+                      <div
+                        key={line}
+                        class="lab__editor-hl"
+                        style={{
+                          top: `${EDITOR_PAD_TOP + line * EDITOR_LINE_HEIGHT}px`,
+                          height: `${EDITOR_LINE_HEIGHT}px`,
+                        }}
+                      />
+                    ),
+                  )}
+              </div>
+            </div>
+            <textarea
+              class="lab__editor lab__editor--overlaid"
+              spellcheck={false}
+              value={grammarSource.value}
+              onInput={(e) => {
+                grammarSource.value = (e.target as HTMLTextAreaElement).value;
+                scheduleEvaluate();
+              }}
+              onScroll={(e) => {
+                if (editorOverlayRef.current)
+                  editorOverlayRef.current.style.transform = `translateY(${-(e.target as HTMLTextAreaElement).scrollTop}px)`;
+              }}
+            />
+          </div>
         </div>
         <div
           class="lab__splitter"
@@ -434,8 +563,8 @@ function ResultPanel() {
                 key={i}
                 class={
                   hoverToken.value === i
-                    ? "lab__chip lab__chip--hover"
-                    : "lab__chip"
+                    ? "lab__tok-chip lab__tok-chip--hover"
+                    : "lab__tok-chip"
                 }
                 onMouseEnter={() => (hoverToken.value = i)}
               >
@@ -483,12 +612,46 @@ function TokensPanel() {
 
 function TreePanel() {
   const cst = response.value?.parse?.cst;
+  const tokens = response.value?.parse?.tokens ?? [];
   if (!cst)
     return <p class="lab__empty">No parse tree — the input wasn't accepted.</p>;
   return (
-    <pre class="lab__tree">
-      <CstNodeView node={cst} counter={{ i: 0 }} />
-    </pre>
+    <div>
+      <div class="lab__tree-toolbar">
+        <span class="lab__tree-hint">
+          hover a token or a leaf — they link · click a rule to fold
+        </span>
+        <button
+          type="button"
+          class="lab__copy-btn"
+          onClick={() => copyToClipboard(lispOf(cst))}
+        >
+          {copied.value ? "✓ copied" : "copy LISP"}
+        </button>
+      </div>
+      {tokens.length > 0 && (
+        <div class="lab__token-strip lab__token-strip--tight">
+          {tokens.map((t, i) => (
+            <span
+              key={i}
+              title="click to reveal in tree"
+              class={
+                hoverToken.value === i
+                  ? "lab__tok-chip lab__tok-chip--hover"
+                  : "lab__tok-chip"
+              }
+              onMouseEnter={() => (hoverToken.value = i)}
+              onClick={() => revealLeaf(cst, i)}
+            >
+              {t.text}
+            </span>
+          ))}
+        </div>
+      )}
+      <pre class="lab__tree">
+        <CstNodeView node={cst} counter={{ i: 0 }} path="r" />
+      </pre>
+    </div>
   );
 }
 
@@ -512,10 +675,12 @@ function CstNodeView({
   node,
   depth = 0,
   counter,
+  path,
 }: {
   node: CstNode | null;
   depth?: number;
   counter: LeafCounter;
+  path: string;
 }) {
   if (!node) return null;
   const indent = "  ".repeat(depth);
@@ -533,15 +698,31 @@ function CstNodeView({
       </div>
     );
   }
+  const name = ruleName(node.rule);
+  const hasKids = node.children.length > 0;
+  const folded = collapsedPaths.value.has(path);
   return (
     <div>
-      <div>
+      <div
+        class="lab__rule-header"
+        onMouseEnter={() => (hoverRule.value = name)}
+        onMouseLeave={() => (hoverRule.value = null)}
+        onClick={hasKids ? () => toggleFold(path) : undefined}
+      >
         {indent}
-        {ruleName(node.rule)}
+        {hasKids && <span class="lab__fold-marker">{folded ? "▶" : "▼"}</span>}
+        {name}
       </div>
-      {node.children.map((c, i) => (
-        <CstNodeView key={i} node={c} depth={depth + 1} counter={counter} />
-      ))}
+      {!folded &&
+        node.children.map((c, i) => (
+          <CstNodeView
+            key={i}
+            node={c}
+            depth={depth + 1}
+            counter={counter}
+            path={`${path}.${i}`}
+          />
+        ))}
     </div>
   );
 }
@@ -585,8 +766,10 @@ function AllParsesPanel() {
           <div class="lab__forest-item-label">parse {i + 1}</div>
           <pre class="lab__tree">
             {/* A fresh counter per parse — every derivation consumes the same input tokens in the
-                same left-to-right order, so leaf index == token index independently in each tree. */}
-            <CstNodeView node={p} counter={{ i: 0 }} />
+                same left-to-right order, so leaf index == token index independently in each tree.
+                A distinct root path per parse index keeps fold state independent between parses
+                that happen to share the same relative shape. */}
+            <CstNodeView node={p} counter={{ i: 0 }} path={`r${i}`} />
           </pre>
         </div>
       ))}
@@ -613,7 +796,11 @@ function LoweredCorePanel() {
       </thead>
       <tbody>
         {productions.map((p: ProductionInfo, i: number) => (
-          <tr key={i}>
+          <tr
+            key={i}
+            onMouseEnter={() => (hoverRule.value = p.lhs)}
+            onMouseLeave={() => (hoverRule.value = null)}
+          >
             <td class="lab__mono">{p.lhs}</td>
             <td class="lab__mono">{p.rhs.join(" ") || "ε"}</td>
             <td class="lab__mono">{p.action ?? ""}</td>
@@ -651,18 +838,14 @@ function GrammarAnalysisPanel() {
                 aria-selected={current === name}
                 class="lab__tab"
                 onClick={() => (selectedRule.value = name)}
+                onMouseEnter={() => (hoverRule.value = name)}
+                onMouseLeave={() => (hoverRule.value = null)}
               >
                 {name}
               </button>
             ))}
           </div>
-          {/* The SVG is server-rendered by Railroad.renderSvg from the grammar the user is
-              already editing in this same tab — the same trust boundary as the grammar source
-              itself, not third-party or cross-origin content. */}
-          <div
-            class="lab__railroad-svg"
-            dangerouslySetInnerHTML={{ __html: a.railroad[current] ?? "" }}
-          />
+          <RailroadSvg svg={a.railroad[current] ?? ""} />
         </div>
       )}
 
@@ -700,7 +883,11 @@ function GrammarAnalysisPanel() {
           </thead>
           <tbody>
             {a.firstFollow.map((r) => (
-              <tr key={r.name}>
+              <tr
+                key={r.name}
+                onMouseEnter={() => (hoverRule.value = r.name)}
+                onMouseLeave={() => (hoverRule.value = null)}
+              >
                 <td class="lab__mono">{r.name}</td>
                 <td class="lab__mono">{r.first.join(" ")}</td>
                 <td class="lab__mono">{r.follow.join(" ")}</td>
@@ -710,6 +897,54 @@ function GrammarAnalysisPanel() {
         </table>
       </div>
     </div>
+  );
+}
+
+// The SVG is server-rendered by Railroad.renderSvg from the grammar the user is already editing in
+// this same tab — the same trust boundary as the grammar source itself, not third-party or
+// cross-origin content. dangerouslySetInnerHTML content isn't part of Preact's vdom, so it starts
+// out fully inert; this re-queries and re-binds listeners in a useEffect keyed on `svg` (every
+// grammar edit/rule switch swaps the markup, so the previous binding would otherwise dangle on
+// detached nodes). Only nonterminal boxes (rect.rr-nonterm, paired with the rr-text sibling
+// Railroad.scala always emits right after it) are interactive — hovering one reuses the exact same
+// hoverRule mechanism a tree node's rule header does (same editor cross-highlight), and clicking
+// one jumps the rule-tab selector to that rule's own diagram.
+function RailroadSvg({ svg }: { svg: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const cleanups: Array<() => void> = [];
+    el.querySelectorAll<SVGRectElement>("rect.rr-nonterm").forEach((rect) => {
+      const text = rect.nextElementSibling as SVGTextElement | null;
+      const label = text?.textContent;
+      if (!label) return;
+      const onEnter = () => (hoverRule.value = label);
+      const onLeave = () => (hoverRule.value = null);
+      const onClick = () => (selectedRule.value = label);
+      // Both the rect AND its text sibling need listeners — the text paints on top of the rect
+      // (later SVG siblings paint over earlier ones), so a click at the box's visual center hits
+      // whichever of the two is frontmost, not necessarily the rect a listener was attached to.
+      for (const target of [rect, text]) {
+        target.style.cursor = "pointer";
+        target.addEventListener("mouseenter", onEnter);
+        target.addEventListener("mouseleave", onLeave);
+        target.addEventListener("click", onClick);
+        cleanups.push(() => {
+          target.removeEventListener("mouseenter", onEnter);
+          target.removeEventListener("mouseleave", onLeave);
+          target.removeEventListener("click", onClick);
+        });
+      }
+    });
+    return () => cleanups.forEach((c) => c());
+  }, [svg]);
+  return (
+    <div
+      class="lab__railroad-svg"
+      ref={ref}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
   );
 }
 
@@ -941,7 +1176,7 @@ function EvaluatePanel() {
       <div class="lab__analysis-section">
         <div class="lab__analysis-heading">annotated parse tree</div>
         <pre class="lab__tree">
-          <AnnotatedNodeView node={ev.tree} counter={{ i: 0 }} />
+          <AnnotatedNodeView node={ev.tree} counter={{ i: 0 }} path="r" />
         </pre>
       </div>
 
@@ -982,10 +1217,12 @@ function AnnotatedNodeView({
   node,
   depth = 0,
   counter,
+  path,
 }: {
   node: AnnotatedNode;
   depth?: number;
   counter: LeafCounter;
+  path: string;
 }) {
   const indent = "  ".repeat(depth);
   if ("token" in node) {
@@ -1003,20 +1240,31 @@ function AnnotatedNodeView({
       </div>
     );
   }
+  const name = ruleName(node.rule);
+  const hasKids = node.children.length > 0;
+  const folded = collapsedPaths.value.has(path);
   return (
     <div>
-      <div>
+      <div
+        class="lab__rule-header"
+        onMouseEnter={() => (hoverRule.value = name)}
+        onMouseLeave={() => (hoverRule.value = null)}
+        onClick={hasKids ? () => toggleFold(path) : undefined}
+      >
         {indent}
-        {ruleName(node.rule)} <ValueChip value={node.value} />
+        {hasKids && <span class="lab__fold-marker">{folded ? "▶" : "▼"}</span>}
+        {name} <ValueChip value={node.value} />
       </div>
-      {node.children.map((c, i) => (
-        <AnnotatedNodeView
-          key={i}
-          node={c}
-          depth={depth + 1}
-          counter={counter}
-        />
-      ))}
+      {!folded &&
+        node.children.map((c, i) => (
+          <AnnotatedNodeView
+            key={i}
+            node={c}
+            depth={depth + 1}
+            counter={counter}
+            path={`${path}.${i}`}
+          />
+        ))}
     </div>
   );
 }
