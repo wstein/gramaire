@@ -101,10 +101,150 @@ class GramaireCheckSuite extends munit.FunSuite:
     java.nio.file.Files.writeString(file, src)
 
     val doc = GramaireCheck.parse(src)
-    val _ = GramaireCheck.fmt(file.toString, doc, GramaireCheck.DiagramMode.Sidecar)
+    // Explicit Inline: collapsing is the default, but this test is about the diagram file/link,
+    // not the layout, so pin the layout to keep the assertions below layout-agnostic.
+    val _ =
+      GramaireCheck.fmt(file.toString, doc, GramaireCheck.DiagramMode.Sidecar, GramaireCheck.SourceLayout.Inline)
 
     assert(java.nio.file.Files.exists(dir.resolve("diagrams-sample/value.svg")))
     assert(java.nio.file.Files.readString(file).contains("](diagrams-sample/value.svg)"))
+  }
+
+  // A minimal, canonical-shape (fence, then its image) fixture with two rules — one with a
+  // diagram link, one without — for the applySourceLayout tests below.
+  private val inlineFixture =
+    """## Expr
+      |
+      |```gramaire
+      |Expr
+      |  : NUMBER
+      |```
+      |
+      |![Railroad diagram for the Expr rule](diagrams-t/expr.svg)
+      |
+      |## Bare
+      |
+      |```gramaire
+      |Bare
+      |  : 'x'
+      |```
+      |""".stripMargin
+
+  private val contentByRule = Map(
+    "Expr" -> "Expr\n  : NUMBER",
+    "Bare" -> "Bare\n  : 'x'"
+  )
+
+  test("applySourceLayout: Collapsed hoists the image above a <details>-wrapped fence") {
+    val collapsed = GramaireCheck.applySourceLayout(
+      inlineFixture,
+      contentByRule,
+      GramaireCheck.SourceLayout.Collapsed
+    )
+    assertEquals(
+      collapsed,
+      """## Expr
+        |
+        |![Railroad diagram for the Expr rule](diagrams-t/expr.svg)
+        |
+        |<details>
+        |<summary>Source</summary>
+        |
+        |```gramaire
+        |Expr
+        |  : NUMBER
+        |```
+        |
+        |</details>
+        |
+        |## Bare
+        |
+        |```gramaire
+        |Bare
+        |  : 'x'
+        |```
+        |""".stripMargin
+    )
+  }
+
+  test("applySourceLayout: a rule with no existing image link is left untouched by Collapsed") {
+    // "Bare" above has no image line, so collapsing must not invent one — it stays inline.
+    val collapsed = GramaireCheck.applySourceLayout(
+      inlineFixture,
+      contentByRule,
+      GramaireCheck.SourceLayout.Collapsed
+    )
+    assert(collapsed.contains("## Bare\n\n```gramaire\nBare\n  : 'x'\n```\n"), collapsed)
+    assert(!collapsed.substring(collapsed.indexOf("## Bare")).contains("<details>"), collapsed)
+  }
+
+  test("applySourceLayout: Inline is the identity on an already-inline document") {
+    assertEquals(
+      GramaireCheck.applySourceLayout(inlineFixture, contentByRule, GramaireCheck.SourceLayout.Inline),
+      inlineFixture
+    )
+  }
+
+  test("applySourceLayout: collapse then un-collapse round-trips to the exact original") {
+    val collapsed = GramaireCheck.applySourceLayout(
+      inlineFixture,
+      contentByRule,
+      GramaireCheck.SourceLayout.Collapsed
+    )
+    val roundTripped =
+      GramaireCheck.applySourceLayout(collapsed, contentByRule, GramaireCheck.SourceLayout.Inline)
+    assertEquals(roundTripped, inlineFixture)
+  }
+
+  test("applySourceLayout: collapsing an already-collapsed document is idempotent") {
+    val once = GramaireCheck.applySourceLayout(
+      inlineFixture,
+      contentByRule,
+      GramaireCheck.SourceLayout.Collapsed
+    )
+    val twice = GramaireCheck.applySourceLayout(once, contentByRule, GramaireCheck.SourceLayout.Collapsed)
+    assertEquals(twice, once)
+  }
+
+  test("fmt: collapses source by default, records sourceLayout in the lock, and survives check") {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-collapse")
+    val file = dir.resolve("sample.gram.md")
+    val src =
+      "# T\n\n```gramaire\n%name T\n```\n\n## Value\n\n```gramaire\nValue\n  : 'x'\n```\n\n![Railroad diagram for the Value rule](diagrams/value.svg)\n\n## Generated tables\n\n| a |\n"
+    java.nio.file.Files.writeString(file, src)
+
+    val doc = GramaireCheck.parse(src)
+    // No explicit layout argument: this is the point of the test — collapsing is fmt's default.
+    val _ = GramaireCheck.fmt(file.toString, doc, GramaireCheck.DiagramMode.Sidecar)
+
+    val written = java.nio.file.Files.readString(file)
+    assert(written.contains("<details>\n<summary>Source</summary>"), written)
+    val lockText = java.nio.file.Files.readString(java.nio.file.Path.of(GramaireCheck.lockPathFor(file.toString)))
+    assert(lockText.contains(""""sourceLayout": "collapsed""""), lockText)
+
+    // structure/drift are layout-agnostic — a collapsed file is exactly as canonical as an
+    // inline one, since grammarHashes/checkStructure both key on fence content and headings,
+    // never on the HTML wrapped around a fence.
+    val redoc = GramaireCheck.parse(written)
+    assertEquals(GramaireCheck.checkStructure(redoc), Vector.empty, written)
+    assertEquals(GramaireCheck.checkDrift(file.toString, redoc), Vector.empty, written)
+  }
+
+  test("fmt: --inline-source semantics — an explicit Inline layout keeps fences fully visible") {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-inline")
+    val file = dir.resolve("sample.gram.md")
+    val src =
+      "# T\n\n```gramaire\n%name T\n```\n\n## Value\n\n```gramaire\nValue\n  : 'x'\n```\n\n![Railroad diagram for the Value rule](diagrams/value.svg)\n\n## Generated tables\n\n| a |\n"
+    java.nio.file.Files.writeString(file, src)
+
+    val doc = GramaireCheck.parse(src)
+    val _ =
+      GramaireCheck.fmt(file.toString, doc, GramaireCheck.DiagramMode.Sidecar, GramaireCheck.SourceLayout.Inline)
+
+    val written = java.nio.file.Files.readString(file)
+    assert(!written.contains("<details>"), written)
+    val lockText = java.nio.file.Files.readString(java.nio.file.Path.of(GramaireCheck.lockPathFor(file.toString)))
+    assert(!lockText.contains("sourceLayout"), lockText)
   }
 
   test("sha256/longestBacktickRun/lockPathFor: the small building blocks") {

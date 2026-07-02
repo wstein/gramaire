@@ -59,9 +59,20 @@ object GramaireCheck:
   enum DiagramMode:
     case Sidecar, Mermaid
 
+  // A rule's diagram + source pairing renders either collapsed (the diagram first, the fence
+  // tucked behind a GFM `<details><summary>Source</summary>` disclosure — sidecar mode's default,
+  // since scanning diagrams first and expanding source on demand reads better than a wall of
+  // fences) or inline (the fence, then its diagram — opt out with `--inline-source` for a grammar
+  // small enough that everything visible reads fine). `<details>`/`<summary>` are the only raw
+  // HTML `fmt` ever emits, and only in Collapsed — `.markdownlint-cli2.jsonc` allow-lists exactly
+  // those two tags.
+  enum SourceLayout:
+    case Inline, Collapsed
+
   final case class Lock(
       version: Int,
       mode: DiagramMode,
+      sourceLayout: SourceLayout,
       grammarSha256: String,
       artifacts: Vector[Artifact]
   )
@@ -213,6 +224,13 @@ object GramaireCheck:
             case "sidecar" => Right(DiagramMode.Sidecar)
             case "mermaid" => Right(DiagramMode.Mermaid)
             case other     => Left(s"lock: unknown mode $other")
+          // Optional: absent in every lock predating this field, which all mean "inline" — the
+          // only layout that existed before source-collapsing was introduced.
+          sourceLayout <- m.get("sourceLayout") match
+            case None                              => Right(SourceLayout.Inline)
+            case Some(gramaire.Json.JString("inline"))    => Right(SourceLayout.Inline)
+            case Some(gramaire.Json.JString("collapsed")) => Right(SourceLayout.Collapsed)
+            case Some(other) => Left(s"lock: unknown sourceLayout $other")
           grammarSha256 <- m
             .get("grammarSha256")
             .collect { case gramaire.Json.JString(s) => s }
@@ -228,7 +246,7 @@ object GramaireCheck:
                 a <- parseArtifact(aj)
               yield xs :+ a
             }
-        yield Lock(version, mode, grammarSha256, artifacts)
+        yield Lock(version, mode, sourceLayout, grammarSha256, artifacts)
       case _ => Left("lock: expected an object")
     }
 
@@ -347,6 +365,121 @@ object GramaireCheck:
               i += 1
     out.result().mkString("\n")
 
+  private val detailsOpenLine = "<details>"
+  private val summarySourceLine = "<summary>Source</summary>"
+  private val detailsCloseLine = "</details>"
+
+  // Every COLLAPSED rule region — its own image link, then a blank line, `<details>`,
+  // `<summary>Source</summary>`, a blank line, the fence, and a closing blank + `</details>` —
+  // rewritten to the canonical INLINE shape: fence first, then the (unchanged) image directly
+  // after. Scanning forward from the image line (a simple regex) rather than backward from the
+  // fence avoids needing to inspect what's already been emitted. A no-op on a file that's already
+  // inline, so `toCollapsedLayout` can always start from one known shape instead of having to
+  // recognize every possible input.
+  private def toInlineLayout(src: String): String =
+    val lines = src.split("\n", -1).toVector
+    val out = Vector.newBuilder[String]
+    var i = 0
+    while i < lines.length do
+      val collapsedFence =
+        for
+          _ <- imageRe.findFirstMatchIn(lines(i))
+          if lines.lift(i + 1).exists(_.trim.isEmpty)
+          if lines.lift(i + 2).contains(detailsOpenLine)
+          if lines.lift(i + 3).contains(summarySourceLine)
+          if lines.lift(i + 4).exists(_.trim.isEmpty)
+          m <- lines.lift(i + 5).flatMap(fenceOpenRe.findFirstMatchIn)
+          if m.group(2).trim == "gramaire"
+        yield m.group(1).length
+      collapsedFence match
+        case Some(fenceLen) =>
+          val close = fenceCloseAt(lines, i + 6, fenceLen)
+          val afterClose = close + 1
+          if lines.lift(afterClose).exists(_.trim.isEmpty)
+            && lines.lift(afterClose + 1).contains(detailsCloseLine)
+          then
+            out += lines(i + 5) // fence open
+            out ++= lines.slice(i + 6, close) // fence content
+            out += lines(close) // fence close
+            out += ""
+            out += lines(i) // the image line, unchanged
+            i = afterClose + 2
+          else
+            out += lines(i)
+            i += 1
+        case None =>
+          out += lines(i)
+          i += 1
+    out.result().mkString("\n")
+
+  // The index of the line closing a fence of the given backtick length opened just before
+  // `from`, scanning forward — mirrors the inline loop `parse`/`convertDiagrams` each hand-roll,
+  // pulled out here since both layout directions need it.
+  private def fenceCloseAt(lines: Vector[String], from: Int, fenceLen: Int): Int =
+    var k = from
+    while k < lines.length && !fenceCloseRe.findFirstMatchIn(lines(k)).exists(_.group(1).length >= fenceLen)
+    do k += 1
+    k
+
+  // The inverse of `toInlineLayout`: every rule fence (one whose content matches a known rule —
+  // this never touches Tokens/Settings/Precedence fences, which have no diagram to pair with)
+  // that has its own image link directly after it is rewritten to image-first, fence collapsed
+  // behind `<details><summary>Source</summary>`. A rule with no existing image link is left
+  // untouched (nothing to hoist in front of it).
+  private def toCollapsedLayout(src: String, contentByRule: Map[String, String]): String =
+    val lines = src.split("\n", -1).toVector
+    val out = Vector.newBuilder[String]
+    var i = 0
+    while i < lines.length do
+      lines(i) match
+        case fenceOpenRe(backticks, rawInfo) if rawInfo.trim == "gramaire" =>
+          val close = fenceCloseAt(lines, i + 1, backticks.length)
+          val content = lines.slice(i + 1, close)
+          val isRuleFence = contentByRule.values.exists(_ == content.mkString("\n"))
+          val afterFenceImageIdx =
+            if isRuleFence then
+              var k = close + 1
+              while k < lines.length && lines(k).trim.isEmpty do k += 1
+              if lines.lift(k).exists(l => imageRe.findFirstMatchIn(l).isDefined) then Some(k)
+              else None
+            else None
+          afterFenceImageIdx match
+            case Some(imgIdx) =>
+              out += lines(imgIdx)
+              out += ""
+              out += detailsOpenLine
+              out += summarySourceLine
+              out += ""
+              out += lines(i)
+              out ++= content
+              out += lines(close)
+              out += ""
+              out += detailsCloseLine
+              i = imgIdx + 1
+            case None =>
+              out += lines(i)
+              out ++= content
+              out += lines(close)
+              i = close + 1
+        case line =>
+          out += line
+          i += 1
+    out.result().mkString("\n")
+
+  /** Rewrite every rule's fence/diagram pairing to the requested layout — idempotent (always
+    * normalizes to inline first) and reversible, the same guarantee `convertDiagrams` makes for
+    * diagram mode.
+    */
+  def applySourceLayout(
+      src: String,
+      contentByRule: Map[String, String],
+      layout: SourceLayout
+  ): String =
+    val inline = toInlineLayout(src)
+    layout match
+      case SourceLayout.Inline    => inline
+      case SourceLayout.Collapsed => toCollapsedLayout(inline, contentByRule)
+
   // Regenerate the GFM table inside the `## Generated tables` section from
   // the parsed grammar's computed FIRST/FOLLOW sets, leaving the caption and
   // the conflict-summary line untouched. The conflict line stays
@@ -399,7 +532,12 @@ object GramaireCheck:
   // diagrams in the document. Either way it rewrites the diagram regions to
   // the chosen mode and writes the sidecar lock. Deterministic, so
   // re-running is a no-op.
-  def fmt(file: String, doc: Doc, mode: DiagramMode): String =
+  def fmt(
+      file: String,
+      doc: Doc,
+      mode: DiagramMode,
+      layout: SourceLayout = SourceLayout.Collapsed
+  ): String =
     val GrammarHashes(ruleHashes, grammarSha256) = grammarHashes(doc)
     val nonterminals = ruleHashes.keySet
     var contentByRule = Map.empty[String, String]
@@ -440,19 +578,29 @@ object GramaireCheck:
     )
     var text = regenerateTables(doc.src, prods)
     text = convertDiagrams(text, contentByRule, nonterminals, mode, stem)
+    // Only sidecar mode has a plain image link to hoist in front of a collapsed fence — mermaid
+    // embeds the diagram as its own fence, with no separate "source" to tuck behind a disclosure.
+    if mode == DiagramMode.Sidecar then text = applySourceLayout(text, contentByRule, layout)
     if text != doc.src then Files.writeString(Path.of(file), text)
 
     val artifactsResult = artifacts.result()
-    val lock = Lock(1, mode, grammarSha256, artifactsResult)
+    val lock = Lock(1, mode, layout, grammarSha256, artifactsResult)
     Files.writeString(Path.of(lockPathFor(file)), lockJson(lock) + "\n")
 
     val diagramsNote =
       if mode == DiagramMode.Sidecar then s" and ${artifactsResult.length - 1} diagram(s)" else ""
-    s"formatted $fileName (${modeName(mode)}); wrote ${Path.of(lockPathFor(file)).getFileName}$diagramsNote"
+    val layoutNote = if layout == SourceLayout.Collapsed then " (source collapsed)" else ""
+    s"formatted $fileName (${modeName(mode)}$layoutNote); wrote ${Path
+        .of(lockPathFor(file))
+        .getFileName}$diagramsNote"
 
   private def modeName(m: DiagramMode): String = m match
     case DiagramMode.Sidecar => "sidecar"
     case DiagramMode.Mermaid => "mermaid"
+
+  private def sourceLayoutName(l: SourceLayout): String = l match
+    case SourceLayout.Inline    => "inline"
+    case SourceLayout.Collapsed => "collapsed"
 
   // Pretty-printed JSON matching JS's `JSON.stringify(obj, null, 2)`
   // exactly (2-space indent, no trailing spaces) — the format the
@@ -477,9 +625,16 @@ object GramaireCheck:
     |    }""".stripMargin
       }
       .mkString(",\n")
+    // `sourceLayout` is omitted only when it's `inline` — the layout every lock predating this
+    // field implicitly had. This is about that historical default, not `fmt`'s current one: an
+    // omitted field always means "inline" on read (see `parseLock`), so old locks keep
+    // round-tripping byte-for-byte no matter which layout `fmt` defaults to today.
+    val sourceLayoutLine =
+      if lock.sourceLayout == SourceLayout.Inline then ""
+      else s"""\n    |  "sourceLayout": ${jstr(sourceLayoutName(lock.sourceLayout))},"""
     s"""{
     |  "version": ${lock.version},
-    |  "mode": ${jstr(modeName(lock.mode))},
+    |  "mode": ${jstr(modeName(lock.mode))},$sourceLayoutLine
     |  "grammarSha256": ${jstr(lock.grammarSha256)},
     |  "artifacts": [
     |$artifactsJson

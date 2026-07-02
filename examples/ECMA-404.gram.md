@@ -23,14 +23,9 @@ A compact example of the syntax is shown below:
 This document focuses on the syntactic structure of JSON texts and leaves
 application-level semantics to the consuming implementation.
 
-<details>
-<summary>Formal declarations</summary>
-
 ```gramaire
 %name Json
 ```
-
-</details>
 
 ## Tokens
 
@@ -77,7 +72,7 @@ A JSON text is a single value, optionally preceded or followed by whitespace.
 The grammar therefore defines a complete JSON document as one value with the
 required end-of-input marker.
 
-![Railroad diagram for the Json rule](diagrams-ECMA-262/json.svg)
+![Railroad diagram for the Json rule](diagrams-ECMA-404/json.svg)
 
 <details>
 <summary>Source</summary>
@@ -95,7 +90,7 @@ A JSON value can be a string, a number, an object, an array, or one of the
 literal names `true`, `false`, or `null`. These structures can be nested, so a
 value may itself contain another value in an object or array.
 
-![Railroad diagram for the Value rule](diagrams-ECMA-262/value.svg)
+![Railroad diagram for the Value rule](diagrams-ECMA-404/value.svg)
 
 <details>
 <summary>Source</summary>
@@ -119,7 +114,7 @@ An object is a collection of zero or more name/value pairs. An object begins
 with a left brace and ends with a right brace. Each name is followed by a
 colon, and the name/value pairs are separated by commas.
 
-![Railroad diagram for the Object rule](diagrams-ECMA-262/object.svg)
+![Railroad diagram for the Object rule](diagrams-ECMA-404/object.svg)
 
 <details>
 <summary>Source</summary>
@@ -129,6 +124,7 @@ Object
   : '{' '}'
   | '{' Members '}'
 ```
+
 </details>
 
 ## Members
@@ -137,7 +133,7 @@ An object contains a comma-separated sequence of members. This grammar keeps
 the members in source order and allows each member to contain an arbitrary
 JSON value.
 
-![Railroad diagram for the Members rule](diagrams-ECMA-262/members.svg)
+![Railroad diagram for the Members rule](diagrams-ECMA-404/members.svg)
 
 <details>
 <summary>Source</summary>
@@ -147,13 +143,14 @@ Members
   : Member
   | Members ',' Member
 ```
+
 </details>
 
 ## Member
 
 A member is a string key, a colon, and a value.
 
-![Railroad diagram for the Member rule](diagrams-ECMA-262/member.svg)
+![Railroad diagram for the Member rule](diagrams-ECMA-404/member.svg)
 
 <details>
 <summary>Source</summary>
@@ -162,6 +159,7 @@ A member is a string key, a colon, and a value.
 Member
   : STRING ':' Value
 ```
+
 </details>
 
 ## Array
@@ -170,7 +168,7 @@ An array is an ordered collection of zero or more values. An array begins with
 a left bracket and ends with a right bracket. The values are separated by
 commas.
 
-![Railroad diagram for the Array rule](diagrams-ECMA-262/array.svg)
+![Railroad diagram for the Array rule](diagrams-ECMA-404/array.svg)
 
 <details>
 <summary>Source</summary>
@@ -180,6 +178,7 @@ Array
   : '[' ']'
   | '[' Elements ']'
 ```
+
 </details>
 
 ## Elements
@@ -187,7 +186,7 @@ Array
 An array contains a comma-separated sequence of values. This grammar keeps the
 elements in source order and allows each element to be any JSON value.
 
-![Railroad diagram for the Elements rule](diagrams-ECMA-262/elements.svg)
+![Railroad diagram for the Elements rule](diagrams-ECMA-404/elements.svg)
 
 <details>
 <summary>Source</summary>
@@ -197,6 +196,7 @@ Elements
   : Value
   | Elements ',' Value
 ```
+
 </details>
 
 ## Error messages
