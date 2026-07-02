@@ -353,6 +353,11 @@
   padding: 4px 10px 4px 0;
   border-bottom: 1px solid var(--border);
 }
+/* Green-bar printer-paper striping, matching the original design mock's FIRST/FOLLOW table
+   (alternating var(--bg)/var(--bg-1) row backgrounds). */
+.lab__table tbody tr:nth-child(even) td {
+  background: var(--bg-1);
+}
 
 .lab__tree {
   margin: 0;
