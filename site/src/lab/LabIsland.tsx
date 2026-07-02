@@ -358,10 +358,20 @@ function startDrawerDrag(labEl: HTMLDivElement) {
 // text they're meant to underline. Same coupling the design mock's own hardcoded LH/PADT accept.
 const EDITOR_LINE_HEIGHT = 20.8; // font-size: 13px * line-height: 1.6
 const EDITOR_PAD_TOP = 14; // padding: 14px
+// .lab__editor-gutter-clip's width and .lab__editor--gutter's padding-left (lab.css) must stay in
+// sync with each other so gutter digits and text never overlap — no JS-side constant needed since
+// neither value depends on editor content.
+
+function lineNumbers(text: string): number[] {
+  const count = text.split("\n").length;
+  return Array.from({ length: count }, (_, i) => i + 1);
+}
 
 export default function LabIsland() {
   const initialized = useRef(false);
   const editorOverlayRef = useRef<HTMLDivElement>(null);
+  const grammarGutterRef = useRef<HTMLDivElement>(null);
+  const inputGutterRef = useRef<HTMLDivElement>(null);
   const labRef = useRef<HTMLDivElement>(null);
   const panesRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -456,8 +466,23 @@ export default function LabIsland() {
                   )}
               </div>
             </div>
+            <div class="lab__editor-gutter-clip">
+              <div class="lab__editor-gutter" ref={grammarGutterRef}>
+                {lineNumbers(grammarSource.value).map((n) => (
+                  <div
+                    key={n}
+                    class="lab__editor-gutter-line"
+                    style={{
+                      top: `${EDITOR_PAD_TOP + (n - 1) * EDITOR_LINE_HEIGHT}px`,
+                    }}
+                  >
+                    {n}
+                  </div>
+                ))}
+              </div>
+            </div>
             <textarea
-              class="lab__editor lab__editor--overlaid"
+              class="lab__editor lab__editor--overlaid lab__editor--gutter"
               spellcheck={false}
               value={grammarSource.value}
               ref={(el) => {
@@ -468,8 +493,11 @@ export default function LabIsland() {
                 scheduleEvaluate();
               }}
               onScroll={(e) => {
+                const scrollTop = (e.target as HTMLTextAreaElement).scrollTop;
                 if (editorOverlayRef.current)
-                  editorOverlayRef.current.style.transform = `translateY(${-(e.target as HTMLTextAreaElement).scrollTop}px)`;
+                  editorOverlayRef.current.style.transform = `translateY(${-scrollTop}px)`;
+                if (grammarGutterRef.current)
+                  grammarGutterRef.current.style.transform = `translateY(${-scrollTop}px)`;
               }}
             />
           </div>
@@ -487,18 +515,40 @@ export default function LabIsland() {
         />
         <div class="lab__pane lab__pane--fill">
           <div class="lab__pane-label">Input</div>
-          <textarea
-            class="lab__editor"
-            spellcheck={false}
-            value={targetInput.value}
-            ref={(el) => {
-              inputEditorEl = el;
-            }}
-            onInput={(e) => {
-              targetInput.value = (e.target as HTMLTextAreaElement).value;
-              scheduleEvaluate();
-            }}
-          />
+          <div class="lab__editor-wrap">
+            <div class="lab__editor-gutter-clip">
+              <div class="lab__editor-gutter" ref={inputGutterRef}>
+                {lineNumbers(targetInput.value).map((n) => (
+                  <div
+                    key={n}
+                    class="lab__editor-gutter-line"
+                    style={{
+                      top: `${EDITOR_PAD_TOP + (n - 1) * EDITOR_LINE_HEIGHT}px`,
+                    }}
+                  >
+                    {n}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <textarea
+              class="lab__editor lab__editor--overlaid lab__editor--gutter"
+              spellcheck={false}
+              value={targetInput.value}
+              ref={(el) => {
+                inputEditorEl = el;
+              }}
+              onInput={(e) => {
+                targetInput.value = (e.target as HTMLTextAreaElement).value;
+                scheduleEvaluate();
+              }}
+              onScroll={(e) => {
+                const scrollTop = (e.target as HTMLTextAreaElement).scrollTop;
+                if (inputGutterRef.current)
+                  inputGutterRef.current.style.transform = `translateY(${-scrollTop}px)`;
+              }}
+            />
+          </div>
         </div>
       </div>
 

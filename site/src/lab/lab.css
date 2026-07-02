@@ -192,6 +192,40 @@
   border-left: 2px solid var(--accent);
 }
 
+/* Line-number gutter: an opaque, scroll-synced column (LabIsland.tsx's onScroll handlers) painted
+   above the highlight overlay but below the (transparent-background) textarea, so it reads as a
+   real gutter rather than bleeding highlight bands. .lab__editor--gutter's padding-left must clear
+   this column's width, or the first characters of each line would sit under the digits. */
+.lab__editor-gutter-clip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 44px;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--bg-1);
+  border-right: 1px solid var(--border);
+}
+.lab__editor-gutter {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+.lab__editor-gutter-line {
+  position: absolute;
+  right: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg-faint);
+  user-select: none;
+}
+.lab__editor--gutter {
+  padding-left: 58px;
+}
+
 .lab__drawer {
   /* flex-basis set inline from the drawerHeight signal (px, draggable via .lab__hsplitter) —
      same pattern as .lab__pane--grammar's splitPercent. */

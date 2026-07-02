@@ -27,6 +27,40 @@ test("the Lab evaluates the default grammar against the real engine", async ({
   ).toEqual([]);
 });
 
+test("both editors show line numbers that track content and scroll", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  const grammarGutter = page.locator(
+    ".lab__pane--grammar .lab__editor-gutter-line",
+  );
+  const inputGutter = page.locator(".lab__pane--fill .lab__editor-gutter-line");
+
+  const grammarLines = await page
+    .locator(".lab__pane--grammar .lab__editor")
+    .inputValue();
+  await expect(grammarGutter).toHaveCount(grammarLines.split("\n").length);
+  await expect(grammarGutter.first()).toHaveText("1");
+
+  await page.locator(".lab__pane--fill .lab__editor").fill("1\n2\n3");
+  await expect(inputGutter).toHaveCount(3);
+  await expect(inputGutter.nth(2)).toHaveText("3");
+
+  // Scroll-sync: the gutter's translateY must track the textarea's scrollTop, or line numbers
+  // drift out of alignment with the text they label as soon as either pane is scrolled.
+  await page.locator(".lab__pane--grammar .lab__editor").evaluate((el) => {
+    (el as HTMLTextAreaElement).scrollTop = 100;
+    el.dispatchEvent(new Event("scroll"));
+  });
+  await expect(
+    page.locator(".lab__pane--grammar .lab__editor-gutter"),
+  ).toHaveCSS("transform", "matrix(1, 0, 0, 1, 0, -100)");
+});
+
 test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await page.goto("/lab/");
   await expect(page.locator(".lab__status")).toHaveText("accepted", {
