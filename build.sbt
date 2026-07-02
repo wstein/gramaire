@@ -25,6 +25,26 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
 lazy val coreJS = core.js
 lazy val coreJVM = core.jvm
 
+// LabProtocol: the typed request/response boundary the in-browser Lab talks
+// to across the Scala.js/Worker seam (docs/playground-spec.md §5.1) — kept
+// out of `core` so `core`'s public API stays the compiler's API, not a
+// presentation-layer shape for one specific consumer. `labJVM` isn't for any
+// CLI feature; it exists so the JVM↔JS parity gate (§8) can run the same
+// LabRequest through this module on the JVM and through the linked `labJS`
+// module under Node, byte-comparing the serialized LabResponse.
+lazy val lab = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("lab"))
+  .dependsOn(core)
+  .settings(
+    name := "gramark-lab",
+    libraryDependencies += "org.scalameta" %%% "munit" % munitVersion % Test,
+    testFrameworks += new TestFramework("munit.Framework"),
+  )
+
+lazy val labJS = lab.js
+lazy val labJVM = lab.jvm
+
 // The unified native/JVM `gramark` CLI — replaces the prior reference
 // implementation's Cli.purs + Codegen/Main.purs and the TypeScript
 // bootstrap/gramark-check.ts bridge.
@@ -49,7 +69,7 @@ lazy val cli = project
 
 lazy val root = project
   .in(file("."))
-  .aggregate(coreJS, coreJVM, cli)
+  .aggregate(coreJS, coreJVM, labJS, labJVM, cli)
   .settings(
     publish / skip := true,
   )

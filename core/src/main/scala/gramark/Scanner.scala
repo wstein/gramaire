@@ -73,10 +73,15 @@ object Scanner:
     val end = pos + pat.length
     if matchesAt(0) then Some(Span(end, pos, end)) else None
 
-  /** Scan input into a token stream. Skipped tokens are dropped; an unmatched character becomes an
-    * `ERROR` token (M4).
+  /** Scan input into a token stream, keeping each token's source span. Skipped tokens are dropped;
+    * an unmatched character becomes an `ERROR` token (M4). The primary implementation — `scan`
+    * below is a thin wrapper that discards the spans, for the (majority of) callers that only ever
+    * lexed the `lr` notation's own micro-language and never needed them. Target-input lexing (a
+    * user's grammar-declared tokens, via `ConformanceLexers.scannerLexer`) needs spans for the
+    * Lab's Tokens tab / hover-linking (docs/playground-spec.md §5.1, §6) — that's the reason this
+    * exists as a spanned scan at all, not just `scan` alone.
     */
-  def scan(items: Vector[ScanItem], input: String): Vector[Token] =
+  def scanSpanned(items: Vector[ScanItem], input: String): Vector[Spanned] =
     val n = input.length
 
     def toHit(pos: Int, item: ScanItem): Option[(ScanItem, Span)] =
@@ -91,17 +96,35 @@ object Scanner:
       val hits = items.flatMap(item => toHit(pos, item))
       if hits.isEmpty then None else Some(hits.reduce(better))
 
-    def go(pos: Int, acc: Vector[Token]): Vector[Token] =
+    def go(pos: Int, acc: Vector[Spanned]): Vector[Spanned] =
       if pos >= n then acc
       else
         best(pos) match
           case Some((item, span)) =>
-            val tok = Token(item.terminal, input.substring(span.textStart, span.textEnd))
+            val tok = Spanned(
+              item.terminal,
+              input.substring(span.textStart, span.textEnd),
+              span.textStart,
+              span.textEnd
+            )
             go(span.end, if item.skip then acc else acc :+ tok)
           case None =>
-            go(pos + 1, acc :+ Token("ERROR", input.substring(pos, pos + 1)))
+            go(pos + 1, acc :+ Spanned("ERROR", input.substring(pos, pos + 1), pos, pos + 1))
 
     go(0, Vector.empty)
 
+  /** Scan input into a token stream, discarding spans — the form most callers (the `lr` notation's
+    * own lexer table, the conformance suite) consume.
+    */
+  def scan(items: Vector[ScanItem], input: String): Vector[Token] =
+    scanSpanned(items, input).map(s => Token(s.terminal, s.text))
+
   /** Whether a token stream contains any lexical-error token (M4). */
   def hasError(toks: Vector[Token]): Boolean = toks.exists(_.terminal == "ERROR")
+
+  /** Whether a spanned token stream contains any lexical-error token (M4) — `Vector[Token]` and
+    * `Vector[Spanned]` erase to the same JVM signature, so this can't be an overload of `hasError`
+    * (the same reason this codebase already names things `parse`/`parseWith`,
+    * `buildTables`/`buildTablesFor` instead of overloading).
+    */
+  def hasErrorSpanned(toks: Vector[Spanned]): Boolean = toks.exists(_.terminal == "ERROR")
