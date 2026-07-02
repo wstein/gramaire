@@ -246,3 +246,30 @@ for (const { name, path } of REPRESENTATIVE_PAGES) {
     });
   });
 }
+
+test("the Lab has no search box, and no orphaned divider in its place", async ({
+  page,
+}) => {
+  // Lab is an interactive tool with no indexable Pagefind content of its
+  // own (AppShell.astro's own comment) — the search box was removed there
+  // specifically. Removing it left the divider meant to separate the
+  // brand from the search box rendered right next to the brand with
+  // nothing after it: an orphaned mark, not an absence — gramark-topbar.mjs
+  // now hides that divider whenever nothing is slotted into `tools`.
+  await page.goto("/lab/");
+  const topbar = page.locator("gramark-topbar");
+  await topbar.waitFor();
+  const info = await topbar.evaluate((el) => {
+    const slot = el.shadowRoot.querySelector('slot[name="tools"]');
+    const divider = el.shadowRoot.getElementById("tools-divider");
+    return {
+      assignedCount: slot.assignedElements().length,
+      dividerHidden: divider.hidden,
+    };
+  });
+  expect(info.assignedCount, "Lab should have no slotted search box").toBe(0);
+  expect(
+    info.dividerHidden,
+    "the brand/search divider should be hidden when there's no search box",
+  ).toBe(true);
+});

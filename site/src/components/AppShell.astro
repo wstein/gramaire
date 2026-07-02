@@ -34,20 +34,32 @@ function detectActive(path: string): NavId | null {
   return null;
 }
 const active = detectActive(path);
+
+// Pagefind indexes rendered page content, and the Lab is an interactive
+// tool with no indexable content of its own (its "content" is whatever
+// grammar/input the visitor is currently typing) — a search box there
+// invites a query that can never return a real result, which read as
+// broken/confusing rather than merely unhelpful. Every other section has
+// real Pagefind-indexed content behind it.
+const showSearch = active !== "lab";
 ---
 
 <gramark-topbar active={active} base={import.meta.env.BASE_URL}>
   {
-    /*
-      `slot="tools"` on <Search/> itself would be consumed by Astro's OWN
-      component-slotting (it has no matching named <slot> to project into),
-      not forwarded as a literal HTML attribute on the rendered <site-search>
-      — the same gotcha FlatBars' Topbar.astro documents for its sidebar
-      toggle. A plain wrapping element isn't an Astro component, so Astro
-      passes its `slot` attribute through literally.
-    */
+    showSearch && (
+      /*
+        `slot="tools"` on <Search/> itself would be consumed by Astro's OWN
+        component-slotting (it has no matching named <slot> to project into),
+        not forwarded as a literal HTML attribute on the rendered <site-search>
+        — the same gotcha FlatBars' Topbar.astro documents for its sidebar
+        toggle. A plain wrapping element isn't an Astro component, so Astro
+        passes its `slot` attribute through literally.
+      */
+      <div slot="tools">
+        <Search />
+      </div>
+    )
   }
-  <div slot="tools"><Search /></div>
 </gramark-topbar>
 
 <script>
