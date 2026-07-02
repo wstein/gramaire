@@ -77,13 +77,7 @@ const active = detectActive(path);
     }
   </nav>
   <div class="divider"></div>
-  <button
-    type="button"
-    class="theme-toggle"
-    id="theme-toggle"
-    title="Toggle light / dark"
-    aria-label="Toggle light / dark theme"
-  >
+  <button type="button" class="theme-toggle" id="theme-toggle" data-mode="auto">
     <span class="theme-toggle__sun">☀</span>
     <span class="theme-toggle__moon">☾</span>
     <span class="theme-toggle__knob"></span>
@@ -180,10 +174,25 @@ const active = detectActive(path);
     border-radius: 50%;
     background: var(--accent);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-    transition: transform 0.22s ease;
+    transition: left 0.22s ease;
   }
-  [data-theme="dark"] .theme-toggle__knob {
-    transform: translateX(21px);
+  /*
+   * Driven by `data-mode` on the button itself (light/auto/dark), not by
+   * `[data-theme]` on <html> — that ancestor lives outside this
+   * component's template, and Astro's per-file style scoping silently
+   * requires its own scope class on BOTH sides of a compound selector,
+   * so a rule keyed off an ancestor attribute like `[data-theme="dark"]
+   * .theme-toggle__knob` can never match (the knob never visibly moved).
+   * Keeping the state on `#theme-toggle` itself sidesteps that entirely.
+   */
+  .theme-toggle[data-mode="light"] .theme-toggle__knob {
+    left: 2px;
+  }
+  .theme-toggle[data-mode="auto"] .theme-toggle__knob {
+    left: 13px;
+  }
+  .theme-toggle[data-mode="dark"] .theme-toggle__knob {
+    left: 23px;
   }
 
   @media (max-width: 720px) {
@@ -198,16 +207,43 @@ const active = detectActive(path);
 </style>
 
 <script>
+  // Three modes — light/dark force an explicit theme; auto (the default,
+  // i.e. no stored preference yet) follows the OS live via the
+  // prefers-color-scheme media query, not just once at load.
   const STORAGE_KEY = "gramark-theme";
+  const MODES = ["light", "auto", "dark"];
   const root = document.documentElement;
-  const stored = localStorage.getItem(STORAGE_KEY);
-  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  const initial = stored ?? (prefersDark ? "dark" : "light");
-  root.setAttribute("data-theme", initial);
+  const toggle = document.getElementById("theme-toggle");
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
 
-  document.getElementById("theme-toggle")?.addEventListener("click", () => {
-    const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
-    root.setAttribute("data-theme", next);
-    localStorage.setItem(STORAGE_KEY, next);
+  function isMode(v: string | null): v is "light" | "auto" | "dark" {
+    return v === "light" || v === "auto" || v === "dark";
+  }
+
+  function apply(mode: "light" | "auto" | "dark") {
+    const effective =
+      mode === "auto" ? (media.matches ? "dark" : "light") : mode;
+    root.setAttribute("data-theme", effective);
+    toggle?.setAttribute("data-mode", mode);
+    const label =
+      mode === "auto"
+        ? `Theme: Auto (currently ${effective})`
+        : `Theme: ${effective}`;
+    toggle?.setAttribute("title", `${label} — click to change`);
+    toggle?.setAttribute("aria-label", `${label} — click to change`);
+  }
+
+  const stored = localStorage.getItem(STORAGE_KEY);
+  let mode = isMode(stored) ? stored : "auto";
+  apply(mode);
+
+  media.addEventListener("change", () => {
+    if (mode === "auto") apply(mode);
+  });
+
+  toggle?.addEventListener("click", () => {
+    mode = MODES[(MODES.indexOf(mode) + 1) % MODES.length]!;
+    localStorage.setItem(STORAGE_KEY, mode);
+    apply(mode);
   });
 </script>
