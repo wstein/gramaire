@@ -116,6 +116,50 @@ test("search results render with identical text metrics across page pipelines", 
 });
 
 for (const { name, path } of REPRESENTATIVE_PAGES) {
+  test(`topbar controls stay reachable at mobile width — ${name}`, async ({
+    page,
+  }) => {
+    // Starlight's own sidebar-toggle hamburger (rendered outside this
+    // element — not something it controls) reserves ~48px on its own
+    // .header at narrow widths, which Landing's bare page never has to.
+    // Before this test existed, that reservation pushed the theme
+    // segmented control fully off-screen on Starlight pages specifically —
+    // not just visually tight like on Landing, genuinely unreachable,
+    // clipped rather than scrollable to. 320px (roughly iPhone SE) is the
+    // narrowest width this site is expected to support.
+    await page.setViewportSize({ width: 320, height: 400 });
+    await page.goto(path);
+    await page.locator("gramaire-topbar").waitFor();
+    const info = await page.evaluate(() => {
+      const topbar = document.querySelector("gramaire-topbar")!;
+      const seg = topbar.shadowRoot!.querySelector(".seg")!;
+      const r = seg.getBoundingClientRect();
+      return {
+        segRight: r.right,
+        segWidth: r.width,
+        bodyScrollWidth: document.body.scrollWidth,
+      };
+    });
+    expect(
+      info.segWidth,
+      `${name}: theme control should have a real rendered width`,
+    ).toBeGreaterThan(0);
+    expect(
+      info.segRight,
+      `${name}: theme control's right edge should stay within the viewport`,
+    ).toBeLessThanOrEqual(320);
+    // A few px of overflow is a rounding/sub-pixel tolerance at this width,
+    // not the bug this guards against (a fully off-screen, unreachable
+    // control) — draw the line well below "needs its own horizontal
+    // scrollbar to reach anything."
+    expect(
+      info.bodyScrollWidth,
+      `${name}: page should not need significant horizontal scroll at 320px`,
+    ).toBeLessThan(340);
+  });
+}
+
+for (const { name, path } of REPRESENTATIVE_PAGES) {
   test(`search dialog renders styled (border/padding) when open — ${name}`, async ({
     page,
   }) => {
