@@ -340,6 +340,34 @@ export default function LabIsland() {
           {activeTab.value === "analysis" && <GrammarAnalysisPanel />}
         </div>
       </div>
+      <StatusBar />
+    </div>
+  );
+}
+
+// Always visible regardless of which tab is active (unlike the automaton stats otherwise buried
+// inside the Grammar analysis tab alone) — a user editing the grammar from any tab can watch state/
+// conflict counts change live. Reads data every response already carries (analysis.perMethod,
+// parse.tokens) — no extra request, no protocol change.
+function StatusBar() {
+  const r = response.value;
+  const stats = r?.analysis?.perMethod[method.value];
+  const tokenCount = r?.parse?.tokens.length;
+  return (
+    <div class="lab__statusbar">
+      <span>
+        {stats
+          ? `${method.value}(1) · ${stats.states} state${stats.states === 1 ? "" : "s"} · ${stats.conflicts} conflict${stats.conflicts === 1 ? "" : "s"}`
+          : "—"}
+      </span>
+      <span class="lab__statusbar-right">
+        {startRule.value && <span>start: {startRule.value}</span>}
+        {tokenCount !== undefined && (
+          <span>
+            {tokenCount} token{tokenCount === 1 ? "" : "s"}
+          </span>
+        )}
+      </span>
     </div>
   );
 }

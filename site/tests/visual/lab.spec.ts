@@ -427,3 +427,28 @@ test("cross-tab hover-linking keeps the same token highlighted across tabs", asy
   await expect(leaf).toHaveClass(/lab__leaf--hover/);
   await expect(leaf).toContainText('"2"');
 });
+
+test("the Lab shows a persistent status bar with live automaton stats, visible across tabs", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+
+  const bar = page.locator(".lab__statusbar");
+  await expect(bar).toContainText(
+    /Canonical\(1\) · \d+ states? · 0 conflicts?/,
+  );
+  await expect(bar).toContainText("5 tokens"); // "1+2*3" -> 5 tokens
+
+  // Lives outside .lab__panel, not reset by a tab switch.
+  await page.click('button[role="tab"]:has-text("Diagnostics")');
+  await expect(bar).toContainText(
+    /Canonical\(1\) · \d+ states? · 0 conflicts?/,
+  );
+
+  // Reacts live to the Method picker.
+  await page.getByLabel("Method").selectOption("LALR");
+  await expect(bar).toContainText(/LALR\(1\) · \d+ states? · 0 conflicts?/);
+});

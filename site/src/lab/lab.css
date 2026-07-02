@@ -70,6 +70,24 @@
   border-color: color-mix(in srgb, var(--danger, #b91c1c) 40%, var(--border));
 }
 
+.lab__statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 5px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-faint);
+  flex: none;
+}
+.lab__statusbar-right {
+  display: flex;
+  gap: 16px;
+}
+
 .lab__panes {
   display: flex;
   flex: 1 1 auto;
