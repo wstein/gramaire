@@ -33,7 +33,11 @@
     "MD024": { "siblings_only": true }, // a heading text may repeat under
     // different parent sections
 
-    "MD033": false, // allow inline HTML for diagrams and links to them
+    // `gramark fmt`'s default source-collapsing (sidecar mode) is the only thing that ever emits
+    // raw HTML — a `<details><summary>Source</summary>` disclosure wrapped around a rule's fence
+    // — so MD033 stays the injection guard for everything else and only allow-lists those two
+    // tags, rather than being switched off wholesale.
+    "MD033": { "allowed_elements": ["details", "summary"] },
 
     // MD060 table-column-style: disabled because ADR rationale cells in
     // docs/ run hundreds of characters — aligning pipes to header widths
@@ -42,9 +46,9 @@
 
     // --- KEPT AT DEFAULT (load-bearing — do not disable) ----------------
     // These stay on via "default": true and must never be turned off:
-    //   MD033 no-inline-html : GitHub sanitizes raw HTML, and this rule is
-    //                          also the injection guard — diagrams are
-    //                          linked images, never embedded <svg>.
+    //   MD033 no-inline-html : scoped above to `details`/`summary` only — every OTHER tag stays
+    //                          blocked. GitHub sanitizes raw HTML, and this rule is also the
+    //                          injection guard — diagrams are linked images, never embedded <svg>.
     //   MD040 fenced-language: every fence carries an info string (lr, ...).
     //   MD022 / MD031 / MD032 / MD058 : blank lines around headings, fences,
     //                          lists, and tables — required for correct

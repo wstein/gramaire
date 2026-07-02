@@ -88,11 +88,14 @@ jobs:
 
       - name: Derived artifacts are up to date (no drift)
         run: |
-          sbt -batch "cli/runMain gramark.cli.Main fmt --diagrams=sidecar grammar/lr.grmk.md"
-          sbt -batch "cli/runMain gramark.cli.Main fmt --diagrams=sidecar examples/calc.grmk.md"
-          sbt -batch "cli/runMain gramark.cli.Main fmt --diagrams=sidecar examples/calc-prec.grmk.md"
-          sbt -batch "cli/runMain gramark.cli.Main fmt --diagrams=sidecar examples/json.grmk.md"
-          sbt -batch "cli/runMain gramark.cli.Main fmt --diagrams=sidecar examples/readme.grmk.md"
+          # --inline-source: these are small teaching examples, kept fully visible on
+          # purpose — source collapsing is for grammars large enough that a wall of
+          # fences is harder to scan than a wall of diagrams (see ECMA-262.grmk.md).
+          sbt -batch "cli/runMain gramark.cli.Main fmt --diagrams=sidecar --inline-source grammar/lr.grmk.md"
+          sbt -batch "cli/runMain gramark.cli.Main fmt --diagrams=sidecar --inline-source examples/calc.grmk.md"
+          sbt -batch "cli/runMain gramark.cli.Main fmt --diagrams=sidecar --inline-source examples/calc-prec.grmk.md"
+          sbt -batch "cli/runMain gramark.cli.Main fmt --diagrams=sidecar --inline-source examples/json.grmk.md"
+          sbt -batch "cli/runMain gramark.cli.Main fmt --diagrams=sidecar --inline-source examples/readme.grmk.md"
           git diff --exit-code
 
   docs-lint:

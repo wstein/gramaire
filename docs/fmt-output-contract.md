@@ -15,6 +15,16 @@ The defaults bar (not a bundled config) is deliberate: these files travel
 into foreign repositories, and a file that is clean only under our own
 `.markdownlint-cli2.jsonc` breaks the moment it lands somewhere stricter.
 
+**The one deliberate exception:** in sidecar diagram mode (see "Railroad
+diagrams" below), `fmt` wraps a rule's fence in a
+`<details><summary>Source</summary>` disclosure by default — real,
+GitHub-rendered raw HTML, and the only construct in this whole contract that
+isn't lint-clean under bare `markdownlint-cli2` defaults (guarantee 2 only
+holds for it under this repo's own `.markdownlint-cli2.jsonc`, which
+allow-lists exactly `details`/`summary`). A grammar author who needs
+guarantee 2 to hold with zero project-local config passes `--inline-source`
+to opt back out to fully visible fences.
+
 ## Conformance target
 
 - Grammar: GitHub-Flavored Markdown (CommonMark + GFM tables, autolinks).
@@ -168,6 +178,42 @@ gates as a sidecar-mode one. Embedding raw `<svg>` or a base64 data-URI image
 is deliberately unsupported: the former trips MD033, the latter blows past the
 line-length cap.
 
+**Source collapsing (sidecar mode only, default-on).** Scanning diagrams
+first and expanding source on demand reads better than a wall of fences, so
+by default `fmt` hoists each rule's diagram above its fence and tucks the
+fence behind a disclosure:
+
+```text
+![Railroad diagram for the Value rule](diagrams-json/value.svg)
+
+<details>
+<summary>Source</summary>
+
+```gramark
+Value
+  : STRING
+  | NUMBER
+```
+
+</details>
+```
+
+This is the one place `fmt` ever emits raw HTML — see the exception carved
+out of guarantee 2 above — and it emits _only_ `<details>`/`<summary>`,
+matching `.markdownlint-cli2.jsonc`'s `MD033` allow-list exactly. Pass
+`--inline-source` to opt out and keep fences fully visible instead. The
+transform is reversible and idempotent the same way diagram-mode conversion
+is: a rule with no existing diagram link is left untouched (nothing to
+hoist), and a bare re-run without `--inline-source` re-collapses a file that
+was previously formatted inline — the layout is not sticky, the same
+convention `--diagrams` already uses for its own mode. The choice is
+recorded in the `.grmk.lock` sidecar's `sourceLayout` field (`"inline"`, or
+`"collapsed"` — omitted from the JSON when inline, since every lock
+predating this field implicitly meant inline) purely for provenance —
+`checkStructure`/`checkDrift` don't key on it, since both classify a document
+from its fence content and headings alone, never from the HTML wrapped
+around a fence.
+
 ### Generated tables
 
 FIRST/FOLLOW and conflict data are GFM pipe tables with leading and
@@ -197,12 +243,15 @@ discharges is normative — a conformance test asserts rule-by-rule.
 | No trailing spaces; no consecutive blank lines     | MD009, MD012 |
 | Tables have leading/trailing pipes, equal columns  | MD055, MD056 |
 | Images carry alt text                              | MD045        |
-| No raw inline HTML is ever emitted                 | MD033        |
+| No raw HTML except a `<details>` disclosure         | MD033        |
 | Single trailing newline                            | MD047        |
 
-The MD033 guarantee is met _by construction_: `fmt` emits no HTML tags and
-no HTML comments. Human "do not edit" notices are plain prose captions;
-machine drift-tracking lives in the sidecar lock (below), not in the file.
+The MD033 guarantee holds _by construction_: `fmt` never emits HTML
+comments, and in sidecar mode emits `<details>`/`<summary>` and nothing
+else, unless `--inline-source` opts back out to zero HTML tags (see
+"Railroad diagrams" above). Human "do not edit" notices are plain prose
+captions; machine drift-tracking lives in the sidecar lock (below), not in
+the file.
 
 ## Fence-width algorithm
 

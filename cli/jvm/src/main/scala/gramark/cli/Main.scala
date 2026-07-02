@@ -265,20 +265,28 @@ object Main:
             println(if failed then "check failed." else "all gates passed.")
             if failed then sys.exit(1)
 
-  // `gramark fmt [--diagrams=sidecar|mermaid] <file.grmk.md>`: regenerate
-  // the derived artifacts (FIRST/FOLLOW table, railroad diagrams, lock).
+  // `gramark fmt [--diagrams=sidecar|mermaid] [--inline-source] <file.grmk.md>`: regenerate
+  // the derived artifacts (FIRST/FOLLOW table, railroad diagrams, lock). Collapsing each rule's
+  // source behind its diagram is the default (sidecar mode); `--inline-source` opts back out to
+  // fully visible fences. Like `--diagrams`, neither is sticky — a bare re-run without
+  // `--inline-source` re-collapses a file that was previously formatted inline, the same
+  // convention `--diagrams` already uses for its own mode.
   private def runFmt(args: Vector[String]): Unit =
     val modeArg = args.find(_.startsWith("--diagrams="))
     val mode =
       if modeArg.exists(_.endsWith("mermaid")) then GramarkCheck.DiagramMode.Mermaid
       else GramarkCheck.DiagramMode.Sidecar
+    val layout =
+      if args.contains("--inline-source") then GramarkCheck.SourceLayout.Inline
+      else GramarkCheck.SourceLayout.Collapsed
     val file = args.find(!_.startsWith("-"))
     file match
       case None => die(usageText)
       case Some(f) =>
         readFile(f) match
-          case Left(err)  => die(s"fmt: cannot read $f: $err")
-          case Right(src) => println(GramarkCheck.fmt(f, GramarkCheck.parse(src), mode))
+          case Left(err) => die(s"fmt: cannot read $f: $err")
+          case Right(src) =>
+            println(GramarkCheck.fmt(f, GramarkCheck.parse(src), mode, layout))
 
   // `gramark codegen-regen`: regenerate `Generated/LrReduce.scala` from
   // the bootstrap grammar (mirrors `Gramark.Codegen.Main`, the prior
@@ -322,7 +330,7 @@ object Main:
   private def backendNames: String = BackendRegistry.backends.map(_.name).mkString(", ")
 
   private val usageText: String =
-    "usage: gramark fmt [--diagrams=sidecar|mermaid] <file.grmk.md>"
+    "usage: gramark fmt [--diagrams=sidecar|mermaid] [--inline-source] <file.grmk.md>"
 
   private def usage(): Unit =
     Vector(
@@ -335,7 +343,7 @@ object Main:
       "  gramark conformance",
       "  gramark explain-conflict <file.grmk.md>",
       "  gramark check <file.grmk.md>",
-      "  gramark fmt [--diagrams=sidecar|mermaid] <file.grmk.md>",
+      "  gramark fmt [--diagrams=sidecar|mermaid] [--inline-source] <file.grmk.md>",
       "  gramark codegen-regen",
       "",
       s"Backends: $backendNames",
@@ -346,5 +354,8 @@ object Main:
       "conformance runs the differential oracle over the built-in corpora.",
       "explain-conflict classifies conflicts: LALR artifact, resolved by declaration, or genuine.",
       "check verifies the structure + drift gates (see docs-lint for the markdown-lint gate).",
-      "fmt regenerates the FIRST/FOLLOW table, railroad diagrams, and the .grmk.lock sidecar."
+      "fmt regenerates the FIRST/FOLLOW table, railroad diagrams, and the .grmk.lock sidecar.",
+      "By default (sidecar mode only), fmt hoists each rule's diagram above its fence and tucks",
+      "  the fence behind a <details><summary>Source</summary> disclosure; --inline-source opts",
+      "  out, keeping fences fully visible (not sticky — a plain re-run re-collapses the file)."
     ).foreach(println)
