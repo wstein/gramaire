@@ -11,6 +11,7 @@
 import AppShell from "../components/AppShell.astro";
 import Button from "../components/Button.astro";
 import FeatureTile from "../components/FeatureTile.astro";
+import { GOOGLE_FONTS_HREF } from "../shared/fonts.mjs";
 import "../styles/tokens.css";
 // AppShell renders Starlight's <Search />, which themes itself off Starlight's
 // own --sl-* variables — needed here too since this page sits outside the
@@ -66,10 +67,7 @@ const base = import.meta.env.BASE_URL;
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
+    <link href={GOOGLE_FONTS_HREF} rel="stylesheet" />
   </head>
   <body>
     <div class="shell">
