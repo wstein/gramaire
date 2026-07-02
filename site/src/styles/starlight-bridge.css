@@ -121,6 +121,38 @@ gramaire-topbar button[data-open-modal]:hover {
 }
 
 /*
+ * The ⌘K shortcut badge (Search.astro's own scoped `kbd` styling, also
+ * `@layer starlight.core`) has the exact same layer-order-flip problem as
+ * the dialog/frame below, plus a second failure mode: its font-size reads
+ * `var(--sl-text-2xs)`, a Starlight core size token that's only ever
+ * defined in Starlight's own bundled CSS (loaded on Docs/Specs/Tutorials/
+ * Brand, never on the bare Landing/Lab pages) — an unresolvable var()
+ * invalidates just that declaration, so the badge fell back to inherited
+ * body text size there. Found the same way as the dialog bug: identical
+ * markup, identical rule, silently inert on one pipeline only. Unlayered
+ * and using Gramaire's own tokens (not --sl-text-2xs) so it renders
+ * identically regardless of which page pipeline loads it. `display`/`gap`
+ * are forced here too: the outer badge also carries Starlight's own
+ * `sl-hidden md:sl-flex` responsive-utility classes, which — like
+ * `--sl-text-2xs` — only have matching rules in Starlight's bundled CSS,
+ * so the badge fell back to the UA default block layout for its two
+ * `⌘`/`K` characters instead of a centered, gapped row. Scoped to the
+ * OUTER `<kbd>` only (`>`, direct child of the button) — Search.astro
+ * nests one plain `<kbd>` per character inside it, and only the outer one
+ * carries the badge styling; matching a bare `kbd` selector would wrongly
+ * pad/color the inner `⌘` and `K` too.
+ */
+gramaire-topbar button[data-open-modal] > kbd {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  font-size: 0.75em;
+  background-color: var(--bg-1);
+  border-radius: 4px;
+  padding-inline: 0.375rem;
+}
+
+/*
  * The open search dialog rendered with zero border/padding on the bare
  * Landing page while looking correct on Starlight pages (found via CDP's
  * CSS.getMatchedStylesForNode, not eyeballing): Search.astro's own

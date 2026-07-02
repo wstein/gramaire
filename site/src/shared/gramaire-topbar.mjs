@@ -66,6 +66,21 @@ const TEMPLATE = `
        of the host's root font-size — the styles below size in em units,
        shadow-relative to this, so they never inherit the page root. */
     font-size: 16px;
+    /* Starlight wraps its own Header slot in a position:fixed .header box
+       (PageFrame.astro), so Docs/Specs/Tutorials/Brand already stay pinned
+       while their content scrolls underneath. The bare Landing/Lab pages
+       mount this element directly with no such wrapper, so without this it
+       scrolled away with the rest of the page — a real behavioral split
+       between page pipelines, not a deliberate one (unlike Landing's own
+       body-scroll-vs-trapped-scroll divergence, which design/README.md
+       documents on purpose). Sticky, rather than fixed, needs no matching
+       content offset on the pages that don't already have one from
+       Starlight. top:0 and z-index:10 match Starlight's own .header
+       exactly so both pipelines layer identically.
+    */
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
   *, *::before, *::after { box-sizing: border-box; }
 
