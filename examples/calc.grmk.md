@@ -5,13 +5,14 @@ Operators are left-associative; `*` and `/` bind tighter than `+` and `-`.
 
 ## General settings
 
-```gramark settings
+```gramark
+%name Calc
 %lang javascript
 ```
 
 ## Tokens
 
-```gramark tokens
+```gramark
 NUMBER : /[0-9]+/
 WS     : /[ \t\r\n]+/   %skip
 ```
@@ -58,7 +59,7 @@ Factor
 
 Earlier declarations bind more loosely than later ones.
 
-```gramark precedence
+```gramark
 %left '+' '-'
 %left '*' '/'
 ```
@@ -67,7 +68,7 @@ Earlier declarations bind more loosely than later ones.
 
 Curated messages are keyed by parser state.
 
-```gramark errors
+```text
 state 7:
   Expected an operator or the end of the expression here.
   A factor was parsed, but the input continued unexpectedly.

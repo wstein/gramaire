@@ -5,13 +5,14 @@ of inline `{% … %}` actions.
 
 ## General settings
 
-```gramark settings
+```gramark
+%name Calc-js
 %lang javascript
 ```
 
 ## Tokens
 
-```gramark tokens
+```gramark
 NUMBER : /[0-9]+(?:\.[0-9]+)?/
 WS     : /[ \t\r\n]+/   %skip
 ```

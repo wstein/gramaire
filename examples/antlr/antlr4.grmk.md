@@ -25,6 +25,12 @@ The ANTLR `X (s X)*` idioms become Gramark `Sep<X, s>`, and `(…)` groups —
 which Gramark defers (ADR D27) — become helper rules (`*Decl`, `*Op`, …). Empty
 alternatives are kept verbatim; Gramark accepts them.
 
+## General settings
+
+```gramark
+%name ANTLRv4
+```
+
 ## Tokens
 
 Lexer token classes. ANTLR's case rule (a lower-case head is a parser-rule
@@ -33,7 +39,7 @@ into `RULE_REF` / `TOKEN_REF`. Whitespace and comments are `%skip` (ANTLR puts
 them on hidden channels; Gramark has only skip — flagged below). Regexes are
 DFA-friendly (no non-greedy), so a few are approximations of the ANTLR originals.
 
-```gramark tokens
+```gramark
 DOC_COMMENT   : /\/\*\*([^*]|\*+[^*\/])*\*+\//   %skip
 BLOCK_COMMENT : /\/\*([^*]|\*+[^*\/])*\*+\//     %skip
 LINE_COMMENT  : /\/\/[^\r\n]*/                   %skip

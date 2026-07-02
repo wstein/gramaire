@@ -12,13 +12,14 @@ stratification and needs no precedence block.
 
 ## General settings
 
-```gramark settings
+```gramark
+%name Calc (precedence)
 %lang javascript
 ```
 
 ## Tokens
 
-```gramark tokens
+```gramark
 NUM : /[0-9]+/
 WS  : /[ \t\r\n]+/   %skip
 ```
@@ -37,14 +38,14 @@ expr
 
 ## Precedence
 
-```gramark precedence
+```gramark
 %left '+' '-'
 %left '*' '/'
 ```
 
 ## Error messages
 
-```gramark errors
+```text
 after a complete expression, lookahead is NUM:
   Two values in a row — an operator (`+ - * /`) is missing between them.
 ```
