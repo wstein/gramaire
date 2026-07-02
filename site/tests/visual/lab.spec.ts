@@ -55,6 +55,13 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   const productionRows = page.locator(".lab__table tbody tr");
   await expect(productionRows).toHaveCount(8); // Expr(x3) + Term(x3) + Factor(x2)
   await expect(productionRows.first()).toContainText("Expr");
+
+  await page.click('button[role="tab"]:has-text("Grammar analysis")');
+  const methodRows = page.locator(".lab__panel .lab__table").first().locator("tbody tr");
+  await expect(methodRows).toHaveCount(3); // Canonical, LALR, IELR
+  await expect(methodRows.first()).toContainText("Canonical");
+  await expect(page.locator(".lab__panel")).toContainText("Expr"); // FIRST/FOLLOW rule + rule tab
+  await expect(page.locator(".lab__railroad-svg svg")).toBeVisible();
 });
 
 test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", async ({

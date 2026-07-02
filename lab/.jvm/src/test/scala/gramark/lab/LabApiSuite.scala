@@ -154,6 +154,41 @@ class LabApiSuite extends munit.FunSuite:
     assert(resp.productions.isDefined)
   }
 
+  test("evaluate: analysis reports per-method stats, FIRST/FOLLOW, and a railroad SVG per rule") {
+    val resp = LabApi.evaluate(LabRequest(calcMd, None, Method.Canonical))
+    assert(resp.buildOk)
+    resp.analysis match
+      case None    => fail("expected analysis")
+      case Some(a) =>
+        // calc is LR(1) and LALR(1), so all three methods build clean.
+        assertEquals(a.perMethod.keySet, Set("Canonical", "LALR", "IELR"))
+        for (name, stats) <- a.perMethod do
+          assertEquals(stats.conflicts, 0, s"$name should be conflict-free")
+          assert(stats.states > 0, s"$name should report a positive state count")
+
+        assertEquals(a.firstFollow.map(_.name), Vector("Expr", "Term", "Factor"))
+        val exprFirstFollow = a.firstFollow.head
+        // Same FIRST/FOLLOW content as examples/calc.grmk.md's own Generated Tables section
+        // (`(` `NUMBER` / `+` `-` `)` `$`), rendered via `renderSym`'s own sort (GSym's Ordering:
+        // nonterminal < terminal < EOF, alphabetical within terminals) rather than that doc's.
+        assertEquals(exprFirstFollow.first, Vector("`(`", "`NUMBER`"))
+        assertEquals(exprFirstFollow.follow, Vector("`)`", "`+`", "`-`", "$"))
+
+        assertEquals(a.railroad.keySet, Set("Expr", "Term", "Factor"))
+        assert(
+          a.railroad("Expr").startsWith("<svg"),
+          s"expected an SVG, got: ${a.railroad("Expr")}"
+        )
+  }
+
+  test("evaluate: analysis is populated even when the grammar has real conflicts") {
+    val resp = LabApi.evaluate(LabRequest(ambiguousMd, None, Method.Canonical))
+    assert(!resp.buildOk)
+    resp.analysis match
+      case None    => fail("expected analysis even though buildOk is false")
+      case Some(a) => assert(a.perMethod("Canonical").conflicts > 0)
+  }
+
   test("evaluate: LALR and IELR methods are honored") {
     val lalr = LabApi.evaluate(LabRequest(calcMd, Some("1+2"), Method.LALR))
     val ielr = LabApi.evaluate(LabRequest(calcMd, Some("1+2"), Method.IELR))

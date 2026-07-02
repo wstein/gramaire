@@ -123,6 +123,56 @@ object ForestResult:
       Vector("parses" -> Json.JArray(f.parses), "truncated" -> Json.JBool(f.truncated))
     )
 
+/** One table-construction method's automaton size and conflict count (`Table.MethodStats`,
+  * wire-rendered — `conflicts` is a count here, not the `Vector[Conflict]` Diagnostics already
+  * renders elsewhere in this response).
+  */
+final case class MethodStatsInfo(states: Int, conflicts: Int)
+
+object MethodStatsInfo:
+  def toJson(m: MethodStatsInfo): Json =
+    Json.JObject(Vector("states" -> Json.JInt(m.states), "conflicts" -> Json.JInt(m.conflicts)))
+
+/** One nonterminal's FIRST/FOLLOW sets, already display-rendered like `ProductionInfo.rhs`. */
+final case class RuleFirstFollow(name: String, first: Vector[String], follow: Vector[String])
+
+object RuleFirstFollow:
+  def toJson(r: RuleFirstFollow): Json =
+    Json.JObject(
+      Vector(
+        "name" -> Json.JString(r.name),
+        "first" -> Json.JArray(r.first.map(Json.JString.apply)),
+        "follow" -> Json.JArray(r.follow.map(Json.JString.apply))
+      )
+    )
+
+/** The Grammar analysis tab's data (M5+, `docs/playground-spec.md` T2.1/T2.3): every method's
+  * state/conflict count (not just the requested `LabRequest.method`, so the tab can render the
+  * three-method comparison without a re-request), FIRST/FOLLOW per rule, and a railroad SVG per
+  * rule. `railroad` is built from the compiled (already-desugared) `Grammar` directly rather than
+  * re-parsing each rule's raw `.grmk.md` fenced block the way `gramark fmt`'s sidecar SVGs do — a
+  * deliberate divergence: a desugared `X+` renders as a reference to its synthesized list rule
+  * instead of `gramark fmt`'s native loop shape. Acceptable for a live in-browser view; not meant
+  * to replace the committed sidecar SVGs `.grmk.md` documents embed.
+  */
+final case class GrammarAnalysis(
+    perMethod: Map[String, MethodStatsInfo],
+    firstFollow: Vector[RuleFirstFollow],
+    railroad: Map[String, String]
+)
+
+object GrammarAnalysis:
+  def toJson(a: GrammarAnalysis): Json =
+    Json.JObject(
+      Vector(
+        "perMethod" -> Json.JObject(a.perMethod.toVector.map { case (k, v) =>
+          k -> MethodStatsInfo.toJson(v)
+        }),
+        "firstFollow" -> Json.JArray(a.firstFollow.map(RuleFirstFollow.toJson)),
+        "railroad" -> Json.JObject(a.railroad.toVector.map { case (k, v) => k -> Json.JString(v) })
+      )
+    )
+
 /** The Lab's full response: whether the grammar itself built, any diagnostics, and — if input was
   * given and the grammar built — the parse result.
   */
@@ -132,7 +182,8 @@ final case class LabResponse(
     diagnostics: Vector[String],
     parse: Option[ParseResult],
     productions: Option[Vector[ProductionInfo]] = None,
-    forest: Option[ForestResult] = None
+    forest: Option[ForestResult] = None,
+    analysis: Option[GrammarAnalysis] = None
 )
 
 object LabResponse:
@@ -151,7 +202,8 @@ object LabResponse:
         "productions" -> r.productions
           .map(ps => Json.JArray(ps.map(ProductionInfo.toJson)))
           .getOrElse(Json.JNull),
-        "forest" -> r.forest.map(ForestResult.toJson).getOrElse(Json.JNull)
+        "forest" -> r.forest.map(ForestResult.toJson).getOrElse(Json.JNull),
+        "analysis" -> r.analysis.map(GrammarAnalysis.toJson).getOrElse(Json.JNull)
       )
     )
 

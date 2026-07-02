@@ -49,6 +49,10 @@ export interface LabResponse {
    * The All-parses tab's data: every distinct parse of `input` under the GLR multi-action table, which never fails even when the grammar has real conflicts under every method (that's exactly the ambiguous-grammar case this tab exists for, so `forest` can be populated even when buildOk is false). Present only when the request carried `input` and the grammar notation parsed; null otherwise.
    */
   forest: ForestResult | null;
+  /**
+   * The Grammar analysis tab's data: every method's state/conflict count, FIRST/FOLLOW per rule, and a railroad SVG per rule. Present whenever the grammar notation parsed, independent of buildOk (same reasoning as `productions`); null only when the grammar notation itself failed to parse.
+   */
+  analysis: GrammarAnalysis | null;
 }
 /**
  * The outcome of parsing LabRequest.input against the compiled grammar. `tokens` is populated even on a reject, so the Tokens tab still has something to show; `cst` is null unless `accepted`.
@@ -99,4 +103,37 @@ export interface ForestResult {
    * True when more distinct parses existed than `parses` holds.
    */
   truncated: boolean;
+}
+/**
+ * Every method's state/conflict count (not just the requested method, so the tab can render the three-method comparison without a re-request), FIRST/FOLLOW per rule, and a railroad SVG per rule, built from the compiled grammar directly.
+ */
+export interface GrammarAnalysis {
+  /**
+   * Keyed by method name ("Canonical" | "LALR" | "IELR").
+   */
+  perMethod: {
+    [k: string]: MethodStatsInfo;
+  };
+  firstFollow: RuleFirstFollow[];
+  /**
+   * Keyed by rule name; each value is a self-contained SVG string.
+   */
+  railroad: {
+    [k: string]: string;
+  };
+}
+/**
+ * One table-construction method's automaton size and conflict count.
+ */
+export interface MethodStatsInfo {
+  states: number;
+  conflicts: number;
+}
+/**
+ * One nonterminal's FIRST/FOLLOW sets, display-rendered like ProductionInfo.rhs (a terminal backtick-quoted, EOF as `$`).
+ */
+export interface RuleFirstFollow {
+  name: string;
+  first: string[];
+  follow: string[];
 }

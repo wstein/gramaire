@@ -13,10 +13,18 @@ import "./lab.css";
 // Tier 0/1 v1 slice (docs/playground-spec.md §6) was Result, Tokens, Parse
 // tree, Diagnostics. M5+ adds tabs one increment at a time, following
 // docs/playground-spec.md's tab->core-symbol table; "forest"/"lowered" (All
-// parses / Lowered Core) are the first two — both were pure "expose data the
-// core already computes" additions, no engine changes needed. The remaining
-// four (Evaluate, Grammar analysis, Parse trace, LR walk) are still M5+.
-type Tab = "result" | "tokens" | "tree" | "diagnostics" | "forest" | "lowered";
+// parses / Lowered Core) and "analysis" (Grammar analysis) are done. The
+// remaining two (Evaluate, Parse trace/LR walk) are still M5+.
+type Tab =
+  | "result"
+  | "tokens"
+  | "tree"
+  | "diagnostics"
+  | "forest"
+  | "lowered"
+  | "analysis";
+
+const METHODS = ["Canonical", "LALR", "IELR"] as const;
 
 const DEFAULT_SOURCE = `# Expr
 
@@ -62,6 +70,7 @@ const method = signal<Method>("Canonical");
 const activeTab = signal<Tab>("result");
 const response = signal<LabResponse | null>(null);
 const pending = signal(false);
+const selectedRule = signal<string | null>(null);
 
 const buildStatus = computed<"pending" | "ok" | "fail">(() => {
   if (response.value === null) return "pending";
@@ -184,6 +193,7 @@ export default function LabIsland() {
               "diagnostics",
               "forest",
               "lowered",
+              "analysis",
             ] as const
           ).map((tab) => (
             <button
@@ -205,6 +215,7 @@ export default function LabIsland() {
           {activeTab.value === "diagnostics" && <DiagnosticsPanel />}
           {activeTab.value === "forest" && <AllParsesPanel />}
           {activeTab.value === "lowered" && <LoweredCorePanel />}
+          {activeTab.value === "analysis" && <GrammarAnalysisPanel />}
         </div>
       </div>
     </div>
@@ -225,6 +236,8 @@ function tabLabel(tab: Tab): string {
       return "All parses";
     case "lowered":
       return "Lowered Core";
+    case "analysis":
+      return "Grammar analysis";
   }
 }
 
@@ -385,5 +398,94 @@ function LoweredCorePanel() {
         ))}
       </tbody>
     </table>
+  );
+}
+
+function GrammarAnalysisPanel() {
+  const a = response.value?.analysis;
+  if (!a)
+    return (
+      <p class="lab__empty">No analysis — the grammar notation didn't parse.</p>
+    );
+
+  const ruleNames = a.firstFollow.map((r) => r.name);
+  const current =
+    selectedRule.value !== null && ruleNames.includes(selectedRule.value)
+      ? selectedRule.value
+      : (ruleNames[0] ?? null);
+
+  return (
+    <div>
+      <div class="lab__analysis-section">
+        <div class="lab__analysis-heading">method comparison</div>
+        <table class="lab__table">
+          <thead>
+            <tr>
+              <th>method</th>
+              <th>states</th>
+              <th>conflicts</th>
+            </tr>
+          </thead>
+          <tbody>
+            {METHODS.filter((m) => a.perMethod[m]).map((m) => (
+              <tr key={m}>
+                <td class="lab__mono">{m}</td>
+                <td class="lab__mono">{a.perMethod[m].states}</td>
+                <td class="lab__mono">{a.perMethod[m].conflicts}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="lab__analysis-section">
+        <div class="lab__analysis-heading">FIRST / FOLLOW</div>
+        <table class="lab__table">
+          <thead>
+            <tr>
+              <th>rule</th>
+              <th>FIRST</th>
+              <th>FOLLOW</th>
+            </tr>
+          </thead>
+          <tbody>
+            {a.firstFollow.map((r) => (
+              <tr key={r.name}>
+                <td class="lab__mono">{r.name}</td>
+                <td class="lab__mono">{r.first.join(" ")}</td>
+                <td class="lab__mono">{r.follow.join(" ")}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {current && (
+        <div class="lab__analysis-section">
+          <div class="lab__analysis-heading">railroad diagram</div>
+          <div class="lab__tabs" role="tablist">
+            {ruleNames.map((name) => (
+              <button
+                key={name}
+                type="button"
+                role="tab"
+                aria-selected={current === name}
+                class="lab__tab"
+                onClick={() => (selectedRule.value = name)}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+          {/* The SVG is server-rendered by Railroad.renderSvg from the grammar the user is
+              already editing in this same tab — the same trust boundary as the grammar source
+              itself, not third-party or cross-origin content. */}
+          <div
+            class="lab__railroad-svg"
+            dangerouslySetInnerHTML={{ __html: a.railroad[current] ?? "" }}
+          />
+        </div>
+      )}
+    </div>
   );
 }

@@ -21,9 +21,12 @@ import gramark.{
   Glr,
   Grammar,
   Lr,
+  Method,
   ParseTable,
   Parser,
+  Railroad,
   Scanner,
+  Sym,
   Table,
   Token,
   TokenDef,
@@ -53,6 +56,7 @@ object LabApi:
         // false for it) still show the All-parses tab's forest instead of only a diagnostic.
         val productions = Some(productionsOf(grammar))
         val forest = request.input.map(forestFor(request.source, request.method, grammar, _))
+        val analysis = Some(analysisOf(grammar))
         Table.buildTablesFor(request.method, grammar) match
           case Left(conflicts) =>
             LabResponse(
@@ -61,7 +65,8 @@ object LabApi:
               diagnostics = Diagnostics.renderConflicts(grammar, conflicts),
               parse = None,
               productions = productions,
-              forest = forest
+              forest = forest,
+              analysis = analysis
             )
           case Right(table) =>
             val parse = request.input.map(parseInput(request.source, grammar, table, _))
@@ -71,7 +76,8 @@ object LabApi:
               diagnostics = Vector.empty,
               parse = parse,
               productions = productions,
-              forest = forest
+              forest = forest,
+              analysis = analysis
             )
 
   // A terminal renders backtick-quoted (matching the grammar notation's own literal spelling and
@@ -92,13 +98,55 @@ object LabApi:
       ProductionInfo(p.lhs, p.rhs.map(renderSym), alt.action)
     }
 
+  // The Grammar analysis tab's data: every method's state/conflict count (not just
+  // `request.method` — the comparison table needs all three), FIRST/FOLLOW per rule, and a
+  // railroad SVG per rule. Independent of `request.input`/`request.method`, like `productions`.
+  // This runs on every `evaluate` call (every debounced keystroke), so it uses `statsForAll`
+  // (one shared canonical-automaton build) rather than three separate `statsFor` calls — the
+  // naive version was measurably slow enough under concurrent load to blow past this project's
+  // Playwright test timeouts.
+  private def analysisOf(grammar: Grammar): GrammarAnalysis =
+    val perMethod = Table.statsForAll(Table.emptyPrec, grammar).map { case (m, stats) =>
+      m.toString -> MethodStatsInfo(stats.states, stats.conflicts.length)
+    }
+
+    val a = Table.analyze(grammar)
+    val firstFollow = grammar.rules.map { r =>
+      RuleFirstFollow(
+        r.name,
+        a.firsts.getOrElse(r.name, Set.empty).toVector.sorted.map(renderSym),
+        a.follows.getOrElse(r.name, Set.empty).toVector.sorted.map(renderSym)
+      )
+    }
+
+    // Built from the compiled (desugared) Grammar directly, not by re-parsing each rule's raw
+    // .grmk.md fenced block the way `gramark fmt`'s sidecar SVGs do (that needs CLI-only
+    // markdown-block parsing this cross-compiled module doesn't have) — see GrammarAnalysis's own
+    // doc comment for the resulting, deliberate divergence (a desugared X+ shows its synthesized
+    // list rule, not gramark fmt's native loop shape).
+    val nts = Table.nontermSet(grammar)
+    val railroad = grammar.rules.map { r =>
+      val prod = Railroad.Production(r.name, r.alts.map(_.syms.map(s => toDiaSym(nts, s))))
+      r.name -> Railroad.renderSvg(prod, themed = true)
+    }.toMap
+
+    GrammarAnalysis(perMethod, firstFollow, railroad)
+
+  private def toDiaSym(nts: Set[String], s: Sym): Railroad.DiaSym = s match
+    case Sym.Ref(name)       => Railroad.DiaSym(name, term = !nts.contains(name))
+    case Sym.Lit(text)       => Railroad.DiaSym(text, term = true)
+    case Sym.Field(_, inner) => toDiaSym(nts, inner)
+    // Defensive only: sugar (Rep/Star/Opt/Macro/Group/Any/Not) is eliminated by Desugar before
+    // LabApi ever sees this Grammar, so this arm should be unreachable in practice.
+    case other => Railroad.DiaSym(other.toString, term = true)
+
   // The All-parses tab's data: every distinct parse of `input` under the GLR multi-action table for
   // `method`, action-free (Cst.cstToken/cstReduce — same driver callbacks the v1 Parse tree tab
   // uses), capped at `forestCap`. A lexical error yields an empty, non-truncated forest (Tokens/
   // Result already surface the lexical-error message; All-parses simply has nothing to show).
   private def forestFor(
       source: String,
-      method: gramark.Method,
+      method: Method,
       grammar: Grammar,
       input: String
   ): ForestResult =

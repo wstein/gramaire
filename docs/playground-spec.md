@@ -433,10 +433,37 @@ of only a diagnostic, which is the entire reason the All-parses tab exists.
 Covered by 4 new `LabApiSuite` cases (including the ambiguous-grammar one)
 and 2 new `lab.spec.ts` cases against the real engine.
 
+Grammar analysis is also done. The `Glr.explain` refactor materialized as
+`Table.statsFor`/`statsForAll` (`Table.scala`): `MethodStats(states,
+conflicts)` per method, factored out of `buildTablesForP`'s own
+method-dispatch step so the state count — computed internally all along,
+but never returned (`Table.States` stayed private) — is finally exposed.
+`Glr.explainP` itself is now expressed in terms of `statsForAll` (same
+prose output, verified against `GlrSuite`'s existing tests). `LabResponse`
+grew `analysis: Option[GrammarAnalysis]` — every method's state/conflict
+count, FIRST/FOLLOW per rule (`Table.firstSets`/`followSets`, already
+existed), and a railroad SVG per rule. The railroad SVGs are built from the
+compiled `Grammar` directly (`Railroad.Production`/`DiaSym` constructed from
+`Rule.alts`), not by re-parsing each rule's raw `.grmk.md` fenced block the
+way `gramark fmt`'s sidecar SVGs do — that needs CLI-only markdown-block
+parsing this cross-compiled module doesn't have, and the tradeoff is
+explicit: a desugared `X+` shows its synthesized list rule instead of
+`gramark fmt`'s native loop shape. `Railroad.renderSvg(themed = true)`'s
+`--rr-*` custom properties are aliased to the site's own `tokens.css`
+palette in `lab.css`, so the diagrams follow the light/dark toggle for free.
+
+One real performance bug caught before it shipped: computing all three
+methods' stats naively (three separate `Table.statsFor` calls) rebuilds the
+canonical LR(1) automaton — the expensive closure/goto fixpoint — three
+times per `evaluate()` call, which runs on every debounced keystroke.
+Under Playwright's parallel test workers this was slow enough to blow past
+the suite's 5s timeouts (passed reliably in isolation, failed under
+concurrency) — `statsForAll` fixes it by building the canonical automaton
+once and quotienting it per method, cutting the redundant work.
+
 **Not yet done:** the JVM↔JS parity gate below (the main remaining tracked
-gap for this slice), and the rest of the M5+ tabs (Evaluate, Grammar
-analysis, Parse trace, LR walk) plus the `Glr.explain` refactor, draggable
-splitter, and LR-walk stepper.
+gap for this slice), and the rest of the M5+ tabs (Evaluate, Parse trace,
+LR walk) plus the draggable splitter and LR-walk stepper.
 
 **JVM↔JS parity gate** (§8, "no-import" guardrail's sibling; not yet built):
 `Conformance.scala` already exists as differential-oracle infrastructure;
@@ -471,7 +498,7 @@ always reads "valid / green"), matching the gold-standard mock's spec exactly
 | 1   | Result           | `Lexer.tokenizeSpanned` + `Parser.run`/`ParseError`                                                                                                                                                                   | ✅       |
 | 2   | Evaluate         | `BackendJs`-generated JS, run in a sandboxed Worker — **not** a core interpreter (honors `8d93997`)                                                                                                                   | M5+      |
 | 3   | Tokens           | `Lexer.tokenizeSpanned` (spans)                                                                                                                                                                                       | ✅       |
-| 4   | Grammar analysis | method switch + `Railroad.renderSvg`/`parseProduction` + `Table.firstSets`/`followSets`; per-method state/conflict counts need the `Glr.explain` refactor (§5.1)                                                      | M5+      |
+| 4   | Grammar analysis | method comparison via `Table.statsForAll` (states + conflicts, one shared canonical-automaton build) + `Table.firstSets`/`followSets` + `Railroad.renderSvg` built from the compiled `Grammar` directly (not `parseProduction` — see §5.1) | ✅ (M5)  |
 | 5   | Parse tree       | `Cst.toJson`                                                                                                                                                                                                          | ✅       |
 | 6   | Parse trace      | derived client-side from the LR walk below, or a new `Table`/`Parser` trace hook                                                                                                                                      | M5+      |
 | 7   | LR walk          | stepper over the same trace data as Parse trace                                                                                                                                                                       | M5+      |
