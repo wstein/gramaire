@@ -22,9 +22,9 @@
     // --- relaxed: formal grammars and generated tables run long ----------
     "MD013": {
       "line_length": 120, // generous prose cap (default is 80)
-      "code_blocks": false, // never measure length inside lr / lr precedence
-      // / lr errors payloads — actions and rules are
-      // free to be as wide as they need to be
+      "code_blocks": false, // never measure length inside gramaire fence
+      // payloads — actions and rules are free to be
+      // as wide as they need to be
       "tables": false, // FIRST / FOLLOW / conflict rows can be wide
       "headings": false,
     },
