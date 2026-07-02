@@ -383,12 +383,15 @@ object ConvertAntlr:
     def tokenLine(r: G4Rule): String =
       s"${r.name} : /${regexOfAlts(r.alts)}/" + (if r.skip then "   %skip" else "")
 
+    val settingsSection: Vector[String] =
+      Vector("## General settings\n", "```gramaire", s"%name ${p.name}", "```\n")
+
     val tokensSection: Vector[String] =
       if lexerRules.isEmpty then Vector.empty
       else
         Vector(
           "## Tokens\n",
-          "```gramaire tokens",
+          "```gramaire",
           lexerRules.map(tokenLine).mkString("\n"),
           "```\n"
         )
@@ -399,7 +402,9 @@ object ConvertAntlr:
         .mkString("\n  | ") + "\n```\n"
 
     val markdown =
-      (Vector(s"# ${p.name}\n") ++ tokensSection ++ parserRules.map(ruleSection)).mkString("\n")
+      (Vector(s"# ${p.name}\n") ++ settingsSection ++ tokensSection ++ parserRules.map(
+        ruleSection
+      )).mkString("\n")
     Imported(markdown, p.warnings)
 
   /** Import an ANTLR4 `.g4` grammar, producing a rendered `.gram.md` and any features that could

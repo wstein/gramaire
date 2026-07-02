@@ -12,7 +12,7 @@ class TransformSuite extends munit.FunSuite:
       |
       |## Tokens
       |
-      |```gramaire tokens
+      |```gramaire
       |NUMBER : /[0-9]+(?:\.[0-9]+)?/
       |WS     : /[ \t\r\n]+/   %skip
       |```
