@@ -268,8 +268,8 @@ function copyToClipboard(text: string) {
 // A LISP-like S-expression rendering of a CST, for the Parse tree tab's "copy LISP" button.
 //
 // Two things beyond a literal 1:1 dump of the CST:
-//  - Leaves render as a bare numeric literal (`1`) when their text looks like one, single-quoted
-//    otherwise (`'+'`) — a plain reader convention, easier to scan than uniformly backtick-quoting
+//  - Leaves render as a bare numeric literal (`1`) when their text looks like one, double-quoted
+//    otherwise (`"+"`) — a plain reader convention, easier to scan than uniformly backtick-quoting
 //    every token regardless of kind.
 //  - "Chain" nodes — a rule with exactly one non-leaf child, which is what every level of a
 //    left-recursive precedence-climbing grammar (Expr -> Term -> Factor, with no operator at that
@@ -289,7 +289,7 @@ function isNumericLeaf(text: string): boolean {
 function renderLeaf(node: CstToken): LispDoc {
   return {
     kind: "atom",
-    text: isNumericLeaf(node.text) ? node.text : `'${node.text}'`,
+    text: isNumericLeaf(node.text) ? node.text : `"${node.text}"`,
   };
 }
 

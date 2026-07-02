@@ -648,9 +648,9 @@ test("the Parse tree tab's copy LISP button copies an S-expression and shows fee
   // Default grammar/input ("1+2*3") is a fixed, deterministic CST — assert the exact rendering:
   // unit/chain productions (Expr -> Term, the inner Term -> Factor for the left operand of `*`)
   // are elided one level per child position, numeric leaves are bare, everything else is
-  // single-quoted, and the whole thing breaks across lines since it doesn't fit on one.
+  // double-quoted, and the whole thing breaks across lines since it doesn't fit on one.
   expect(clip).toBe(
-    "(Expr\n  (Term (Factor 1))\n  '+'\n  (Term (Factor 2) '*' (Factor 3)))",
+    '(Expr\n  (Term (Factor 1))\n  "+"\n  (Term (Factor 2) "*" (Factor 3)))',
   );
 });
 
