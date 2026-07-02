@@ -240,6 +240,34 @@
   white-space: pre;
 }
 
+/* Cross-tab hover-linking (hoverToken): a token leaf in a tree, a Tokens-tab row, and a Result
+   token chip all share the same highlight so hovering any one of them, then switching tabs, keeps
+   the corresponding element lit elsewhere. */
+.lab__leaf--hover,
+.lab__row--hover {
+  background: var(--accent-softer);
+  border-radius: 4px;
+}
+.lab__token-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.lab__chip {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 5px;
+  background: var(--bg-2);
+  color: var(--fg-secondary);
+  border: 1px solid var(--border);
+}
+.lab__chip--hover {
+  background: var(--accent-softer);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  color: var(--accent);
+}
+
 .lab__diagnostics {
   margin: 0;
   padding-left: 20px;

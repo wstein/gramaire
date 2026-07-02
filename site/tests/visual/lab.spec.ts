@@ -399,3 +399,31 @@ test("the Lab's start-rule picker narrows which rule anchors parsing", async ({
   });
   await expect(page.locator(".lab__result")).toContainText("Rejected");
 });
+
+test("cross-tab hover-linking keeps the same token highlighted across tabs", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__status")).toHaveText("build ok", {
+    timeout: 5000,
+  });
+
+  // Default input "1+2*3" -> 5 tokens; index 2 is the middle NUMBER "2".
+  const resultChip = page.locator(".lab__chip").nth(2);
+  await expect(resultChip).toHaveText("2");
+  await resultChip.hover();
+  await expect(resultChip).toHaveClass(/lab__chip--hover/);
+
+  await page.click('button[role="tab"]:has-text("Tokens")');
+  const tokenRow = page.locator(".lab__table tbody tr").nth(2);
+  // Deliberately no re-hover here — hoverToken persists across the tab switch (see the signal's
+  // own comment: an ephemeral onMouseLeave-clears-it hover would never visibly link anything
+  // across tabs in a one-panel-at-a-time UI).
+  await expect(tokenRow).toHaveClass(/lab__row--hover/);
+  await expect(tokenRow).toContainText("2");
+
+  await page.click('button[role="tab"]:has-text("Parse tree")');
+  const leaf = page.locator(".lab__leaf").nth(2);
+  await expect(leaf).toHaveClass(/lab__leaf--hover/);
+  await expect(leaf).toContainText('"2"');
+});

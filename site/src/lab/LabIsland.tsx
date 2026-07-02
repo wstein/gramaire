@@ -49,6 +49,15 @@ const evaluation = signal<EvaluationResult | null>(null);
 const pending = signal(false);
 const selectedRule = signal<string | null>(null);
 const walkStep = signal(0);
+// Cross-tab hover-linking: the index (into `parse.tokens`, source-lexed order) of the last-hovered
+// token — shared across Result's token strip, Tokens' rows, and every token leaf in Parse
+// tree/All parses/Evaluate's trees. Only one tab renders at a time (this UI has no split
+// simultaneous panels), so unlike the design mock's ephemeral onMouseLeave-clears-it hover, this
+// deliberately never clears: hovering sets it, and it stays "last touched" across a tab switch —
+// hover a token in Tokens, switch to Parse tree, and the same leaf is still highlighted. An
+// ephemeral hover would never visibly link anything across tabs, since the mouse has to leave the
+// hovered element (clearing it) before you can click a different tab.
+const hoverToken = signal<number | null>(null);
 const splitPercent = signal(55);
 const SPLIT_MIN = 28;
 const SPLIT_MAX = 72;
@@ -377,14 +386,37 @@ function ResultPanel() {
   if (!r.buildOk)
     return <p class="lab__empty">Grammar did not build — see Diagnostics.</p>;
   if (!r.parse) return <p class="lab__empty">No input given — compile-only.</p>;
+  const tokens = r.parse.tokens;
   return (
-    <div
-      class={`lab__result lab__result--${r.parse.accepted ? "accept" : "reject"}`}
-    >
-      <div>
-        <strong>{r.parse.accepted ? "Accepted" : "Rejected"}</strong>
-        {r.parse.message && <p>{r.parse.message}</p>}
+    <div>
+      <div
+        class={`lab__result lab__result--${r.parse.accepted ? "accept" : "reject"}`}
+      >
+        <div>
+          <strong>{r.parse.accepted ? "Accepted" : "Rejected"}</strong>
+          {r.parse.message && <p>{r.parse.message}</p>}
+        </div>
       </div>
+      {tokens.length > 0 && (
+        <div class="lab__analysis-section">
+          <div class="lab__analysis-heading">token stream</div>
+          <div class="lab__token-strip">
+            {tokens.map((t, i) => (
+              <span
+                key={i}
+                class={
+                  hoverToken.value === i
+                    ? "lab__chip lab__chip--hover"
+                    : "lab__chip"
+                }
+                onMouseEnter={() => (hoverToken.value = i)}
+              >
+                {t.text}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -404,7 +436,11 @@ function TokensPanel() {
       </thead>
       <tbody>
         {tokens.map((t, i) => (
-          <tr key={i}>
+          <tr
+            key={i}
+            class={hoverToken.value === i ? "lab__row--hover" : undefined}
+            onMouseEnter={() => (hoverToken.value = i)}
+          >
             <td class="lab__mono">{t.terminal}</td>
             <td class="lab__mono">{JSON.stringify(t.text)}</td>
             <td class="lab__mono">
@@ -423,7 +459,7 @@ function TreePanel() {
     return <p class="lab__empty">No parse tree — the input wasn't accepted.</p>;
   return (
     <pre class="lab__tree">
-      <CstNodeView node={cst} />
+      <CstNodeView node={cst} counter={{ i: 0 }} />
     </pre>
   );
 }
@@ -436,18 +472,34 @@ function ruleName(rule: number): string {
   return response.value?.productions?.[rule]?.lhs ?? `rule ${rule}`;
 }
 
+// A mutable running counter, threaded by reference through a tree render so each token leaf can
+// claim its own position in source-lexed order — a tree has no token INDEX of its own (only
+// `token`/`text` strings, see Cst.scala), but a left-to-right walk visits leaves in exactly the
+// order the lexer produced them, for any valid derivation of the same input (tree shape varies,
+// consumption order never does) — which is what lets hoverToken link a leaf back to the matching
+// Tokens-tab row/Result chip by plain array index.
+type LeafCounter = { i: number };
+
 function CstNodeView({
   node,
   depth = 0,
+  counter,
 }: {
   node: CstNode | null;
   depth?: number;
+  counter: LeafCounter;
 }) {
   if (!node) return null;
   const indent = "  ".repeat(depth);
   if ("token" in node) {
+    const idx = counter.i++;
     return (
-      <div>
+      <div
+        class={
+          hoverToken.value === idx ? "lab__leaf lab__leaf--hover" : "lab__leaf"
+        }
+        onMouseEnter={() => (hoverToken.value = idx)}
+      >
         {indent}
         {node.token} {JSON.stringify(node.text)}
       </div>
@@ -460,7 +512,7 @@ function CstNodeView({
         {ruleName(node.rule)}
       </div>
       {node.children.map((c, i) => (
-        <CstNodeView key={i} node={c} depth={depth + 1} />
+        <CstNodeView key={i} node={c} depth={depth + 1} counter={counter} />
       ))}
     </div>
   );
@@ -504,7 +556,9 @@ function AllParsesPanel() {
         <div key={i} class="lab__forest-item">
           <div class="lab__forest-item-label">parse {i + 1}</div>
           <pre class="lab__tree">
-            <CstNodeView node={p} />
+            {/* A fresh counter per parse — every derivation consumes the same input tokens in the
+                same left-to-right order, so leaf index == token index independently in each tree. */}
+            <CstNodeView node={p} counter={{ i: 0 }} />
           </pre>
         </div>
       ))}
@@ -859,7 +913,7 @@ function EvaluatePanel() {
       <div class="lab__analysis-section">
         <div class="lab__analysis-heading">annotated parse tree</div>
         <pre class="lab__tree">
-          <AnnotatedNodeView node={ev.tree} />
+          <AnnotatedNodeView node={ev.tree} counter={{ i: 0 }} />
         </pre>
       </div>
 
@@ -899,14 +953,22 @@ function EvaluatePanel() {
 function AnnotatedNodeView({
   node,
   depth = 0,
+  counter,
 }: {
   node: AnnotatedNode;
   depth?: number;
+  counter: LeafCounter;
 }) {
   const indent = "  ".repeat(depth);
   if ("token" in node) {
+    const idx = counter.i++;
     return (
-      <div>
+      <div
+        class={
+          hoverToken.value === idx ? "lab__leaf lab__leaf--hover" : "lab__leaf"
+        }
+        onMouseEnter={() => (hoverToken.value = idx)}
+      >
         {indent}
         {node.token} {JSON.stringify(node.text)}{" "}
         <ValueChip value={node.value} />
@@ -920,7 +982,12 @@ function AnnotatedNodeView({
         {ruleName(node.rule)} <ValueChip value={node.value} />
       </div>
       {node.children.map((c, i) => (
-        <AnnotatedNodeView key={i} node={c} depth={depth + 1} />
+        <AnnotatedNodeView
+          key={i}
+          node={c}
+          depth={depth + 1}
+          counter={counter}
+        />
       ))}
     </div>
   );
