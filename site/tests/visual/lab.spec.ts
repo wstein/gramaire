@@ -614,8 +614,13 @@ test("the Parse tree tab's copy LISP button copies an S-expression and shows fee
   await page.click(".lab__copy-btn");
   await expect(page.locator(".lab__copy-btn")).toHaveText("✓ copied");
   const clip = await page.evaluate(() => navigator.clipboard.readText());
-  expect(clip).toContain("(Expr");
-  expect(clip).toContain("`1`");
+  // Default grammar/input ("1+2*3") is a fixed, deterministic CST — assert the exact rendering:
+  // unit/chain productions (Expr -> Term, the inner Term -> Factor for the left operand of `*`)
+  // are elided one level per child position, numeric leaves are bare, everything else is
+  // single-quoted, and the whole thing breaks across lines since it doesn't fit on one.
+  expect(clip).toBe(
+    "(Expr\n  (Term (Factor 1))\n  '+'\n  (Term (Factor 2) '*' (Factor 3)))",
+  );
 });
 
 test("clicking a token chip in Parse tree reveals the matching leaf even in a folded tree", async ({
@@ -674,7 +679,7 @@ test("hovering/clicking a nonterminal box in the railroad diagram cross-links th
   );
 });
 
-test("the LR walk tab keeps its controls/action/stack panels pinned while only the step-history table scrolls", async ({
+test("the LR walk tab keeps its controls/action/stack panels and the table header pinned while only the step-history rows scroll", async ({
   page,
 }) => {
   await page.goto("/lab/");
@@ -693,6 +698,9 @@ test("the LR walk tab keeps its controls/action/stack panels pinned while only t
   const panes = page.locator(".lab__walk-panes");
   const controlsTopBefore = (await controls.boundingBox())?.y;
 
+  const header = page.locator(".lab__walk-history thead th").first();
+  const headerTopBefore = (await header.boundingBox())?.y;
+
   await page
     .locator(".lab__walk-history")
     .evaluate((el) => (el.scrollTop = el.scrollHeight));
@@ -702,6 +710,12 @@ test("the LR walk tab keeps its controls/action/stack panels pinned while only t
   await expect(panes).toBeVisible();
   const controlsTopAfter = (await controls.boundingBox())?.y;
   expect(controlsTopAfter).toBe(controlsTopBefore);
+
+  // The "# action" header row is part of the scrolling table itself — it must stay pinned via its
+  // own sticky positioning, not just ride along with the (already-pinned) panels above it.
+  await expect(header).toBeVisible();
+  const headerTopAfter = (await header.boundingBox())?.y;
+  expect(headerTopAfter).toBe(headerTopBefore);
 
   const scrollTop = await page
     .locator(".lab__walk-history")
