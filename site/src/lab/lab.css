@@ -256,13 +256,6 @@
 .lab__result--reject strong {
   color: var(--danger, #b91c1c);
 }
-.lab__result p {
-  margin: 3px 0 0;
-  font-size: 12.5px;
-  font-weight: 400;
-  font-family: var(--font-mono);
-  color: var(--fg-muted);
-}
 
 .lab__mono {
   font-family: var(--font-mono);
@@ -377,13 +370,73 @@
 
 .lab__diagnostics {
   margin: 0;
-  padding-left: 20px;
+  padding-left: 0;
+  list-style: none;
   font-family: var(--font-mono);
   font-size: 12px;
+}
+.lab__diagnostic {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+}
+.lab__diagnostic-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.lab__diagnostic-loc {
+  font: inherit;
+  color: var(--fg-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+.lab__diagnostic-loc:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+.lab__diagnostic-message {
   white-space: pre-wrap;
 }
-.lab__diagnostics li {
-  margin-bottom: 10px;
+.lab__diagnostic-notes {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--fg-muted);
+  white-space: pre-wrap;
+}
+.lab__diagnostic-notes li {
+  margin-bottom: 3px;
+}
+.lab__chip--error {
+  color: var(--danger, #b91c1c);
+  border-color: color-mix(in srgb, var(--danger, #b91c1c) 40%, var(--border));
+  background: color-mix(in srgb, var(--danger, #b91c1c) 10%, var(--bg-2));
+}
+.lab__chip--warning {
+  color: var(--warning, #b45309);
+  border-color: color-mix(in srgb, var(--warning, #b45309) 40%, var(--border));
+  background: color-mix(in srgb, var(--warning, #b45309) 10%, var(--bg-2));
+}
+
+.lab__result-message {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  font-weight: 400;
+  font-family: var(--font-mono);
+  color: var(--fg-muted);
+  white-space: pre-wrap;
+}
+.lab__result-message--clickable {
+  cursor: pointer;
+}
+.lab__result-message--clickable:hover {
+  color: var(--fg);
 }
 
 .lab__forest-status {

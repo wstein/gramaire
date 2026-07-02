@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://gramaire.dev/spec/lab-protocol-schema.json",
   "title": "gramaire-lab-protocol",
-  "description": "The typed JSON boundary the in-browser Lab (site/src/lab/) talks to across the Scala.js/Worker seam: LabRequest sent in, LabResponse returned. Hand-authored (lab/src/main/scala/gramaire/lab/LabProtocol.scala's codecs have no derivation mechanism to generate this from) and validated against real serialized LabResponse output by the JVM<->JS conformance gate, so schema/code drift fails CI instead of rotting silently. labProtocolVersion 0 is draft/unstable and carries no compatibility promise.",
+  "description": "The typed JSON boundary the in-browser Lab (site/src/lab/) talks to across the Scala.js/Worker seam: LabRequest sent in, LabResponse returned. Hand-authored (lab/src/main/scala/gramaire/lab/LabProtocol.scala's codecs have no derivation mechanism to generate this from) and validated against real serialized LabResponse output by the JVM<->JS conformance gate, so schema/code drift fails CI instead of rotting silently. labProtocolVersion 1: diagnostics/parse.message carry structured Diagnostic objects (severity, stage, span, notes, a rendered plain-text form) instead of plain strings; version 0 was documented draft/unstable with no compatibility promise, so this was a clean break rather than an additive field.",
   "$defs": {
     "labRequest": {
       "title": "LabRequest",
@@ -48,8 +48,8 @@
         },
         "diagnostics": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Rendered conflict/undefined-nonterminal messages (Diagnostics.renderConflicts), or a single grammar-notation parse error, when buildOk is false. Empty when buildOk is true."
+          "items": { "$ref": "#/$defs/diagnostic" },
+          "description": "Errors (a grammar-notation lexical/parse/undefined-nonterminal failure, or a table conflict) when buildOk is false, plus warnings (an unknown #[attr]/%setting, an unreachable rule, an unused token class) either way — distinguish by each entry's own `severity`."
         },
         "parse": {
           "oneOf": [{ "$ref": "#/$defs/parseResult" }, { "type": "null" }],
@@ -73,6 +73,44 @@
         "evaluatorJs": {
           "type": ["string", "null"],
           "description": "The Evaluate tab's data: BackendJs.emitTraced's generated ES module source text, run by the Worker (not this schema's owner — Scala never executes it). Present only when buildOk is true (it needs a valid compiled table); null otherwise."
+        }
+      }
+    },
+    "srcSpan": {
+      "title": "SrcSpanInfo",
+      "description": "A `[start, end)` code-unit span into whichever source text the owning Diagnostic is relative to (the grammar source, or LabRequest.input).",
+      "type": "object",
+      "required": ["start", "end"],
+      "additionalProperties": false,
+      "properties": {
+        "start": { "type": "integer", "minimum": 0 },
+        "end": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "diagnostic": {
+      "title": "DiagnosticInfo",
+      "description": "One structured diagnostic: a severity, which pipeline stage raised it, a message, an optional source span, free-form note/help lines, and a plain-text rendering (the same caret-framed text the CLI prints) as a display fallback.",
+      "type": "object",
+      "required": ["severity", "stage", "message", "span", "notes", "rendered"],
+      "additionalProperties": false,
+      "properties": {
+        "severity": { "type": "string", "enum": ["error", "warning"] },
+        "stage": {
+          "type": "string",
+          "enum": ["lex", "parse", "desugar", "resolve", "tables", "internal"]
+        },
+        "message": { "type": "string" },
+        "span": {
+          "oneOf": [{ "$ref": "#/$defs/srcSpan" }, { "type": "null" }]
+        },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Free-form note/help lines, e.g. \"help: did you mean `Factor`?\" — the tag is part of the text."
+        },
+        "rendered": {
+          "type": "string",
+          "description": "The plain-text rendering (Diagnostic.render): a headline, an optional --> name:line:col location with a caret-underlined source line, then the notes — the same text the CLI prints."
         }
       }
     },
@@ -160,8 +198,8 @@
       "properties": {
         "accepted": { "type": "boolean" },
         "message": {
-          "type": ["string", "null"],
-          "description": "The reject reason (a lexical-error notice, or ParseError.render) when accepted is false; null when accepted."
+          "oneOf": [{ "$ref": "#/$defs/diagnostic" }, { "type": "null" }],
+          "description": "The reject reason (a located lexical or parse diagnostic, relative to LabRequest.input) when accepted is false; null when accepted."
         },
         "tokens": {
           "type": "array",
@@ -183,7 +221,13 @@
       "title": "LrStepInfo",
       "description": "One step of an LR walk: the action taken and the parse stack/remaining-input state before taking it.",
       "type": "object",
-      "required": ["index", "stateBefore", "action", "stackSymbols", "remainingSymbols"],
+      "required": [
+        "index",
+        "stateBefore",
+        "action",
+        "stackSymbols",
+        "remainingSymbols"
+      ],
       "additionalProperties": false,
       "properties": {
         "index": { "type": "integer", "minimum": 0 },

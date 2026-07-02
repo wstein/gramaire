@@ -90,7 +90,13 @@ class LabApiSuite extends munit.FunSuite:
       case None => fail("expected a parse result")
       case Some(p) =>
         assert(!p.accepted)
-        assertEquals(p.message, Some("lexical error in input"))
+        p.message match
+          case None => fail("expected a diagnostic")
+          case Some(d) =>
+            assertEquals(d.severity, "error")
+            assertEquals(d.stage, "lex")
+            assert(d.message.contains("@"), s"expected the offending character named, got: ${d.message}")
+            assert(d.span.isDefined, "expected a located span")
         assertEquals(p.cst, None)
   }
 
@@ -106,7 +112,7 @@ class LabApiSuite extends munit.FunSuite:
     assertEquals(resp.parse, None)
     assert(resp.diagnostics.nonEmpty)
     assert(
-      resp.diagnostics.exists(_.contains("conflict")),
+      resp.diagnostics.exists(_.message.contains("conflict")),
       s"expected a conflict diagnostic, got: ${resp.diagnostics}"
     )
   }
@@ -133,8 +139,8 @@ class LabApiSuite extends munit.FunSuite:
     assertEquals(resp.parse, None)
     assertEquals(resp.diagnostics.length, 1)
     assert(
-      resp.diagnostics.head.contains("`Baz`") && resp.diagnostics.head.contains(
-        "must be defined by some rule"
+      resp.diagnostics.head.message.contains("`Baz`") && resp.diagnostics.head.notes.exists(
+        _.contains("must be defined by some rule")
       ),
       s"expected Diagnostics.checkDefined's rejection message naming Baz, got: ${resp.diagnostics}"
     )
