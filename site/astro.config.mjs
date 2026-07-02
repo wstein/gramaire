@@ -1,6 +1,7 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import tailwindcss from "@tailwindcss/vite";
+import { GOOGLE_FONTS_HREF } from "./src/shared/fonts.mjs";
 
 const base = process.env.CI ? "/gramark/" : "/";
 
@@ -18,6 +19,16 @@ export default defineConfig({
       // folds in Starlight's own <Search /> rather than dropping it.
       // Starlight's `logo` option goes unused; the favicon link below is
       // the browser-tab icon.
+      //
+      // The font preconnect/stylesheet links are NOT optional here: without
+      // them Starlight pages never load IBM Plex Sans as a real webfont at
+      // all (tokens.css's own @font-face is `src: local(...)`-only, which
+      // resolves to nothing on a machine without it installed), silently
+      // falling back to a system sans font — invisible in prose, but a real,
+      // measurable few-px difference in gramark-topbar.mjs's segmented
+      // control and search trigger versus the bare Landing page, which
+      // loads them via its own <head>. Keep both surfaces pulling from
+      // src/shared/fonts.mjs so they can't diverge again.
       head: [
         {
           tag: "link",
@@ -26,6 +37,22 @@ export default defineConfig({
             href: `${base}favicon.svg`,
             type: "image/svg+xml",
           },
+        },
+        {
+          tag: "link",
+          attrs: { rel: "preconnect", href: "https://fonts.googleapis.com" },
+        },
+        {
+          tag: "link",
+          attrs: {
+            rel: "preconnect",
+            href: "https://fonts.gstatic.com",
+            crossorigin: true,
+          },
+        },
+        {
+          tag: "link",
+          attrs: { rel: "stylesheet", href: GOOGLE_FONTS_HREF },
         },
       ],
       components: {
