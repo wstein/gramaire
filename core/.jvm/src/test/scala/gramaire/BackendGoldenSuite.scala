@@ -24,8 +24,8 @@ class BackendGoldenSuite extends munit.FunSuite:
           case Right(ir) => assertEquals(BackendAntlr.emit(ir), readFile("test/golden/json.g4"))
   }
 
-  test("ts: grammar/lr.gram.md -> IR -> .ts + .d.ts match the committed goldens") {
-    val path = "grammar/lr.gram.md"
+  test("ts: grammar/Productions.gram.md -> IR -> .ts + .d.ts match the committed goldens") {
+    val path = "grammar/Productions.gram.md"
     val md = readFile(path)
     Lr.parse(md) match
       case Left(e) => fail(s"could not parse $path: $e")

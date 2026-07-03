@@ -7,7 +7,7 @@ class StripSuite extends munit.FunSuite:
     java.nio.file.Files.readString(java.nio.file.Path.of(path))
 
   for path <- List(
-      "grammar/lr.gram.md",
+      "grammar/Productions.gram.md",
       "examples/calc.gram.md",
       "examples/json.gram.md",
       "examples/readme.gram.md"
@@ -32,6 +32,10 @@ class StripSuite extends munit.FunSuite:
     test(s"strip(strip(x)) == strip(x) for $path (idempotence)") {
       val stripped = Lr.strip(readFile(path))
       val strippedTwice = Lr.strip(stripped)
-      assertEquals(strippedTwice, stripped, s"$path: re-stripping already-stripped output must be a no-op")
+      assertEquals(
+        strippedTwice,
+        stripped,
+        s"$path: re-stripping already-stripped output must be a no-op"
+      )
       assert(Lr.parse(strippedTwice).isRight, s"$path: twice-stripped form should still parse")
     }

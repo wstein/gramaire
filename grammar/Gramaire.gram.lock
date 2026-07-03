@@ -1,0 +1,175 @@
+{
+  "version": 1,
+  "mode": "sidecar",
+  "sourceLayout": "collapsed",
+  "grammarSha256": "a6c15d9fa5fa2f222bbd997906347c0bfc068e9660e2087bc6f9e2b5a09fccaa",
+  "artifacts": [
+    {
+      "kind": "railroad",
+      "nonterminal": "File",
+      "path": "diagrams-Gramaire/file.svg",
+      "sourceSha256": "29d9aa799d6ca7fe2c9498d72df0e99b6f100cecd06447b9db9b987f96a7ba73"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Preamble",
+      "path": "diagrams-Gramaire/preamble.svg",
+      "sourceSha256": "ec344e686207b6eeff697c6610620f53b34c25aa5fc89d7303d396fbff05426a"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SettingList",
+      "path": "diagrams-Gramaire/settinglist.svg",
+      "sourceSha256": "62dd2df318a003cae92ce9a62f3c063390528e3979a5086e2febbbee4a3bbdf4"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SettingDecl",
+      "path": "diagrams-Gramaire/settingdecl.svg",
+      "sourceSha256": "53a91c7e0853fde9ff8fcbf00a4fe99b9a8a8ea5a778bdc8b5a61a0d152b0334"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TokenDeclList",
+      "path": "diagrams-Gramaire/tokendecllist.svg",
+      "sourceSha256": "b564e09b0447c625cace1d7926c8d79af8ab1f9e0dbe1d305eb4ff7e2105fc1d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TokenDecl",
+      "path": "diagrams-Gramaire/tokendecl.svg",
+      "sourceSha256": "644f542d539481f3903e2b0a18f5ba03e35b0d6986b1fb8a526d1f4681e177b4"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TokenPattern",
+      "path": "diagrams-Gramaire/tokenpattern.svg",
+      "sourceSha256": "9e9664f61783179786de1c346829cc6327f3e6868d8b6ffb84f6f222259b38b7"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ModList",
+      "path": "diagrams-Gramaire/modlist.svg",
+      "sourceSha256": "0279c32b4e87ce05717634c5a39814740b3f655df560c19cdba14a240d74bab2"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Modifier",
+      "path": "diagrams-Gramaire/modifier.svg",
+      "sourceSha256": "d7a4a26fb9f587d9f93d9f1d6774d9f04e95232b182b33fce096849cde9c0948"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "PrecList",
+      "path": "diagrams-Gramaire/preclist.svg",
+      "sourceSha256": "bc72712920b6704f64fb891c1cdb183d207ab6aa13ca24a4ed851672b9346f95"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "PrecDecl",
+      "path": "diagrams-Gramaire/precdecl.svg",
+      "sourceSha256": "c17be4331e16dad4cfc36a7d2bd1d71cb76a75a5da442efa1305b49dd5296cb5"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "PrecTermList",
+      "path": "diagrams-Gramaire/prectermlist.svg",
+      "sourceSha256": "573cbf3e1b9ffddff7544f649dc18500d1f9de1e644e6df77a9442c2185d5fb7"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "PrecTerm",
+      "path": "diagrams-Gramaire/precterm.svg",
+      "sourceSha256": "b6ae983c7bd42b5d3248b7e152159dc0da994f01f2fad163901d869e7debf982"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "RuleList",
+      "path": "diagrams-Gramaire/rulelist.svg",
+      "sourceSha256": "91e48fca6a172e639b6e18c1b67b5741dd840ffe6d984d63be17c7d4d149877d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Rule",
+      "path": "diagrams-Gramaire/rule.svg",
+      "sourceSha256": "3314230857ff9e16991f61ec404bbed8c988689e0c9bb9e1cde62eda1be0f072"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Body",
+      "path": "diagrams-Gramaire/body.svg",
+      "sourceSha256": "49e78523237525c54a5add2a4528f47aef810a6d20486956cc0428bf812d9bd3"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Alt",
+      "path": "diagrams-Gramaire/alt.svg",
+      "sourceSha256": "f43a3f629956cee13753e04f956ecad4fe90294883ced216ef397871073221dd"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SymList",
+      "path": "diagrams-Gramaire/symlist.svg",
+      "sourceSha256": "11450fdf9553c7af8c0eff02224cbb6bb2a75aca8e2997262dab75742b449417"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Sym",
+      "path": "diagrams-Gramaire/sym.svg",
+      "sourceSha256": "f426df8d1df2f1d4687b120b856c01c84320e0412c4d96ca59be1b03def1630e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Args",
+      "path": "diagrams-Gramaire/args.svg",
+      "sourceSha256": "3e7db47a90bd2abf5b4cea571256ee3b7dea1dca631c79ec00de5c89b6305e5e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Action",
+      "path": "diagrams-Gramaire/action.svg",
+      "sourceSha256": "37ba09d1c18eab2498e4bdc097312c141c9e7963c6b720cce6ed0010dbd56887"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Label",
+      "path": "diagrams-Gramaire/label.svg",
+      "sourceSha256": "061463afa308c0ed362f10acd775b10e2609088d50bf84d6bd7bc2a085d93597"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "GroupBody",
+      "path": "diagrams-Gramaire/groupbody.svg",
+      "sourceSha256": "4546453aa3b26a39cfbfd8030b45b48411ab9aa2122ecd5d5cc4b7bfeeb81374"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Atom",
+      "path": "diagrams-Gramaire/atom.svg",
+      "sourceSha256": "dce9bf5baedd5b95cf2d01ea41e57e9f63a0600398ecc3ac3254b11bff610499"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "NotArg",
+      "path": "diagrams-Gramaire/notarg.svg",
+      "sourceSha256": "61da58b3bb0ba3a2338319fab3a44c3b9a537c2c2990a673f97dcaa78429a2cd"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SetBody",
+      "path": "diagrams-Gramaire/setbody.svg",
+      "sourceSha256": "171b0c8dce7a07975a4b59e6797ec6ad6cba07e51b61b42ced1839bfb3b1013d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SetItem",
+      "path": "diagrams-Gramaire/setitem.svg",
+      "sourceSha256": "c8bda2153e62464e3221e0b498ff609f99c6a379dd95411744477b9e82353a2e"
+    },
+    {
+      "kind": "tables",
+      "section": "Generated tables",
+      "sourceSha256": "a6c15d9fa5fa2f222bbd997906347c0bfc068e9660e2087bc6f9e2b5a09fccaa"
+    }
+  ]
+}

@@ -32,7 +32,7 @@ class GramaireCheckSuite extends munit.FunSuite:
   // — the `lr` notation's `Alt`/`SymList` productions require at least one
   // symbol, so ANTLR's "empty alt" idiom has no home yet); that is a
   // pre-existing notation gap unrelated to this gate and is not fixed here.
-  test("the 7 CI-gated grammar files pass both the structure and drift gates") {
+  test("the 8 CI-gated grammar files pass both the structure and drift gates") {
     for file <- gatedFiles do
       val doc = GramaireCheck.parse(readFile(file))
       assertEquals(GramaireCheck.checkStructure(doc), Vector.empty, s"$file: structure")

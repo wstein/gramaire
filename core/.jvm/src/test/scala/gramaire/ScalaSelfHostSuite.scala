@@ -10,8 +10,8 @@ package gramaire
 //      profile (`CodegenScala.lrActionsScala`, not `bootstrapGrammar`'s
 //      `.action` field, which stays legacy lambda-syntax text so
 //      `SelfHostSuite`'s parser-oracle check keeps passing unmodified,
-//      and `grammar/lr.gram.md` stays untouched).
-//   2. Oracle — the SAME real `grammar/lr.gram.md` document, parsed with
+//      and `grammar/Productions.gram.md` stays untouched).
+//   2. Oracle — the SAME real `grammar/Productions.gram.md` document, parsed with
 //      the SAME table built from `bootstrapGrammar`, but driven by the
 //      *generated* Scala reduce instead of `Lr.reduce`'s hand-written
 //      one, still reconstructs `bootstrapGrammar` exactly. Two different
@@ -30,14 +30,14 @@ class ScalaSelfHostSuite extends munit.FunSuite:
   }
 
   test("self-host holds with the generated Scala reduce") {
-    val md = readFile("grammar/lr.gram.md")
+    val md = readFile("grammar/Productions.gram.md")
     val src = Lr.lrBlocks(md).mkString("\n") + "\n"
     val items = Scanner.buildItems(
       Tokens.parseTokens(Bootstrap.lrTokensSource).getOrElse(Vector.empty),
       Vector(":", "|", "(", ")", ".", "~")
     )
     val raw = Scanner.scan(items, src)
-    assert(!Scanner.hasError(raw), "grammar/lr.gram.md should scan cleanly")
+    assert(!Scanner.hasError(raw), "grammar/Productions.gram.md should scan cleanly")
     Table.buildTablesFor(Method.Canonical, Bootstrap.bootstrapGrammar) match
       case Left(_) => fail("lr tables should build")
       case Right(table) =>
