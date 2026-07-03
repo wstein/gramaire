@@ -45,8 +45,9 @@ const METHODS = ["Canonical", "LALR", "IELR"] as const;
 const grammarSource = signal(DEFAULT_SOURCE);
 const targetInput = signal(DEFAULT_INPUT);
 const method = signal<Method>("Canonical");
-// "lr" (the default) leaves LabResponse.atn null — additive only, never changes buildOk/parse/
-// forest/analysis/evaluatorJs (see LabRequest.strategy's own doc comment in protocol.ts).
+// "lr" (the default) leaves LabResponse.atn null; "ll-star" is a genuine alternate pipeline that
+// also redefines buildOk (an LR conflict downgrades to a warning) — see LabRequest.strategy's own
+// doc comment in protocol.ts.
 const strategy = signal<Strategy>("lr");
 // null means "no override" — the request omits startRule, so the engine uses the grammar's own
 // natural declaration order (its first rule). Set only by the start-rule picker.
