@@ -194,8 +194,10 @@ object Main:
     args.headOption match
       case None => die("strip: no grammar file given")
       case Some(file) if isNativeGrmk(file) =>
-        die(s"strip: $file is already native `.grmk` (first-class, not a projection of anything " +
-          "to strip) — use `gramark fmt` on it directly")
+        die(
+          s"strip: $file is already native `.grmk` (first-class, not a projection of anything " +
+            "to strip) — use `gramark fmt` on it directly"
+        )
       case Some(file) =>
         readFile(file) match
           case Left(err) => die(s"strip: cannot read $file: $err")

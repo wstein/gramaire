@@ -19,7 +19,7 @@ class BackendJsSuite extends munit.FunSuite:
   private def emitJs(name: String, g: Grammar): String =
     IR.buildIR(Method.Canonical, name, g) match
       case Left(conflicts) => fail(s"$name should build with no conflicts: $conflicts")
-      case Right(ir) => BackendJs.emit(IR.withActionLang(Some("js"), ir).grammar)
+      case Right(ir)       => BackendJs.emit(IR.withActionLang(Some("js"), ir).grammar)
 
   // For real `.grmk` text (must declare `%lang javascript` itself), mirroring the
   // `gramark emit --backend js` pipeline exactly (BackendGoldenSuite's own convention).
@@ -29,7 +29,7 @@ class BackendJsSuite extends munit.FunSuite:
       case Right(g) =>
         IR.buildIR(Method.Canonical, name, g) match
           case Left(conflicts) => fail(s"$name should build with no conflicts: $conflicts")
-          case Right(ir) => BackendJs.emit(IR.withActionLang(Lr.actionLangOf(md), ir).grammar)
+          case Right(ir)       => BackendJs.emit(IR.withActionLang(Lr.actionLangOf(md), ir).grammar)
 
   private def noPureScriptLeaks(js: String): Unit =
     assert(!js.contains("Just"), js)
@@ -41,7 +41,9 @@ class BackendJsSuite extends munit.FunSuite:
   test("a plain action (no sugar) is unaffected — the pre-existing, already-correct case") {
     val js = emitJs(
       "Plain",
-      Grammar(Vector(Rule("S", Vector.empty, Vector(Alt(Vector(Lit("x")), None, Some("(c) => 1"))))))
+      Grammar(
+        Vector(Rule("S", Vector.empty, Vector(Alt(Vector(Lit("x")), None, Some("(c) => 1")))))
+      )
     )
     assert(js.contains("const actions = [(c) => 1]"), js)
     noPureScriptLeaks(js)
@@ -66,7 +68,9 @@ class BackendJsSuite extends munit.FunSuite:
     noPureScriptLeaks(js)
   }
 
-  test("X* combined with an action recovers the real action, and the list rule builds a real array") {
+  test(
+    "X* combined with an action recovers the real action, and the list rule builds a real array"
+  ) {
     val md =
       "%name Item\n%lang javascript\n\nNAME : /[a-z]+/\n\nItem\n  : head:NAME rest:NAME*   {% (c) => ({ head: c.head, rest: c.rest }) %}\n"
     val js = emitJsFromSource("Item", md)
@@ -85,7 +89,9 @@ class BackendJsSuite extends munit.FunSuite:
     noPureScriptLeaks(js)
   }
 
-  test("the originally-failing shape (Comma<X> mixed with ? and * in one alternative) is now valid JS") {
+  test(
+    "the originally-failing shape (Comma<X> mixed with ? and * in one alternative) is now valid JS"
+  ) {
     val md =
       "%name Item\n%lang javascript\n\nNAME : /[a-z]+/\n\nItem\n  : names:Comma<NAME> '|' tail:NAME? '|' rest:NAME*" +
         "   {% (c) => ({ names: c.names, tail: c.tail, rest: c.rest }) %}\n"

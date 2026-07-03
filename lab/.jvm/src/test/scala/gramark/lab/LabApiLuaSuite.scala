@@ -55,6 +55,7 @@ class LabApiLuaSuite extends munit.FunSuite:
     val resp = LabApi.evaluate(LabRequest(luaGrmk, Some(withSemicolon), Method.Canonical))
     assert(resp.buildOk, s"expected buildOk, diagnostics: ${resp.diagnostics}")
     resp.parse match
-      case None       => fail("expected a parse result")
-      case Some(pass) => assert(pass.accepted, s"expected acceptance with the separator present: $pass")
+      case None => fail("expected a parse result")
+      case Some(pass) =>
+        assert(pass.accepted, s"expected acceptance with the separator present: $pass")
   }

@@ -227,7 +227,7 @@ object GramarkCheck:
           // Optional: absent in every lock predating this field, which all mean "inline" — the
           // only layout that existed before source-collapsing was introduced.
           sourceLayout <- m.get("sourceLayout") match
-            case None                              => Right(SourceLayout.Inline)
+            case None                                    => Right(SourceLayout.Inline)
             case Some(gramark.Json.JString("inline"))    => Right(SourceLayout.Inline)
             case Some(gramark.Json.JString("collapsed")) => Right(SourceLayout.Collapsed)
             case Some(other) => Left(s"lock: unknown sourceLayout $other")
@@ -444,7 +444,9 @@ object GramarkCheck:
   // pulled out here since both layout directions need it.
   private def fenceCloseAt(lines: Vector[String], from: Int, fenceLen: Int): Int =
     var k = from
-    while k < lines.length && !fenceCloseRe.findFirstMatchIn(lines(k)).exists(_.group(1).length >= fenceLen)
+    while k < lines.length && !fenceCloseRe
+        .findFirstMatchIn(lines(k))
+        .exists(_.group(1).length >= fenceLen)
     do k += 1
     k
 
@@ -712,8 +714,7 @@ object GramarkCheck:
 
   def checkNativeStructure(src: String): Vector[String] =
     val fails = Vector.newBuilder[String]
-    if Lr.nameOf(src).isEmpty then
-      fails += "missing required `%name` directive"
+    if Lr.nameOf(src).isEmpty then fails += "missing required `%name` directive"
     Lr.parse(src) match
       case Left(err) => fails += s"grammar does not parse: $err"
       case Right(_)  => ()
@@ -765,7 +766,11 @@ object GramarkCheck:
   // as already-native and leaves it untouched, rather than risk corrupting hand-authored prose).
   def fmtNative(file: String, src: String): String =
     val canonical =
-      src.split("\n", -1).map(_.replaceAll("[ \t]+$", "")).mkString("\n").replaceAll("\n+$", "") + "\n"
+      src
+        .split("\n", -1)
+        .map(_.replaceAll("[ \t]+$", ""))
+        .mkString("\n")
+        .replaceAll("\n+$", "") + "\n"
     if canonical != src then Files.writeString(Path.of(file), canonical)
     val lock = NativeLock(1, sha256(canonical))
     val lockPath = lockPathForNative(file)
