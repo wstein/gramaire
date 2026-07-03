@@ -238,13 +238,18 @@ object Ll:
         if !hasTail then Some((base, posAfter))
         else
           Atn.stateAt(ctx.atn, stateAfter).transitions match
-            case Vector(Transition.RuleCall(_, tailTarget, _)) =>
-              parseTailChain(ctx, ruleName, fold, tailTarget, posAfter).map {
-                case (steps, posFinal) =>
-                  val folded = steps.foldLeft(base) { case (acc, (opIdx, restKids)) =>
-                    tagCst(ctx, ruleName, opIdx, acc +: restKids)
-                  }
-                  (folded, posFinal)
+            case Vector(Transition.RuleCall(_, tailTarget, follow)) =>
+              // Same bracketing as walk/walkSyms's RuleCall case: this is a call into the
+              // synthetic tail rule just as much as any other RuleCall, so a decision inside it
+              // needs the same "control returns to `follow` after I'm done" full-LL context.
+              ctx.cache.pushContext(follow)
+              val stepsResult = parseTailChain(ctx, ruleName, fold, tailTarget, posAfter)
+              ctx.cache.popContext()
+              stepsResult.map { case (steps, posFinal) =>
+                val folded = steps.foldLeft(base) { case (acc, (opIdx, restKids)) =>
+                  tagCst(ctx, ruleName, opIdx, acc +: restKids)
+                }
+                (folded, posFinal)
               }
             case _ => None
     yield result
@@ -272,10 +277,13 @@ object Ll:
         if !hasMore then Some((Vector((origOpIdx, restKids)), posAfter))
         else
           Atn.stateAt(ctx.atn, stateAfter).transitions match
-            case Vector(Transition.RuleCall(_, moreTarget, _)) =>
-              parseTailChain(ctx, ruleName, fold, moreTarget, posAfter).map {
-                case (more, posFinal) =>
-                  ((origOpIdx, restKids) +: more, posFinal)
+            case Vector(Transition.RuleCall(_, moreTarget, follow)) =>
+              // Same bracketing as walk/walkSyms's RuleCall case — see parseFoldedRule's.
+              ctx.cache.pushContext(follow)
+              val moreResult = parseTailChain(ctx, ruleName, fold, moreTarget, posAfter)
+              ctx.cache.popContext()
+              moreResult.map { case (more, posFinal) =>
+                ((origOpIdx, restKids) +: more, posFinal)
               }
             case _ => None
     yield result
