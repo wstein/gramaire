@@ -1,4 +1,5 @@
 import { signal, computed } from "@preact/signals";
+import type { Signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import type { RefObject } from "preact";
 import type {
@@ -404,63 +405,28 @@ function revealLeaf(cst: CstNode, idx: number) {
   collapsedPaths.value = next;
 }
 
-// Draggable grammar/input splitter (M5+, docs/playground-spec.md §6): default 55/45, clamped
-// 28-72. Position is in-memory only (not persisted) — the spec doesn't call for localStorage, so
-// this doesn't add one speculatively. `panesEl` is measured live on every move rather than cached
-// at drag-start, since a cached rect would go stale if the window were resized mid-drag.
-function startGrammarPaneDrag(panesEl: HTMLDivElement) {
+// Draggable splitters (M5+, docs/playground-spec.md §6): grammar/input (default 55/45, clamped
+// 28-72), the bottom drawer (tabs + panel, resized against the top panes as a percentage of the
+// whole Lab height), and the LR/LL walk trace pane — all the same shape, differing only in which
+// signal they drive, its clamp range, and which rect axis the drag reads. `el` is measured live on
+// every move rather than cached at drag-start, since a cached rect would go stale if the window
+// were resized mid-drag.
+function createPaneDrag(
+  el: HTMLDivElement,
+  axis: "x" | "bottom-y",
+  target: Signal<number>,
+  min: number,
+  max: number,
+) {
   return (e: MouseEvent) => {
     e.preventDefault();
     const onMove = (moveEvent: MouseEvent) => {
-      const rect = panesEl.getBoundingClientRect();
-      const pct = ((moveEvent.clientX - rect.left) / rect.width) * 100;
-      grammarPanePercent.value = Math.min(
-        GRAMMAR_PANE_MAX_PERCENT,
-        Math.max(GRAMMAR_PANE_MIN_PERCENT, pct),
-      );
-    };
-    const onUp = () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  };
-}
-
-// The vertical counterpart of startGrammarPaneDrag: resizes the bottom drawer (tabs + panel) against
-// the top panes as a percentage of the whole Lab height, so the chosen layout scales with viewport
-// height the same way the grammar/input split scales with width.
-function startDrawerPaneDrag(labEl: HTMLDivElement) {
-  return (e: MouseEvent) => {
-    e.preventDefault();
-    const onMove = (moveEvent: MouseEvent) => {
-      const rect = labEl.getBoundingClientRect();
-      const pct = ((rect.bottom - moveEvent.clientY) / rect.height) * 100;
-      drawerPanePercent.value = Math.min(
-        DRAWER_PANE_MAX_PERCENT,
-        Math.max(DRAWER_PANE_MIN_PERCENT, pct),
-      );
-    };
-    const onUp = () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  };
-}
-
-function startLrWalkPaneDrag(walkEl: HTMLDivElement) {
-  return (e: MouseEvent) => {
-    e.preventDefault();
-    const onMove = (moveEvent: MouseEvent) => {
-      const rect = walkEl.getBoundingClientRect();
-      const pct = ((moveEvent.clientX - rect.left) / rect.width) * 100;
-      lrWalkTracePercent.value = Math.min(
-        LR_WALK_TRACE_MAX_PERCENT,
-        Math.max(LR_WALK_TRACE_MIN_PERCENT, pct),
-      );
+      const rect = el.getBoundingClientRect();
+      const pct =
+        axis === "x"
+          ? ((moveEvent.clientX - rect.left) / rect.width) * 100
+          : ((rect.bottom - moveEvent.clientY) / rect.height) * 100;
+      target.value = Math.min(max, Math.max(min, pct));
     };
     const onUp = () => {
       document.removeEventListener("mousemove", onMove);
@@ -668,7 +634,14 @@ export default function LabIsland() {
           aria-valuemax={GRAMMAR_PANE_MAX_PERCENT}
           aria-valuenow={Math.round(grammarPanePercent.value)}
           onMouseDown={(e) => {
-            if (panesRef.current) startGrammarPaneDrag(panesRef.current)(e);
+            if (panesRef.current)
+              createPaneDrag(
+                panesRef.current,
+                "x",
+                grammarPanePercent,
+                GRAMMAR_PANE_MIN_PERCENT,
+                GRAMMAR_PANE_MAX_PERCENT,
+              )(e);
           }}
         />
         <div class="lab__pane lab__pane--fill">
@@ -722,7 +695,14 @@ export default function LabIsland() {
         aria-valuemax={DRAWER_PANE_MAX_PERCENT}
         aria-valuenow={Math.round(drawerPanePercent.value)}
         onMouseDown={(e) => {
-          if (labRef.current) startDrawerPaneDrag(labRef.current)(e);
+          if (labRef.current)
+            createPaneDrag(
+              labRef.current,
+              "bottom-y",
+              drawerPanePercent,
+              DRAWER_PANE_MIN_PERCENT,
+              DRAWER_PANE_MAX_PERCENT,
+            )(e);
         }}
       />
       <div
@@ -1776,7 +1756,14 @@ function WalkBody<S extends { index: number }>({
         aria-valuemax={LR_WALK_TRACE_MAX_PERCENT}
         aria-valuenow={Math.round(lrWalkTracePercent.value)}
         onMouseDown={(e) => {
-          if (walkRef.current) startLrWalkPaneDrag(walkRef.current)(e);
+          if (walkRef.current)
+            createPaneDrag(
+              walkRef.current,
+              "x",
+              lrWalkTracePercent,
+              LR_WALK_TRACE_MIN_PERCENT,
+              LR_WALK_TRACE_MAX_PERCENT,
+            )(e);
         }}
       />
 
