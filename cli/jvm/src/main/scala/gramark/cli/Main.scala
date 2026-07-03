@@ -228,7 +228,45 @@ object Main:
       )
     )
     println(s"conformance: ${summary.passed}/${summary.total} checks passed ($corpus corpus)")
-    if summary.failures.nonEmpty then sys.exit(1)
+
+    val llFailures = descriptors.flatMap(runLlStarConformance)
+    llFailures.foreach(f => Console.err.println(s"  FAIL ll-star/$f"))
+
+    if summary.failures.nonEmpty || llFailures.nonEmpty then sys.exit(1)
+
+  // The same descriptor's vectors through Ll.recognize (Gramark's own ALL(*) idiom, not
+  // ANTLR's): a tracking cache reports the DFA cache's hit rate and every decision resolved by
+  // declaration order rather than unique disambiguation — `explain-conflict`'s ALL(*)
+  // counterpart, gated on real example input since ALL(*) has no purely static conflict table to
+  // consult the way LR does. Returns a description of every vector Ll.recognize disagreed with
+  // the LR oracle on (should never happen — LlSuite/ConformanceSuite already prove this
+  // exhaustively — but conformance is exactly where a silent regression would first show).
+  private def runLlStarConformance(d: Descriptor): Vector[String] =
+    val cache =
+      new AtnSim.Cache(track = true) // fresh per grammar: state ids aren't shared across Atns
+    val failures = d.vectors.flatMap { v =>
+      val want = v.expect == Outcome.Accept
+      d.lexer(v.input) match
+        case Left(_) =>
+          if want then Some(s"${d.language}/${v.name}: lex failed but expected accept") else None
+        case Right(toks) =>
+          val got = Ll.recognize(d.grammar, toks, cache)
+          if got == want then None
+          else Some(s"${d.language}/${v.name}: expected $want, got $got")
+    }
+    if cache.ambiguities.nonEmpty then
+      println(
+        s"ll-star: ${d.language} — ${cache.ambiguities.length} decision(s) resolved by declaration order:"
+      )
+      cache.ambiguities.distinct.foreach { a =>
+        println(
+          s"  decision in rule `${a.rule}` is ambiguous between alts ${a.alts.mkString(", ")} at input position ${a.pos}"
+        )
+      }
+    val total = cache.hits + cache.misses
+    val hitPct = if total == 0 then 0.0 else cache.hits.toDouble / total * 100
+    println(f"ll-star: ${d.language} — ${cache.hits}/$total%d DFA cache hits ($hitPct%.1f%%)")
+    failures
 
   // Load a corpus descriptor whose grammar lives in a file; absent or
   // unparseable means the language is skipped, not a failure.
