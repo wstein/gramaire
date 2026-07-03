@@ -22,6 +22,7 @@ import type {
 } from "./worker";
 import { DEFAULT_SOURCE, DEFAULT_INPUT, EXAMPLES } from "./examples";
 import type { LabExample } from "./examples";
+import { internalErrorResponse } from "./internalDiagnosticResponse";
 import "./lab.css";
 
 // Tier 0/1 v1 slice (docs/playground-spec.md §6) was Result, Tokens, Parse
@@ -166,31 +167,13 @@ let latestSentId = 0;
 let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
 // A synthesized LabResponse for a failure that never produced a WorkerResponseMessage at all — see
-// worker.onerror below. Same single-internal-diagnostic shape worker.ts's own
-// staleEngineResponse/engineErrorResponse use, so Output renders it identically; kept as a small
-// local copy rather than an import from worker.ts, since importing that module would also run its
-// top-level side effects (self.onmessage/the engine dynamic import) on the main thread.
+// worker.onerror below. `internalErrorResponse` is the same single-internal-diagnostic shape
+// worker.ts's own staleEngineResponse/engineErrorResponse build from, so Output renders it
+// identically; safe to import directly here (unlike worker.ts itself, which would also run its
+// top-level side effects — self.onmessage/the engine dynamic import — on the main thread).
+// `labProtocolVersion: 0` since this failure never reached a real engine response to read one from.
 function workerErrorResponse(message: string): LabResponse {
-  return {
-    labProtocolVersion: 0,
-    buildOk: false,
-    diagnostics: [
-      {
-        severity: "error",
-        stage: "internal",
-        message,
-        span: null,
-        notes: [],
-        rendered: `error: ${message}`,
-      },
-    ],
-    parse: null,
-    productions: null,
-    forest: null,
-    analysis: null,
-    evaluatorJs: null,
-    atn: null,
-  };
+  return internalErrorResponse(0, message);
 }
 
 function ensureWorker(): Worker {
