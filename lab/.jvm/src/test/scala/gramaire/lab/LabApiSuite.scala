@@ -488,6 +488,18 @@ class LabApiSuite extends munit.FunSuite:
       !resp.diagnostics.exists(_.severity == "error"),
       s"an ll-star build has no fatal errors from an LR conflict alone, got: ${resp.diagnostics}"
     )
+    val conflictWarning =
+      resp.diagnostics.find(d => d.severity == "warning" && d.message.contains("conflict"))
+    assert(
+      conflictWarning.exists(_.notes.exists(_.contains("give"))),
+      s"expected the LR-only remedy note to survive the downgrade, got: $conflictWarning"
+    )
+    assert(
+      conflictWarning.exists(
+        _.notes.exists(n => n.contains("ALL(*)") && n.contains("declaration order"))
+      ),
+      s"expected an ALL(*)-specific note explaining it resolves this tie right now, got: $conflictWarning"
+    )
     resp.atn match
       case None => fail("expected atn diagnostics")
       case Some(d) =>

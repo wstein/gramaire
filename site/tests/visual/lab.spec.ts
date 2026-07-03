@@ -986,6 +986,21 @@ test("Engine=ALL(*) still builds an LR-conflicted grammar, with the conflict as 
     "1 warning",
   );
 
+  // Output (the active tab) still shows the LR-only remedy note verbatim ("give X a precedence...
+  // enable GLR") — true advice for the LR/GLR methods — but under ALL(*) that alone would leave a
+  // reader wondering why the grammar built at all; the ALL(*)-specific note explains what's
+  // actually happening to THIS parse right now.
+  await expect(page.locator(".lab__diagnostic-message")).toContainText(
+    "conflict",
+  );
+  await expect(page.locator(".lab__diagnostic-notes")).toContainText(
+    "enable GLR",
+  );
+  await expect(page.locator(".lab__diagnostic-notes")).toContainText("ALL(*)");
+  await expect(page.locator(".lab__diagnostic-notes")).toContainText(
+    "declaration order",
+  );
+
   await page.click('button[role="tab"]:has-text("ATN")');
   await expect(page.locator(".lab__panel")).toContainText("accepted");
   await expect(page.locator(".lab__panel .lab__table tbody tr")).toHaveCount(1);

@@ -181,7 +181,15 @@ object LabApi:
                 .conflictDiagnostics(grammar, spans, conflicts)
                 .map(d =>
                   toDiagnosticInfo(
-                    d.copy(severity = Severity.Warning),
+                    // `d.notes` still carries the LR-only remedy text ("give X a precedence...
+                    // enable GLR") verbatim — true advice for the LR/GLR methods, but silent on
+                    // what ALL(*) itself is doing about the SAME conflict right now. Append,
+                    // rather than replace, so both readings stay visible together.
+                    d.copy(
+                      severity = Severity.Warning,
+                      notes = d.notes :+
+                        "note: under ALL(*), ties like this one are resolved by declaration order — the parse shown reflects that resolution, not a fix to the grammar."
+                    ),
                     grammarSourceName,
                     src,
                     spanSafe
