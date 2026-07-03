@@ -938,6 +938,14 @@ test("Engine=ALL(*) exposes an LR method control, so All parses stays changeable
   await expect(lrMethod).toBeVisible();
   await expect(lrMethod).toHaveValue("Canonical");
 
+  // Engine and LR method sit right next to each other and, by default, look like two identical
+  // peer controls — real risk of clicking the wrong one. The secondary control carries its own
+  // modifier class giving it a visually distinct, "attached to Engine" look (smaller, tucked
+  // close, an accent-colored edge), not just a different label.
+  await expect(page.locator("label.lab__method--secondary")).toContainText(
+    "LR method",
+  );
+
   await page.click('button[role="tab"]:has-text("All parses")');
   await expect(page.locator(".lab__provenance")).toContainText("Canonical");
 
@@ -981,6 +989,13 @@ test("the Engine picker explains ALL(*) before it's selected, not just after", a
   await expect(page.getByLabel("Engine")).toHaveAttribute(
     "title",
     /Output.*Parse tree.*Evaluate/,
+  );
+
+  // The title tooltips above never fire on touch, and never fire while arrowing through an open
+  // <select> with a keyboard either — the option's own VISIBLE text has to carry the same
+  // explanation as real, always-readable content, not just a hover-only attribute.
+  await expect(page.locator('option[value="ll-star"]')).toHaveText(
+    /survives LR conflicts/,
   );
 });
 
