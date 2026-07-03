@@ -1228,10 +1228,7 @@ function AllParsesPanel() {
   const ambiguous = forest.parses.length > 1;
   return (
     <div>
-      <ProvenanceNote
-        show={strategy.value === "ll-star" || method.value !== "Canonical"}
-        text="via GLR — Canonical LR(1), regardless of Engine"
-      />
+  
       <p
         class={`lab__forest-status lab__forest-status--${ambiguous ? "ambiguous" : "ok"}`}
       >
