@@ -39,9 +39,9 @@ table) still parse; (b) **semantic predicates** for context-sensitive languages
 (C typedef-vs-expression, indentation, versioned dialects); (c) a parsing model
 that maps 1:1 onto the most-used generator on earth, easing migration _into_
 Gramark. The cost is a second engine to build and maintain, and a runtime
-predictor that is stateful (a mutable DFA cache) — which the Scala port must
-express as local mutability behind a pure result (`ST`-in-spirit; see §7), not
-a free lunch. **This cache does not exist yet** — see Phase 1.
+predictor that is stateful (a mutable DFA cache) — which the Scala port
+expresses as local mutability behind a pure result (`ST`-in-spirit; see §7),
+not a free lunch. **Built** (Phase 1) — see `AtnSim.Cache`.
 
 **Framing decision (ADR-to-be):** LR stays the default and the self-hosting
 engine. ALL(\*) is opt-in per grammar. The narrow waist holds: both engines emit
@@ -166,12 +166,29 @@ are the parsing core; 3–6 are the language and product surface.
   ahead exactly as far as the alternatives need to be told apart. **SLL**
   mode: an empty-stack return is a lookahead leaf, not resolved against the
   full calling context.
+- ✅ **The lazy DFA cache** (`AtnSim.Cache`, in `AtnSim.scala`) memoizes the two
+  closure computations `predict` used to redo on every visit: a decision's
+  start closure (keyed by decision id) and the reach-on-one-token step (keyed
+  by the _set_ of live configs plus the consumed terminal — never by input
+  position). `Ll.recognize` creates one `Cache` per top-level call and threads
+  it through the walk. Config `state` ids are dense and globally unique across
+  the whole `Atn`, so two decisions can only share a cached result by
+  genuinely converging on the same continuation — the intended DFA-state-
+  sharing behavior, not a hazard. **Benchmark (`LlBenchmarkSuite.scala`,
+  JVM-only):** a synthetic `json` array of N structurally-identical objects
+  (every element revisits the same decisions) shows sub-quadratic growth — a
+  10x input increase costs ~6-6.5x wall time empirically (asserted at < 40x,
+  generous enough to absorb JIT/GC noise while still catching a regression to
+  no caching at all, which would show ~100x); `Ll.recognize` runs at roughly
+  1.5-2x the LR interpreter's wall time on the same input (informational, not
+  asserted — the two engines have different per-step overhead by design).
 - **Two interim devices not in the original ALL(\*) algorithm**, standing in
   for machinery this port hasn't built yet:
   - a `maxDepth = 80` closure-recursion cap (`AtnSim.scala`) — a totality guard
-    so a left-recursive closure can't loop forever in the absence of a real DFA
-    cache; it bounds lookahead depth as a side effect, which a pathological
-    grammar could exceed.
+    bounding how many nested `RuleCall`s a _single_ closure computation may
+    follow without consuming input, independent of the cache (the cache avoids
+    _repeating_ a closure, it does not bound any one closure's own recursion);
+    a pathological grammar could still exceed it.
   - a `preferCompleted` "belongs-to-caller" heuristic (`AtnSim.scala`) — when
     the next token can't be consumed, prefer an alternative whose configuration
     reached an empty-stack `RuleStop`. This approximates full-context
@@ -193,16 +210,14 @@ are the parsing core; 3–6 are the language and product surface.
   also runs the left-recursive `lr` bootstrap (45 productions) via
   `Conformance.lrVectors`, and the JVM-only
   [`ConformanceSuite.scala`](../core/.jvm/src/test/scala/gramark/ConformanceSuite.scala)
-  runs the file-backed `calc` corpus top-down — both matching the LR oracle on
-  every vector. **Gap:** `json` is never run through `Ll.recognize`, in any
-  suite; `calc-prec` and `ECMA-404` likewise never reach the LL path.
-- ⏳ **Deferred:** the lazy DFA cache (no caching at all today — every
-  `predict` call recomputes closure/move from scratch, so prediction is not yet
-  amortized-linear), full **LL** (full-context) fallback (only SLL exists; no
-  `PredictionMode`, no ambiguity-triggered retry), and a `Cst`-producing
-  `Gramark.Ll.parse`. The Phase-1 benchmark gate this plan calls for (LL vs the
-  LR interpreter on `json`, §6) has not been run — there is no LL/`json`
-  corpus to benchmark yet.
+  runs the file-backed `calc` **and `json`** corpora top-down — all three
+  matching the LR oracle on every vector (`json`'s `jsonVectors` cover nested
+  objects/arrays and RFC 8259 syntax errors, including trailing commas, since
+  `Members`/`Elements` are hand left-recursive, not `Comma<X>` sugar). **Gap:**
+  `calc-prec` and `ECMA-404` still never reach the LL path.
+- ⏳ **Deferred:** full **LL** (full-context) fallback (only SLL exists; no
+  `PredictionMode`, no ambiguity-triggered retry) and a `Cst`-producing
+  `Gramark.Ll.parse`.
 
 ### Phase 2 — Left-recursion elimination ✅ recognizer
 
@@ -457,12 +472,14 @@ Principles kept:
   since moved off PureScript onto Scala 3, see the preamble).
 - **Performance.** The DFA cache and config-set interning are hot; needs
   local mutability (a `mutable.HashMap`-backed cache) and care to stay
-  amortized-linear. **Status: the cache does not exist yet** (Phase 1) —
-  `AtnSim.predict` recomputes closure/move from scratch on every call, so the
-  amortized-linear property this design depends on does not currently hold.
-  The benchmark this risk calls for (LL vs the LR interpreter on `json`, early
-  Phase 1 gate) has not been run — building the DFA cache is the prerequisite
-  to running it meaningfully.
+  amortized-linear. **Status: built** (Phase 1, `AtnSim.Cache`). The benchmark
+  this risk called for (LL vs the LR interpreter on `json`) is now
+  `LlBenchmarkSuite`: empirically, a 10x input increase costs ~6-6.5x wall
+  time (well short of quadratic) and `Ll.recognize` runs at roughly 1.5-2x the
+  LR interpreter's wall time on the same input. Config-set interning beyond
+  the cache itself (e.g. deduplicating `Config`/`PredictionContext` values by
+  identity rather than structural equality, as ANTLR's own implementation
+  does) remains unexplored — not yet shown to matter at this corpus's scale.
 - **Predicate import gating (`multi-backend-implementation-plan.md` ADR
   D41/D42).** Today's converter still flags-and-drops `{ p }?` on import
   (Phase 3). The prerequisite ADR D41 named — an IR-level effect declaration —
@@ -476,10 +493,10 @@ Principles kept:
 ## 7. Scala realization notes
 
 - Mutable DFA/config caches: a local mutable region threaded through
-  prediction (e.g. a `mutable.HashMap` built and discarded per call, or a
-  longer-lived cache owned by the interpreter) — not yet built (Phase 1); the
-  _result_ (the chosen alt / the CST) should stay pure regardless of how the
-  cache is implemented.
+  prediction — built (Phase 1, `AtnSim.Cache`): a `mutable.HashMap`-backed
+  cache created fresh per top-level `Ll.recognize` call and threaded through
+  the walk, never persisted or shared across calls. The _result_ (the chosen
+  alt) stays pure; only the cache's internal bookkeeping mutates.
 - Reference-equality interning (ANTLR uses object identity for
   configs/contexts) becomes structural equality: Scala `case class`/`enum`
   values already compare structurally, so this falls out of the port for free
@@ -504,10 +521,12 @@ Principles kept:
    invariant checks this step originally claimed are still open (Phase 0 gap).
 2. **Phase 1 ✅ (partial)** — SLL prediction behind `--strategy ll-star`;
    accept/reject parity with LR proven on five hand grammars + the `lr`
-   bootstrap + `calc` (not `json`). **This was the keystone claim — it holds
-   for the corpus tested, but the engine still lacks the DFA cache that makes
-   it amortized-linear**, so "the engine is real" should read "the engine is
-   correct on this corpus," performance unproven.
+   bootstrap + `calc` + `json`. **This was the keystone claim, and it now
+   holds with performance evidence too**: the DFA cache (`AtnSim.Cache`)
+   makes prediction amortized-linear (empirically sub-quadratic — a 10x
+   `json` input costs ~6-6.5x wall time, `LlBenchmarkSuite`), so "the engine
+   is real" now covers both correctness on this corpus and a demonstrated
+   performance property, not just the former.
 3. **Phase 2 ✅ (recognizer only)** — left recursion (direct only); unlocks the
    "write it the obvious way" demo for accept/reject, not yet for
    precedence-correct trees.
@@ -520,8 +539,9 @@ Principles kept:
 
 **Remaining work, roughly in dependency order:**
 
-a. the lazy DFA cache + the Phase-1 `json` benchmark gate (unblocks the
-   amortized-linear performance claim);
+a. ~~the lazy DFA cache + the Phase-1 `json` benchmark gate~~ — **done**:
+   `AtnSim.Cache`, `json` wired into the `Ll.recognize` corpus gate, and
+   `LlBenchmarkSuite` proving sub-quadratic growth.
 b. a `Cst`-producing `Ll.parse` + the precedence-climbing left-recursion
    rewrite (unlocks `examples/calc-prec` under `ll-star`);
 c. full-LL (full-context) fallback beyond SLL;
@@ -532,8 +552,9 @@ e. an ATN-consuming backend (the `IR.atn` substrate already ships; nothing
 f. Phase 6: ALL(\*)-native ambiguity/prediction diagnostics, `--profile`
    (under a name that doesn't collide with the codegen `--profile <lang>`),
    and a Lab strategy/ATN surface;
-g. corpus widening — run `json`/`calc-prec`/`ECMA-404` through `Ll.recognize`,
-   and pin ATN construction invariants over real (not hand-built) grammars.
+g. corpus widening — `json` now runs through `Ll.recognize` (done, see a.);
+   `calc-prec`/`ECMA-404` still don't, and no test pins ATN construction
+   invariants over a real (not hand-built) grammar (open Phase 0 gap).
 
 Land each phase green across `make test` (sbt, JVM + Scala.js), `make lint`,
 and the site, with a conformance column proving the new engine agrees with the
