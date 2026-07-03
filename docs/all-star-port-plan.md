@@ -189,11 +189,14 @@ are the parsing core; 3–6 are the language and product surface.
     follow without consuming input, independent of the cache (the cache avoids
     _repeating_ a closure, it does not bound any one closure's own recursion);
     a pathological grammar could still exceed it.
-  - a `preferCompleted` "belongs-to-caller" heuristic (`AtnSim.scala`) — when
-    the next token can't be consumed, prefer an alternative whose configuration
-    reached an empty-stack `RuleStop`. This approximates full-context
-    resolution without actually doing it; it is the SLL engine's substitute for
-    the full-LL fallback (below).
+  - a "prefer completed" heuristic (`resolve`, `AtnSim.scala`) — when the next
+    token can't be consumed, prefer an alternative whose configuration reached
+    an empty-stack `RuleStop`. Surprisingly effective on its own: it already
+    resolves the overwhelming majority of what looks like an SLL tie (e.g.
+    "is there another list element" — only one alt's config is ever actually
+    complete, the rest are simply still pending or dead) without needing the
+    full-LL fallback (below) at all — that fallback earns its cost only on a
+    _genuine_ tie this heuristic can't already break.
 - ✅ A top-down recognizer `Gramark.Ll.recognize` →
   [`Ll.scala`](../core/src/main/scala/gramark/Ll.scala) drives the ATN with the
   predictor and the token stream, accepting iff the start rule consumes the
@@ -217,8 +220,46 @@ are the parsing core; 3–6 are the language and product surface.
   objects/arrays and RFC 8259 syntax errors, including trailing commas, since
   `Members`/`Elements` are hand left-recursive, not `Comma<X>` sugar). **Gap:**
   `calc-prec` and `ECMA-404` still never reach the LL path.
-- ⏳ **Deferred:** full **LL** (full-context) fallback (only SLL exists; no
-  `PredictionMode`, no ambiguity-triggered retry).
+- ✅ **Full-LL (full-context) fallback.** SLL vs full-LL is entirely a
+  question of what a closure's _initial_ stack is seeded with — SLL seeds
+  `Nil` (a rule-return with nothing on the stack is an opaque lookahead leaf,
+  discarding the real calling context); a full-LL retry seeds the actual
+  calling context instead, and the _same_ `closure`/`move` machinery
+  naturally continues past the return using it. `predict` tries SLL first
+  (cheap, and what the DFA cache amortizes — a `Nil`-seeded closure for a
+  given decision is identical regardless of call site) and retries with the
+  real context — threaded via `AtnSim.Cache.pushContext`/`popContext`, pushed
+  and popped by `Ll`'s own `RuleCall` handling in exact lockstep with the
+  actual recursive descent — **only on a confirmed tie** (checked via the
+  "prefer completed" heuristic above, not merely "`uniqueAlt` never fired
+  mid-stream" — conflating the two was an early draft's real performance bug,
+  caught by `LlBenchmarkSuite`: it retried on nearly every decision,
+  regressing the DFA cache's amortized-linear benchmark from ~6x to ~34x
+  growth for a 10x input; gating on a genuine tie brought it to ~4.4x,
+  _better_ than before this feature). A second bug the same benchmark caught:
+  depth-capping (`maxDepth`) measured the closure's _total_ stack length, but
+  a retry's seed is real, already-paid-for parse depth, not runaway left
+  recursion — deeply-nested-but-ordinary input immediately exceeded the cap
+  before any exploration happened, spuriously rejecting valid input; fixed to
+  measure depth relative to the seed. **Scope:** this tracks a single real
+  calling-context stack (the actual `RuleCall` chain at the point of the
+  decision), not ANTLR's full `PredictionContext` DAG merging multiple
+  simultaneously-possible contexts — a real, working fallback for the common
+  case, not the most sophisticated corner of ALL(\*).
+  **Test (`LlSuite.scala`):** the full differential-oracle suite (six hand
+  grammars, the `lr`/`calc`/`json` corpora, `calc-prec`'s precedence
+  ambiguity) all still pass unchanged — proving no regression — plus two new
+  tests: `Cache.pushContext`/`popContext` behave as a plain stack, and a
+  nested parse (three levels of the "balanced nesting" grammar) fully
+  unwinds its context (`currentContext == Nil`) after `Ll.recognize`
+  returns, whether the input was accepted or rejected — proving the
+  push/pop discipline across every `RuleCall` site stays balanced. A
+  hand-constructed "SLL ties, full context rescues it" grammar was
+  deliberately not attempted: constructing one that isn't _also_ a genuine,
+  irreducible grammar ambiguity (which even full context can't and shouldn't
+  resolve) turned out to be a subtle exercise even by hand — the "prefer
+  completed" heuristic above already resolves most everyday cases without
+  reaching the fallback at all.
 
 ### Phase 2 — Left-recursion elimination ✅ recognizer + Cst
 
@@ -619,7 +660,11 @@ b. ~~a `Cst`-producing `Ll.parse` + precedence-climbing left recursion~~ —
    composing with it, both proven byte-for-byte against the LR oracle's `Cst`
    — real grammars (`calc`, `json`, `calc-prec` itself, the last against
    `Table.buildTablesForP`) as well as hand-built ones;
-c. full-LL (full-context) fallback beyond SLL;
+c. ~~full-LL (full-context) fallback beyond SLL~~ — **done**: `predict`
+   retries seeded with the real calling context on a confirmed SLL tie
+   (`AtnSim.Cache.pushContext`/`popContext`). Tracks a single real context,
+   not ANTLR's full `PredictionContext` DAG merging — a working fallback for
+   the common case, not the most sophisticated corner of ALL(\*);
 d. `{%? %}` front-end parsing that populates `rules[].predicate` (ADR D42) and
    upgrades the ANTLR importer from flag-and-drop to a real predicate node;
 e. an ATN-consuming backend (the `IR.atn` substrate already ships; nothing
