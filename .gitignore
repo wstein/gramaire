@@ -14,8 +14,6 @@ metals.sbt
 # Editor / OS
 .DS_Store
 
-# Derived raw grammar projections (gramark strip); never authoritative (ADR D36)
-*.grmk
 scratchpad/
 
 # Metals build artifacts

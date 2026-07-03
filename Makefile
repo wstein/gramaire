@@ -10,8 +10,15 @@ export PATH := /opt/homebrew/bin:$(PATH)
 # deliberate showcase exceptions that opt out of the CI drift-gate contract.
 # Keep EXAMPLE_EXCLUDE in sync with GramarkCheckSuite.scala's `gatedFiles`
 # (the Scala-side source of truth this glob mirrors).
-EXAMPLE_EXCLUDE := examples/ingnored.grmk.md
+EXAMPLE_EXCLUDE := examples/ECMA-404.grmk.md
 EXAMPLE_FILES := $(filter-out $(EXAMPLE_EXCLUDE),$(shell find grammar examples -name '*.grmk.md' | sort))
+
+# Native `.grmk` files (ADR D36, first-class since GramarkCheck's native check/fmt/lock gate) —
+# standalone ones only, i.e. those with no `.grmk.md` sibling. A `.grmk` that DOES have a sibling
+# is that sibling's derived, gitignored `strip` projection, already swept by strip-examples above
+# via the `.grmk.md` file list, not a first-class file of its own.
+NATIVE_EXAMPLE_FILES := $(shell find grammar examples -name '*.grmk' | sort | \
+	while read -r f; do [ -f "$$f.md" ] || echo "$$f"; done)
 
 # Gramark project task manager
 # Provides a unified interface for building, testing, and developing across:
@@ -35,13 +42,13 @@ help:
 	@echo "  make test          Run all tests (core, cli)"
 	@echo "  make test-core     Run the Scala test suite (sbt test)"
 	@echo ""
-	@echo "Grammar files (.grmk.md):"
-	@echo "  make fmt FILE=x.grmk.md      Regenerate one file's tables/diagrams/lock"
-	@echo "  make check FILE=x.grmk.md    Check one file's structure + drift gates"
-	@echo "  make strip FILE=x.grmk.md    Regenerate one file's native .grmk projection"
-	@echo "  make regen-examples          Regenerate all discovered example files"
-	@echo "  make check-examples          Check all discovered example files"
-	@echo "  make strip-examples          Regenerate native .grmk projections for all examples"
+	@echo "Grammar files (.grmk.md and first-class .grmk):"
+	@echo "  make fmt FILE=x.grmk.md|x.grmk      Regenerate one file's tables/diagrams/lock"
+	@echo "  make check FILE=x.grmk.md|x.grmk    Check one file's structure + drift gates"
+	@echo "  make strip FILE=x.grmk.md           Regenerate one .grmk.md's native .grmk projection"
+	@echo "  make regen-examples                 Regenerate all discovered example files"
+	@echo "  make check-examples                 Check all discovered example files"
+	@echo "  make strip-examples                 Regenerate .grmk projections for .grmk.md examples"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  make format        Format all code (Scala)"
@@ -118,20 +125,28 @@ strip:
 	@sbt -batch "cli/runMain gramark.cli.Main strip $(FILE)"
 
 regen-examples:
-	@echo "Regenerating derived artifacts for the discovered example files..."
+	@echo "Regenerating derived artifacts for the discovered .grmk.md example files..."
 	@for f in $(EXAMPLE_FILES); do \
 		sbt -batch "cli/runMain gramark.cli.Main fmt --diagrams=sidecar --inline-source $$f"; \
+	done
+	@echo "Regenerating standalone native .grmk example files..."
+	@for f in $(NATIVE_EXAMPLE_FILES); do \
+		sbt -batch "cli/runMain gramark.cli.Main fmt $$f"; \
 	done
 	@echo "Done — run 'git diff' to review, or 'make check-examples' to verify."
 
 check-examples:
-	@echo "Checking structure + drift for the discovered example files..."
+	@echo "Checking structure + drift for the discovered .grmk.md example files..."
 	@for f in $(EXAMPLE_FILES); do \
+		sbt -batch "cli/runMain gramark.cli.Main check $$f"; \
+	done
+	@echo "Checking structure + drift for standalone native .grmk example files..."
+	@for f in $(NATIVE_EXAMPLE_FILES); do \
 		sbt -batch "cli/runMain gramark.cli.Main check $$f"; \
 	done
 
 strip-examples:
-	@echo "Regenerating native .grmk projections for the discovered example files..."
+	@echo "Regenerating native .grmk projections for the discovered .grmk.md example files..."
 	@for f in $(EXAMPLE_FILES); do \
 		sbt -batch "cli/runMain gramark.cli.Main strip $$f"; \
 	done
