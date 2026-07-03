@@ -131,9 +131,8 @@ object ConvertAntlr:
 
   // ── Parse tree ──────────────────────────────────────────────────────
 
-  // One element: an atom plus an optional repetition suffix. `nonGreedy` marks a
-  // `*?`/`+?`/`??` suffix that was normalized to its greedy form on import (flagged, §warnings).
-  private final case class Elem(atom: Atom, suffix: Suffix, nonGreedy: Boolean = false)
+  // One element: an atom plus an optional repetition suffix.
+  private final case class Elem(atom: Atom, suffix: Suffix)
 
   private enum Atom:
     case ARef(name: String)
@@ -144,8 +143,14 @@ object ConvertAntlr:
     case ANot(inner: Atom)
     case AInline(s: String) // an action/predicate carried as opaque text (flagged, dropped)
 
+  // `nonGreedy` marks a `*?`/`+?`/`??` suffix that was normalized to its greedy form on
+  // import (flagged, §warnings) — carried on the suffix itself, not a separate field on
+  // `Elem`, so `SNone` paired with "non-greedy" is unrepresentable rather than merely unused.
   private enum Suffix:
-    case SNone, SOpt, SStar, SPlus
+    case SNone
+    case SOpt(nonGreedy: Boolean = false)
+    case SStar(nonGreedy: Boolean = false)
+    case SPlus(nonGreedy: Boolean = false)
 
   import Atom.*, Suffix.*
 
@@ -192,16 +197,16 @@ object ConvertAntlr:
 
   // ── Parser ────────────────────────────────────────────────────────
 
-  private def suffixOf(ts: List[Tok]): (Suffix, Boolean, List[Tok]) =
-    // `*?`/`+?`/`??` non-greedy -> greedy; report whether one was stripped.
-    def withSuffix(suffix: Suffix, tail: List[Tok]): (Suffix, Boolean, List[Tok]) = tail match
-      case TQuest :: rest => (suffix, true, rest)
-      case _              => (suffix, false, tail)
+  private def suffixOf(ts: List[Tok]): (Suffix, List[Tok]) =
+    // `*?`/`+?`/`??` non-greedy -> greedy; the suffix itself records whether one was stripped.
+    def withSuffix(mk: Boolean => Suffix, tail: List[Tok]): (Suffix, List[Tok]) = tail match
+      case TQuest :: rest => (mk(true), rest)
+      case _              => (mk(false), tail)
     ts match
-      case TQuest :: tail => withSuffix(SOpt, tail)
-      case TStar :: tail  => withSuffix(SStar, tail)
-      case TPlus :: tail  => withSuffix(SPlus, tail)
-      case _              => (SNone, false, ts)
+      case TQuest :: tail => withSuffix(SOpt(_), tail)
+      case TStar :: tail  => withSuffix(SStar(_), tail)
+      case TPlus :: tail  => withSuffix(SPlus(_), tail)
+      case _              => (SNone, ts)
 
   private def atomFrom(head: Tok, tail: List[Tok]): Option[(Atom, List[Tok])] = head match
     case TId(name) =>
@@ -232,8 +237,8 @@ object ConvertAntlr:
       case head :: tail =>
         atomFrom(head, tail) match
           case Some((atom, rest)) =>
-            val (suf, nonGreedy, rest2) = suffixOf(rest)
-            go(acc :+ Elem(atom, suf, nonGreedy), rest2)
+            val (suf, rest2) = suffixOf(rest)
+            go(acc :+ Elem(atom, suf), rest2)
           case None => go(acc, tail) // skip an unconsumable token defensively
     go(Vector.empty, ts0)
 
@@ -318,9 +323,16 @@ object ConvertAntlr:
   // this — shared with the warning text below so the two can't drift apart.
   private val widenedParserCharset = "."
 
-  // The non-greedy spelling of a suffix (`suffixOf` only sets `nonGreedy` on
-  // SOpt/SStar/SPlus, never SNone, so this always has a real suffix to append to).
+  // The non-greedy spelling of a suffix, for the warning text below — only ever called on
+  // an SOpt/SStar/SPlus already known to be non-greedy, so this always has a real suffix to
+  // append to.
   private def suffixText(s: Suffix): String = renderSuffix(s) + "?"
+
+  private def isNonGreedy(s: Suffix): Boolean = s match
+    case SOpt(ng)  => ng
+    case SStar(ng) => ng
+    case SPlus(ng) => ng
+    case SNone     => false
 
   private def collectWarnings(rules: Vector[G4Rule]): Vector[String] =
     def elemWarn(inLexer: Boolean, ruleName: String, e: Elem): Vector[String] =
@@ -342,7 +354,7 @@ object ConvertAntlr:
           )
         case _ => Vector.empty
       val nonGreedyWarn: Vector[String] =
-        if e.nonGreedy then
+        if isNonGreedy(e.suffix) then
           Vector(
             s"normalized a non-greedy suffix `${suffixText(e.suffix)}` to greedy in rule `$ruleName` (no Core equivalent)"
           )
@@ -427,10 +439,10 @@ object ConvertAntlr:
     s.flatMap(c => if regexMetas.contains(c) then s"\\$c" else c.toString)
 
   private def renderSuffix(s: Suffix): String = s match
-    case SNone => ""
-    case SOpt  => "?"
-    case SStar => "*"
-    case SPlus => "+"
+    case SNone    => ""
+    case SOpt(_)  => "?"
+    case SStar(_) => "*"
+    case SPlus(_) => "+"
 
   private def renderAtom(a: Atom): String = a match
     case ARef(n) => n
