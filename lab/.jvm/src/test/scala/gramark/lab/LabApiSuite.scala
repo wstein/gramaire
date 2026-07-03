@@ -564,6 +564,24 @@ class LabApiSuite extends munit.FunSuite:
     assertEquals(resp.parse.flatMap(_.llTrace), None)
   }
 
+  // `capSteps` is the single mechanism both `parseInput`'s `trace` and `parseInputLl`'s `llTrace`
+  // route through — testing it directly against a synthetic vector (instead of forcing a real
+  // multi-thousand-step parse through the engine) proves the cap without also exercising
+  // `Parser.walk`'s O(n) per-step stack/remaining-input snapshots or `Ll.walkSyms`'s per-symbol
+  // recursion, both of which have their own pre-existing memory/stack-depth ceilings on a parse
+  // that long — unrelated to, and far more expensive than, the cap itself.
+  test("LabApi.capSteps truncates a step vector at the trace/llTrace size limit") {
+    val huge = Vector.fill(LabApi.traceCap * 2)(())
+    val capped = LabApi.capSteps(huge)
+    assertEquals(capped.length, LabApi.traceCap)
+    assertEquals(capped, Vector.fill(LabApi.traceCap)(()))
+  }
+
+  test("LabApi.capSteps is a no-op under the cap") {
+    val small = Vector(1, 2, 3)
+    assertEquals(LabApi.capSteps(small), small)
+  }
+
   test("LabResponse.serialize is valid, canonical JSON (parse . stringify is the identity)") {
     // Json.stringify sorts object keys ascending; Json.parse preserves
     // whatever order the text had, so comparing a parsed JObject's Vector

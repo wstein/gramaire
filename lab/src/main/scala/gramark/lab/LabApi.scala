@@ -54,6 +54,19 @@ object LabApi:
   // grammar's shape without a pathological grammar's parse count blowing up the response.
   private val forestCap = 50
 
+  // `trace`/`llTrace` step count cap: under ll-star a grammar with unresolved LR conflicts (which
+  // used to short-circuit to `parse = None` under `lr`, never reaching `Parser.walk`) now runs a
+  // full `Ll.parseTraced` walk on every 200ms-debounced keystroke, with no table-driven bound on
+  // step count the way LR's own walk has. Mirrors `forestCap`'s cap-not-fail pattern rather than
+  // adding a step budget to the engine itself.
+  private[lab] val traceCap = 5000
+
+  // Factored out so LabApiSuite can pin the cap against a synthetic vector instead of forcing a
+  // real multi-thousand-step parse through the engine — `Parser.walk`'s O(n) per-step stack/
+  // remaining-input snapshots and `Ll.walkSyms`'s per-symbol recursion both have their own,
+  // pre-existing memory/stack-depth costs on a parse that long, unrelated to this cap.
+  private[lab] def capSteps[A](steps: Vector[A]): Vector[A] = steps.take(traceCap)
+
   // The Lab has no real "file" for the grammar source (a browser textarea) or the target input —
   // generic placeholder source names for `Diagnostic.render`'s `-->` line, distinguishing the two
   // artifacts a diagnostic might be about (mirrors `Lr.parse`'s own `<grammar>` convention).
@@ -463,7 +476,8 @@ object LabApi:
           // walk and run are differentially tested to agree (core/src/test/scala/gramark/
           // ParserSuite.scala) — `.toOption` here is defensive, not expected to ever discard a
           // Left in practice, since run() just accepted the exact same table/tokens.
-          val trace = Parser.walk(table, plainTokens).toOption.map(_.map(toLrStepInfo))
+          val trace =
+            Parser.walk(table, plainTokens).toOption.map(steps => capSteps(steps).map(toLrStepInfo))
           ParseResult(
             accepted = true,
             message = None,
@@ -519,7 +533,7 @@ object LabApi:
             labTokens,
             cst = Some(Cst.toJson(cst)),
             trace = None,
-            llTrace = Some(steps.map(toLlStepInfo))
+            llTrace = Some(capSteps(steps).map(toLlStepInfo))
           )
 
   // The ll-star analogue of `diagnosticForInputParseError`: `LlError.expected == Vector("$")`
