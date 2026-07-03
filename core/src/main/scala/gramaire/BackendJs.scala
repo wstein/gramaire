@@ -66,9 +66,9 @@ object BackendJs:
   private[gramaire] def unwrapBinder(code: String): String =
     val trimmed = code.trim
     trimmed match
-      case "\\x -> [x]"             => "(c) => [c[0]]"
-      case "\\xs x -> snoc xs x"    => "(c) => [...c[0], c[1]]"
-      case "\\xs _ x -> snoc xs x"  => "(c) => [...c[0], c[2]]"
+      case "\\x -> [x]"                   => "(c) => [c[0]]"
+      case "\\xs x -> snoc xs x"          => "(c) => [...c[0], c[1]]"
+      case "\\xs _ x -> snoc xs x"        => "(c) => [...c[0], c[2]]"
       case _ if !trimmed.startsWith("\\") => trimmed
       case _ =>
         val i = code.indexOf(" -> ")
@@ -77,7 +77,8 @@ object BackendJs:
           val params = code.substring(1, i).trim.split(" +").toVector.filter(_.nonEmpty)
           val rest = code.substring(i + 4).trim
           val isSyntheticParam = "^[pq][0-9]+$".r
-          if !params.forall(isSyntheticParam.matches) then rest // NormalizedAction: body is final JS
+          if !params.forall(isSyntheticParam.matches) then
+            rest // NormalizedAction: body is final JS
           else if !rest.startsWith("(") then rest // shape mismatch — leave as-is rather than guess
           else
             balancedParen(rest) match

@@ -194,8 +194,10 @@ object Main:
     args.headOption match
       case None => die("strip: no grammar file given")
       case Some(file) if isNativeGram(file) =>
-        die(s"strip: $file is already native `.gram` (first-class, not a projection of anything " +
-          "to strip) — use `gramaire fmt` on it directly")
+        die(
+          s"strip: $file is already native `.gram` (first-class, not a projection of anything " +
+            "to strip) — use `gramaire fmt` on it directly"
+        )
       case Some(file) =>
         readFile(file) match
           case Left(err) => die(s"strip: cannot read $file: $err")
