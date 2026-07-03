@@ -10,8 +10,15 @@ export PATH := /opt/homebrew/bin:$(PATH)
 # deliberate showcase exceptions that opt out of the CI drift-gate contract.
 # Keep EXAMPLE_EXCLUDE in sync with GramaireCheckSuite.scala's `gatedFiles`
 # (the Scala-side source of truth this glob mirrors).
-EXAMPLE_EXCLUDE := examples/ingnored.gram.md
+EXAMPLE_EXCLUDE := examples/ECMA-404.gram.md
 EXAMPLE_FILES := $(filter-out $(EXAMPLE_EXCLUDE),$(shell find grammar examples -name '*.gram.md' | sort))
+
+# Native `.gram` files (ADR D36, first-class since GramaireCheck's native check/fmt/lock gate) —
+# standalone ones only, i.e. those with no `.gram.md` sibling. A `.gram` that DOES have a sibling
+# is that sibling's derived, gitignored `strip` projection, already swept by strip-examples above
+# via the `.gram.md` file list, not a first-class file of its own.
+NATIVE_EXAMPLE_FILES := $(shell find grammar examples -name '*.gram' | sort | \
+	while read -r f; do [ -f "$$f.md" ] || echo "$$f"; done)
 
 # Gramaire project task manager
 # Provides a unified interface for building, testing, and developing across:
@@ -35,13 +42,13 @@ help:
 	@echo "  make test          Run all tests (core, cli)"
 	@echo "  make test-core     Run the Scala test suite (sbt test)"
 	@echo ""
-	@echo "Grammar files (.gram.md):"
-	@echo "  make fmt FILE=x.gram.md      Regenerate one file's tables/diagrams/lock"
-	@echo "  make check FILE=x.gram.md    Check one file's structure + drift gates"
-	@echo "  make strip FILE=x.gram.md    Regenerate one file's native .gram projection"
-	@echo "  make regen-examples          Regenerate all discovered example files"
-	@echo "  make check-examples          Check all discovered example files"
-	@echo "  make strip-examples          Regenerate native .gram projections for all examples"
+	@echo "Grammar files (.gram.md and first-class .gram):"
+	@echo "  make fmt FILE=x.gram.md|x.gram      Regenerate one file's tables/diagrams/lock"
+	@echo "  make check FILE=x.gram.md|x.gram    Check one file's structure + drift gates"
+	@echo "  make strip FILE=x.gram.md           Regenerate one .gram.md's native .gram projection"
+	@echo "  make regen-examples                 Regenerate all discovered example files"
+	@echo "  make check-examples                 Check all discovered example files"
+	@echo "  make strip-examples                 Regenerate .gram projections for .gram.md examples"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  make format        Format all code (Scala)"
@@ -118,20 +125,28 @@ strip:
 	@sbt -batch "cli/runMain gramaire.cli.Main strip $(FILE)"
 
 regen-examples:
-	@echo "Regenerating derived artifacts for the discovered example files..."
+	@echo "Regenerating derived artifacts for the discovered .gram.md example files..."
 	@for f in $(EXAMPLE_FILES); do \
 		sbt -batch "cli/runMain gramaire.cli.Main fmt --diagrams=sidecar --inline-source $$f"; \
+	done
+	@echo "Regenerating standalone native .gram example files..."
+	@for f in $(NATIVE_EXAMPLE_FILES); do \
+		sbt -batch "cli/runMain gramaire.cli.Main fmt $$f"; \
 	done
 	@echo "Done — run 'git diff' to review, or 'make check-examples' to verify."
 
 check-examples:
-	@echo "Checking structure + drift for the discovered example files..."
+	@echo "Checking structure + drift for the discovered .gram.md example files..."
 	@for f in $(EXAMPLE_FILES); do \
+		sbt -batch "cli/runMain gramaire.cli.Main check $$f"; \
+	done
+	@echo "Checking structure + drift for standalone native .gram example files..."
+	@for f in $(NATIVE_EXAMPLE_FILES); do \
 		sbt -batch "cli/runMain gramaire.cli.Main check $$f"; \
 	done
 
 strip-examples:
-	@echo "Regenerating native .gram projections for the discovered example files..."
+	@echo "Regenerating native .gram projections for the discovered .gram.md example files..."
 	@for f in $(EXAMPLE_FILES); do \
 		sbt -batch "cli/runMain gramaire.cli.Main strip $$f"; \
 	done
