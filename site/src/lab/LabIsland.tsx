@@ -83,9 +83,9 @@ const GRAMMAR_PANE_MAX_PERCENT = 72;
 const drawerPanePercent = signal(40);
 const DRAWER_PANE_MIN_PERCENT = 20;
 const DRAWER_PANE_MAX_PERCENT = 72;
-const lrWalkTreePercent = signal(40);
-const LR_WALK_TREE_MIN_PERCENT = 28;
-const LR_WALK_TREE_MAX_PERCENT = 72;
+const lrWalkTracePercent = signal(40);
+const LR_WALK_TRACE_MIN_PERCENT = 28;
+const LR_WALK_TRACE_MAX_PERCENT = 72;
 
 // The two source textareas' live DOM nodes, set via callback refs where they render (inside the
 // main component) — plain module-level mutables, same convention as `worker`/`requestId` below,
@@ -454,9 +454,9 @@ function startLrWalkPaneDrag(walkEl: HTMLDivElement) {
     const onMove = (moveEvent: MouseEvent) => {
       const rect = walkEl.getBoundingClientRect();
       const pct = ((moveEvent.clientX - rect.left) / rect.width) * 100;
-      lrWalkTreePercent.value = Math.min(
-        LR_WALK_TREE_MAX_PERCENT,
-        Math.max(LR_WALK_TREE_MIN_PERCENT, pct),
+      lrWalkTracePercent.value = Math.min(
+        LR_WALK_TRACE_MAX_PERCENT,
+        Math.max(LR_WALK_TRACE_MIN_PERCENT, pct),
       );
     };
     const onUp = () => {
@@ -1521,7 +1521,6 @@ function ParseTracePanel() {
 
 function LrWalkPanel() {
   const trace = getTrace();
-  const cst = response.value?.parse?.cst;
   const walkRef = useRef<HTMLDivElement>(null);
   if (!trace || trace.length === 0)
     return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
@@ -1533,25 +1532,42 @@ function LrWalkPanel() {
   return (
     <div class="lab__walk" ref={walkRef}>
       <div
-        class="lab__walk-tree"
-        style={{ flex: `0 0 ${lrWalkTreePercent.value}%` }}
+        class="lab__walk-trace"
+        style={{ flex: `0 0 ${lrWalkTracePercent.value}%` }}
       >
-        <div class="lab__analysis-heading">parse tree</div>
-        {cst ? (
-          <pre class="lab__tree">
-            <CstNodeView node={cst} counter={{ i: 0 }} path="walk" />
-          </pre>
-        ) : (
-          <p class="lab__empty">No parse tree — the input wasn't accepted.</p>
-        )}
+        <div class="lab__analysis-heading">parse trace</div>
+        <table class="lab__table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {trace.map((s) => (
+              <tr
+                key={s.index}
+                class={
+                  s.index === current
+                    ? "lab__walk-row lab__walk-row--current"
+                    : "lab__walk-row"
+                }
+                onClick={() => (walkStep.value = s.index)}
+              >
+                <td class="lab__mono">{s.index}</td>
+                <td class="lab__mono">{actionText(s.action)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       <div
         class="lab__walk-splitter"
         role="separator"
         aria-orientation="vertical"
-        aria-valuemin={LR_WALK_TREE_MIN_PERCENT}
-        aria-valuemax={LR_WALK_TREE_MAX_PERCENT}
-        aria-valuenow={Math.round(lrWalkTreePercent.value)}
+        aria-valuemin={LR_WALK_TRACE_MIN_PERCENT}
+        aria-valuemax={LR_WALK_TRACE_MAX_PERCENT}
+        aria-valuenow={Math.round(lrWalkTracePercent.value)}
         onMouseDown={(e) => {
           if (walkRef.current) startLrWalkPaneDrag(walkRef.current)(e);
         }}
