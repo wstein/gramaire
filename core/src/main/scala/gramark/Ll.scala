@@ -17,18 +17,24 @@ package gramark
 // associative shape, using the provenance `LeftRec.eliminate` carries.
 // Ported from src/Gramark/Ll.purs.
 object Ll:
-  /** Accept `toks` iff the grammar's start rule recognizes the whole stream. */
-  def recognize(g: Grammar, toks: Vector[Token]): Boolean =
+  /** Accept `toks` iff the grammar's start rule recognizes the whole stream. `cache` defaults to a
+    * fresh, untracked one (the common case); pass `new AtnSim.Cache(track = true)` to also collect
+    * DFA-cache hit/miss counts and ambiguities (`explain-conflict`'s ALL(*) path, `--profile`) —
+    * the `Atn` built here is fresh to this call alone, and `AtnSim.Cache`'s state ids are only
+    * meaningful against it, so a cache passed in must not be reused across grammars.
+    */
+  def recognize(g: Grammar, toks: Vector[Token], cache: AtnSim.Cache = new AtnSim.Cache): Boolean =
     Desugar.desugar(g) match
       case Left(_) => false
       case Right(dg) =>
         val atn = AtnBuild.buildAtn(LeftRec.eliminate(dg)._1)
-        // One cache per top-level call: the Atn above is freshly built for this
-        // call alone, and AtnSim.Cache's state ids are only meaningful against it.
-        val cache = new AtnSim.Cache
-        parseRule(atn, atn.start, toks, 0, cache) match
+        val accepted = parseRule(atn, atn.start, toks, 0, cache) match
           case Some(pos) => pos == toks.length
           case None      => false
+        // A tie hit while walking a doomed input isn't a real grammar ambiguity — only ties from
+        // a call that actually recognized the input are worth reporting.
+        if accepted then cache.commitPending() else cache.discardPending()
+        accepted
 
   // Parse the rule whose `RuleStart` is `ruleStart`, from `pos`; return
   // the position after it, or `None` if the input does not match the
@@ -105,9 +111,15 @@ object Ll:
     * rewrite under the hood) and for `## Precedence`-declared, genuinely ambiguous ones (despite
     * ALL(*) parsing them via `PrecClimb.stratify`'s precedence-level cascade), both invisible here.
     * `prec` is the grammar's declared precedence (`Lr.precedenceOf`) — empty if it has none, the
-    * common case, for which `PrecClimb.stratify` is a no-op.
+    * common case, for which `PrecClimb.stratify` is a no-op. `cache` defaults to a fresh, untracked
+    * one; see `recognize`'s doc for when to pass `new AtnSim.Cache(track = true)` instead.
     */
-  def parse(g: Grammar, toks: Vector[Token], prec: Precedence = Table.emptyPrec): Option[Cst] =
+  def parse(
+      g: Grammar,
+      toks: Vector[Token],
+      prec: Precedence = Table.emptyPrec,
+      cache: AtnSim.Cache = new AtnSim.Cache
+  ): Option[Cst] =
     Desugar.desugar(g) match
       case Left(_) => None
       case Right(dg) =>
@@ -121,11 +133,15 @@ object Ll:
           folds,
           indexProductions(dg),
           stratumTags,
-          new AtnSim.Cache
+          cache
         )
-        parseRuleCst(ctx, atn.start, 0) match
+        val result = parseRuleCst(ctx, atn.start, 0) match
           case Some((cst, pos)) if pos == toks.length => Some(cst)
           case _                                      => None
+        // See `recognize`'s identical reasoning: only a tie from a call that actually produced a
+        // Cst is a real grammar ambiguity, not an artifact of walking a doomed input.
+        if result.isDefined then cache.commitPending() else cache.discardPending()
+        result
 
   // The flat index `Table.productions` assigns each (rule, alt) — rules and alts walked in the
   // exact same order — so this matches the LR path's production ids by construction.
