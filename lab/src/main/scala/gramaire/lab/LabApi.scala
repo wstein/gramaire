@@ -161,9 +161,13 @@ object LabApi:
         // `Glr.forest`'s multi-action table never fails (it keeps every conflicting action instead
         // of rejecting), which is exactly what lets a genuinely ambiguous grammar (real conflicts
         // under every method, so `buildOk` is always false under `lr`) still show the All-parses
-        // tab's forest instead of only a diagnostic; `method` still selects the automaton `forest`/
-        // `analysis` are built from even under `ll-star`, where `parse`/`evaluatorJs`/`atn` no
-        // longer depend on it.
+        // tab's forest instead of only a diagnostic. `forest` is always built from `Method.Canonical`
+        // — not `request.method` — regardless of `strategy`: "what parses does this grammar admit"
+        // is a property of the grammar alone, not of which code-gen method the caller happens to
+        // want, and Canonical is this codebase's own designated oracle (`Table.buildTables`'s doc
+        // comment: "the oracle the LALR/IELR constructions are differentially tested against";
+        // `GlrSuite`'s own forest tests already only ever use it). `analysis` similarly never reads
+        // `request.method` — `Table.statsForAll` always reports all three methods at once.
         //
         // No separate `Diagnostics.undefinedNonterminals` call belongs here: `Lr.parseWith` already
         // runs it, as its own last step (`Desugar.desugar(g).flatMap(Diagnostics.checkDefined)`) —
@@ -174,7 +178,7 @@ object LabApi:
         // Lexed once per call, not once per tab: forest/parse below all read the same target-input
         // scan against the same token definitions instead of each re-lexing it.
         val spanned = request.input.map(lexInput(request.source, grammar, _))
-        val forest = spanned.map(forestFor(request.method, grammar, _))
+        val forest = spanned.map(forestFor(Method.Canonical, grammar, _))
         val analysis = Some(analysisOf(prec, grammar))
         // Soft diagnostics (unknown `#[attr]`/`%setting`, an unreachable rule, an unused token
         // class) are independent of whether the target grammar's tables build — a grammar can have

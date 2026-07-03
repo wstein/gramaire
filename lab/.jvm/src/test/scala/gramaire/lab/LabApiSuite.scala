@@ -403,6 +403,18 @@ class LabApiSuite extends munit.FunSuite:
     assert(lalr.parse.exists(_.accepted) && ielr.parse.exists(_.accepted))
   }
 
+  // "What parses does this grammar admit" is a property of the grammar, not of which code-gen
+  // method the caller wants — forest is always Canonical-built (this codebase's own designated
+  // oracle: see Table.buildTables's doc comment) regardless of request.method, unlike
+  // buildOk/parse/evaluatorJs above, which genuinely do vary by method.
+  test("evaluate: forest is always Canonical-built, regardless of request.method") {
+    val canonical = LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.Canonical))
+    val lalr = LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.LALR))
+    val ielr = LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.IELR))
+    assertEquals(lalr.forest, canonical.forest, "LALR's forest should match Canonical's")
+    assertEquals(ielr.forest, canonical.forest, "IELR's forest should match Canonical's")
+  }
+
   test("evaluate: startRule overrides which rule anchors the augmented grammar") {
     // calc.gram.md: Expr -> Term -> Factor. Under the default (Expr) start, "1+2" is a complete
     // Expr. Narrowed to Factor as the start rule, "1+2" is a Factor (the leading NUMBER) followed

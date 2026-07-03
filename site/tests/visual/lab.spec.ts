@@ -915,7 +915,7 @@ test("Engine=ALL(*) drives Parse trace/Walk from Ll.parseTraced, and badges the 
   await expect(page.locator(".lab__provenance")).toHaveCount(0);
 });
 
-test("Engine=ALL(*) exposes an LR method control, so All parses stays changeable", async ({
+test("All parses is always Canonical-built, regardless of Engine — no separate method control", async ({
   page,
 }) => {
   await page.goto("/lab/");
@@ -923,52 +923,51 @@ test("Engine=ALL(*) exposes an LR method control, so All parses stays changeable
     timeout: 5000,
   });
 
-  // Under LR/GLR the merged Engine picker IS the method control — no separate one is shown.
+  // No secondary method control exists anywhere — the merged Engine dropdown is the only
+  // method-adjacent control there is, full stop, under any Engine selection.
   await expect(page.getByLabel("LR method")).toHaveCount(0);
 
+  await page.click('button[role="tab"]:has-text("All parses")');
+  // Default Engine is Canonical, which is also what All parses is always built from — nothing to
+  // disclose since the two already agree.
+  await expect(page.locator(".lab__provenance")).toHaveCount(0);
+
+  // Picking LALR still changes Output/Parse tree/Evaluate (the real, single-result LR table) —
+  // but All parses stays Canonical-built regardless, a real mismatch the note now discloses that
+  // was previously invisible (the note only ever showed under strategy "ll-star" before).
+  await page.getByLabel("Engine").selectOption("LALR");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+  await expect(page.locator(".lab__provenance")).toContainText(
+    "Canonical LR(1)",
+  );
+  await expect(page.getByLabel("LR method")).toHaveCount(0);
+
+  // Same story under ALL(*): still Canonical, still no secondary control to change it with, since
+  // there's nothing left for one to drive.
   await page.getByLabel("Engine").selectOption("ll-star");
   await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
     timeout: 5000,
   });
-
-  // Selecting ALL(*) orphans method.value from the merged dropdown — this secondary control is
-  // the only remaining way to change it, and it still drives All parses (Glr.forest is built for
-  // one specific method) and the status bar's live stats, both of which stay LR/GLR-built.
-  const lrMethod = page.getByLabel("LR method");
-  await expect(lrMethod).toBeVisible();
-  await expect(lrMethod).toHaveValue("Canonical");
-
-  // Engine and LR method sit right next to each other and, by default, look like two identical
-  // peer controls — real risk of clicking the wrong one. The secondary control carries its own
-  // modifier class giving it a visually distinct, "attached to Engine" look (smaller, tucked
-  // close, an accent-colored edge), not just a different label.
-  await expect(page.locator("label.lab__method--secondary")).toContainText(
-    "LR method",
+  await expect(page.locator(".lab__provenance")).toContainText(
+    "Canonical LR(1)",
   );
+  await expect(page.getByLabel("LR method")).toHaveCount(0);
 
-  await page.click('button[role="tab"]:has-text("All parses")');
-  await expect(page.locator(".lab__provenance")).toContainText("Canonical");
-
-  await lrMethod.selectOption("LALR");
-  await expect(page.locator(".lab__provenance")).toContainText("LALR");
-
-  // Grammar analysis is a different case: analysisOf computes every method's stats unconditionally
-  // (Table.statsForAll), so its own content — the method-comparison table and its provenance note
-  // — never varies with the LR method picker at all, unlike All parses above.
+  // Grammar analysis: analysisOf computes every method's stats unconditionally (Table.statsForAll),
+  // so its own content — the method-comparison table and its provenance note — never varies with
+  // Engine's method selection at all, unlike All parses above.
   await page.click('button[role="tab"]:has-text("Grammar analysis")');
   await expect(page.locator(".lab__provenance")).toContainText("via LR tables");
-  await expect(page.locator(".lab__provenance")).not.toContainText("Canonical");
-  await expect(page.locator(".lab__provenance")).not.toContainText("LALR");
   const methodRows = page
     .locator(".lab__panel .lab__table")
     .first()
     .locator("tbody tr");
   await expect(methodRows).toHaveCount(3); // Canonical, LALR, IELR — always all three
 
-  // Switching back to LR/GLR retires the secondary control (the merged dropdown is authoritative
-  // again) without losing the method choice it just drove.
+  // Back to Canonical: Engine and All parses agree again, so the note disappears.
   await page.getByLabel("Engine").selectOption("Canonical");
-  await expect(page.getByLabel("LR method")).toHaveCount(0);
   await expect(page.getByLabel("Engine")).toHaveValue("Canonical");
 });
 
