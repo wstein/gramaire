@@ -91,6 +91,7 @@ function staleEngineResponse(actualVersion: number): LabResponse {
     forest: null,
     analysis: null,
     evaluatorJs: null,
+    atn: null,
   };
 }
 
@@ -122,6 +123,7 @@ function engineErrorResponse(e: unknown): LabResponse {
     forest: null,
     analysis: null,
     evaluatorJs: null,
+    atn: null,
   };
 }
 
