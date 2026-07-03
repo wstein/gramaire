@@ -951,6 +951,26 @@ test("Engine=ALL(*) exposes an LR method control, so All parses/Grammar analysis
   await expect(page.getByLabel("Engine")).toHaveValue("Canonical");
 });
 
+test("the Engine picker explains ALL(*) before it's selected, not just after", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  // A bare "ALL(*)" acronym gives a first-time user no reason to pick it over the LR/GLR methods
+  // — the option itself should say why, before it's ever selected.
+  await expect(page.locator('option[value="ll-star"]')).toHaveAttribute(
+    "title",
+    /LR conflicts/,
+  );
+  await expect(page.getByLabel("Engine")).toHaveAttribute(
+    "title",
+    /Output.*Parse tree.*Evaluate/,
+  );
+});
+
 test("Engine=ALL(*) still builds an LR-conflicted grammar, with the conflict as a warning", async ({
   page,
 }) => {

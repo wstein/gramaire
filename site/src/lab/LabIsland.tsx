@@ -545,6 +545,7 @@ export default function LabIsland() {
         <label class="lab__method">
           Engine
           <select
+            title="Which parsing engine builds the input parse (Output/Parse tree/Evaluate). All parses and Grammar analysis always stay LR/GLR-built, whichever Engine you pick."
             value={strategy.value === "ll-star" ? "ll-star" : method.value}
             onChange={(e) => {
               const v = (e.target as HTMLSelectElement).value;
@@ -557,7 +558,12 @@ export default function LabIsland() {
               scheduleEvaluate();
             }}
           >
-            <option value="ll-star">ALL(*)</option>
+            <option
+              value="ll-star"
+              title="Adaptive LL(*): still produces a parse — resolving ties by declaration order — even when the grammar has real LR conflicts the methods below would refuse to build at all."
+            >
+              ALL(*)
+            </option>
             <optgroup label="LR / GLR">
               <option value="Canonical">Canonical LR(1)</option>
               <option value="LALR">LALR(1)</option>
