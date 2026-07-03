@@ -915,7 +915,7 @@ test("Engine=ALL(*) drives Parse trace/Walk from Ll.parseTraced, and badges the 
   await expect(page.locator(".lab__provenance")).toHaveCount(0);
 });
 
-test("Engine=ALL(*) exposes an LR method control, so All parses/Grammar analysis stay changeable", async ({
+test("Engine=ALL(*) exposes an LR method control, so All parses stays changeable", async ({
   page,
 }) => {
   await page.goto("/lab/");
@@ -932,17 +932,30 @@ test("Engine=ALL(*) exposes an LR method control, so All parses/Grammar analysis
   });
 
   // Selecting ALL(*) orphans method.value from the merged dropdown — this secondary control is
-  // the only remaining way to change it, and it still drives All parses/Grammar analysis (which
-  // stay LR/GLR-built, per the provenance note).
+  // the only remaining way to change it, and it still drives All parses (Glr.forest is built for
+  // one specific method) and the status bar's live stats, both of which stay LR/GLR-built.
   const lrMethod = page.getByLabel("LR method");
   await expect(lrMethod).toBeVisible();
   await expect(lrMethod).toHaveValue("Canonical");
 
-  await page.click('button[role="tab"]:has-text("Grammar analysis")');
+  await page.click('button[role="tab"]:has-text("All parses")');
   await expect(page.locator(".lab__provenance")).toContainText("Canonical");
 
   await lrMethod.selectOption("LALR");
   await expect(page.locator(".lab__provenance")).toContainText("LALR");
+
+  // Grammar analysis is a different case: analysisOf computes every method's stats unconditionally
+  // (Table.statsForAll), so its own content — the method-comparison table and its provenance note
+  // — never varies with the LR method picker at all, unlike All parses above.
+  await page.click('button[role="tab"]:has-text("Grammar analysis")');
+  await expect(page.locator(".lab__provenance")).toContainText("via LR tables");
+  await expect(page.locator(".lab__provenance")).not.toContainText("Canonical");
+  await expect(page.locator(".lab__provenance")).not.toContainText("LALR");
+  const methodRows = page
+    .locator(".lab__panel .lab__table")
+    .first()
+    .locator("tbody tr");
+  await expect(methodRows).toHaveCount(3); // Canonical, LALR, IELR — always all three
 
   // Switching back to LR/GLR retires the secondary control (the merged dropdown is authoritative
   // again) without losing the method choice it just drove.
