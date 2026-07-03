@@ -18,7 +18,39 @@ package gramaire
 // right-recursive walk back into the original left-associative shape) and
 // `## Precedence`-driven ambiguous ones (`PrecClimb.Tag` folds the
 // precedence-level cascade back onto the original rule's own alternatives).
+//
+// `parseTraced` is `parse` plus the step-by-step trace the walk took
+// (`LlStep`, the ll-star analogue of `Parser.walk`'s `LrStep`) and, on
+// reject, a located reason (`LlError`) instead of a bare `None` — the Lab's
+// ll-star pipeline (`LabApi.evaluate`) drives Output/Parse tree/Parse
+// trace/LL walk/Evaluate from it.
 // Ported from src/Gramaire/Ll.purs.
+
+/** One step of an ALL(*) walk: the rule-call stack *at* this step (bottom to top, including the
+  * rule the action concerns) and the input position *before* taking it — mirrors `Parser.LrStep`'s
+  * "state/stack before the action" convention. Entering a rule folds into `Predict` (every rule
+  * entry makes exactly one ALL(*) decision), so there is no separate `EnterRule` step.
+  */
+final case class LlStep(index: Int, ruleStack: Vector[String], action: LlAction, pos: Int)
+
+/** A step's action. `Predict.rule` names the rule the walk actually descends — a `LeftRec`-folded
+  * tail rule (e.g. `expr_tail`) or a `PrecClimb`-stratified precedence level, not the original
+  * grammar rule an alt may fold back to on the `Cst` — since the decision this step explains is
+  * over that rewritten rule's own alternatives (`chosenAlt` indexes them, `0` until `altCount`).
+  */
+enum LlAction derives CanEqual:
+  case Predict(rule: String, chosenAlt: Int, altCount: Int)
+  case Match(terminal: String, lexeme: String)
+  case ExitRule(rule: String)
+  case Accept
+
+/** Why a `parseTraced` walk rejected its input: the token position it broke at, the terminals a
+  * successful match there would have needed (empty when the break was an unresolvable ALL(*)
+  * decision rather than a single expected terminal, or `["$"]` for trailing input past a complete
+  * parse), and the — possibly rewritten — rule it broke inside.
+  */
+final case class LlError(pos: Int, expected: Vector[String], rule: String)
+
 object Ll:
   /** Accept `toks` iff the grammar's start rule recognizes the whole stream. `cache` defaults to a
     * fresh, untracked one (the common case); pass `new AtnSim.Cache(track = true)` to also collect
@@ -93,6 +125,54 @@ object Ll:
 
   // ── Cst-producing parse ──────────────────────────────────────────────
 
+  // Records the predict/match/exit-rule/accept events a `parseTraced` walk emits, and the single
+  // located failure it breaks on (if any) — kept as a separate mutable concern from `AtnSim.Cache`
+  // (DFA hit/miss/ambiguity stats), even though both are threaded through the same `Ctx`.
+  // `NoopTracer` is what `parse`/`recognize` pass, so their hot path pays nothing for tracing.
+  private trait Tracer:
+    def predict(pos: Int, rule: String, chosenAlt: Int, altCount: Int): Unit
+    def matchTok(pos: Int, terminal: String, lexeme: String): Unit
+    def exitRule(pos: Int, rule: String): Unit
+    def accept(pos: Int): Unit
+    def fail(pos: Int, expected: Vector[String], rule: String): Unit
+
+  private object NoopTracer extends Tracer:
+    def predict(pos: Int, rule: String, chosenAlt: Int, altCount: Int): Unit = ()
+    def matchTok(pos: Int, terminal: String, lexeme: String): Unit = ()
+    def exitRule(pos: Int, rule: String): Unit = ()
+    def accept(pos: Int): Unit = ()
+    def fail(pos: Int, expected: Vector[String], rule: String): Unit = ()
+
+  private final class RecordingTracer extends Tracer:
+    private val ruleStack = scala.collection.mutable.ArrayBuffer.empty[String]
+    private val stepsBuf = scala.collection.mutable.ArrayBuffer.empty[LlStep]
+    private var failure: Option[LlError] = None
+
+    private def record(pos: Int, action: LlAction): Unit =
+      stepsBuf += LlStep(stepsBuf.length, ruleStack.toVector, action, pos)
+
+    def predict(pos: Int, rule: String, chosenAlt: Int, altCount: Int): Unit =
+      ruleStack += rule
+      record(pos, LlAction.Predict(rule, chosenAlt, altCount))
+
+    def matchTok(pos: Int, terminal: String, lexeme: String): Unit =
+      record(pos, LlAction.Match(terminal, lexeme))
+
+    def exitRule(pos: Int, rule: String): Unit =
+      record(pos, LlAction.ExitRule(rule))
+      if ruleStack.nonEmpty then ruleStack.remove(ruleStack.length - 1)
+
+    def accept(pos: Int): Unit = record(pos, LlAction.Accept)
+
+    // The walk never backtracks (a `None` propagates monotonically to total failure the moment
+    // any step fails — see `predictAlt`/`walkSyms`), so in practice exactly one `fail` call ever
+    // fires; keeping the furthest position is a cheap defensive guard, not load-bearing.
+    def fail(pos: Int, expected: Vector[String], rule: String): Unit =
+      if failure.forall(_.pos < pos) then failure = Some(LlError(pos, expected, rule))
+
+    def steps: Vector[LlStep] = stepsBuf.toVector
+    def failureOrElse(default: => LlError): LlError = failure.getOrElse(default)
+
   // Read-only context threaded through the Cst-producing walk: the ATN, the
   // input, the rules by name *after* precedence stratification but *before*
   // LeftRec (for symbol shapes — LeftRec's own Fold indices are local to
@@ -110,7 +190,8 @@ object Ll:
       folds: Map[String, LeftRec.Fold],
       prodIndex: Map[(String, Int), Int],
       stratumTags: Map[(String, Int), PrecClimb.Tag],
-      cache: AtnSim.Cache
+      cache: AtnSim.Cache,
+      tracer: Tracer
   )
 
   /** Parse `toks` to a `Cst` rooted at the grammar's start rule, or `None` if the whole stream
@@ -142,7 +223,8 @@ object Ll:
           folds,
           indexProductions(dg),
           stratumTags,
-          cache
+          cache,
+          NoopTracer
         )
         val result = parseRuleCst(ctx, atn.start, 0) match
           case Some((cst, pos)) if pos == toks.length => Some(cst)
@@ -150,6 +232,43 @@ object Ll:
         // See `recognize`'s identical reasoning: only a tie from a call that actually produced a
         // Cst is a real grammar ambiguity, not an artifact of walking a doomed input.
         if result.isDefined then cache.commitPending() else cache.discardPending()
+        result
+
+  /** Like `parse`, but also returns the step-by-step ALL(*) walk trace (`LlStep`, the ll-star
+    * analogue of `Parser.walk`'s `LrStep`), or `Left` with a located reject reason (`LlError`)
+    * instead of `parse`'s bare `None`.
+    */
+  def parseTraced(
+      g: Grammar,
+      toks: Vector[Token],
+      prec: Precedence = Table.emptyPrec,
+      cache: AtnSim.Cache = new AtnSim.Cache
+  ): Either[LlError, (Cst, Vector[LlStep])] =
+    Desugar.desugar(g) match
+      case Left(_) => Left(LlError(0, Vector.empty, ""))
+      case Right(dg) =>
+        val (stratified, stratumTags) = PrecClimb.stratify(dg, prec)
+        val (rewritten, folds) = LeftRec.eliminate(stratified)
+        val atn = AtnBuild.buildAtn(rewritten)
+        val tracer = new RecordingTracer
+        val ctx = Ctx(
+          atn,
+          toks,
+          stratified.rules.map(r => r.name -> r).toMap,
+          folds,
+          indexProductions(dg),
+          stratumTags,
+          cache,
+          tracer
+        )
+        val startRule = Atn.stateAt(atn, atn.start).rule
+        val result = parseRuleCst(ctx, atn.start, 0) match
+          case Some((cst, pos)) if pos == toks.length =>
+            tracer.accept(pos)
+            Right((cst, tracer.steps))
+          case Some((_, pos)) => Left(LlError(pos, Vector("$"), startRule))
+          case None           => Left(tracer.failureOrElse(LlError(0, Vector.empty, startRule)))
+        if result.isRight then cache.commitPending() else cache.discardPending()
         result
 
   // The flat index `Table.productions` assigns each (rule, alt) — rules and alts walked in the
@@ -170,19 +289,31 @@ object Ll:
   // otherwise.
   private def parseRuleCst(ctx: Ctx, ruleStart: Int, pos: Int): Option[(Cst, Int)] =
     val ruleName = Atn.stateAt(ctx.atn, ruleStart).rule
-    ctx.folds.get(ruleName) match
+    val result = ctx.folds.get(ruleName) match
       case Some(fold) => parseFoldedRule(ctx, ruleName, fold, ruleStart, pos)
       case None       => parsePlainRule(ctx, ruleName, ruleStart, pos)
+    result.foreach { case (_, pos2) => ctx.tracer.exitRule(pos2, ruleName) }
+    result
 
-  // The predicted alt's index at `ruleStart`, and the state its first symbol starts at.
+  // The predicted alt's index at `ruleStart`, and the state its first symbol starts at. `ruleStart`
+  // always owns a single rule (`Atn.stateAt(...).rule`) — the original rule for a plain or
+  // LeftRec-folded rule's own alternatives, or the synthetic tail rule for a `parseTailChain`
+  // visit — so deriving it here, rather than threading it in from every caller, always names
+  // whichever (possibly rewritten) rule this decision is actually over.
   private def predictAlt(ctx: Ctx, ruleStart: Int, pos: Int): Option[(Int, Int)] =
+    val ruleName = Atn.stateAt(ctx.atn, ruleStart).rule
     Atn.stateAt(ctx.atn, ruleStart).transitions match
       case Vector(Transition.Epsilon(blockStart)) =>
-        AtnSim.predict(ctx.atn, blockStart, ctx.toks, pos, ctx.cache).flatMap { i =>
-          Atn.stateAt(ctx.atn, blockStart).transitions.lift(i) match
-            case Some(Transition.Epsilon(altFirst)) => Some((i, altFirst))
-            case _                                  => None
-        }
+        val altCount = Atn.stateAt(ctx.atn, blockStart).transitions.length
+        AtnSim.predict(ctx.atn, blockStart, ctx.toks, pos, ctx.cache) match
+          case None =>
+            ctx.tracer.fail(pos, Vector.empty, ruleName)
+            None
+          case Some(i) =>
+            ctx.tracer.predict(pos, ruleName, i, altCount)
+            Atn.stateAt(ctx.atn, blockStart).transitions.lift(i) match
+              case Some(Transition.Epsilon(altFirst)) => Some((i, altFirst))
+              case _                                  => None
       case _ => None
 
   // Build the Cst for one matched alternative — `Cst.Branch` tagged with the *original*
@@ -300,10 +431,13 @@ object Ll:
       case Vector(Transition.Atom(t, target)) =>
         ctx.toks.lift(pos) match
           case Some(tok) if tok.terminal == t =>
+            ctx.tracer.matchTok(pos, tok.terminal, tok.text)
             walkSyms(ctx, target, n - 1, pos + 1).map { case (rest, s2, p2) =>
               (Cst.Token(tok.terminal, tok.text) +: rest, s2, p2)
             }
-          case _ => None
+          case _ =>
+            ctx.tracer.fail(pos, Vector(t), Atn.stateAt(ctx.atn, state).rule)
+            None
       case Vector(Transition.RuleCall(_, target, follow)) =>
         // See `walk`'s identical reasoning: push/pop bracket exactly the recursive descent into
         // `target`, giving its own decisions the real "control returns to `follow`" context.

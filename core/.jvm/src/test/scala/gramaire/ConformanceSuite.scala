@@ -167,6 +167,101 @@ class ConformanceSuite extends munit.FunSuite:
         )
   }
 
+  // Same differential check as `assertSameCst`, but through `Ll.parseTraced` — proves the new
+  // trace-producing code path (not just plain `Ll.parse`, which shares most of the same machinery
+  // but not the tracer instrumentation) agrees with the LR oracle on real grammars, and that every
+  // accepted trace ends in `Accept`.
+  private def assertSameTracedCst(
+      label: String,
+      lexer: ConformanceLexers.Lexer,
+      g: Grammar,
+      vectors: Vector[TestVector]
+  ): Unit =
+    vectors.filter(_.expect == Outcome.Accept).foreach { v =>
+      lexer(v.input) match
+        case Left(e) => fail(s"$label / ${v.name}: lex failed: $e")
+        case Right(toks) =>
+          val lrCst = Conformance.parseCst(lexer, Method.Canonical, g, v.input)
+          val llResult = Ll.parseTraced(g, toks)
+          (lrCst, llResult) match
+            case (Right(lr), Right((ll, steps))) =>
+              assertEquals(ll, lr, s"$label / ${v.name}: Ll.parseTraced's Cst differs from LR's")
+              assertEquals(
+                steps.lastOption.map(_.action),
+                Some(LlAction.Accept),
+                s"$label / ${v.name}: trace should end in Accept"
+              )
+            case (Left(e), _) => fail(s"$label / ${v.name}: LR should build a Cst: $e")
+            case (_, Left(err)) =>
+              fail(s"$label / ${v.name}: Ll.parseTraced should accept, got $err")
+    }
+
+  test(
+    "Ll.parseTraced builds the exact same Cst as the LR oracle, over lr/calc/json/ECMA-404, with a trace ending in Accept"
+  ) {
+    val lrG = Bootstrap.bootstrapGrammar
+    assertSameTracedCst("lr", ConformanceLexers.lrLexer, lrG, Conformance.lrVectors)
+
+    val calcMd = readFile("examples/calc.gram.md")
+    Lr.parse(calcMd) match
+      case Left(e) => fail(s"calc grammar should parse: $e")
+      case Right(g) =>
+        assertSameTracedCst("calc", ConformanceLexers.calcLexer, g, Conformance.calcVectors)
+
+    val jsonMd = readFile("examples/json.gram.md")
+    Lr.parse(jsonMd) match
+      case Left(e) => fail(s"json grammar should parse: $e")
+      case Right(g) =>
+        assertSameTracedCst(
+          "json",
+          ConformanceLexers.tokensLexerOf(jsonMd, g),
+          g,
+          Conformance.jsonVectors
+        )
+
+    val ecmaMd = readFile("examples/ECMA-404.gram.md")
+    Lr.parse(ecmaMd) match
+      case Left(e) => fail(s"ECMA-404 grammar should parse: $e")
+      case Right(g) =>
+        assertSameTracedCst(
+          "ECMA-404",
+          ConformanceLexers.tokensLexerOf(ecmaMd, g),
+          g,
+          Conformance.jsonVectors
+        )
+  }
+
+  test(
+    "Ll.parseTraced builds the exact same Cst as LR for calc-prec's precedence-driven ambiguity"
+  ) {
+    val md = readFile("examples/calc-prec.gram.md")
+    Lr.parse(md) match
+      case Left(e) => fail(s"calc-prec grammar should parse: $e")
+      case Right(g) =>
+        val prec = Lr.precedenceOf(md)
+        val lexer = ConformanceLexers.tokensLexerOf(md, g)
+        Vector("1+2*3", "1*2+3", "1-2-3", "(1+2)*3").foreach { input =>
+          lexer(input) match
+            case Left(e) => fail(s"calc-prec / $input: lex failed: $e")
+            case Right(toks) =>
+              val lr = Table.buildTablesForP(prec, Method.Canonical, g) match
+                case Left(cs) => fail(s"calc-prec / $input: LR table build failed: $cs")
+                case Right(table) =>
+                  Parser.run(table, Cst.cstToken, Cst.cstReduce, toks) match
+                    case Left(e)  => fail(s"calc-prec / $input: LR should accept: $e")
+                    case Right(c) => c
+              Ll.parseTraced(g, toks, prec) match
+                case Left(err) =>
+                  fail(s"calc-prec / $input: Ll.parseTraced should accept, got $err")
+                case Right((ll, _)) =>
+                  assertEquals(
+                    ll,
+                    lr,
+                    s"calc-prec / $input: Ll.parseTraced's Cst differs from LR's"
+                  )
+        }
+  }
+
   // calc-prec's `expr` is a single rule, ambiguous on purpose — every operator its own
   // alternative, disambiguated only by `## Precedence` (ADR D37), unlike calc's hand-stratified
   // `expr -> term -> factor`. The LR oracle here is Table.buildTablesForP (with precedence, not
