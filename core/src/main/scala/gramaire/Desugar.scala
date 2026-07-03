@@ -27,6 +27,23 @@ object Desugar:
   def desugar(g: Grammar): Either[String, Grammar] =
     inlineExpand(g).map(wildcardLower).map(groupHoist).flatMap(sugarDesugar)
 
+  // `s` together with every symbol nested inside it, transitively — shared by `wildcardLower`
+  // (collecting the terminal alphabet `.`/`~set` lower against) and `sugarDesugar` (collecting
+  // `everySym` to find `Rep`/`Star`/`Macro` sites needing a fresh rule). Covers every `Sym` case,
+  // not just the ones each pass's own pipeline position happens to still see, so it stays correct
+  // if `desugar`'s pass order above ever changes.
+  private def subSyms(s: Sym): Vector[Sym] =
+    s +: (s match
+      case Rep(x)         => subSyms(x)
+      case Star(x)        => subSyms(x)
+      case Opt(x)         => subSyms(x)
+      case Field(_, x)    => subSyms(x)
+      case Macro(_, args) => args.flatMap(subSyms)
+      case Group(alts)    => alts.flatMap(_.flatMap(subSyms))
+      case Not(set)       => set.flatMap(subSyms)
+      case _              => Vector.empty
+    )
+
   /** Lower `.` (any terminal) and `~set` (any terminal not in the set) to a `Group` over the
     * grammar's closed terminal alphabet.
     */
@@ -37,18 +54,6 @@ object Desugar:
       case Lit(t) => t
       case Ref(n) => n
       case _      => ""
-
-    def subSyms(s: Sym): Vector[Sym] =
-      s +: (s match
-        case Rep(x)         => subSyms(x)
-        case Star(x)        => subSyms(x)
-        case Opt(x)         => subSyms(x)
-        case Field(_, x)    => subSyms(x)
-        case Macro(_, args) => args.flatMap(subSyms)
-        case Group(alts)    => alts.flatMap(_.flatMap(subSyms))
-        case Not(set)       => set.flatMap(subSyms)
-        case _              => Vector.empty
-      )
 
     def terminalOf(s: Sym): Option[Sym] = s match
       case Lit(t) => Some(Lit(t))
@@ -244,16 +249,6 @@ object Desugar:
         "\\" + syms.map(paramOf).mkString(" ") + " -> " + body
 
   private def sugarDesugar(g: Grammar): Either[String, Grammar] =
-    def subSyms(s: Sym): Vector[Sym] =
-      s +: (s match
-        case Rep(x)         => subSyms(x)
-        case Star(x)        => subSyms(x)
-        case Opt(x)         => subSyms(x)
-        case Field(_, x)    => subSyms(x)
-        case Macro(_, args) => args.flatMap(subSyms)
-        case _              => Vector.empty
-      )
-
     val everySym: Vector[Sym] = g.rules.flatMap(_.alts.flatMap(_.syms)).flatMap(subSyms)
 
     def collectFresh: Either[String, Map[String, Rule]] =
@@ -342,20 +337,8 @@ object Desugar:
             case _           => Left(s"#[inline] rule `${r.name}` must have exactly one production")
         }
 
-    def deepRefs(s: Sym): Vector[String] = s match
-      case Ref(n)          => Vector(n)
-      case Lit(_)          => Vector.empty
-      case Rep(inner)      => deepRefs(inner)
-      case Star(inner)     => deepRefs(inner)
-      case Opt(inner)      => deepRefs(inner)
-      case Field(_, inner) => deepRefs(inner)
-      case Macro(_, args)  => args.flatMap(deepRefs)
-      case Group(alts)     => alts.flatMap(_.flatMap(deepRefs))
-      case Any             => Vector.empty
-      case Not(set)        => set.flatMap(deepRefs)
-
     def mentions(n: String, r: Rule): Boolean =
-      r.alts.exists(_.syms.exists(s => deepRefs(s).contains(n)))
+      r.alts.exists(_.syms.exists(s => Sym.refs(s).contains(n)))
 
     def isInlineRef(im: Map[String, Alt], s: Sym): Boolean = s match
       case Ref(n) => im.contains(n)
