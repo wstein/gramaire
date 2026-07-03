@@ -275,11 +275,16 @@ object Main:
           if got == want then None
           else Some(s"${d.language}/${v.name}: expected $want, got $got")
     }
-    if cache.ambiguities.nonEmpty then
+    // Deduped once, up front: the header count and the itemized list must agree, and the `lr`/
+    // `calc` corpora are verified elsewhere (docs/all-star-port-plan.md) to report zero — a
+    // regression that starts reporting any is exactly the kind conformance exists to catch, so
+    // it's folded into the returned failures below, not just printed.
+    val ambiguities = cache.ambiguities.distinct
+    if ambiguities.nonEmpty then
       println(
-        s"ll-star: ${d.language} — ${cache.ambiguities.length} decision(s) resolved by declaration order:"
+        s"ll-star: ${d.language} — ${ambiguities.length} decision(s) resolved by declaration order:"
       )
-      cache.ambiguities.distinct.foreach { a =>
+      ambiguities.foreach { a =>
         println(
           s"  decision in rule `${a.rule}` is ambiguous between alts ${a.alts.mkString(", ")} at input position ${a.pos}"
         )
@@ -287,7 +292,9 @@ object Main:
     val total = cache.hits + cache.misses
     val hitPct = if total == 0 then 0.0 else cache.hits.toDouble / total * 100
     println(f"ll-star: ${d.language} — ${cache.hits}/$total%d DFA cache hits ($hitPct%.1f%%)")
-    failures
+    failures ++ ambiguities.map(a =>
+      s"${d.language}: ambiguous decision in rule `${a.rule}` between alts ${a.alts.mkString(", ")} at input position ${a.pos}"
+    )
 
   // Load a corpus descriptor whose grammar lives in a file; absent or
   // unparseable means the language is skipped, not a failure. `mk` gets both the raw document
