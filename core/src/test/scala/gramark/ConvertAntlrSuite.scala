@@ -18,10 +18,29 @@ class ConvertAntlrSuite extends munit.FunSuite:
       |WS     : [ \t\r\n]+ -> skip ;
       |""".stripMargin
 
-  // A grammar exercising features with no Core home: an action and a predicate.
+  // A grammar exercising an action: no Core equivalent, always dropped.
   private val flaggedG4: String =
     """grammar P;
-      |r : ID {System.out.println("hi");} | {flag}? ID ;
+      |r : ID {System.out.println("hi");} ;
+      |ID : [a-z]+ ;
+      |""".stripMargin
+
+  // A lone predicate alongside real content promotes to a trailing `{%? %}`; a predicate-only
+  // alt (no real content) stays unrepresentable — an action-only alt would be an epsilon
+  // production, which the Core forbids.
+  private val predicateG4: String =
+    """grammar P;
+      |r : {flag}? ID
+      |  | {lonely}?
+      |  ;
+      |ID : [a-z]+ ;
+      |""".stripMargin
+
+  // A predicate sharing an alt with an action: Gramark's action slot is one-per-alt, so
+  // neither can be kept — both are dropped, `ID` alone survives.
+  private val mixedActionPredicateG4: String =
+    """grammar P;
+      |r : {flag}? ID {System.out.println("hi");} ;
       |ID : [a-z]+ ;
       |""".stripMargin
 
@@ -88,12 +107,54 @@ class ConvertAntlrSuite extends munit.FunSuite:
                   case Right(imp2) => assertEquals(imp2.markdown, imp.markdown)
   }
 
-  test("convert: predicates and actions are flagged and dropped, not invented") {
+  test("convert: an action with no Core equivalent is flagged and dropped, not invented") {
     ConvertAntlr.importAntlr(flaggedG4) match
       case Left(e) => fail(s"flagged.g4 should import: $e")
       case Right(imp) =>
-        assert(imp.warnings.nonEmpty, "the action/predicate produces a warning")
+        assert(imp.warnings.nonEmpty, "the action produces a warning")
         assert(!imp.markdown.contains("{"), "no action braces leak into the output")
+  }
+
+  test(
+    "convert: a lone semantic predicate alongside real content promotes to a trailing `{%? %}` action"
+  ) {
+    ConvertAntlr.importAntlr(predicateG4) match
+      case Left(e) => fail(s"predicate.g4 should import: $e")
+      case Right(imp) =>
+        assert(
+          imp.markdown.contains("{%? flag %}"),
+          s"expected the promoted predicate in:\n${imp.markdown}"
+        )
+        assert(
+          !imp.warnings.exists(_.contains("flag")),
+          s"a promoted predicate must not also warn as dropped: ${imp.warnings}"
+        )
+        assert(
+          imp.warnings.exists(w => w.contains("lonely") && w.contains("dropped")),
+          s"a predicate-only alt (no real content) has no Core equivalent and must still warn: ${imp.warnings}"
+        )
+        assert(
+          !imp.markdown.contains("lonely"),
+          "the predicate-only alt's text must not leak into the output"
+        )
+  }
+
+  test("convert: a predicate sharing an alt with an action cannot be promoted, both are dropped") {
+    ConvertAntlr.importAntlr(mixedActionPredicateG4) match
+      case Left(e) => fail(s"mixed.g4 should import: $e")
+      case Right(imp) =>
+        assert(
+          !imp.markdown.contains("{"),
+          "neither the action nor the predicate leaks into the output"
+        )
+        assert(
+          imp.warnings.exists(_.contains("flag")),
+          "the predicate must still be reported dropped"
+        )
+        assert(
+          imp.warnings.exists(_.contains("System.out")),
+          "the action must still be reported dropped"
+        )
   }
 
   test(

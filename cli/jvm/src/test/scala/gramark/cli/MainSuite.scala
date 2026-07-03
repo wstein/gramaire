@@ -1,6 +1,7 @@
 package gramark.cli
 
-import gramark.{BackendJs, BackendTs, BackendIr}
+import gramark.{Alt, BackendIr, BackendJs, BackendTs, Grammar, IR, Method, Rule}
+import gramark.Sym.*
 
 // Covers `Main`'s pure argument-parsing and name-resolution helpers —
 // ported from the assertions `Test.Cli.purs` would make against
@@ -68,4 +69,25 @@ class MainSuite extends munit.FunSuite:
     // A structure-reading backend is agnostic to which table/ATN strategy produced the IR.
     assert(Main.backendSupportsStrategy(BackendIr.backend, "lr"))
     assert(Main.backendSupportsStrategy(BackendIr.backend, "ll-star"))
+  }
+
+  test(
+    "strategyIgnoresPredicates: an lr build of a `{%? %}` grammar is flagged, ll-star is not"
+  ) {
+    val predicateGrammar = Grammar(
+      Vector(Rule("S", Vector.empty, Vector(Alt(Vector(Ref("NUM")), None, Some("? isKeyword")))))
+    )
+    IR.buildIR(Method.Canonical, "Pred", predicateGrammar) match
+      case Left(e) => fail(s"predicate grammar should build: $e")
+      case Right(ir) =>
+        assert(Main.strategyIgnoresPredicates(ir, "lr"))
+        assert(!Main.strategyIgnoresPredicates(ir, "ll-star"))
+
+    val plainGrammar =
+      Grammar(Vector(Rule("S", Vector.empty, Vector(Alt(Vector(Ref("NUM")), None, None)))))
+    IR.buildIR(Method.Canonical, "Plain", plainGrammar) match
+      case Left(e) => fail(s"plain grammar should build: $e")
+      case Right(ir) =>
+        assert(!Main.strategyIgnoresPredicates(ir, "lr"))
+        assert(!Main.strategyIgnoresPredicates(ir, "ll-star"))
   }

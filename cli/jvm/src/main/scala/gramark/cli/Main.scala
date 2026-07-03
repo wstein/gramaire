@@ -68,6 +68,13 @@ object Main:
   def backendSupportsStrategy(b: Backend, strategy: String): Boolean =
     b.strategies.contains(strategy)
 
+  /** Whether `ir`'s grammar declares a `{%? %}` predicate that `strategy` has no semantics for —
+    * only `ll-star` evaluates predicates during prediction; an `lr` build ignores them entirely
+    * (D-predicates). Pulled out so it's checkable without going through `die`/`sys.exit`.
+    */
+  def strategyIgnoresPredicates(ir: IR, strategy: String): Boolean =
+    strategy != "ll-star" && ir.grammar.rules.exists(_.predicate.isDefined)
+
   def main(args: Array[String]): Unit =
     val argv = args.toVector
     argv.headOption match
@@ -127,7 +134,11 @@ object Main:
                                 )
                             )
                           case Right(ir0) =>
-                            if !backendSupportsStrategy(b, opts.strategy) then
+                            if strategyIgnoresPredicates(ir0, opts.strategy) then
+                              die(
+                                s"emit: $file uses semantic predicates; build with --strategy ll-star"
+                              )
+                            else if !backendSupportsStrategy(b, opts.strategy) then
                               die(
                                 s"emit: backend '${b.name}' does not support strategy '${opts.strategy}'"
                               )

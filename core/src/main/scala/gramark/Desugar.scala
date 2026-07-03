@@ -219,15 +219,19 @@ object Desugar:
     }
     "\\" + r.params.mkString(" ") + " -> (" + orig + ") " + r.args.mkString(" ")
 
-  // a bare-body action (no leading lambda) binds the field names (#5/D28)
+  // a bare-body action (no leading lambda) binds the field names (#5/D28).
+  // A `{%? %}` predicate's leading `?` flag must survive this wrap so IR
+  // construction can still detect it in the desugared text (D42).
   private def normalizeAction(syms: Vector[Sym], body: String): String =
-    val trimmed = body.trim
-    if trimmed.startsWith("\\") then body
+    if body.startsWith("?") then "?" + normalizeAction(syms, body.drop(1).trim)
     else
-      def paramOf(s: Sym): String = s match
-        case Field(f, _) => f
-        case _           => "_"
-      "\\" + syms.map(paramOf).mkString(" ") + " -> " + body
+      val trimmed = body.trim
+      if trimmed.startsWith("\\") then body
+      else
+        def paramOf(s: Sym): String = s match
+          case Field(f, _) => f
+          case _           => "_"
+        "\\" + syms.map(paramOf).mkString(" ") + " -> " + body
 
   private def sugarDesugar(g: Grammar): Either[String, Grammar] =
     def subSyms(s: Sym): Vector[Sym] =

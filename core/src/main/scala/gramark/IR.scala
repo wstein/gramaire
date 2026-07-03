@@ -262,14 +262,28 @@ object IR:
     // that table construction drops.
     val flat: Vector[(String, Alt)] = rules.flatMap(r => r.alts.map(alt => (r.name, alt)))
     val irRules: Vector[IRRule] = flat.zipWithIndex.map { case ((lhs, Alt(syms, label, act)), i) =>
+      // D-predicates: an action whose (already-trimmed, by the lexer) text starts with `?` is a
+      // predicate, not a value-building action — `{%? p %}` lexes to the same ACTION token shape
+      // as `{% p %}`, just with the leading `?` surviving the trim as the body's first character.
+      // The `?` itself is the flag, not part of the body: strip it (and the whitespace it was
+      // hiding, e.g. `{%?  p %}`) before storing the action text. Known narrow gap: the escape
+      // hatch a value action needs if its own body genuinely starts with `?` (`{% ?x %}`, ADR
+      // D-predicates) is not actually distinguishable here, since the lexer's trim already
+      // discards whether a space preceded the `?` in the source — in practice not a real
+      // limitation, since a lambda-style action body essentially never starts with a bare `?`.
+      val isPredicate = act.exists(_.startsWith("?"))
+      val body = act.map(text => if isPredicate then text.drop(1).trim else text)
+      val actions = body match
+        case Some(code) => Map("default" -> code)
+        case None       => Map.empty
       IRRule(
         id = i,
         lhs = ntId(lhs),
         rhs = syms.map(toRef),
         label = label,
-        actions = act match
-          case Some(code) => Map("default" -> code)
-          case None       => Map.empty
+        actions = actions,
+        predicate =
+          if isPredicate then Some(IRPredicateEffect(Vector.empty, Vector.empty)) else None
       )
     }
 
