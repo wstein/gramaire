@@ -53,10 +53,13 @@ final case class IRTokenClass(
 final case class IRLexer(mode: String, order: Vector[Int], classes: Vector[IRTokenClass])
 
 // A terminal carries a stable id and either a literal spelling or a
-// token-class name.
-enum IRTerminal derives CanEqual:
-  case IRLiteral(id: Int, s: String)
-  case IRClass(id: Int, s: String)
+// token-class name. `id` is promoted onto the enum itself (both cases
+// otherwise dedicated an identical `terminalId`-style match to it in every
+// backend that needed it) — pattern matches and positional constructor
+// calls elsewhere are unaffected, only the redundant match is gone.
+enum IRTerminal(val id: Int) derives CanEqual:
+  case IRLiteral(tid: Int, s: String) extends IRTerminal(tid)
+  case IRClass(tid: Int, s: String) extends IRTerminal(tid)
 
 final case class IRNonterminal(id: Int, name: String)
 
@@ -155,19 +158,22 @@ object IR:
     */
   val irVersion: Int = 0
 
+  // A lookahead/action-key `GSym` lowered to `IROn` against a terminal-name-to-id lookup — shared
+  // by `conflictToIR` and `assembleTables` (both close over their own `termId`, but the mapping
+  // itself, including the "a nonterminal here is unreachable" case, is identical).
+  private def onOf(termId: String => Int)(s: GSym): IROn = s match
+    case GSym.Term(t)    => IROn.OnTerm(termId(t))
+    case GSym.EOF        => IROn.OnEof
+    case GSym.NonTerm(n) => IROn.OnTerm(termId(n)) // unreachable: never a nonterminal
+
   /** Lower a `Table.Conflict` to its IR shape. */
   def conflictToIR(termId: String => Int, c: Conflict): IRConflict =
-    def onOf(s: GSym): IROn = s match
-      case GSym.Term(t) => IROn.OnTerm(termId(t))
-      case GSym.EOF     => IROn.OnEof
-      case GSym.NonTerm(n) =>
-        IROn.OnTerm(termId(n)) // unreachable: a lookahead is never a nonterminal
     def keep(xs: Vector[Int]): Vector[Int] = xs.filter(_ >= 0)
     c match
       case Conflict.ShiftReduce(state, onSymbol, reduceProd) =>
-        IRConflict("shift-reduce", state, onOf(onSymbol), keep(Vector(reduceProd)))
+        IRConflict("shift-reduce", state, onOf(termId)(onSymbol), keep(Vector(reduceProd)))
       case Conflict.ReduceReduce(state, onSymbol, prodA, prodB) =>
-        IRConflict("reduce-reduce", state, onOf(onSymbol), keep(Vector(prodA, prodB)))
+        IRConflict("reduce-reduce", state, onOf(termId)(onSymbol), keep(Vector(prodA, prodB)))
 
   private def insertOr(m: Map[String, Boolean], k: String, v: Boolean): Map[String, Boolean] =
     m.updated(k, m.getOrElse(k, false) || v)
@@ -343,12 +349,6 @@ object IR:
       ntId: String => Int,
       table: ParseTable
   ): IRTables =
-    def onOf(s: GSym): IROn = s match
-      case GSym.Term(t) => IROn.OnTerm(termId(t))
-      case GSym.EOF     => IROn.OnEof
-      case GSym.NonTerm(n) =>
-        IROn.OnTerm(termId(n)) // unreachable: action keys are never nonterminals
-
     def actOf(a: Action): IRAct = a match
       case Action.Shift(n)  => IRAct.ActShift(n)
       case Action.Reduce(n) => IRAct.ActReduce(n)
@@ -363,7 +363,10 @@ object IR:
       table.action.toVector
         .sortBy(_._1)(using Ordering.Tuple2(Ordering.Int, summon[Ordering[GSym]]))
         .foldLeft(Map.empty[Int, Vector[IRActionEntry]]) { case (m, ((st, sym), act)) =>
-          m.updated(st, m.getOrElse(st, Vector.empty) :+ IRActionEntry(onOf(sym), actOf(act)))
+          m.updated(
+            st,
+            m.getOrElse(st, Vector.empty) :+ IRActionEntry(onOf(termId)(sym), actOf(act))
+          )
         }
     val gotoByState: Map[Int, Vector[IRGotoEntry]] =
       table.goto.toVector
@@ -661,13 +664,10 @@ object IR:
     def refField(r: IRRef): Option[String] = r match
       case IRRef.IRRefNT(_, f) => f
       case IRRef.IRRefT(_, f)  => f
-    def termId(t: IRTerminal): Int = t match
-      case IRTerminal.IRLiteral(i, _) => i
-      case IRTerminal.IRClass(i, _)   => i
     def autoBase(r: IRRef): Option[String] = r match
       case IRRef.IRRefNT(i, _) => g.nonterminals.find(_.id == i).map(_.name.toLowerCase)
       case IRRef.IRRefT(i, _) =>
-        g.terminals.find(t => termId(t) == i) match
+        g.terminals.find(_.id == i) match
           case Some(IRTerminal.IRClass(_, nm)) => Some(nm.toLowerCase)
           case _                               => None
 
@@ -711,13 +711,9 @@ object IR:
     case IRTerminal.IRClass(i, n)   => Some((n, i))
     case IRTerminal.IRLiteral(_, _) => None
 
-  private def terminalIdOf(t: IRTerminal): Int = t match
-    case IRTerminal.IRLiteral(i, _) => i
-    case IRTerminal.IRClass(i, _)   => i
-
   def attachLexer(defs: Vector[TokenDef], ir: IR): IR =
     val existing: Map[String, Int] = ir.grammar.terminals.flatMap(classNameId).toMap
-    val maxId: Int = ir.grammar.terminals.map(terminalIdOf).foldLeft(-1)(math.max)
+    val maxId: Int = ir.grammar.terminals.map(_.id).foldLeft(-1)(math.max)
 
     // token classes the productions never mention need their own ids
     val newDefs = defs.filterNot(d => existing.contains(d.name))

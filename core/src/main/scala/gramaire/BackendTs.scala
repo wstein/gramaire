@@ -30,10 +30,6 @@ object BackendTs:
       "export type CstNode = CstBranch | CstToken;"
     ).mkString("\n")
 
-  private def terminalId(t: IRTerminal): Int = t match
-    case IRTerminal.IRLiteral(i, _) => i
-    case IRTerminal.IRClass(i, _)   => i
-
   // A terminal's lexer name: a literal's spelling, a class's name.
   private def terminalNames(ir: IR): Map[Int, String] =
     ir.grammar.terminals.map {

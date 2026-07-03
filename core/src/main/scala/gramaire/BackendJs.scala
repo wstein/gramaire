@@ -114,10 +114,11 @@ object BackendJs:
     case Some(v) => jsStr(v)
     case None    => "null"
 
-  // The fixed runtime: a bottom-up fold where a leaf evaluates to its
-  // matched text, and a production with an action applies it to the
-  // namedtuple of its children.
-  private val runtime: String =
+  // A namedtuple: the child values as a real Array (index / spread / map all work) with each
+  // named position also reachable by its field name. Shared verbatim by `runtime`/`tracedRuntime`
+  // (D13: a plain/traced drift here would make the two backends disagree on namedtuple semantics
+  // for the same grammar).
+  private val tupleHelper: Vector[String] =
     Vector(
       "// A namedtuple: the child values as a real Array (index / spread / map all",
       "// work) with each named position also reachable by its field name.",
@@ -126,7 +127,14 @@ object BackendJs:
       "  names.forEach((n, i) => { if (n != null) t[n] = values[i]; });",
       "  return t;",
       "}",
-      "",
+      ""
+    )
+
+  // The fixed runtime: a bottom-up fold where a leaf evaluates to its
+  // matched text, and a production with an action applies it to the
+  // namedtuple of its children.
+  private val runtime: String =
+    (tupleHelper ++ Vector(
       "function fold(node) {",
       "  if (node.token !== undefined) return node.text;",
       "  const kids = node.children.map(fold);",
@@ -139,22 +147,14 @@ object BackendJs:
       "export function evaluate(cst) {",
       "  return fold(cst);",
       "}"
-    ).mkString("\n")
+    )).mkString("\n")
 
   // Like `runtime`, but `fold` returns an ANNOTATED TREE — every node decorated with its computed
   // `value` — instead of a bare final value. The Lab's Evaluate tab (M5+, emitTraced below) needs
   // the per-reduction intermediate values for its annotated-tree and reductions-list UI, not just
   // the result.
   private val tracedRuntime: String =
-    Vector(
-      "// A namedtuple: the child values as a real Array (index / spread / map all",
-      "// work) with each named position also reachable by its field name.",
-      "function tuple(values, names) {",
-      "  const t = values.slice();",
-      "  names.forEach((n, i) => { if (n != null) t[n] = values[i]; });",
-      "  return t;",
-      "}",
-      "",
+    (tupleHelper ++ Vector(
       "function fold(node) {",
       "  if (node.token !== undefined) return { token: node.token, text: node.text, value: node.text };",
       "  const kidsAnnotated = node.children.map(fold);",
@@ -171,7 +171,7 @@ object BackendJs:
       "export function evaluateTraced(cst) {",
       "  return fold(cst);",
       "}"
-    ).mkString("\n")
+    )).mkString("\n")
 
   // The per-production action table and the aligned field-name table — shared verbatim by `emit`
   // and `emitTraced` (same provenance: `grammar.rules` / `IR.effectiveFields`), so the two

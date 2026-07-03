@@ -16,10 +16,6 @@ object BackendDot:
     emit = ir => Vector(Output(s"${ir.grammar.name}.dot", emit(ir)))
   )
 
-  private def terminalId(t: IRTerminal): Int = t match
-    case IRTerminal.IRLiteral(i, _) => i
-    case IRTerminal.IRClass(i, _)   => i
-
   private def terminalName(t: IRTerminal): String = t match
     case IRTerminal.IRLiteral(_, s) => s
     case IRTerminal.IRClass(_, n)   => n
@@ -81,7 +77,7 @@ object BackendDot:
     val states: Vector[Int] =
       if ir.tables.stateCount <= 0 then Vector.empty else (0 until ir.tables.stateCount).toVector
     val termById: Map[Int, String] =
-      ir.grammar.terminals.map(t => terminalId(t) -> terminalName(t)).toMap
+      ir.grammar.terminals.map(t => t.id -> terminalName(t)).toMap
     val ntById: Map[Int, String] = ir.grammar.nonterminals.map(n => n.id -> n.name).toMap
 
     def onName(o: IROn): String = o match

@@ -118,10 +118,6 @@ object CodegenScala:
       )
     )
 
-  private def termId(t: IRTerminal): Int = t match
-    case IRTerminal.IRLiteral(i, _) => i
-    case IRTerminal.IRClass(i, _)   => i
-
   private def termName(t: IRTerminal): String = t match
     case IRTerminal.IRLiteral(_, s) => s
     case IRTerminal.IRClass(_, n)   => n
@@ -130,7 +126,7 @@ object CodegenScala:
 
   private def symbolNames(ir: IR): Names =
     val ntById: Map[Int, String] = ir.grammar.nonterminals.map(n => n.id -> n.name).toMap
-    val termById: Map[Int, String] = ir.grammar.terminals.map(t => termId(t) -> termName(t)).toMap
+    val termById: Map[Int, String] = ir.grammar.terminals.map(t => t.id -> termName(t)).toMap
     def look(m: Map[Int, String], i: Int): String = m.getOrElse(i, "?")
     Names(
       ref = {
