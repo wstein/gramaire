@@ -172,10 +172,13 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await expect(page.locator(".lab__walk-panes")).toContainText("Expr");
 
   // Engine defaults to "lr", which never populates atn — the tab starts disabled, with a title
-  // tooltip explaining why, instead of a dead-end click into an empty panel.
+  // tooltip explaining why, instead of a dead-end click into an empty panel. The title alone never
+  // fires on touch or keyboard focus, so a short, always-visible hint carries the same "why" as
+  // real content, not just a hover-only attribute.
   const atnTab = page.locator('button[role="tab"]:has-text("ATN")');
   await expect(atnTab).toBeDisabled();
   await expect(atnTab).toHaveAttribute("title", /Switch Engine/);
+  await expect(atnTab.locator(".lab__tab-hint")).toContainText("ALL(*)");
 
   await page.getByLabel("Engine").selectOption("ll-star");
   await expect(atnTab).toBeEnabled();
@@ -229,10 +232,16 @@ test("tabs with nothing to show are disabled, with a tooltip explaining why", as
     const tab = page.locator(`button[role="tab"]:has-text("${label}")`);
     await expect(tab).toBeDisabled();
     await expect(tab).toHaveAttribute("title", /Enter (target )?input/);
+    // A title tooltip never fires on touch or keyboard focus — the same short "why" has to be
+    // real, always-visible content on the tab itself too, not just a hover-only attribute.
+    await expect(tab.locator(".lab__tab-hint")).toContainText("needs");
   }
   const forestTab = page.locator('button[role="tab"]:has-text("All parses")');
   await expect(forestTab).toBeDisabled();
   await expect(forestTab).toHaveAttribute("title", /Enter target input/);
+  await expect(forestTab.locator(".lab__tab-hint")).toContainText(
+    "needs input",
+  );
   for (const label of ["Lowered Core", "Grammar analysis", "Evaluate"]) {
     await expect(
       page.locator(`button[role="tab"]:has-text("${label}")`),

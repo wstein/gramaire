@@ -759,6 +759,14 @@ export default function LabIsland() {
                 onClick={() => (activeTab.value = tab)}
               >
                 {tabLabel(tab)}
+                {/* The full reason lives in `title` above for anyone who hovers, but a title
+                    tooltip never fires on touch, and never fires on a disabled button that
+                    receives keyboard focus either — a grayed-out tab alone tells a first-time
+                    user SOMETHING is unavailable, not WHY. This short hint is real, always-visible
+                    content instead, not a hover-only supplement. */}
+                {reason && (
+                  <span class="lab__tab-hint"> ({tabDisabledHint(tab)})</span>
+                )}
               </button>
             );
           })}
@@ -862,7 +870,10 @@ function tabLabel(tab: Tab): string {
     case "walk":
       return "Walk";
     case "forest":
-      return "All parses";
+      // Always GLR-built, regardless of Engine (LabApi.evaluate's forestFor is pinned to
+      // Method.Canonical unconditionally) — visible in the tab name itself, not just a note you
+      // only see after clicking in, so the relationship reads before you ever open the tab.
+      return "All parses (GLR)";
     case "lowered":
       return "Lowered Core";
     case "analysis":
@@ -917,6 +928,30 @@ function tabDisabledReason(
       return strategy.value === "ll-star"
         ? undefined
         : 'Switch Engine to "ALL(*)" above to see ATN diagnostics.';
+  }
+}
+
+// A short, always-visible fragment of `tabDisabledReason`'s full sentence — only called when a
+// reason exists, so no `undefined` case to handle. `title` still carries the full sentence for
+// anyone who does hover.
+function tabDisabledHint(tab: Tab): string {
+  switch (tab) {
+    case "result":
+      return ""; // never disabled — tabDisabledReason(tab) is always undefined for it
+    case "tokens":
+    case "forest":
+      return "needs input";
+    case "tree":
+    case "trace":
+    case "walk":
+      return "needs accepted input";
+    case "lowered":
+    case "analysis":
+      return "needs valid grammar";
+    case "evaluate":
+      return "needs successful build";
+    case "atn":
+      return "needs ALL(*)";
   }
 }
 
