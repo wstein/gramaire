@@ -53,9 +53,9 @@ class ConformanceSuite extends munit.FunSuite:
         }
   }
 
-  private def jsonLexerOf(jsonMd: String, g: Grammar): ConformanceLexers.Lexer =
+  private def tokensLexerOf(md: String, g: Grammar): ConformanceLexers.Lexer =
     val defs = ConformanceLexers
-      .tokensBlock(jsonMd)
+      .tokensBlock(md)
       .flatMap(block => Tokens.parseTokens(block).toOption)
       .getOrElse(Vector.empty)
     ConformanceLexers.scannerLexer(defs, g)
@@ -65,7 +65,7 @@ class ConformanceSuite extends munit.FunSuite:
     Lr.parse(jsonMd) match
       case Left(e) => fail(s"json grammar should parse: $e")
       case Right(g) =>
-        val jsonLexer = jsonLexerOf(jsonMd, g)
+        val jsonLexer = tokensLexerOf(jsonMd, g)
         Conformance.jsonVectors.foreach { v =>
           val want = v.expect == Outcome.Accept
           jsonLexer(v.input) match
@@ -114,5 +114,50 @@ class ConformanceSuite extends munit.FunSuite:
     val jsonMd = readFile("examples/json.gram.md")
     Lr.parse(jsonMd) match
       case Left(e)  => fail(s"json grammar should parse: $e")
-      case Right(g) => assertSameCst("json", jsonLexerOf(jsonMd, g), g, Conformance.jsonVectors)
+      case Right(g) => assertSameCst("json", tokensLexerOf(jsonMd, g), g, Conformance.jsonVectors)
+  }
+
+  // calc-prec's `expr` is a single rule, ambiguous on purpose — every operator its own
+  // alternative, disambiguated only by `## Precedence` (ADR D37), unlike calc's hand-stratified
+  // `expr -> term -> factor`. The LR oracle here is Table.buildTablesForP (with precedence, not
+  // Conformance's precedence-free buildTablesFor) + Parser.run; Ll.parse takes the same
+  // precedence via PrecClimb.stratify. Vectors are chosen to expose exactly what stratification
+  // fixes: `1*2+3` (the tighter operator appears *first* — a naive left-recursion fold that
+  // treats every operator as one flat chain gets this wrong, greedily nesting the `+` inside the
+  // `*` instead of the other way around) and same-level left-associativity (`1-2-3`).
+  test("Ll.parse builds the exact same Cst as LR for calc-prec's precedence-driven ambiguity") {
+    val md = readFile("examples/calc-prec.gram.md")
+    Lr.parse(md) match
+      case Left(e) => fail(s"calc-prec grammar should parse: $e")
+      case Right(g) =>
+        val prec = Lr.precedenceOf(md)
+        assert(prec.terms.nonEmpty, "calc-prec should declare a Precedence block")
+        val lexer = tokensLexerOf(
+          md,
+          g
+        ) // calc-prec declares its own `NUM`/`WS` (not `calcLexer`'s hardcoded `NUMBER`)
+        val inputs = Vector(
+          "1+2*3", // tighter operator second
+          "1*2+3", // tighter operator first — the naive-fold failure case
+          "1-2-3", // same-level left-associativity
+          "1-2+3", // same-level, different operators, left-associativity
+          "1+2*3-4/5", // mixed, multiple levels
+          "(1+2)*3", // parens reset precedence
+          "1*(2+3)-4"
+        )
+        inputs.foreach { input =>
+          lexer(input) match
+            case Left(e) => fail(s"calc-prec / $input: lex failed: $e")
+            case Right(toks) =>
+              val lr = Table.buildTablesForP(prec, Method.Canonical, g) match
+                case Left(cs) => fail(s"calc-prec / $input: LR table build failed: $cs")
+                case Right(table) =>
+                  Parser.run(table, Cst.cstToken, Cst.cstReduce, toks) match
+                    case Left(e)  => fail(s"calc-prec / $input: LR should accept: $e")
+                    case Right(c) => c
+              val ll = Ll.parse(g, toks, prec) match
+                case Some(c) => c
+                case None    => fail(s"calc-prec / $input: Ll.parse should accept")
+              assertEquals(ll, lr, s"calc-prec / $input: Ll.parse's Cst differs from LR's")
+        }
   }

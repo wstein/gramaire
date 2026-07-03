@@ -79,38 +79,48 @@ object Ll:
   // ── Cst-producing parse ──────────────────────────────────────────────
 
   // Read-only context threaded through the Cst-producing walk: the ATN, the
-  // input, the *original* (pre-LeftRec) rules by name (for symbol shapes),
-  // which rules LeftRec actually rewrote (and how, to fold their walk back),
-  // and the original-grammar production ids (matching `Table.productions`,
-  // what the LR path's Cst uses) `cache` is mutable but its reference is
-  // itself part of the fixed per-call setup, alongside everything else here.
+  // input, the rules by name *after* precedence stratification but *before*
+  // LeftRec (for symbol shapes — LeftRec's own Fold indices are local to
+  // these), which rules LeftRec actually rewrote (and how, to fold their
+  // walk back), which alts a precedence stratification introduced (and how
+  // to fold *those* back — see `PrecClimb.Tag`), and the *original*
+  // (pre-stratification, pre-LeftRec) grammar's production ids (matching
+  // `Table.productions`, what the LR path's Cst uses). `cache` is mutable
+  // but its reference is itself part of the fixed per-call setup, alongside
+  // everything else here.
   private final case class Ctx(
       atn: Atn,
       toks: Vector[Token],
       ruleByName: Map[String, Rule],
       folds: Map[String, LeftRec.Fold],
       prodIndex: Map[(String, Int), Int],
+      stratumTags: Map[(String, Int), PrecClimb.Tag],
       cache: AtnSim.Cache
   )
 
   /** Parse `toks` to a `Cst` rooted at the grammar's start rule, or `None` if the whole stream
     * isn't recognized. The `Cst` matches the LR path's exactly: the same production ids
-    * (`Table.productions` on the same desugared grammar), the same left-associative shape for
-    * left-recursive rules — despite ALL(*) parsing them via `LeftRec.eliminate`'s right-recursive
-    * rewrite under the hood, invisible here.
+    * (`Table.productions` on the same desugared grammar) and the same tree shape — for ordinary
+    * left-recursive rules (despite ALL(*) parsing them via `LeftRec.eliminate`'s right-recursive
+    * rewrite under the hood) and for `## Precedence`-declared, genuinely ambiguous ones (despite
+    * ALL(*) parsing them via `PrecClimb.stratify`'s precedence-level cascade), both invisible here.
+    * `prec` is the grammar's declared precedence (`Lr.precedenceOf`) — empty if it has none, the
+    * common case, for which `PrecClimb.stratify` is a no-op.
     */
-  def parse(g: Grammar, toks: Vector[Token]): Option[Cst] =
+  def parse(g: Grammar, toks: Vector[Token], prec: Precedence = Table.emptyPrec): Option[Cst] =
     Desugar.desugar(g) match
       case Left(_) => None
       case Right(dg) =>
-        val (rewritten, folds) = LeftRec.eliminate(dg)
+        val (stratified, stratumTags) = PrecClimb.stratify(dg, prec)
+        val (rewritten, folds) = LeftRec.eliminate(stratified)
         val atn = AtnBuild.buildAtn(rewritten)
         val ctx = Ctx(
           atn,
           toks,
-          dg.rules.map(r => r.name -> r).toMap,
+          stratified.rules.map(r => r.name -> r).toMap,
           folds,
           indexProductions(dg),
+          stratumTags,
           new AtnSim.Cache
         )
         parseRuleCst(ctx, atn.start, 0) match
@@ -150,6 +160,20 @@ object Ll:
         }
       case _ => None
 
+  // Build the Cst for one matched alternative — `Cst.Branch` tagged with the *original*
+  // grammar's production id in the common case, but consulting `stratumTags` first: a
+  // precedence-stratified rule's pass-through alt (`PrecClimb.Tag.Transparent`) is pure
+  // plumbing with no original counterpart and must unwrap to its single child rather than wrap
+  // it, and an alt PrecClimb *did* carry over from the original rule
+  // (`PrecClimb.Tag.Original`) is tagged with that original rule+alt, not this (possibly
+  // synthetic) one.
+  private def tagCst(ctx: Ctx, ruleName: String, altIdx: Int, kids: Vector[Cst]): Cst =
+    ctx.stratumTags.get((ruleName, altIdx)) match
+      case Some(PrecClimb.Tag.Transparent) => kids.head
+      case Some(PrecClimb.Tag.Original(origRule, origIdx)) =>
+        Cst.Branch(ctx.prodIndex((origRule, origIdx)), kids)
+      case None => Cst.Branch(ctx.prodIndex((ruleName, altIdx)), kids)
+
   // A rule LeftRec never touched: its chosen alt is, unchanged, an alt of the original rule —
   // walk its real symbols and tag the branch with that alt's own production id.
   private def parsePlainRule(
@@ -162,7 +186,7 @@ object Ll:
       (altIdx, altFirst) <- predictAlt(ctx, ruleStart, pos)
       n = ctx.ruleByName(ruleName).alts(altIdx).syms.length
       (kids, _, pos2) <- walkSyms(ctx, altFirst, n, pos)
-    yield (Cst.Branch(ctx.prodIndex((ruleName, altIdx)), kids), pos2)
+    yield (tagCst(ctx, ruleName, altIdx, kids), pos2)
 
   // A rule LeftRec rewrote to `bi | bi tail`, `tail : aj | aj tail`. The predicted alt's parity
   // says whether it's "just bi" or "bi, then tail" (`eliminate`'s `flatMap(a => Vector(bare, bare
@@ -184,7 +208,7 @@ object Ll:
       origAltIdx = fold.baseAltIdx(k)
       n = ctx.ruleByName(ruleName).alts(origAltIdx).syms.length
       (baseKids, stateAfter, posAfter) <- walkSyms(ctx, altFirst, n, pos)
-      base = Cst.Branch(ctx.prodIndex((ruleName, origAltIdx)), baseKids)
+      base = tagCst(ctx, ruleName, origAltIdx, baseKids)
       result <-
         if !hasTail then Some((base, posAfter))
         else
@@ -193,7 +217,7 @@ object Ll:
               parseTailChain(ctx, ruleName, fold, tailTarget, posAfter).map {
                 case (steps, posFinal) =>
                   val folded = steps.foldLeft(base) { case (acc, (opIdx, restKids)) =>
-                    Cst.Branch(ctx.prodIndex((ruleName, opIdx)), acc +: restKids)
+                    tagCst(ctx, ruleName, opIdx, acc +: restKids)
                   }
                   (folded, posFinal)
               }
