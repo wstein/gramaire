@@ -45,13 +45,14 @@ object IRValidate:
         if termSet.contains(i) then Vector.empty
         else Vector(s"rule $rid: rhs terminal id $i is unknown")
 
+    def nonEmptyKey(rid: Int, message: String, k: String): Vector[String] =
+      if k.isEmpty then Vector(s"rule $rid: $message") else Vector.empty
+
     def checkActionKey(rid: Int, k: String): Vector[String] =
-      if k == "" then Vector(s"rule $rid: empty action profile name") else Vector.empty
+      nonEmptyKey(rid, "empty action profile name", k)
 
     def checkPredicateEffect(rid: Int, p: IRPredicateEffect): Vector[String] =
-      (p.reads ++ p.writes).collect {
-        case k if k.isEmpty => s"rule $rid: predicate effect key must not be empty"
-      }
+      (p.reads ++ p.writes).flatMap(nonEmptyKey(rid, "predicate effect key must not be empty", _))
 
     def checkRule(r: IRRule): Vector[String] =
       (if ntSet.contains(r.lhs) then Vector.empty
@@ -59,7 +60,7 @@ object IRValidate:
         r.rhs.flatMap(checkRef(r.id, _)) ++
         r.actions.keys.toVector.flatMap(k => checkActionKey(r.id, k)) ++
         r.predicate.toVector.flatMap(checkPredicateEffect(r.id, _)) ++
-        (if r.predicate.isDefined && r.actions.isEmpty then
+        (if r.predicate.isDefined && !r.actions.values.exists(_.trim.nonEmpty) then
            Vector(s"rule ${r.id}: declares a predicate effect but has no action body")
          else Vector.empty)
 
