@@ -518,9 +518,9 @@ export default function LabIsland() {
             >
               ALL(*)
             </option>
-              <option value="Canonical">Canonical LR(1)</option>
-              <option value="LALR">LALR(1)</option>
-              <option value="IELR">IELR(1)</option>
+            <option value="Canonical">Canonical LR(1)</option>
+            <option value="LALR">LALR(1)</option>
+            <option value="IELR">IELR(1)</option>
           </select>
         </label>
         {ruleNames.value.length > 0 && (
@@ -1088,16 +1088,29 @@ function ruleName(rule: number): string {
 // Tokens-tab row/Result chip by plain array index.
 type LeafCounter = { i: number };
 
-function CstNodeView({
+// The tree shape CstNodeView and AnnotatedNodeView both walk: a leaf (`token`/`text`) or a branch
+// (`rule`/`children`). `value` is optional so a bare `CstNode`/`CstToken`/`CstBranch` (which never
+// has one) structurally satisfies this without protocol.ts needing a fake field of its own.
+type FoldableNode =
+  | { token: string; text: string; value?: unknown }
+  | { rule: number; children: FoldableNode[]; value?: unknown };
+
+// Shared by CstNodeView (Parse tree/All parses' raw Cst display) and AnnotatedNodeView (Evaluate's
+// annotated-tree display) — identical fold/hover/indent recursive walk; `showValue` is the one
+// real difference between them (each node's own <ValueChip>), so it's a flag here instead of a
+// second ~50-line copy of the walk.
+function FoldableNodeView({
   node,
   depth = 0,
   counter,
   path,
+  showValue = false,
 }: {
-  node: CstNode | null;
+  node: FoldableNode | null;
   depth?: number;
   counter: LeafCounter;
   path: string;
+  showValue?: boolean;
 }) {
   if (!node) return null;
   const indent = "  ".repeat(depth);
@@ -1112,6 +1125,12 @@ function CstNodeView({
       >
         {indent}
         {node.token} {JSON.stringify(node.text)}
+        {showValue && (
+          <>
+            {" "}
+            <ValueChip value={node.value} />
+          </>
+        )}
       </div>
     );
   }
@@ -1129,18 +1148,41 @@ function CstNodeView({
         {indent}
         {hasKids && <span class="lab__fold-marker">{folded ? "▶" : "▼"}</span>}
         {name}
+        {showValue && (
+          <>
+            {" "}
+            <ValueChip value={node.value} />
+          </>
+        )}
       </div>
       {!folded &&
         node.children.map((c, i) => (
-          <CstNodeView
+          <FoldableNodeView
             key={i}
             node={c}
             depth={depth + 1}
             counter={counter}
             path={`${path}.${i}`}
+            showValue={showValue}
           />
         ))}
     </div>
+  );
+}
+
+function CstNodeView({
+  node,
+  depth,
+  counter,
+  path,
+}: {
+  node: CstNode | null;
+  depth?: number;
+  counter: LeafCounter;
+  path: string;
+}) {
+  return (
+    <FoldableNodeView node={node} depth={depth} counter={counter} path={path} />
   );
 }
 
@@ -1941,7 +1983,7 @@ function EvaluatePanel() {
 
 function AnnotatedNodeView({
   node,
-  depth = 0,
+  depth,
   counter,
   path,
 }: {
@@ -1950,47 +1992,13 @@ function AnnotatedNodeView({
   counter: LeafCounter;
   path: string;
 }) {
-  const indent = "  ".repeat(depth);
-  if ("token" in node) {
-    const idx = counter.i++;
-    return (
-      <div
-        class={
-          hoverToken.value === idx ? "lab__leaf lab__leaf--hover" : "lab__leaf"
-        }
-        onMouseEnter={() => (hoverToken.value = idx)}
-      >
-        {indent}
-        {node.token} {JSON.stringify(node.text)}{" "}
-        <ValueChip value={node.value} />
-      </div>
-    );
-  }
-  const name = ruleName(node.rule);
-  const hasKids = node.children.length > 0;
-  const folded = collapsedPaths.value.has(path);
   return (
-    <div>
-      <div
-        class="lab__rule-header"
-        onMouseEnter={() => (hoverRule.value = name)}
-        onMouseLeave={() => (hoverRule.value = null)}
-        onClick={hasKids ? () => toggleFold(path) : undefined}
-      >
-        {indent}
-        {hasKids && <span class="lab__fold-marker">{folded ? "▶" : "▼"}</span>}
-        {name} <ValueChip value={node.value} />
-      </div>
-      {!folded &&
-        node.children.map((c, i) => (
-          <AnnotatedNodeView
-            key={i}
-            node={c}
-            depth={depth + 1}
-            counter={counter}
-            path={`${path}.${i}`}
-          />
-        ))}
-    </div>
+    <FoldableNodeView
+      node={node}
+      depth={depth}
+      counter={counter}
+      path={path}
+      showValue
+    />
   );
 }
