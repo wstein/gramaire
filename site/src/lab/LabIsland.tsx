@@ -395,7 +395,7 @@ function revealLeaf(cst: CstNode, idx: number) {
 // 28-72. Position is in-memory only (not persisted) — the spec doesn't call for localStorage, so
 // this doesn't add one speculatively. `panesEl` is measured live on every move rather than cached
 // at drag-start, since a cached rect would go stale if the window were resized mid-drag.
-function startSplitterDrag(panesEl: HTMLDivElement) {
+function startGrammarPaneDrag(panesEl: HTMLDivElement) {
   return (e: MouseEvent) => {
     e.preventDefault();
     const onMove = (moveEvent: MouseEvent) => {
@@ -415,10 +415,10 @@ function startSplitterDrag(panesEl: HTMLDivElement) {
   };
 }
 
-// The vertical counterpart of startSplitterDrag: resizes the bottom drawer (tabs + panel) against
+// The vertical counterpart of startGrammarPaneDrag: resizes the bottom drawer (tabs + panel) against
 // the top panes as a percentage of the whole Lab height, so the chosen layout scales with viewport
 // height the same way the grammar/input split scales with width.
-function startDrawerDrag(labEl: HTMLDivElement) {
+function startDrawerPaneDrag(labEl: HTMLDivElement) {
   return (e: MouseEvent) => {
     e.preventDefault();
     const onMove = (moveEvent: MouseEvent) => {
@@ -618,7 +618,7 @@ export default function LabIsland() {
           aria-valuemax={GRAMMAR_PANE_MAX_PERCENT}
           aria-valuenow={Math.round(grammarPanePercent.value)}
           onMouseDown={(e) => {
-            if (panesRef.current) startSplitterDrag(panesRef.current)(e);
+            if (panesRef.current) startGrammarPaneDrag(panesRef.current)(e);
           }}
         />
         <div class="lab__pane lab__pane--fill">
@@ -672,7 +672,7 @@ export default function LabIsland() {
         aria-valuemax={DRAWER_PANE_MAX_PERCENT}
         aria-valuenow={Math.round(drawerPanePercent.value)}
         onMouseDown={(e) => {
-          if (labRef.current) startDrawerDrag(labRef.current)(e);
+          if (labRef.current) startDrawerPaneDrag(labRef.current)(e);
         }}
       />
       <div
