@@ -127,8 +127,8 @@ Elements
   : Value
   | Value \`,\` Elements
 ` },
-  lr: { file:"lr.gram.md", input:"name : sym sym", text:
-`# lr — Gramaire's own notation, condensed
+  lr: { file:"Productions.gram.md", input:"name : sym sym", text:
+`# Productions — Gramaire's rule notation, condensed
 
 Rule
   : Name Alts
@@ -389,7 +389,7 @@ class Component extends DCLogic {
   docsView(){
     const R=React; const sec=this.state.docSection;
     const content={
-      overview:{h:"Overview",p:["Gramaire is an LR parser generator whose source format is Markdown. A .gram.md file is a normal document that renders on GitHub — prose, railroad diagrams, FIRST/FOLLOW tables — and is at the same time the exact input the generator reads.","The productions live in fenced lr blocks; everything around them is documentation that travels with the grammar. The implementation is PureScript and self-hosting by design: Gramaire's own notation is described, in itself, in grammar/lr.gram.md."],code:null},
+      overview:{h:"Overview",p:["Gramaire is an LR parser generator whose source format is Markdown. A .gram.md file is a normal document that renders on GitHub — prose, railroad diagrams, FIRST/FOLLOW tables — and is at the same time the exact input the generator reads.","The productions live in fenced gramaire blocks; everything around them is documentation that travels with the grammar. The implementation is PureScript and self-hosting by design: Gramaire's rule notation is described, in itself, in grammar/Productions.gram.md."],code:null},
       format:{h:"The .gram.md format",p:["A grammar file is a canonical Markdown document: one H1 naming the grammar, one H2 section per nonterminal — each with an lr fence of productions and an optional linked railroad diagram — plus optional Precedence and Error-message sections and a generated FIRST/FOLLOW section.","Because fence contents are opaque to Markdown, the characters {% , | , + and backslashes inside a payload never trip the renderer or the linter."],code:"Expr\n  : Expr `+` Term\n  | Term"},
       fences:{h:"lr fences",p:["Each nonterminal's productions go inside a fenced lr block. A production is a sequence of symbols: nonterminals are bare identifiers, terminals are wrapped in backticks. Alternatives are separated by | ; the first line starts with : .","Semantic actions are written between {% and %} as raw PureScript and are preserved verbatim through to code generation."],code:"Term\n  : Term `*` Atom   {% Mul %}\n  | Atom"},
       ff:{h:"FIRST / FOLLOW",p:["For every grammar, Gramaire machine-computes the FIRST and FOLLOW sets and checks them against the parser's own analysis. FIRST(A) is the set of terminals that can begin a string derived from A; FOLLOW(A) is the set that can appear immediately after A.","Open any grammar in the Lab to see these sets update live as you edit."],code:null},
@@ -785,4 +785,3 @@ class Component extends DCLogic {
 </script>
 </body>
 </html>
-

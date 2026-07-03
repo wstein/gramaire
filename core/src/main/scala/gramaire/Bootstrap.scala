@@ -4,15 +4,15 @@ import Sym.*
 
 // Iteration-0 bootstrap.
 //
-// This is the `lr` grammar of `lr.gram.md`, encoded by hand as a `Grammar`
+// This is the productions grammar of `Productions.gram.md`, encoded by hand as a `Grammar`
 // value. The table builder is fed THIS directly — no bootstrap parser is
 // needed to get the toolchain off the ground. Once `buildTables` + codegen
-// produce an `lr` parser, and that generated parser reads `lr.gram.md` back
+// produce the internal `lr` parser, and that generated parser reads `Productions.gram.md` back
 // to a value equal to `bootstrapGrammar` (the dogfood test), this literal
 // is deleted and the `.gram.md` file becomes the single source of truth.
 //
 // Each action string is the exact `%lang javascript` text between `{%` and
-// `%}` in the corresponding rule of `lr.gram.md` — real, executable JS
+// `%}` in the corresponding rule of `Productions.gram.md` — real, executable JS
 // (`gramaire emit --backend js` bakes it into a working evaluator), but
 // still not what drives this file's own self-hosting proof: `CodegenScala`'s
 // Scala-emitting reduce is generated from a separate, hand-written Scala
@@ -21,7 +21,7 @@ import Sym.*
 // Ported from src/Gramaire/Bootstrap.purs.
 object Bootstrap:
 
-  // The `lr` notation's lexis — the `## Tokens` block of `lr.gram.md`,
+  // The productions notation's lexis — the `## Tokens` block of `Productions.gram.md`,
   // encoded here so the parse path can build its scanner without reading
   // the file.
   val lrTokensSource: String = List(

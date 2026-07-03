@@ -30,7 +30,7 @@ FIRST/FOLLOW table below it are all the same document.
 
 The real implementation is Scala 3, cross-compiled to the JVM and Scala.js
 (under [`core/`](core/)). It is self-hosting by design: Gramaire's own notation
-is described, in itself, in [`grammar/lr.gram.md`](grammar/lr.gram.md), and the
+is described, in itself, in [`grammar/Productions.gram.md`](grammar/Productions.gram.md), and the
 generated parser must read that file back to a value equal to the hand-written
 [`Bootstrap`](core/src/main/scala/gramaire/Bootstrap.scala) literal.
 
@@ -85,7 +85,7 @@ not a grammar. This file is a window onto those grammars, not itself one.
 
 The core cross-compiles to the JVM and Scala.js with [sbt](https://www.scala-sbt.org/).
 Its test suite includes the self-hosting check — the parser generated from the
-`lr` grammar reads `grammar/lr.gram.md` back to the hand-written
+productions grammar reads `grammar/Productions.gram.md` back to the hand-written
 `Bootstrap.bootstrapGrammar` literal — under all three table-construction
 methods, plus a Scala-emitting codegen proof that reproduces it through
 _generated_ code, not just the hand-written reduce:
@@ -118,10 +118,10 @@ sbt "cli/run import grammar.g4 --out gen/"
 sbt "cli/run check examples/json.gram.md"
 
 # format: emit real railroad diagrams and the sidecar *.gram.lock
-sbt "cli/run fmt grammar/lr.gram.md"
+sbt "cli/run fmt grammar/Productions.gram.md"
 
 # ...or embed the diagrams as GitHub-native mermaid instead of sidecar SVGs
-sbt "cli/run fmt --diagrams=mermaid grammar/lr.gram.md"
+sbt "cli/run fmt --diagrams=mermaid grammar/Productions.gram.md"
 
 # run the differential-oracle conformance suite over the built-in lr + calc corpora
 sbt "cli/run conformance"
@@ -141,7 +141,7 @@ JAVA_HOME=/path/to/graalvm sbt cli/nativeImage   # -> cli/jvm/target/native-imag
 | `core/`      | Cross-compiled (JVM + Scala.js) core: lexer, tables, parser, IR, backends. |
 | `cli/jvm/`   | The unified native `gramaire` CLI (`emit`/`import`/`check`/`fmt`/`conformance`). |
 | `spec/`      | `ir-schema.json` (IR contract) and `incremental-spec.md` (CST/LSP).     |
-| `grammar/`   | `lr.gram.md` — the `lr` notation described in itself.                   |
+| `grammar/`   | `Productions.gram.md` — the productions notation described in itself.    |
 | `examples/`  | Worked grammars: `json`, `calc`, `calc-js`, and the `readme` meta demo. |
 | `docs-lint/` | Standalone Markdown lint gate (`markdownlint-cli2`) over the whole repo. |
 | `brand/`     | Logo and wordmark SVGs.                                                 |
@@ -155,7 +155,7 @@ JAVA_HOME=/path/to/graalvm sbt cli/nativeImage   # -> cli/jvm/target/native-imag
 The Scala core lexes an `lr` block, builds parse tables by three methods —
 canonical LR(1), LALR(1), and IELR(1) (inadequacy-driven state splitting) — and
 runs them through a table-driven parser. The **self-hosting loop is closed**:
-the parser generated from the `lr` grammar reads `grammar/lr.gram.md` back to
+the parser generated from the productions grammar reads `grammar/Productions.gram.md` back to
 `Bootstrap.bootstrapGrammar`, under all three methods. A differential oracle
 pins the methods against each other (an LR(1)-but-not-LALR(1) grammar is
 accepted by canonical, rejected by LALR, and recovered by IELR).

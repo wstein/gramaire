@@ -13,7 +13,7 @@ package gramaire
 // id -> Scala-arrow-syntax action text, mirroring `Lr.reduce`'s own
 // case-for-case logic (not `bootstrapGrammar`'s `.action` field, which
 // stays legacy lambda-syntax text carried over from the original grammar
-// notation, and is compared byte-for-byte against `grammar/lr.gram.md`'s
+// notation, and is compared byte-for-byte against `grammar/Productions.gram.md`'s
 // own embedded actions by `SelfHostSuite` — so it can't change).
 // Originally paired with a sibling code generator (`Codegen`) targeting
 // the prior reference implementation's own host language; that sibling

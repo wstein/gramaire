@@ -563,7 +563,7 @@ after the last `runMain` output and silently folded into the last response
 under a naive split), and `site/scripts/check-lab-parity.mjs`
 (`npm run check:lab-parity`), which runs a fixed fixture list (`examples/
 calc.gram.md` with `"1+2*3"`, `examples/json.gram.md` with a small JSON
-literal, `grammar/lr.gram.md` compile-only, and a genuinely ambiguous
+literal, `grammar/Productions.gram.md` compile-only, and a genuinely ambiguous
 grammar with real conflicts — the `buildOk = false` case `forest`/
 `productions`/`analysis` exist to still cover) through both `labJVM`
 (one `sbt` invocation for all fixtures, not one per fixture — sbt/JVM

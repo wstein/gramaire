@@ -59,7 +59,7 @@ const fixtures = [
     // needs. Compile-only still exercises productions/analysis/evaluatorJs (all independent of
     // `input`), just not parse/trace/forest.
     name: "lr",
-    source: readGrammar("grammar/lr.gram.md"),
+    source: readGrammar("grammar/Productions.gram.md"),
     input: null,
     method: "Canonical",
   },

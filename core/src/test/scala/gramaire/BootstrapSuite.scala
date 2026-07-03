@@ -1,7 +1,7 @@
 package gramaire
 
 // A structural sanity check only — the real parity gate (the generated
-// parser reads `lr.gram.md` back to this exact value) lands with the
+// parser reads `Productions.gram.md` back to this exact value) lands with the
 // self-hosting proof once `Lr`/`Codegen` are ported.
 class BootstrapSuite extends munit.FunSuite:
   test("bootstrapGrammar has the fifteen `lr` notation rules, in source order") {

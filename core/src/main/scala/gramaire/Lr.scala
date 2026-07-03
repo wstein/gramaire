@@ -2,15 +2,15 @@ package gramaire
 
 import Sym.*
 
-// The parser for the `lr` notation itself: the generic runtime
-// instantiated with the semantics of `grammar/lr.gram.md`.
+// The parser for the productions notation itself: the generic runtime
+// instantiated with the semantics of `grammar/Productions.gram.md`.
 //
 // `reduce` is the hand-written stand-in for codegen output — one branch
 // per production of `bootstrapGrammar`, each mirroring that rule's
 // `{% %}` body verbatim. `parse` extracts the `lr` blocks from a
 // `.gram.md` document, lexes them, and runs them through the tables
-// generated from the `lr` grammar itself, yielding a `Grammar`. Feeding
-// it `grammar/lr.gram.md` reconstructs `bootstrapGrammar` — the
+// generated from the productions grammar itself, yielding a `Grammar`. Feeding
+// it `grammar/Productions.gram.md` reconstructs `bootstrapGrammar` — the
 // self-hosting loop.
 // Ported from src/Gramaire/Lr.purs.
 
@@ -58,7 +58,7 @@ object Lr:
       else go(i + 1, acc.append(s.charAt(i)))
     go(0, StringBuilder())
 
-  /** The semantic actions of `grammar/lr.gram.md`, keyed by production index (the order
+  /** The semantic actions of `grammar/Productions.gram.md`, keyed by production index (the order
     * `Table.productions` flattens `bootstrapGrammar` into). This is the artifact `gramaire fmt`
     * codegen will emit; for now it is written by hand to mirror the `{% %}` bodies verbatim.
     */
@@ -134,7 +134,8 @@ object Lr:
   // `lr`-notation scanner/parser verbatim, which rejects a genuine mix with an ordinary lex/parse
   // error naming the offending line. This is "case is law": an unindented `ALLCAPS : …` line is
   // unambiguously a token definition, because the `lr` notation's own grammar requires a newline
-  // between a rule's name and its `:` (`Rule : IDENT NL ':' Body`, `grammar/lr.gram.md`) — no valid
+  // between a rule's name and its `:` (`Rule : IDENT NL ':' Body`,
+  // `grammar/Productions.gram.md`) — no valid
   // production can ever share a token definition's one-line `NAME : …` shape.
   enum FenceKind derives CanEqual:
     case Rule, Tokens, Settings, Precedence
@@ -301,12 +302,12 @@ object Lr:
     * non-authoritative — `.gram.md` stays the source of truth.
     *
     * Mirrors `toFenced`'s own already-in-target-shape guard: input with no `` ```gramaire `` fence
-    * is already fence-free (either genuine `.gram` input, or nothing valid to strip regardless),
-    * so it's returned unchanged rather than run through `sectionize`/`banner`. Without this guard,
+    * is already fence-free (either genuine `.gram` input, or nothing valid to strip regardless), so
+    * it's returned unchanged rather than run through `sectionize`/`banner`. Without this guard,
     * `strip` is NOT idempotent — `sectionize` only recognizes sections via `"## "` lines, which
     * `strip`'s own output never contains (`section` drops the heading), so re-stripping already-
-    * stripped output treats the entire file, banner and live declarations alike, as undifferentiated
-    * preamble prose and wraps all of it in one dead `/** ... */` comment.
+    * stripped output treats the entire file, banner and live declarations alike, as
+    * undifferentiated preamble prose and wraps all of it in one dead `/** ... */` comment.
     */
   def strip(md: String): String =
     if !md.contains("```gramaire") then md
