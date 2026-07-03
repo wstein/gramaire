@@ -498,6 +498,20 @@ class LabApiSuite extends munit.FunSuite:
       resp.evaluatorJs.isDefined,
       "evaluatorJs needs no LR table build, so it should still be generated"
     )
+    // There is no LR table for this grammar (real, unresolved conflicts under every method), so
+    // no LR-oracle differential check can touch this response's parse.cst — but forest (Glr.forest,
+    // built independently, never fails on ambiguity) enumerates every Cst the grammar genuinely
+    // admits for "xxx". Whatever ll-star's declaration-order tie-break picked must be a MEMBER of
+    // that set, or evaluatorJs would be baking actions onto a tree the grammar doesn't actually
+    // produce (see LlSuite's own forest-membership test for the same check at the Ll.parseTraced
+    // level, without LabApi's request/response plumbing in the way).
+    (resp.parse.flatMap(_.cst), resp.forest) match
+      case (Some(cst), Some(forest)) =>
+        assert(
+          forest.parses.contains(cst),
+          s"ll-star's resolved parse.cst isn't among All-parses' GLR-verified forest: $cst"
+        )
+      case _ => fail(s"expected both parse.cst and forest to be present: $resp")
   }
 
   test(
