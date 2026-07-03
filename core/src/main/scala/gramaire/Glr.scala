@@ -25,6 +25,14 @@ object Glr:
 
   /** Every parse of the input under the multi-action table, as a forest of semantic values (one per
     * successful derivation).
+    *
+    * NOT an unconditionally complete enumeration: `go` silently returns whatever it has found so
+    * far once `budget` is exhausted, with no signal to the caller that happened — for a
+    * combinatorially explosive ambiguous grammar/input, `parseForest`/`forest` can return a subset
+    * of the real parse set with no indication of truncation. Safe as a completeness oracle (e.g.
+    * "is this Cst a real parse the grammar admits?") only when the caller has reason to believe the
+    * specific grammar/input pair stays well under `budget` steps — true for hand-written test
+    * fixtures with a handful of tokens, not guaranteed in general.
     */
   def parseForest[V](
       table: GlrTable,
