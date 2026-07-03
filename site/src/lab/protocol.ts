@@ -10,7 +10,7 @@
  */
 export type Method = "Canonical" | "LALR" | "IELR";
 /**
- * Which parse strategy to build under — mirrors gramaire.IR's two D-strategy values. "lr" is the table-driven LR/GLR pipeline; "ll-star" is the ALL(*) port (Ll.recognize/Ll.parse over an Atn), which the Lab surfaces only as the additive `LabResponse.atn` diagnostics — it has no step-trace or codegen equivalent to swap in for the rest of the response.
+ * Which parse strategy to build under — mirrors gramaire.IR's two D-strategy values. "lr" is the table-driven LR/GLR pipeline. "ll-star" is the ALL(*) port (Ll.parseTraced): parse/evaluatorJs/atn are driven by it instead — buildOk no longer depends on the LR table build succeeding (a conflict downgrades to a warning), parse.trace is always absent in favor of parse.llTrace, and evaluatorJs generates even when the grammar has real LR conflicts (it needs no table build). forest/analysis stay LR/GLR-driven under both strategies — method always selects the automaton they're built from.
  */
 export type Strategy = "lr" | "ll-star";
 
@@ -26,7 +26,7 @@ export interface LabRequest {
    */
   startRule?: string | null;
   /**
-   * Which parse strategy to additionally run. Null (or omitted) means "lr" — the default table-driven pipeline every other field in LabResponse is built from, unaffected either way. "ll-star" only ever ADDS the `atn` diagnostics field; it never changes buildOk/parse/forest/analysis/evaluatorJs.
+   * Which parse strategy to build under. Null (or omitted) means "lr", the table-driven pipeline. "ll-star" is a genuine alternate pipeline for parse/evaluatorJs/atn (see the `strategy` def's own description) — forest/analysis stay LR/GLR-driven either way.
    */
   strategy?: Strategy | null;
 }
@@ -53,6 +53,31 @@ export type LrActionInfo =
   | {
       kind: "accept";
     };
+/**
+ * A kind-tagged ALL(*) walk action, mirroring LrActionInfo's shape.
+ */
+export type LlActionInfo =
+  | {
+      kind: "predict";
+      /**
+       * The rule the walk actually descends — a LeftRec-folded tail rule or PrecClimb-stratified level, not the original grammar rule an alt may fold back to on the Cst.
+       */
+      rule: string;
+      chosenAlt: number;
+      altCount: number;
+    }
+  | {
+      kind: "match";
+      terminal: string;
+      lexeme: string;
+    }
+  | {
+      kind: "exitRule";
+      rule: string;
+    }
+  | {
+      kind: "accept";
+    };
 
 /**
  * The Lab's full response: whether the grammar itself built, any diagnostics, and — if input was given and the grammar built — the parse result.
@@ -63,7 +88,7 @@ export interface LabResponse {
    */
   labProtocolVersion: number;
   /**
-   * True iff the grammar compiled and its tables built with no unresolved conflicts. When false, `diagnostics` names why and `parse` is always null.
+   * Under strategy "lr": true iff the grammar compiled and its LR tables built with no unresolved conflicts; when false, `diagnostics` names why and `parse` is always null. Under strategy "ll-star": true whenever the grammar notation itself parsed and desugared — an LR conflict no longer blocks the build, it only appears in `diagnostics` as a warning, since ALL(*) resolves the same tie itself, by declaration order.
    */
   buildOk: boolean;
   /**
@@ -87,11 +112,11 @@ export interface LabResponse {
    */
   analysis: GrammarAnalysis | null;
   /**
-   * The Evaluate tab's data: BackendJs.emitTraced's generated ES module source text, run by the Worker (not this schema's owner — Scala never executes it). Present only when buildOk is true (it needs a valid compiled table); null otherwise.
+   * The Evaluate tab's data: BackendJs.emitTraced's generated ES module source text, run by the Worker (not this schema's owner — Scala never executes it). Needs no LR table build (it reads only the grammar's structure), so it's present whenever buildOk is true under EITHER strategy — including an ll-star build with a downgraded-to-warning LR conflict; null otherwise, or if the grammar declares a `{%? %}` predicate (neither runtime evaluates predicates yet).
    */
   evaluatorJs: string | null;
   /**
-   * The `--strategy ll-star` diagnostics tab's data: whether Ll.recognize accepts `input`, the DFA prediction cache's hit/miss counts, and every declaration-order-resolved ambiguity hit along the way — the same idiom `gramaire conformance` reports per corpus, here per grammar/input. Present only when the request's strategy is "ll-star" and `input` is given; independent of buildOk, like forest (a grammar the LR table build rejects can still be worth seeing through ALL(*)'s own lens).
+   * The ATN diagnostics tab's data, under strategy "ll-star": whether Ll.parseTraced accepts `input` (mirrors `parse.accepted`), the DFA prediction cache's hit/miss counts, and every declaration-order-resolved ambiguity hit along the way — from the SAME cache run that produced `parse`, not a separate one. Present only when the request's strategy is "ll-star" and `input` is given.
    */
   atn: AtnDiagnostics | null;
 }
@@ -120,7 +145,7 @@ export interface SrcSpanInfo {
   end: number;
 }
 /**
- * The outcome of parsing LabRequest.input against the compiled grammar. `tokens` is populated even on a reject, so the Tokens tab still has something to show; `cst`/`trace` are null unless `accepted`.
+ * The outcome of parsing LabRequest.input against the compiled grammar. `tokens` is populated even on a reject, so the Tokens tab still has something to show; `cst` is null unless `accepted`. `trace` (strategy "lr") and `llTrace` (strategy "ll-star") are mutually exclusive — exactly one of the two is ever non-null, matching LabRequest.strategy — and both share `cst`'s accepted-only lifecycle.
  */
 export interface ParseResult {
   accepted: boolean;
@@ -131,9 +156,13 @@ export interface ParseResult {
   tokens: LabToken[];
   cst: CstNode | null;
   /**
-   * The Parse trace / LR walk tabs' data: the full shift/reduce/accept sequence, one entry per step. Present only when accepted.
+   * The Parse trace / LR walk tabs' data under strategy "lr": the full shift/reduce/accept sequence, one entry per step. Present only when accepted.
    */
   trace: LrStepInfo[] | null;
+  /**
+   * The Parse trace / LL walk tabs' data under strategy "ll-star": the full predict/match/exitRule/accept sequence, one entry per step. Present only when accepted.
+   */
+  llTrace: LlStepInfo[] | null;
 }
 /**
  * A single lexed token from the Lab's Tokens tab, with its source span (start/end are code-unit offsets into LabRequest.input, [start, end) — matching gramaire.Spanned's own convention).
@@ -167,6 +196,18 @@ export interface LrStepInfo {
    * Before this action, including a trailing `$` EOF marker.
    */
   remainingSymbols: string[];
+}
+/**
+ * One step of an ALL(*) walk: the `lr` walk's ll-star counterpart. `ruleStack` is bottom to top, including the rule the action concerns.
+ */
+export interface LlStepInfo {
+  index: number;
+  /**
+   * Bottom to top, before this action — a (possibly LeftRec/PrecClimb-rewritten) rule name per frame.
+   */
+  ruleStack: string[];
+  action: LlActionInfo;
+  pos: number;
 }
 /**
  * One flattened production of the compiled grammar. `lhs`/`rhs` are already display-rendered (a terminal is backtick-quoted, e.g. `` `+` ``; a nonterminal is bare).
@@ -223,11 +264,11 @@ export interface RuleFirstFollow {
   follow: string[];
 }
 /**
- * Whether Ll.recognize accepts the target input, the DFA prediction cache's hit/miss counts, and every declaration-order-resolved ambiguity hit while walking it — AtnSim.Cache(track = true) run fresh per request, exactly the way `gramaire conformance` runs it per corpus.
+ * Whether Ll.parseTraced accepts the target input, the DFA prediction cache's hit/miss counts, and every declaration-order-resolved ambiguity hit while walking it — from the same AtnSim.Cache(track = true) run that produced `parse`.
  */
 export interface AtnDiagnostics {
   /**
-   * Whether Ll.recognize accepts the input — expected to always agree with the LR/GLR path's own verdict; a disagreement would itself be a real engine bug.
+   * Mirrors `parse.accepted` — both come from the same Ll.parseTraced run.
    */
   accepted: boolean;
   hits: number;
