@@ -379,10 +379,21 @@ object ConvertAntlr:
   // per alternative (confirmed neither a blank body nor a `/* … */` comment parses); on the
   // lexer side, an empty regex fragment is a zero-width match — never a real token, and never
   // what dropping an action was supposed to produce. Each side renders through its own
-  // function (`renderAlt` vs `regexOfElem` — e.g. `~[set]` is valid `[^set]` in a lexer rule
+  // function (`renderElem` vs `regexOfElem` — e.g. `~[set]` is valid `[^set]` in a lexer rule
   // but has no parser-side home), so this checks whichever applies to `r`.
+  //
+  // `forall` here (not `renderAlt(alt).nonEmpty`/`alt.map(regexOfElem).mkString.nonEmpty`)
+  // short-circuits on an alt's first non-empty element instead of building and discarding a
+  // full string for every alt just to test emptiness — real savings, since most alts survive.
+  // This still calls the exact same per-element renderer `render`/`ruleSection` calls again
+  // afterward for surviving alts, deliberately: a second, cheaper judgment function that
+  // duplicated renderAtom/regexOfAtom's case list would risk drifting out of sync with them
+  // and silently missing a future empty-rendering case — exactly the bug class the last two
+  // commits fixed. A single source of truth for "does this render to nothing" is worth the
+  // one extra full pass building the final output text.
   private def isEmptyAlt(r: G4Rule, alt: Vector[Elem]): Boolean =
-    if r.lexer then alt.map(regexOfElem).mkString.isEmpty else renderAlt(alt).isEmpty
+    if r.lexer then alt.forall(e => regexOfElem(e).isEmpty)
+    else alt.forall(e => renderElem(e).isEmpty)
 
   // Drop an unrepresentable alternative, and the rule too if that empties it, rather than
   // emit unparseable/zero-width output. Dropping a whole rule can dangle another rule's
