@@ -329,7 +329,12 @@ object ConvertAntlr:
             s"dropped an inline action/predicate `{${shorten(a)}}` in rule `$ruleName` (no Core equivalent)"
           )
         case AGroup(alts) => alts.flatMap(_.flatMap(elemWarn(inLexer, ruleName, _)))
-        case ANot(inner)  => elemWarn(inLexer, ruleName, Elem(inner, SNone))
+        case ANot(ASet(s)) if !inLexer =>
+          Vector(
+            s"dropped a negated character set `~[${shorten(s)}]` in parser rule `$ruleName`" +
+              " (no Core equivalent — `~.` is not valid Gramark syntax)"
+          )
+        case ANot(inner) => elemWarn(inLexer, ruleName, Elem(inner, SNone))
         case ASet(s) if !inLexer =>
           Vector(s"widened a character set `[${shorten(s)}]` in parser rule `$ruleName` to `.`")
         case _ => Vector.empty
@@ -345,13 +350,38 @@ object ConvertAntlr:
     // warnings from two different rules into one.
     rules.flatMap(r => r.alts.flatMap(_.flatMap(e => elemWarn(r.lexer, r.name, e)))).distinct
 
+  // A PARSER-rule alternative every one of whose elements renders to "" (a dropped
+  // action/predicate, a dropped `~[set]`) cannot be written at all — Gramark's front end
+  // requires at least one real symbol per alternative; confirmed neither a blank body nor
+  // a `/* … */` comment parses. Drop the whole alternative, and the rule too if that
+  // empties it, rather than emit unparseable output. `renderAlt` is the parser-only
+  // renderer (lexer rules render via `regexOfAtom`, where e.g. `~[set]` is valid `[^set]`),
+  // so lexer rules are passed through untouched — applying it to them would wrongly drop
+  // a perfectly good lexer rule whose body happens to use the same atoms.
+  private def dropUnrepresentableAlts(rules: Vector[G4Rule]): (Vector[G4Rule], Vector[String]) =
+    val perRule = rules.map { r =>
+      if r.lexer then (Some(r), Vector.empty)
+      else
+        val (kept, dropped) = r.alts.partition(alt => renderAlt(alt).nonEmpty)
+        val altWarnings =
+          dropped.map(_ => s"dropped an alternative in rule `${r.name}` (no Core equivalent)")
+        if kept.nonEmpty then (Some(r.copy(alts = kept)), altWarnings)
+        else
+          (
+            None,
+            altWarnings :+ s"dropped rule `${r.name}` entirely (every alternative had no Core equivalent)"
+          )
+    }
+    (perRule.flatMap(_._1), perRule.flatMap(_._2))
+
   private def parseG4(toks0: Vector[Tok]): Either[String, Parsed] =
     for
       (name, afterDecl) <- grammarDecl(toks0.toList)
       rules <- rulesOf(afterDecl, Vector.empty)
     yield
       val kept = rules.filterNot(_.alts.isEmpty)
-      Parsed(name, kept, collectWarnings(kept))
+      val (reduced, altWarnings) = dropUnrepresentableAlts(kept)
+      Parsed(name, reduced, (collectWarnings(kept) ++ altWarnings).distinct)
 
   // ── Render to `.grmk.md` ─────────────────────────────────────────────
 
@@ -371,18 +401,27 @@ object ConvertAntlr:
     case SPlus => "+"
 
   private def renderAtom(a: Atom): String = a match
-    case ARef(n)      => n
-    case ALit(s)      => "'" + grmkLit(s) + "'"
-    case ASet(_)      => "." // a bare set in a parser rule has no Core home; widen to `.`
-    case ADot         => "."
-    case ANot(inner)  => "~" + renderAtom(inner)
-    case AGroup(alts) => "( " + alts.map(renderAlt).mkString(" | ") + " )"
-    case AInline(_)   => "" // dropped (warned)
+    case ARef(n) => n
+    case ALit(s) => "'" + grmkLit(s) + "'"
+    case ASet(_) => "." // a bare set in a parser rule has no Core home; widen to `.`
+    case ADot    => "."
+    // `~[set]` would widen to `~.`, but Gramark's own `NotArg` production only accepts
+    // `SetItem | '(' SetBody ')'` (an IDENT/literal, never `.`) — `~.` isn't parseable
+    // Gramark syntax, so drop the whole atom rather than emit invalid output (warned).
+    case ANot(ASet(_)) => ""
+    case ANot(inner)   => "~" + renderAtom(inner)
+    case AGroup(alts)  => "( " + alts.map(renderAlt).mkString(" | ") + " )"
+    case AInline(_)    => "" // dropped (warned)
 
   private def renderElem(e: Elem): String = renderAtom(e.atom) + renderSuffix(e.suffix)
 
+  // May render to "" — either `els` was empty (a genuine ANTLR empty alternative) or every
+  // element rendered to "" (all its parts were dropped, no Core equivalent). Neither case
+  // is representable in Gramark: there is no epsilon/empty-alternative syntax (a bare
+  // `:`/`|` with nothing after it, and a `/* … */` comment, both fail to parse). Callers
+  // must not emit an alt this returns "" for — `dropUnrepresentableAlts` drops it instead.
   private def renderAlt(els: Vector[Elem]): String =
-    if els.isEmpty then "/* empty */" else els.map(renderElem).filter(_ != "").mkString(" ")
+    els.map(renderElem).filter(_ != "").mkString(" ")
 
   private def regexOfAtom(a: Atom): String = a match
     case ARef(n)       => n // a fragment reference; left as-is
