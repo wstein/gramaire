@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { gotoLabReady } from "./lab-helpers";
 
 // The Lab (src/pages/lab.astro + src/lab/LabIsland.tsx) evaluates against
 // the REAL Scala engine (compiled to Scala.js, loaded by src/lab/worker.ts
@@ -17,10 +18,7 @@ test("the Lab evaluates the default grammar against the real engine", async ({
     if (m.type() === "error") errors.push(m.text());
   });
 
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
   expect(
     errors,
     `unexpected console/page errors: ${errors.join("; ")}`,
@@ -30,10 +28,7 @@ test("the Lab evaluates the default grammar against the real engine", async ({
 test("both editors show line numbers that track content and scroll", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   const grammarGutter = page.locator(
     ".lab__pane--grammar .lab__editor-gutter-line",
@@ -64,10 +59,7 @@ test("both editors show line numbers that track content and scroll", async ({
 test("the line-number gutter widens for 4+ digit line counts instead of crowding the text", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   const gutter = page.locator(".lab__pane--grammar .lab__editor-gutter-clip");
   const editor = page.locator(".lab__pane--grammar .lab__editor");
@@ -93,10 +85,7 @@ test("the line-number gutter widens for 4+ digit line counts instead of crowding
 });
 
 test("the Lab tabs show real, engine-computed data", async ({ page }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   await page.click('button[role="tab"]:has-text("Tokens")');
   const rows = page.locator(".lab__table tbody tr");
@@ -197,10 +186,7 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
 test("tabs with nothing to show are disabled, with a tooltip explaining why", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   // With input given and a clean build, every input/build-dependent tab is enabled.
   for (const label of [
@@ -243,10 +229,7 @@ test("tabs with nothing to show are disabled, with a tooltip explaining why", as
 test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   await page
     .locator(".lab__pane--grammar .lab__editor")
@@ -271,10 +254,7 @@ test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", 
 test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthrough", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   const md = [
     "# Sum",
@@ -328,10 +308,7 @@ test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthro
 test("the Lab's Evaluate tab renders a non-primitive action result as a collapsed, expandable chip", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   const md = [
     "# Node",
@@ -374,10 +351,7 @@ test("the Lab's Evaluate tab renders a non-primitive action result as a collapse
 });
 
 test("the Lab reflects a rejected input", async ({ page }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   await page.locator(".lab__pane--fill .lab__editor").fill("1+");
   await page.click('button[role="tab"]:has-text("Output")');
@@ -393,10 +367,7 @@ test("the Lab reflects a rejected input", async ({ page }) => {
 test("the Lab reflects a grammar that fails to build, with diagnostics folded into Output", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   await page
     .locator(".lab__pane--grammar .lab__editor")
@@ -417,10 +388,7 @@ test("the Lab reflects a grammar that fails to build, with diagnostics folded in
 test("a successful build still surfaces warnings in Output and the status bar", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   // An unreachable rule warns without failing the build (LabResponse.diagnostics carries warnings
   // "either way" — protocol.ts's own doc comment).
@@ -490,10 +458,7 @@ test("the status bar's build state and parse-match state are independent axes", 
 test("the Lab's splitter resizes the panes and clamps at 28%/72%", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   const splitter = page.locator(".lab__splitter");
   await expect(splitter).toHaveAttribute("aria-valuenow", "55"); // default
@@ -533,10 +498,7 @@ test("the Lab's splitter resizes the panes and clamps at 28%/72%", async ({
 test("the Lab's drawer splitter resizes the drawer by percentage and clamps at 20%/72%", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   const hsplitter = page.locator(".lab__hsplitter");
   await expect(hsplitter).toHaveAttribute("aria-valuemin", "20");
@@ -579,10 +541,7 @@ test("the Lab's drawer splitter resizes the drawer by percentage and clamps at 2
 test("the Lab's example switcher loads a real examples/*.gram.md fixture", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   await page.getByLabel("Example").selectOption("JSON");
   await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
@@ -600,12 +559,9 @@ test("the Lab's example switcher loads a real examples/*.gram.md fixture", async
 test("the Lab's start-rule picker narrows which rule anchors parsing", async ({
   page,
 }) => {
-  await page.goto("/lab/");
   // Default grammar (Expr -> Term -> Factor), default input "1+2*3". Under the default (Expr)
   // start, it's accepted.
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   // Narrowed to Term as the start rule, "1+2*3" is a Term (the leading NUMBER) followed by
   // trailing input the augmented grammar never expected — rejected, the same real-engine behavior
@@ -623,10 +579,7 @@ test("the Lab's start-rule picker narrows which rule anchors parsing", async ({
 test("cross-tab hover-linking keeps the same token highlighted across tabs", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   // Default input "1+2*3" -> 5 tokens; index 2 is the middle NUMBER "2".
   const resultChip = page.locator(".lab__tok-chip").nth(2);
@@ -651,10 +604,7 @@ test("cross-tab hover-linking keeps the same token highlighted across tabs", asy
 test("the Lab shows a persistent status bar with live automaton stats, visible across tabs", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   const bar = page.locator(".lab__statusbar");
   // The build-status and parse-status badges both live in the status bar now, not the toolbar.
@@ -679,10 +629,7 @@ test("the Lab shows a persistent status bar with live automaton stats, visible a
 test("hovering a rule in Parse tree highlights its source lines in the grammar editor", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
   await page.click('button[role="tab"]:has-text("Parse tree")');
 
   const bands = page.locator(".lab__editor-hl");
@@ -703,10 +650,7 @@ test("hovering a rule in Parse tree highlights its source lines in the grammar e
 test("clicking a rule in Parse tree folds/unfolds its children", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
   await page.click('button[role="tab"]:has-text("Parse tree")');
 
   const rootHeader = page.locator(".lab__rule-header").first();
@@ -729,10 +673,7 @@ test("the Parse tree tab's copy LISP button copies an S-expression and shows fee
   context,
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
   await page.click('button[role="tab"]:has-text("Parse tree")');
 
   await page.click(".lab__copy-btn");
@@ -750,10 +691,7 @@ test("the Parse tree tab's copy LISP button copies an S-expression and shows fee
 test("clicking a token chip in Parse tree reveals the matching leaf even in a folded tree", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
   await page.click('button[role="tab"]:has-text("Parse tree")');
 
   // Collapse the whole tree.
@@ -772,10 +710,7 @@ test("clicking a token chip in Parse tree reveals the matching leaf even in a fo
 test("hovering/clicking a nonterminal box in the railroad diagram cross-links the editor and rule selector", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
   await page.click('button[role="tab"]:has-text("Grammar analysis")');
   await page.waitForSelector(".lab__railroad-svg svg");
 
@@ -806,10 +741,7 @@ test("hovering/clicking a nonterminal box in the railroad diagram cross-links th
 test("the Walk tab splits parse trace from controls, stack, and remaining input", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
   await page.locator(".lab__pane--fill .lab__editor").fill("1+2*3+4*5-6+7*8-9");
   await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
     timeout: 5000,
@@ -872,10 +804,7 @@ test("the Walk tab splits parse trace from controls, stack, and remaining input"
 test("Engine=ALL(*) drives Parse trace/Walk from Ll.parseTraced, and badges the still-LR/GLR tabs", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   await page.getByLabel("Engine").selectOption("ll-star");
   await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
@@ -918,10 +847,7 @@ test("Engine=ALL(*) drives Parse trace/Walk from Ll.parseTraced, and badges the 
 test("All parses is always Canonical-built, regardless of Engine — no separate method control", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   // No secondary method control exists anywhere — the merged Engine dropdown is the only
   // method-adjacent control there is, full stop, under any Engine selection.
@@ -974,10 +900,7 @@ test("All parses is always Canonical-built, regardless of Engine — no separate
 test("the Engine picker explains ALL(*) before it's selected, not just after", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   // A bare "ALL(*)" acronym gives a first-time user no reason to pick it over the LR/GLR methods
   // — the option itself should say why, before it's ever selected.
@@ -1001,10 +924,7 @@ test("the Engine picker explains ALL(*) before it's selected, not just after", a
 test("Engine=ALL(*) still builds an LR-conflicted grammar, with the conflict as a warning", async ({
   page,
 }) => {
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   await page
     .locator(".lab__pane--grammar .lab__editor")
@@ -1067,10 +987,7 @@ test("a normal-length trace/llTrace never shows the truncated note, LR or ALL(*)
   // stack/memory ceilings LabApiSuite's own capSteps tests were written around (see LabApi.scala's
   // capSteps doc comment). This is the regression half instead: a normal short parse's trace must
   // render with NO truncated note, guarding against TruncatedNote firing unconditionally.
-  await page.goto("/lab/");
-  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
-    timeout: 5000,
-  });
+  await gotoLabReady(page);
 
   await page.click('button[role="tab"]:has-text("Parse trace")');
   await expect(page.locator(".lab__truncated-note")).toHaveCount(0);
