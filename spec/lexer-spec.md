@@ -163,6 +163,12 @@ only the open-ended classes.
   block then lists class names with **no** patterns, and the grammar declares it
   brings its own lexer (today's behaviour, preserved for fully context-sensitive
   languages). Default mode is in-file regular lexing.
+- **Out of scope:** `%external` reclassifies tokens from lexical context (surrounding
+  characters, offside runs); it does not and will not carry _parse_ state back into
+  the scanner (the classic C-typedef "lexer hack"), since the scanner runs as a
+  parse-independent pre-pass (§8's self-host oracle depends on that). That class of
+  problem is a parser-side concern — see `docs/multi-backend-implementation-plan.md`
+  ADR D41.
 
 ## 7. IR additions
 
