@@ -78,24 +78,22 @@ jobs:
       - name: Unit tests
         run: sbt cli/test
 
+      # Both steps below run through the Makefile's `check-examples`/`regen-examples` targets
+      # (Makefile:127-138) rather than a hand-maintained file list here — that list previously
+      # drifted out of sync with GramaireCheckSuite.scala's own gated-file set (calc-js.gram.md and
+      # antlr4.gram.md were added there but never wired into CI) with nothing to catch it. The
+      # Makefile discovers every `.gram.md`/standalone `.gram` example by globbing
+      # (`EXAMPLE_FILES`/`NATIVE_EXAMPLE_FILES`), so a newly gated file is covered automatically —
+      # --inline-source is baked into `regen-examples`'s own `.gram.md` sweep (these are small
+      # teaching examples, kept fully visible on purpose; source collapsing is for grammars large
+      # enough that a wall of fences is harder to scan than a wall of diagrams, e.g.
+      # examples/ECMA-404.gram.md, deliberately excluded from this set).
       - name: gramaire check grammar and examples
-        run: |
-          sbt -batch "cli/runMain gramaire.cli.Main check grammar/lr.gram.md"
-          sbt -batch "cli/runMain gramaire.cli.Main check examples/calc.gram.md"
-          sbt -batch "cli/runMain gramaire.cli.Main check examples/calc-prec.gram.md"
-          sbt -batch "cli/runMain gramaire.cli.Main check examples/json.gram.md"
-          sbt -batch "cli/runMain gramaire.cli.Main check examples/readme.gram.md"
+        run: make check-examples
 
       - name: Derived artifacts are up to date (no drift)
         run: |
-          # --inline-source: these are small teaching examples, kept fully visible on
-          # purpose — source collapsing is for grammars large enough that a wall of
-          # fences is harder to scan than a wall of diagrams (see ECMA-262.gram.md).
-          sbt -batch "cli/runMain gramaire.cli.Main fmt --diagrams=sidecar --inline-source grammar/lr.gram.md"
-          sbt -batch "cli/runMain gramaire.cli.Main fmt --diagrams=sidecar --inline-source examples/calc.gram.md"
-          sbt -batch "cli/runMain gramaire.cli.Main fmt --diagrams=sidecar --inline-source examples/calc-prec.gram.md"
-          sbt -batch "cli/runMain gramaire.cli.Main fmt --diagrams=sidecar --inline-source examples/json.gram.md"
-          sbt -batch "cli/runMain gramaire.cli.Main fmt --diagrams=sidecar --inline-source examples/readme.gram.md"
+          make regen-examples
           git diff --exit-code
 
   docs-lint:
