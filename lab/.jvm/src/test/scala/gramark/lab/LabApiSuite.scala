@@ -345,6 +345,37 @@ class LabApiSuite extends munit.FunSuite:
         )
   }
 
+  test(
+    "evaluate: a grammar with a {%? %} predicate builds, but produces no evaluatorJs — just a warning"
+  ) {
+    // Regression: before this guard, the Evaluate tab would silently run a predicate's
+    // boolean-test expression as if it were the production's value — no crash, no warning, just
+    // a wrong answer, since the Lab has no ll-star/prediction concept for a predicate to mean
+    // anything to in the first place (it only ever builds LR tables).
+    val predicateMd = """# Pred
+      |
+      |## S
+      |
+      |```gramark
+      |S
+      |: NUM {%? isKeyword %}
+      |```
+      |
+      |## Tokens
+      |
+      |```gramark
+      |NUM : /[0-9]+/
+      |```
+      |""".stripMargin
+    val resp = LabApi.evaluate(LabRequest(predicateMd, None, Method.Canonical))
+    assert(resp.buildOk, s"expected buildOk, diagnostics: ${resp.diagnostics}")
+    assertEquals(resp.evaluatorJs, None, "no evaluator should be generated for a predicate grammar")
+    assert(
+      resp.diagnostics.exists(d => d.severity == "warning" && d.message.contains("predicate")),
+      s"expected a predicate warning, got: ${resp.diagnostics}"
+    )
+  }
+
   test("evaluate: a grammar with no `%lang` declaration bakes an all-null action table") {
     // No %lang line, so IRRule.actions stays tagged "default" — BackendJs only reads the "js" tag
     // — this is the real gramark emit --backend js behavior, not a Lab-specific shortcut.
