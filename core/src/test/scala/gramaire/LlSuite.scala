@@ -172,6 +172,63 @@ class LlSuite extends munit.FunSuite:
             assert(Ll.parse(g, toks, prec).isDefined, "'n' alone should still parse")
   }
 
+  // %left is exercised end-to-end via examples/calc-prec.gram.md (ConformanceSuite); %right and
+  // %nonassoc have no shipped example grammar and no test anywhere in the repo — add both here,
+  // each checked against the same LR-oracle Cst comparison ConformanceSuite's calc-prec test uses.
+  // A bare fence plus a `## Precedence` fence needs no `%name`/H1/Tokens section (`Lr.parse`
+  // doesn't require them for inline snippets, matching every other case in this file); operands
+  // are the same literal `'n'` throughout, since the Cst comparison is structural (which
+  // production reduced where), not about distinguishing operand values.
+  private def precTestGrammar(op: String, assoc: String): String =
+    s"```gramaire\nexpr\n  : expr '$op' expr\n  | 'n'\n```\n\n" +
+      s"## Precedence\n\n```gramaire\n$assoc '$op'\n```\n"
+
+  test("Ll.parse handles %right (right-associative operator) matching the LR oracle") {
+    val grammar = precTestGrammar("^", "%right")
+    Lr.parse(grammar) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        val prec = Lr.precedenceOf(grammar)
+        assert(prec.terms.nonEmpty, "the grammar should declare a Precedence block")
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        Vector("n^n^n", "n^n^n^n").foreach { input =>
+          lexer(input) match
+            case Left(e) => fail(s"$input: lex failed: $e")
+            case Right(toks) =>
+              val lr = Table.buildTablesForP(prec, Method.Canonical, g) match
+                case Left(cs) => fail(s"$input: LR table build failed: $cs")
+                case Right(table) =>
+                  Parser.run(table, Cst.cstToken, Cst.cstReduce, toks) match
+                    case Left(e)  => fail(s"$input: LR should accept: $e")
+                    case Right(c) => c
+              Ll.parse(g, toks, prec) match
+                case None     => fail(s"$input: Ll.parse should accept")
+                case Some(ll) => assertEquals(ll, lr, s"$input: Ll.parse's Cst differs from LR's")
+        }
+  }
+
+  test("Ll.parse handles %nonassoc, rejecting a chained non-associative operator") {
+    val grammar = precTestGrammar("=", "%nonassoc")
+    Lr.parse(grammar) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        val prec = Lr.precedenceOf(grammar)
+        assert(prec.terms.nonEmpty, "the grammar should declare a Precedence block")
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        lexer("n=n") match
+          case Left(e) => fail(s"lex failed: $e")
+          case Right(toks) =>
+            assert(Ll.parse(g, toks, prec).isDefined, "a single '=' use should parse")
+        lexer("n=n=n") match
+          case Left(e) => fail(s"lex failed: $e")
+          case Right(toks) =>
+            assertEquals(
+              Ll.parse(g, toks, prec),
+              None,
+              "chaining a nonassoc operator must be rejected"
+            )
+  }
+
   test("Ll.parse rejects exactly what the LR oracle rejects") {
     cases.foreach { c =>
       Lr.parse(c.grammar) match
