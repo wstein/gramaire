@@ -1684,15 +1684,49 @@ function WalkControls({
   );
 }
 
-function LlWalkPanel(trace: LlStepInfo[], walkRef: RefObject<HTMLDivElement>) {
-  // Clamped, not reset-on-response: see the LR branch's identical comment.
-  const current = Math.min(walkStep.value, trace.length - 1);
-  const step = trace[current];
-  // The ll-star analogue of the LR walk's "remaining input" pane: LlStepInfo carries no
-  // remaining-symbols field of its own (ALL(*) prediction has already committed by the time a
-  // step is recorded), so this derives it from the shared token list and the step's own `pos`.
-  const remainingTokens = (response.value?.parse?.tokens ?? []).slice(step.pos);
+// A labelled column of chips, or an "empty" placeholder when there's nothing to show — the
+// walk-state panes' shared rendering, whether the items are a rule stack, a parse stack, or
+// remaining input.
+function ChipList({ items }: { items: string[] }) {
+  return (
+    <div class="lab__walk-chips">
+      {items.length === 0 ? (
+        <span class="lab__empty">empty</span>
+      ) : (
+        items.map((s, i) => (
+          <span key={i} class="lab__chip">
+            {s}
+          </span>
+        ))
+      )}
+    </div>
+  );
+}
 
+// Shared by WalkPanel's LR and LL branches: the trace table + draggable splitter + controls +
+// two chip panes layout is identical between strategies — only the action-column renderer, the
+// truncated flag, and the two panes' label/contents actually differ.
+function WalkBody<S extends { index: number }>({
+  walkRef,
+  trace,
+  truncated,
+  current,
+  renderAction,
+  firstPaneLabel,
+  firstPaneItems,
+  secondPaneLabel,
+  secondPaneItems,
+}: {
+  walkRef: RefObject<HTMLDivElement>;
+  trace: S[];
+  truncated: boolean;
+  current: number;
+  renderAction: (s: S) => string;
+  firstPaneLabel: string;
+  firstPaneItems: string[];
+  secondPaneLabel: string;
+  secondPaneItems: string[];
+}) {
   return (
     <div class="lab__walk" ref={walkRef}>
       <div
@@ -1700,7 +1734,7 @@ function LlWalkPanel(trace: LlStepInfo[], walkRef: RefObject<HTMLDivElement>) {
         style={{ flex: `0 0 ${lrWalkTracePercent.value}%` }}
       >
         <div class="lab__analysis-heading">parse trace</div>
-        {getLlTraceTruncated() && <TruncatedNote shownCount={trace.length} />}
+        {truncated && <TruncatedNote shownCount={trace.length} />}
         <table class="lab__table">
           <thead>
             <tr>
@@ -1720,7 +1754,7 @@ function LlWalkPanel(trace: LlStepInfo[], walkRef: RefObject<HTMLDivElement>) {
                 onClick={() => (walkStep.value = s.index)}
               >
                 <td class="lab__mono">{s.index}</td>
-                <td class="lab__mono">{llActionText(s.action)}</td>
+                <td class="lab__mono">{renderAction(s)}</td>
               </tr>
             ))}
           </tbody>
@@ -1743,34 +1777,40 @@ function LlWalkPanel(trace: LlStepInfo[], walkRef: RefObject<HTMLDivElement>) {
 
         <div class="lab__walk-panes">
           <div>
-            <div class="lab__analysis-heading">rule stack</div>
-            <div class="lab__walk-chips">
-              {step.ruleStack.length === 0 ? (
-                <span class="lab__empty">empty</span>
-              ) : (
-                step.ruleStack.map((s, i) => (
-                  <span key={i} class="lab__chip">
-                    {s}
-                  </span>
-                ))
-              )}
-            </div>
+            <div class="lab__analysis-heading">{firstPaneLabel}</div>
+            <ChipList items={firstPaneItems} />
           </div>
           <div>
-            <div class="lab__analysis-heading">remaining input</div>
-            <div class="lab__walk-chips">
-              {remainingTokens.length === 0 ? (
-                <span class="lab__empty">empty</span>
-              ) : (
-                remainingTokens.map((t, i) => (
-                  <span key={i} class="lab__chip">{`\`${t.terminal}\``}</span>
-                ))
-              )}
-            </div>
+            <div class="lab__analysis-heading">{secondPaneLabel}</div>
+            <ChipList items={secondPaneItems} />
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function LlWalkPanel(trace: LlStepInfo[], walkRef: RefObject<HTMLDivElement>) {
+  // Clamped, not reset-on-response: see the LR branch's identical comment.
+  const current = Math.min(walkStep.value, trace.length - 1);
+  const step = trace[current];
+  // The ll-star analogue of the LR walk's "remaining input" pane: LlStepInfo carries no
+  // remaining-symbols field of its own (ALL(*) prediction has already committed by the time a
+  // step is recorded), so this derives it from the shared token list and the step's own `pos`.
+  const remainingTokens = (response.value?.parse?.tokens ?? []).slice(step.pos);
+
+  return (
+    <WalkBody
+      walkRef={walkRef}
+      trace={trace}
+      truncated={getLlTraceTruncated()}
+      current={current}
+      renderAction={(s) => llActionText(s.action)}
+      firstPaneLabel="rule stack"
+      firstPaneItems={step.ruleStack}
+      secondPaneLabel="remaining input"
+      secondPaneItems={remainingTokens.map((t) => `\`${t.terminal}\``)}
+    />
   );
 }
 
@@ -1791,81 +1831,17 @@ function WalkPanel() {
   const step = trace[current];
 
   return (
-    <div class="lab__walk" ref={walkRef}>
-      <div
-        class="lab__walk-trace"
-        style={{ flex: `0 0 ${lrWalkTracePercent.value}%` }}
-      >
-        <div class="lab__analysis-heading">parse trace</div>
-        {getTraceTruncated() && <TruncatedNote shownCount={trace.length} />}
-        <table class="lab__table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {trace.map((s) => (
-              <tr
-                key={s.index}
-                class={
-                  s.index === current
-                    ? "lab__walk-row lab__walk-row--current"
-                    : "lab__walk-row"
-                }
-                onClick={() => (walkStep.value = s.index)}
-              >
-                <td class="lab__mono">{s.index}</td>
-                <td class="lab__mono">{actionText(s.action)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div
-        class="lab__walk-splitter"
-        role="separator"
-        aria-orientation="vertical"
-        aria-valuemin={LR_WALK_TRACE_MIN_PERCENT}
-        aria-valuemax={LR_WALK_TRACE_MAX_PERCENT}
-        aria-valuenow={Math.round(lrWalkTracePercent.value)}
-        onMouseDown={(e) => {
-          if (walkRef.current) startLrWalkPaneDrag(walkRef.current)(e);
-        }}
-      />
-
-      <div class="lab__walk-state">
-        <WalkControls current={current} length={trace.length} />
-
-        <div class="lab__walk-panes">
-          <div>
-            <div class="lab__analysis-heading">parse stack</div>
-            <div class="lab__walk-chips">
-              {step.stackSymbols.length === 0 ? (
-                <span class="lab__empty">empty</span>
-              ) : (
-                step.stackSymbols.map((s, i) => (
-                  <span key={i} class="lab__chip">
-                    {s}
-                  </span>
-                ))
-              )}
-            </div>
-          </div>
-          <div>
-            <div class="lab__analysis-heading">remaining input</div>
-            <div class="lab__walk-chips">
-              {step.remainingSymbols.map((s, i) => (
-                <span key={i} class="lab__chip">
-                  {s}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <WalkBody
+      walkRef={walkRef}
+      trace={trace}
+      truncated={getTraceTruncated()}
+      current={current}
+      renderAction={(s) => actionText(s.action)}
+      firstPaneLabel="parse stack"
+      firstPaneItems={step.stackSymbols}
+      secondPaneLabel="remaining input"
+      secondPaneItems={step.remainingSymbols}
+    />
   );
 }
 
