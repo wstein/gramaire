@@ -299,14 +299,24 @@ object Lr:
 
   /** The raw `.gram` projection (ADR D36): a FENCE-FREE, marker-free export. It is DERIVED and
     * non-authoritative — `.gram.md` stays the source of truth.
+    *
+    * Mirrors `toFenced`'s own already-in-target-shape guard: input with no `` ```gramaire `` fence
+    * is already fence-free (either genuine `.gram` input, or nothing valid to strip regardless),
+    * so it's returned unchanged rather than run through `sectionize`/`banner`. Without this guard,
+    * `strip` is NOT idempotent — `sectionize` only recognizes sections via `"## "` lines, which
+    * `strip`'s own output never contains (`section` drops the heading), so re-stripping already-
+    * stripped output treats the entire file, banner and live declarations alike, as undifferentiated
+    * preamble prose and wraps all of it in one dead `/** ... */` comment.
     */
   def strip(md: String): String =
-    val ls = md.split("\n", -1).toVector
-    val sect = sectionize(ls)
-    val (bannerLines, preambleFence) = splitPreamble(sect.preamble)
-    val parts =
-      (banner(bannerLines) +: preambleFence.toVector) ++ sect.sections.flatMap(section)
-    parts.filter(_ != "").mkString("\n\n") + "\n"
+    if !md.contains("```gramaire") then md
+    else
+      val ls = md.split("\n", -1).toVector
+      val sect = sectionize(ls)
+      val (bannerLines, preambleFence) = splitPreamble(sect.preamble)
+      val parts =
+        (banner(bannerLines) +: preambleFence.toVector) ++ sect.sections.flatMap(section)
+      parts.filter(_ != "").mkString("\n\n") + "\n"
 
   // A token-class definition line: an ALL-CAPS name then `:` on one
   // unindented line. A production head is a Mixed-case name on its OWN

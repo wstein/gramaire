@@ -22,3 +22,16 @@ class StripSuite extends munit.FunSuite:
       assert(Lr.parse(stripped).isRight, s"$path: stripped form should still parse")
       assertEquals(Lr.parse(stripped), Lr.parse(md), s"$path: parse(strip(x)) must equal parse(x)")
     }
+
+    // Regression: strip(strip(x)) used to corrupt the file. `sectionize` only recognizes sections
+    // via "## " lines, which strip's own output never contains (section() drops the heading), so
+    // re-stripping already-stripped output treated the WHOLE file — banner, doc comments, and live
+    // declarations alike — as undifferentiated preamble prose and wrapped all of it in one dead
+    // `/** ... */` comment, with zero live grammar content surviving. Fixed by mirroring toFenced's
+    // own already-in-target-shape guard: fence-free input is returned unchanged.
+    test(s"strip(strip(x)) == strip(x) for $path (idempotence)") {
+      val stripped = Lr.strip(readFile(path))
+      val strippedTwice = Lr.strip(stripped)
+      assertEquals(strippedTwice, stripped, s"$path: re-stripping already-stripped output must be a no-op")
+      assert(Lr.parse(strippedTwice).isRight, s"$path: twice-stripped form should still parse")
+    }
