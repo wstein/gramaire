@@ -42,3 +42,9 @@ object Backend:
     * whether the tables are `lr` or the ATN is `ll-star`.
     */
   val allStrategies: Vector[String] = Vector("lr", "ll-star")
+
+  /** For a backend that only works against an `lr` shift/reduce parse (its own table-driven parser,
+    * or a CST built from one) — not `ll-star`, whose ATN-driven prediction produces no CST at all
+    * today (`Ll.recognize` returns only accept/reject).
+    */
+  val lrOnly: Vector[String] = Vector("lr")

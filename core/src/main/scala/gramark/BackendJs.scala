@@ -11,7 +11,7 @@ object BackendJs:
     name = "js",
     capabilities = Vector(Capability.Actions("js")),
     // Folds actions over the LR-shaped CST built from `IR.tables`; reads no ATN.
-    strategies = Vector("lr"),
+    strategies = Backend.lrOnly,
     emit = ir => Vector(Output(s"${ir.grammar.name}.js", emit(ir.grammar)))
   )
 

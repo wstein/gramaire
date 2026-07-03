@@ -62,6 +62,12 @@ object Main:
     */
   def grammarName(md: String): Either[String, String] = Lr.nameOf(md).toRight(missingNameError)
 
+  /** Whether `b` declares support for `strategy` — `emit`'s strategy gate, pulled out so it's
+    * checkable without going through `die`/`sys.exit`.
+    */
+  def backendSupportsStrategy(b: Backend, strategy: String): Boolean =
+    b.strategies.contains(strategy)
+
   def main(args: Array[String]): Unit =
     val argv = args.toVector
     argv.headOption match
@@ -121,7 +127,7 @@ object Main:
                                 )
                             )
                           case Right(ir0) =>
-                            if !b.strategies.contains(opts.strategy) then
+                            if !backendSupportsStrategy(b, opts.strategy) then
                               die(
                                 s"emit: backend '${b.name}' does not support strategy '${opts.strategy}'"
                               )

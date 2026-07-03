@@ -9,7 +9,7 @@ object BackendTs:
   val backend: Backend = Backend(
     name = "ts",
     capabilities = Vector(Capability.Recognizer, Capability.Cst),
-    strategies = Vector("lr"),
+    strategies = Backend.lrOnly,
     emit = ir =>
       Vector(
         Output(s"${ir.grammar.name}.ts", emit(ir)),

@@ -1,5 +1,7 @@
 package gramark.cli
 
+import gramark.{BackendJs, BackendTs, BackendIr}
+
 // Covers `Main`'s pure argument-parsing and name-resolution helpers —
 // ported from the assertions `Test.Cli.purs` would make against
 // `Gramark.Cli.parseEmit`/`grammarName`.
@@ -55,4 +57,15 @@ class MainSuite extends munit.FunSuite:
     assert(Main.isNativeGrmk("lua.grmk"))
     assert(!Main.isNativeGrmk("examples/lua.grmk.md"))
     assert(!Main.isNativeGrmk("examples/lua.grmk.lock"))
+  }
+
+  test("backendSupportsStrategy: emit's strategy gate reflects each backend's declared support") {
+    // js/ts only fold/emit against an lr-shaped CST; ll-star's ATN prediction produces none.
+    assert(Main.backendSupportsStrategy(BackendJs.backend, "lr"))
+    assert(!Main.backendSupportsStrategy(BackendJs.backend, "ll-star"))
+    assert(Main.backendSupportsStrategy(BackendTs.backend, "lr"))
+    assert(!Main.backendSupportsStrategy(BackendTs.backend, "ll-star"))
+    // A structure-reading backend is agnostic to which table/ATN strategy produced the IR.
+    assert(Main.backendSupportsStrategy(BackendIr.backend, "lr"))
+    assert(Main.backendSupportsStrategy(BackendIr.backend, "ll-star"))
   }
