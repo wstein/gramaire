@@ -229,8 +229,13 @@ object Main:
     else file + ".grmk"
 
   private def runConformance(): Unit =
-    val calc = loadDescriptor("examples/calc.grmk.md", Conformance.calcDescriptor)
-    val descriptors = Conformance.lrDescriptor +: calc.toVector
+    val calc = loadDescriptor("examples/calc.grmk.md", (_, g) => Conformance.calcDescriptor(g))
+    val json = loadDescriptor("examples/json.grmk.md", Conformance.jsonDescriptor)
+    val ecma404 = loadDescriptor("examples/ECMA-404.grmk.md", Conformance.ecma404Descriptor)
+    // json/ECMA-404 are unambiguous LR(1) as-is, so they run the same precedence-free
+    // differential oracle as lr/calc.
+    val descriptors =
+      Conformance.lrDescriptor +: (calc.toVector ++ json.toVector ++ ecma404.toVector)
     val summary = Conformance.summarize(Conformance.runSuites(descriptors))
     val corpus = descriptors.map(_.language).mkString(" + ")
     summary.failures.foreach(f =>
@@ -240,7 +245,12 @@ object Main:
     )
     println(s"conformance: ${summary.passed}/${summary.total} checks passed ($corpus corpus)")
 
-    val llFailures = descriptors.flatMap(runLlStarConformance)
+    // calc-prec's `expr` is deliberately ambiguous without `## Precedence`, so a precedence-free
+    // LR build (what `descriptors`/`runSuites` above use) genuinely conflicts on it — it's
+    // ll-star-only, added here rather than to `descriptors` (see Conformance.calcPrecVectors).
+    val calcPrec = loadDescriptor("examples/calc-prec.grmk.md", Conformance.calcPrecDescriptor)
+    val llStarDescriptors = descriptors ++ calcPrec.toVector
+    val llFailures = llStarDescriptors.flatMap(runLlStarConformance)
     llFailures.foreach(f => Console.err.println(s"  FAIL ll-star/$f"))
 
     if summary.failures.nonEmpty || llFailures.nonEmpty then sys.exit(1)
@@ -280,9 +290,14 @@ object Main:
     failures
 
   // Load a corpus descriptor whose grammar lives in a file; absent or
-  // unparseable means the language is skipped, not a failure.
-  private def loadDescriptor(path: String, mk: Grammar => Descriptor): Option[Descriptor] =
-    readFile(path).toOption.flatMap(md => Lr.parse(md).toOption).map(mk)
+  // unparseable means the language is skipped, not a failure. `mk` gets both the raw document
+  // text and the parsed grammar, since a descriptor built from the document's own `## Tokens`
+  // block (json/ECMA-404/calc-prec) needs the text, not just the grammar.
+  private def loadDescriptor(
+      path: String,
+      mk: (String, Grammar) => Descriptor
+  ): Option[Descriptor] =
+    readFile(path).toOption.flatMap(md => Lr.parse(md).toOption.map(g => mk(md, g)))
 
   // Classify a grammar's conflicts (LALR artifact vs genuine) by comparing
   // the three construction methods, via the GLR explainer.

@@ -63,3 +63,15 @@ object ConformanceLexers:
     * order, or `None` if it declares no token classes at all.
     */
   def tokensBlock(md0: String): Option[String] = Lr.tokensContentOf(md0)
+
+  /** A `Lexer` built from a grammar document's own `## Tokens` block — for a corpus language whose
+    * lexis isn't one of the hand-written lexers above (e.g. `json`/ECMA-404's own
+    * `STRING`/`NUMBER`/`WS`, or `calc-prec`'s own `NUM`/`WS`).
+    */
+  def tokensLexerOf(md: String, g: Grammar): Lexer =
+    val defs = tokensBlock(md)
+      .flatMap(block => Tokens.parseTokens(block).toOption)
+      .getOrElse(
+        Vector.empty
+      )
+    scannerLexer(defs, g)
