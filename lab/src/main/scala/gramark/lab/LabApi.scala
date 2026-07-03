@@ -66,6 +66,13 @@ object LabApi:
   // per-step cost, then picking a cap the 200ms debounce window can actually absorb — not done here.
   private[lab] val traceCap = 5000
 
+  // The generic "keep the first `limit`, and say whether that dropped anything" shape both
+  // `capSteps` (trace/llTrace, capped at `traceCap`) and `forestFor` (All-parses, capped at
+  // `forestCap`) need — one cap-not-fail mechanism, not two independently hand-rolled `take`/
+  // `length > limit` pairs.
+  private[lab] def capAt[A](steps: Vector[A], limit: Int): (Vector[A], Boolean) =
+    (steps.take(limit), steps.length > limit)
+
   // Factored out so LabApiSuite can pin the cap against a synthetic vector instead of forcing a
   // real multi-thousand-step parse through the engine — `Parser.walk`'s O(n) per-step stack/
   // remaining-input snapshots and `Ll.walkSyms`'s per-symbol recursion both have their own,
@@ -73,8 +80,7 @@ object LabApi:
   // whether truncation actually happened (mirrors `ForestResult.truncated`) so a capped walk can
   // say so, instead of `ParseResult.trace`/`llTrace` silently ending mid-parse with no indication
   // anything was cut.
-  private[lab] def capSteps[A](steps: Vector[A]): (Vector[A], Boolean) =
-    (steps.take(traceCap), steps.length > traceCap)
+  private[lab] def capSteps[A](steps: Vector[A]): (Vector[A], Boolean) = capAt(steps, traceCap)
 
   // The Lab has no real "file" for the grammar source (a browser textarea) or the target input —
   // generic placeholder source names for `Diagnostic.render`'s `-->` line, distinguishing the two
@@ -397,7 +403,8 @@ object LabApi:
     else
       val plainTokens = spanned.map(s => Token(s.terminal, s.text))
       val all = Glr.forest(method, grammar, plainTokens)
-      ForestResult(all.take(forestCap).map(Cst.toJson), truncated = all.length > forestCap)
+      val (capped, truncated) = capAt(all, forestCap)
+      ForestResult(capped.map(Cst.toJson), truncated)
 
   // The grammar's own declared `## Tokens` block, or none — feeds `lexInput`, shared by
   // `forestFor`/`parseInput`/`parseInputLl`, all of which read the same target input lexed
@@ -421,47 +428,50 @@ object LabApi:
     if expected.isEmpty then Vector.empty
     else Vector("note: expected one of: " + expected.map(t => s"`$t`").mkString(", "))
 
+  // Shared by `diagnosticForInputParseError`/`diagnosticForLlError`: the span for a rejection at
+  // token position `pos`, or the last token's end (an end-of-input rejection has no token of its
+  // own to point at).
+  private def spanFor(spanned: Vector[Spanned], pos: Int): Option[SrcSpan] =
+    spanned
+      .lift(pos)
+      .map(s => SrcSpan(s.start, s.end))
+      .orElse(spanned.lastOption.map(s => SrcSpan(s.end, s.end)))
+
   private def diagnosticForInputParseError(
       e: ParseError,
       table: ParseTable,
       spanned: Vector[Spanned]
   ): Diagnostic =
-    def spanFor(pos: Int): Option[SrcSpan] =
-      spanned
-        .lift(pos)
-        .map(s => SrcSpan(s.start, s.end))
-        .orElse(spanned.lastOption.map(s => SrcSpan(s.end, s.end)))
     e match
       case ParseError.UnexpectedToken(state, terminal, pos) =>
         val shown = spanned.lift(pos).map(s => s"`${s.text}`").getOrElse(s"`$terminal`")
         Diagnostic.error(
           Stage.Parse,
           s"unexpected $shown",
-          spanFor(pos),
+          spanFor(spanned, pos),
           expectedNote(table, state)
         )
       case ParseError.UnexpectedEnd(state, pos) =>
         Diagnostic.error(
           Stage.Parse,
           "unexpected end of input",
-          spanFor(pos),
+          spanFor(spanned, pos),
           expectedNote(table, state)
         )
       case ParseError.InternalError(m) =>
         Diagnostic.error(Stage.Internal, s"internal error: $m; please report this")
 
-  // Lex `input` against the grammar's own declared `## Tokens` (or its
-  // implicit backtick-literal terminals alone, if it has none) and run it
-  // through the compiled table. `tokens` is populated even on a reject —
-  // the Lab's Tokens tab should still show something — `cst` only on
-  // accept.
-  private def parseInput(
-      table: ParseTable,
+  // Shared by `parseInput`/`parseInputLl`: both lex `input` against the grammar's own declared
+  // `## Tokens` (or its implicit backtick-literal terminals alone, if it has none) the same way,
+  // and reject identically on a lexical error — `Left` the already-built reject `ParseResult`
+  // (tokens still populated — the Lab's Tokens tab should show something even here — cst never
+  // is), `Right` the tokens for the caller's own engine-specific parse to consume. Only the two
+  // callers' post-lex behavior (LR's `Parser`/`ll-star`'s `Ll`) actually differs.
+  private def lexOrReject(
       input: String,
       spanned: Vector[Spanned]
-  ): ParseResult =
+  ): Either[ParseResult, (Vector[LabToken], Vector[Token])] =
     val labTokens = spanned.map(s => LabToken(s.text, s.terminal, s.start, s.end))
-
     if Scanner.hasErrorSpanned(spanned) then
       val errorRuns = Scanner.mergeErrorRuns(spanned)
       val d = errorRuns.headOption match
@@ -472,36 +482,43 @@ object LabApi:
             Some(SrcSpan(s.start, s.end))
           )
         case None => Diagnostic.error(Stage.Lex, "lexical error in input")
-      ParseResult(
-        accepted = false,
-        message = Some(toDiagnosticInfo(d, inputSourceName, input, spanSafe = true)),
-        labTokens,
-        cst = None
+      Left(
+        ParseResult(
+          accepted = false,
+          message = Some(toDiagnosticInfo(d, inputSourceName, input, spanSafe = true)),
+          labTokens,
+          cst = None
+        )
       )
-    else
-      val plainTokens = spanned.map(s => Token(s.terminal, s.text))
-      Parser.run(table, Cst.cstToken, Cst.cstReduce, plainTokens) match
-        case Left(err) =>
-          val d = diagnosticForInputParseError(err, table, spanned)
-          ParseResult(
-            accepted = false,
-            message = Some(toDiagnosticInfo(d, inputSourceName, input, spanSafe = true)),
-            labTokens,
-            cst = None
-          )
-        case Right(cst) =>
-          // walk and run are differentially tested to agree (core/src/test/scala/gramark/
-          // ParserSuite.scala) — `.toOption` here is defensive, not expected to ever discard a
-          // Left in practice, since run() just accepted the exact same table/tokens.
-          val capped = Parser.walk(table, plainTokens).toOption.map(steps => capSteps(steps))
-          ParseResult(
-            accepted = true,
-            message = None,
-            labTokens,
-            cst = Some(Cst.toJson(cst)),
-            trace = capped.map { case (steps, _) => steps.map(toLrStepInfo) },
-            traceTruncated = capped.exists { case (_, truncated) => truncated }
-          )
+    else Right((labTokens, spanned.map(s => Token(s.terminal, s.text))))
+
+  // Run the compiled LR table over already-lexed `input`. `cst`/`trace` only populate on accept.
+  private def parseInput(table: ParseTable, input: String, spanned: Vector[Spanned]): ParseResult =
+    lexOrReject(input, spanned) match
+      case Left(rejected) => rejected
+      case Right((labTokens, plainTokens)) =>
+        Parser.run(table, Cst.cstToken, Cst.cstReduce, plainTokens) match
+          case Left(err) =>
+            val d = diagnosticForInputParseError(err, table, spanned)
+            ParseResult(
+              accepted = false,
+              message = Some(toDiagnosticInfo(d, inputSourceName, input, spanSafe = true)),
+              labTokens,
+              cst = None
+            )
+          case Right(cst) =>
+            // walk and run are differentially tested to agree (core/src/test/scala/gramark/
+            // ParserSuite.scala) — `.toOption` here is defensive, not expected to ever discard a
+            // Left in practice, since run() just accepted the exact same table/tokens.
+            val capped = Parser.walk(table, plainTokens).toOption.map(steps => capSteps(steps))
+            ParseResult(
+              accepted = true,
+              message = None,
+              labTokens,
+              cst = Some(Cst.toJson(cst)),
+              trace = capped.map { case (steps, _) => steps.map(toLrStepInfo) },
+              traceTruncated = capped.exists { case (_, truncated) => truncated }
+            )
 
   // The `ll-star` strategy's counterpart to `parseInput`: `Ll.parseTraced` instead of
   // `Parser.run`/`Parser.walk`, and `llTrace` instead of `trace` — same tokens-populated-on-reject,
@@ -514,56 +531,34 @@ object LabApi:
       spanned: Vector[Spanned],
       cache: AtnSim.Cache
   ): ParseResult =
-    val labTokens = spanned.map(s => LabToken(s.text, s.terminal, s.start, s.end))
-
-    if Scanner.hasErrorSpanned(spanned) then
-      val errorRuns = Scanner.mergeErrorRuns(spanned)
-      val d = errorRuns.headOption match
-        case Some(s) =>
-          Diagnostic.error(
-            Stage.Lex,
-            s"""unexpected character `${s.text}`""",
-            Some(SrcSpan(s.start, s.end))
-          )
-        case None => Diagnostic.error(Stage.Lex, "lexical error in input")
-      ParseResult(
-        accepted = false,
-        message = Some(toDiagnosticInfo(d, inputSourceName, input, spanSafe = true)),
-        labTokens,
-        cst = None
-      )
-    else
-      val plainTokens = spanned.map(s => Token(s.terminal, s.text))
-      Ll.parseTraced(grammar, plainTokens, prec, cache) match
-        case Left(err) =>
-          val d = diagnosticForLlError(err, spanned)
-          ParseResult(
-            accepted = false,
-            message = Some(toDiagnosticInfo(d, inputSourceName, input, spanSafe = true)),
-            labTokens,
-            cst = None
-          )
-        case Right((cst, steps)) =>
-          val (capped, truncated) = capSteps(steps)
-          ParseResult(
-            accepted = true,
-            message = None,
-            labTokens,
-            cst = Some(Cst.toJson(cst)),
-            trace = None,
-            llTrace = Some(capped.map(toLlStepInfo)),
-            llTraceTruncated = truncated
-          )
+    lexOrReject(input, spanned) match
+      case Left(rejected) => rejected
+      case Right((labTokens, plainTokens)) =>
+        Ll.parseTraced(grammar, plainTokens, prec, cache) match
+          case Left(err) =>
+            val d = diagnosticForLlError(err, spanned)
+            ParseResult(
+              accepted = false,
+              message = Some(toDiagnosticInfo(d, inputSourceName, input, spanSafe = true)),
+              labTokens,
+              cst = None
+            )
+          case Right((cst, steps)) =>
+            val (capped, truncated) = capSteps(steps)
+            ParseResult(
+              accepted = true,
+              message = None,
+              labTokens,
+              cst = Some(Cst.toJson(cst)),
+              trace = None,
+              llTrace = Some(capped.map(toLlStepInfo)),
+              llTraceTruncated = truncated
+            )
 
   // The ll-star analogue of `diagnosticForInputParseError`: `LlError.expected == Vector("$")`
   // means the walk completed a full parse but input remained — everywhere else, `expected` names
   // the terminal(s) that would have continued the parse at `pos`.
   private def diagnosticForLlError(err: LlError, spanned: Vector[Spanned]): Diagnostic =
-    def spanFor(pos: Int): Option[SrcSpan] =
-      spanned
-        .lift(pos)
-        .map(s => SrcSpan(s.start, s.end))
-        .orElse(spanned.lastOption.map(s => SrcSpan(s.end, s.end)))
     val expectedNote =
       if err.expected.isEmpty then Vector.empty
       else Vector("note: expected one of: " + err.expected.map(t => s"`$t`").mkString(", "))
@@ -572,7 +567,7 @@ object LabApi:
         s"unexpected `${s.text}` after a complete parse"
       case Some(s) => s"unexpected `${s.text}`"
       case None    => "unexpected end of input"
-    Diagnostic.error(Stage.Parse, message, spanFor(err.pos), expectedNote)
+    Diagnostic.error(Stage.Parse, message, spanFor(spanned, err.pos), expectedNote)
 
   // The Parse trace / LR walk tabs' data: gramark.LrStep, wire-rendered — GSym stack/remaining-
   // input symbols and the reduce action's rhs all go through `renderSym`, same as everywhere else
