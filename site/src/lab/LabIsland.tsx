@@ -1331,7 +1331,11 @@ function GrammarAnalysisPanel() {
 
   return (
     <div>
-      <ProvenanceNote text={`via LR tables — ${method.value}`} />
+      {/* Unlike AllParsesPanel's note, this one never names method.value — analysisOf computes
+          every method's stats unconditionally (the table below always shows all three), so nothing
+          on this tab actually varies with the LR method picker; naming one method here would imply
+          a dependency that doesn't exist. */}
+      <ProvenanceNote text="via LR tables — every method's stats shown below, independent of Engine" />
       {current && (
         <div class="lab__analysis-section">
           <div class="lab__analysis-heading">railroad diagram</div>
