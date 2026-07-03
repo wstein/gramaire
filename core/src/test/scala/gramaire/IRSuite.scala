@@ -2,6 +2,12 @@ package gramaire
 
 import Sym.*
 
+// Shared by IRSuite and the JVM-only IRGoldenSuite: both mutate rule 0 of an
+// already-built IR to attach a predicate effect for validate/round-trip checks.
+object IRTestSupport:
+  def withRule0(ir: IR)(f: IRRule => IRRule): IR =
+    ir.copy(grammar = ir.grammar.copy(rules = ir.grammar.rules.updated(0, f(ir.grammar.rules(0)))))
+
 // Ported from test/Test/IR.purs's self-contained subsets (structural,
 // fields, autoNaming — hand-built grammars, no file I/O). The golden
 // (file-backed) JSON checks live in a JVM-only IRGoldenSuite.
@@ -63,15 +69,8 @@ class IRSuite extends munit.FunSuite:
     IR.buildIR(Method.Canonical, "Tiny", tiny) match
       case Left(_) => fail("tiny grammar should build")
       case Right(ir) =>
-        val withPredicate = ir.copy(grammar =
-          ir.grammar.copy(rules =
-            ir.grammar.rules.updated(
-              0,
-              ir.grammar
-                .rules(0)
-                .copy(predicate = Some(IRPredicateEffect(Vector("typeName"), Vector.empty)))
-            )
-          )
+        val withPredicate = IRTestSupport.withRule0(ir)(
+          _.copy(predicate = Some(IRPredicateEffect(Vector("typeName"), Vector.empty)))
         )
         assertEquals(
           IRValidate.validate(withPredicate),
@@ -79,15 +78,8 @@ class IRSuite extends munit.FunSuite:
           "a well-formed predicate validates clean"
         )
 
-        val emptyKey = withPredicate.copy(grammar =
-          withPredicate.grammar.copy(rules =
-            withPredicate.grammar.rules.updated(
-              0,
-              withPredicate.grammar
-                .rules(0)
-                .copy(predicate = Some(IRPredicateEffect(Vector(""), Vector.empty)))
-            )
-          )
+        val emptyKey = IRTestSupport.withRule0(withPredicate)(
+          _.copy(predicate = Some(IRPredicateEffect(Vector(""), Vector.empty)))
         )
         assert(
           IRValidate
@@ -96,19 +88,21 @@ class IRSuite extends munit.FunSuite:
           "an empty effect key is rejected"
         )
 
-        val noAction = withPredicate.copy(grammar =
-          withPredicate.grammar.copy(rules =
-            withPredicate.grammar.rules.updated(
-              0,
-              withPredicate.grammar.rules(0).copy(actions = Map.empty)
-            )
-          )
-        )
+        val noAction = IRTestSupport.withRule0(withPredicate)(_.copy(actions = Map.empty))
         assert(
           IRValidate
             .validate(noAction)
             .exists(_.contains("declares a predicate effect but has no action body")),
           "a predicate with no action body is rejected"
+        )
+
+        val blankAction =
+          IRTestSupport.withRule0(withPredicate)(_.copy(actions = Map("default" -> "  ")))
+        assert(
+          IRValidate
+            .validate(blankAction)
+            .exists(_.contains("declares a predicate effect but has no action body")),
+          "a predicate with only a blank action body is rejected"
         )
   }
 
