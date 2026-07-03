@@ -137,7 +137,10 @@ object LabApi:
         // `LabApi` needs to compute separately. A grammar that reaches this `Right(grammar)` branch
         // is guaranteed already free of them.
         val productions = Some(productionsOf(grammar))
-        val forest = request.input.map(forestFor(request.source, request.method, grammar, _))
+        // Lexed once per call, not once per tab: forest/atn/parse below all read the same
+        // target-input scan against the same token definitions instead of each re-lexing it.
+        val spanned = request.input.map(lexInput(request.source, grammar, _))
+        val forest = spanned.map(forestFor(request.method, grammar, _))
         val analysis = Some(analysisOf(prec, grammar))
         // Additive, not a second execution path: `atn` only ever ADDS a diagnostics tab under
         // `--strategy ll-star` — it never changes buildOk/parse/forest/analysis/evaluatorJs, which
@@ -145,8 +148,7 @@ object LabApi:
         // equivalent to swap in). Independent of buildOk, like forest — a grammar the LR table
         // build rejects can still be worth seeing through ALL(*)'s own lens.
         val atn =
-          if request.strategy == "ll-star" then
-            request.input.map(atnDiagnosticsFor(request.source, grammar, _))
+          if request.strategy == "ll-star" then spanned.map(atnDiagnosticsFor(grammar, _))
           else None
         // Soft diagnostics (unknown `#[attr]`/`%setting`, an unreachable rule, an unused token
         // class) are independent of whether the target grammar's tables build — a grammar can have
@@ -170,7 +172,9 @@ object LabApi:
               atn = atn
             )
           case Right(table) =>
-            val parse = request.input.map(parseInput(request.source, grammar, table, _))
+            val parse = request.input.zip(spanned).map { case (input, sp) =>
+              parseInput(table, input, sp)
+            }
             val (evaluatorJs, predicateWarning) =
               evaluatorJsFor(prec, request.source, grammar) match
                 case Right(js) => (Some(js), Vector.empty)
@@ -308,14 +312,7 @@ object LabApi:
   // `method`, action-free (Cst.cstToken/cstReduce — same driver callbacks the v1 Parse tree tab
   // uses), capped at `forestCap`. A lexical error yields an empty, non-truncated forest (Tokens/
   // Result already surface the lexical-error message; All-parses simply has nothing to show).
-  private def forestFor(
-      source: String,
-      method: Method,
-      grammar: Grammar,
-      input: String
-  ): ForestResult =
-    val items = Scanner.buildItems(tokenDefsOf(source), ConformanceLexers.grammarLiterals(grammar))
-    val spanned = Scanner.scanSpanned(items, input)
+  private def forestFor(method: Method, grammar: Grammar, spanned: Vector[Spanned]): ForestResult =
     if Scanner.hasErrorSpanned(spanned) then ForestResult(Vector.empty, truncated = false)
     else
       val plainTokens = spanned.map(s => Token(s.terminal, s.text))
@@ -327,9 +324,7 @@ object LabApi:
   // (`runLlStarConformance`), just per grammar/input here. A lexical error yields a non-accepted,
   // empty-stats result — Ll.recognize never runs on tokens the grammar's own lexer already
   // rejects, mirroring how `forestFor` treats the same case.
-  private def atnDiagnosticsFor(source: String, grammar: Grammar, input: String): AtnDiagnostics =
-    val items = Scanner.buildItems(tokenDefsOf(source), ConformanceLexers.grammarLiterals(grammar))
-    val spanned = Scanner.scanSpanned(items, input)
+  private def atnDiagnosticsFor(grammar: Grammar, spanned: Vector[Spanned]): AtnDiagnostics =
     if Scanner.hasErrorSpanned(spanned) then AtnDiagnostics(accepted = false, 0, 0, Vector.empty)
     else
       val toks = spanned.map(s => Token(s.terminal, s.text))
@@ -338,12 +333,17 @@ object LabApi:
       val ambiguities = cache.ambiguities.map(a => AmbiguityInfo(a.rule, a.decision, a.pos, a.alts))
       AtnDiagnostics(accepted, cache.hits, cache.misses, ambiguities)
 
-  // The grammar's own declared `## Tokens` block, or none — shared by `parseInput` and
-  // `forestFor`, both of which lex the same target input against the same token definitions.
+  // The grammar's own declared `## Tokens` block, or none — feeds `lexInput`, shared by
+  // `forestFor`/`atnDiagnosticsFor`/`parseInput`, all of which read the same target input lexed
+  // against the same token definitions (one scan per `evaluate` call, not one each).
   private def tokenDefsOf(source: String): Vector[TokenDef] =
     ConformanceLexers.tokensBlock(source) match
       case Some(block) => Tokens.parseTokens(block).getOrElse(Vector.empty)
       case None        => Vector.empty
+
+  private def lexInput(source: String, grammar: Grammar, input: String): Vector[Spanned] =
+    val items = Scanner.buildItems(tokenDefsOf(source), ConformanceLexers.grammarLiterals(grammar))
+    Scanner.scanSpanned(items, input)
 
   // The "expected one of: ..." note for an input-side parse rejection, from the compiled table's
   // own action row — the terminals are the TARGET grammar's own (whatever the author declared), so
@@ -390,13 +390,10 @@ object LabApi:
   // the Lab's Tokens tab should still show something — `cst` only on
   // accept.
   private def parseInput(
-      source: String,
-      grammar: Grammar,
       table: ParseTable,
-      input: String
+      input: String,
+      spanned: Vector[Spanned]
   ): ParseResult =
-    val items = Scanner.buildItems(tokenDefsOf(source), ConformanceLexers.grammarLiterals(grammar))
-    val spanned = Scanner.scanSpanned(items, input)
     val labTokens = spanned.map(s => LabToken(s.text, s.terminal, s.start, s.end))
 
     if Scanner.hasErrorSpanned(spanned) then
