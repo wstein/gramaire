@@ -2,13 +2,13 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "a49c3a19a5ff76847a478d287ea3f8383922d2082717d9f62cdf7dce049905c3",
+  "grammarSha256": "9512a1ff5290b7177189427aeb376bc5e27bfcbb9326e0d65cea8f264aa52295",
   "artifacts": [
     {
       "kind": "railroad",
       "nonterminal": "Json",
       "path": "diagrams-ECMA-404/json.svg",
-      "sourceSha256": "f62e4aa5e9b7a01010fbc1f7a76c15201932feb21422f951281f6108f394ee77"
+      "sourceSha256": "c5f2982be157a00ee03ad122ffb2d5ea352c76b228c343a7656af282fb60bc3c"
     },
     {
       "kind": "railroad",
@@ -49,7 +49,7 @@
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "a49c3a19a5ff76847a478d287ea3f8383922d2082717d9f62cdf7dce049905c3"
+      "sourceSha256": "9512a1ff5290b7177189427aeb376bc5e27bfcbb9326e0d65cea8f264aa52295"
     }
   ]
 }
