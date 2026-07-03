@@ -374,40 +374,41 @@ object ConvertAntlr:
     case AGroup(alts) => alts.flatMap(_.flatMap(e => refsIn(e.atom))).toSet
     case _            => Set.empty
 
-  // A PARSER-rule alternative every one of whose elements renders to "" (a dropped
-  // action/predicate, a dropped `~[set]`) cannot be written at all — Gramark's front end
-  // requires at least one real symbol per alternative; confirmed neither a blank body nor
-  // a `/* … */` comment parses. Drop the whole alternative, and the rule too if that
-  // empties it, rather than emit unparseable output. `renderAlt` is the parser-only
-  // renderer (lexer rules render via `regexOfAtom`, where e.g. `~[set]` is valid `[^set]`),
-  // so lexer rules are passed through untouched — applying it to them would wrongly drop
-  // a perfectly good lexer rule whose body happens to use the same atoms.
-  //
-  // Dropping a whole rule can dangle another rule's reference to it, which is just as
-  // unwritable as the original empty-render case — so this repeats to a fixed point,
-  // re-checking every remaining rule's alts against the shrinking set of names still
-  // defined, until a pass drops nothing further.
+  // An alternative every one of whose elements renders to "" (a dropped action/predicate)
+  // cannot be written at all: on the parser side, Gramark requires at least one real symbol
+  // per alternative (confirmed neither a blank body nor a `/* … */` comment parses); on the
+  // lexer side, an empty regex fragment is a zero-width match — never a real token, and never
+  // what dropping an action was supposed to produce. Each side renders through its own
+  // function (`renderAlt` vs `regexOfElem` — e.g. `~[set]` is valid `[^set]` in a lexer rule
+  // but has no parser-side home), so this checks whichever applies to `r`.
+  private def isEmptyAlt(r: G4Rule, alt: Vector[Elem]): Boolean =
+    if r.lexer then alt.map(regexOfElem).mkString.isEmpty else renderAlt(alt).isEmpty
+
+  // Drop an unrepresentable alternative, and the rule too if that empties it, rather than
+  // emit unparseable/zero-width output. Dropping a whole rule can dangle another rule's
+  // reference to it (a parser rule naming a dropped lexer/parser rule, or a lexer rule
+  // naming a dropped fragment), which is just as unwritable as the original empty-render
+  // case — so this repeats to a fixed point, re-checking every remaining rule's alts against
+  // the shrinking set of names still defined, until a pass drops nothing further.
   private def dropUnrepresentableRules(rules: Vector[G4Rule]): (Vector[G4Rule], Vector[String]) =
     def onePass(rs: Vector[G4Rule]): (Vector[G4Rule], Vector[String], Boolean) =
       val alive = rs.map(_.name).toSet
       var changed = false
       val perRule = rs.map { r =>
-        if r.lexer then (Some(r), Vector.empty[String])
+        val (kept, dropped) = r.alts.zipWithIndex.partition { case (alt, _) =>
+          !isEmptyAlt(r, alt) && alt.forall(e => refsIn(e.atom).subsetOf(alive))
+        }
+        val altWarnings = dropped.map { case (_, i) =>
+          s"dropped alternative #${i + 1} in rule `${r.name}` (no Core equivalent, or a reference to a dropped rule)"
+        }
+        if dropped.nonEmpty then changed = true
+        if kept.nonEmpty then (Some(r.copy(alts = kept.map(_._1))), altWarnings)
         else
-          val (kept, dropped) = r.alts.zipWithIndex.partition { case (alt, _) =>
-            renderAlt(alt).nonEmpty && alt.forall(e => refsIn(e.atom).subsetOf(alive))
-          }
-          val altWarnings = dropped.map { case (_, i) =>
-            s"dropped alternative #${i + 1} in rule `${r.name}` (no Core equivalent, or a reference to a dropped rule)"
-          }
-          if dropped.nonEmpty then changed = true
-          if kept.nonEmpty then (Some(r.copy(alts = kept.map(_._1))), altWarnings)
-          else
-            changed = true
-            (
-              None,
-              altWarnings :+ s"dropped rule `${r.name}` entirely (every alternative had no Core equivalent)"
-            )
+          changed = true
+          (
+            None,
+            altWarnings :+ s"dropped rule `${r.name}` entirely (every alternative had no Core equivalent)"
+          )
       }
       val (kept, warnings) = perRule.unzip
       (kept.flatten, warnings.flatten, changed)
@@ -481,12 +482,19 @@ object ConvertAntlr:
     case ADot          => "."
     case ANot(ASet(s)) => "[^" + s + "]"
     case ANot(inner)   => "[^" + regexOfAtom(inner) + "]"
-    case AGroup(alts)  => "(?:" + regexOfAlts(alts) + ")"
-    case AInline(_)    => ""
+    // As with renderAtom's AGroup case: an inner alt that itself renders to "" (a dropped
+    // action) can't be kept as a `(?:…)` branch — `(?:)` is a zero-width alternative, not an
+    // absent one. Filtering here first makes the whole group "" too once every branch drops.
+    case AGroup(alts) =>
+      val kept = alts.map(els => els.map(regexOfElem).mkString).filter(_.nonEmpty)
+      if kept.isEmpty then "" else "(?:" + kept.mkString("|") + ")"
+    case AInline(_) => ""
 
   private def regexOfElem(e: Elem): String = regexOfAtom(e.atom) + renderSuffix(e.suffix)
 
-  // Translate a lexer rule's alternatives to a Gramark regex source.
+  // Translate a lexer rule's alternatives to a Gramark regex source. Callers must not emit a
+  // token line for a rule whose every alt renders to "" here — dropUnrepresentableRules drops
+  // those first, the same way it drops an unrepresentable parser alt.
   private def regexOfAlts(alts: Vector[Vector[Elem]]): String =
     alts.map(els => els.map(regexOfElem).mkString).mkString("|")
 
