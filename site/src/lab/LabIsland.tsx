@@ -1304,14 +1304,6 @@ function GrammarAnalysisPanel() {
 
   return (
     <div>
-      {/* Unlike AllParsesPanel's note, this one never names a method — analysisOf computes every
-          method's stats unconditionally (the table below always shows all three), so nothing on
-          this tab varies with the Engine picker's method selection; naming one method here would
-          imply a dependency that doesn't exist. */}
-      <ProvenanceNote
-        show={strategy.value === "ll-star"}
-        text="via LR tables — every method's stats shown below, independent of Engine"
-      />
       {current && (
         <div class="lab__analysis-section">
           <div class="lab__analysis-heading">railroad diagram</div>
