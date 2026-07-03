@@ -74,8 +74,7 @@ WS     : /[ \t\r\n]+/    %skip
 ## Json
 
 A JSON text is a single value, optionally preceded or followed by whitespace.
-The grammar therefore defines a complete JSON document as one value with the
-required end-of-input marker.
+The grammar therefore defines a complete JSON document as one value.
 
 ![Railroad diagram for the Json rule](diagrams-ECMA-404/json.svg)
 
@@ -84,7 +83,7 @@ required end-of-input marker.
 
 ```gramaire
 Json
-  : Value EOF
+  : Value
 ```
 
 </details>
