@@ -1352,12 +1352,19 @@ function AtnDiagnosticsPanel() {
     );
 
   const d = response.value?.atn;
-  if (!d)
+  if (!d) {
+    // `atn` is also None when the grammar notation itself never parsed (the top-level Left(diags)
+    // branch in LabApi.evaluate never computes it) — the same signal GrammarAnalysisPanel already
+    // uses to tell that cause apart, since `analysis` is None in exactly that one case.
+    const notationFailed = !response.value?.analysis;
     return (
       <p class="lab__empty">
-        No ATN diagnostics — enter target input to run Ll.recognize.
+        {notationFailed
+          ? "No ATN diagnostics — the grammar notation didn't parse."
+          : "No ATN diagnostics — enter target input to run Ll.recognize."}
       </p>
     );
+  }
 
   const total = d.hits + d.misses;
   const hitPct = total > 0 ? Math.round((d.hits / total) * 100) : 0;
