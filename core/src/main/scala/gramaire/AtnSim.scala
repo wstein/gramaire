@@ -217,7 +217,11 @@ object AtnSim:
     def resolve(configs: Vector[Config]): Either[Vector[Int], Int] =
       val completedConfigs = configs.filter(completed(atn, _))
       val candidates = if completedConfigs.nonEmpty then completedConfigs else configs
-      val distinctAlts = candidates.map(_.alt).distinct
+      // Sorted for the same reason `firstAlt` is `.min`-based, not vector-order-based: the DFA
+      // cache's set-keyed memoization doesn't preserve the order `candidates` arrived in, so an
+      // un-sorted `distinct` here would make a genuine tie's reported/picked alt (and
+      // `Ambiguity.alts`'s claimed "declaration order") depend on incidental cache-hit history.
+      val distinctAlts = candidates.map(_.alt).distinct.sorted
       if distinctAlts.length > 1 then Left(distinctAlts)
       else firstAlt(candidates).toRight(Vector.empty)
 
