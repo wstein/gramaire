@@ -63,6 +63,19 @@ class LlSuite extends munit.FunSuite:
         Vec("n n", false),
         Vec("", false)
       )
+    ),
+    Case(
+      "left recursion with two distinct base alternatives (multi-base fold)",
+      "```gramaire\nA\n  : A '+' 'x'\n  | 'y'\n  | 'z'\n```\n",
+      Vector(
+        Vec("y", true),
+        Vec("z", true),
+        Vec("y+x", true),
+        Vec("z+x+x", true),
+        Vec("+x", false),
+        Vec("y+", false),
+        Vec("", false)
+      )
     )
   )
 
@@ -113,4 +126,48 @@ class LlSuite extends munit.FunSuite:
 
   test("the left-recursive `lr` bootstrap corpus parses top-down (Phase 2)") {
     runCorpus("lr", Bootstrap.bootstrapGrammar, ConformanceLexers.lrLexer, Conformance.lrVectors)
+  }
+
+  test("Ll.parse builds the exact same Cst as the LR oracle, including left-recursive rules") {
+    cases.foreach { c =>
+      Lr.parse(c.grammar) match
+        case Left(e) => fail(s"${c.name}: grammar should parse: $e")
+        case Right(g) =>
+          val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+          c.vectors.filter(_.expect).foreach { v =>
+            lexer(v.input) match
+              case Left(e) => fail(s"${c.name} / ${v.input}: lex failed: $e")
+              case Right(toks) =>
+                val lrCst = Conformance.parseCst(lexer, Method.Canonical, g, v.input)
+                val llCst = Ll.parse(g, toks)
+                (lrCst, llCst) match
+                  case (Right(lr), Some(ll)) =>
+                    assertEquals(
+                      ll,
+                      lr,
+                      s"${c.name} / ${v.input}: Ll.parse's Cst differs from LR's"
+                    )
+                  case (Left(e), _) => fail(s"${c.name} / ${v.input}: LR should build a Cst: $e")
+                  case (_, None)    => fail(s"${c.name} / ${v.input}: Ll.parse should accept")
+          }
+    }
+  }
+
+  test("Ll.parse rejects exactly what the LR oracle rejects") {
+    cases.foreach { c =>
+      Lr.parse(c.grammar) match
+        case Left(e) => fail(s"${c.name}: grammar should parse: $e")
+        case Right(g) =>
+          val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+          c.vectors.filterNot(_.expect).foreach { v =>
+            lexer(v.input) match
+              case Left(_) => () // a lex failure is itself a rejection
+              case Right(toks) =>
+                assertEquals(
+                  Ll.parse(g, toks),
+                  None,
+                  s"${c.name} / ${v.input}: Ll.parse should reject"
+                )
+          }
+    }
   }

@@ -78,3 +78,41 @@ class ConformanceSuite extends munit.FunSuite:
               )
         }
   }
+
+  // Assert Ll.parse builds a Cst byte-for-byte identical to the LR path's, for every accept
+  // vector — same production ids (Table.productions on the same desugared grammar), same shape,
+  // including left-recursive rules folded back from LeftRec's right-recursive rewrite.
+  private def assertSameCst(
+      label: String,
+      lexer: ConformanceLexers.Lexer,
+      g: Grammar,
+      vectors: Vector[TestVector]
+  ): Unit =
+    vectors.filter(_.expect == Outcome.Accept).foreach { v =>
+      lexer(v.input) match
+        case Left(e) => fail(s"$label / ${v.name}: lex failed: $e")
+        case Right(toks) =>
+          val lrCst = Conformance.parseCst(lexer, Method.Canonical, g, v.input)
+          val llCst = Ll.parse(g, toks)
+          (lrCst, llCst) match
+            case (Right(lr), Some(ll)) =>
+              assertEquals(ll, lr, s"$label / ${v.name}: Ll.parse's Cst differs from LR's")
+            case (Left(e), _) => fail(s"$label / ${v.name}: LR should build a Cst: $e")
+            case (_, None)    => fail(s"$label / ${v.name}: Ll.parse should accept")
+    }
+
+  test("Ll.parse builds the exact same Cst as the LR oracle, over lr/calc/json") {
+    val lrG = Bootstrap.bootstrapGrammar
+    assertSameCst("lr", ConformanceLexers.lrLexer, lrG, Conformance.lrVectors)
+
+    val calcMd = readFile("examples/calc.gram.md")
+    Lr.parse(calcMd) match
+      case Left(e) => fail(s"calc grammar should parse: $e")
+      case Right(g) =>
+        assertSameCst("calc", ConformanceLexers.calcLexer, g, Conformance.calcVectors)
+
+    val jsonMd = readFile("examples/json.gram.md")
+    Lr.parse(jsonMd) match
+      case Left(e)  => fail(s"json grammar should parse: $e")
+      case Right(g) => assertSameCst("json", jsonLexerOf(jsonMd, g), g, Conformance.jsonVectors)
+  }
