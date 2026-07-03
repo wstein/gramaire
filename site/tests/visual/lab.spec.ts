@@ -165,6 +165,25 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await page.click('button[aria-label="last step"]');
   await expect(page.locator(".lab__walk-counter")).toHaveText("step 14 / 14");
   await expect(page.locator(".lab__walk-action")).toContainText("accept");
+
+  // ATN diagnostics is additive: Strategy defaults to LR, so the tab starts as an empty state
+  // prompting the user to switch, with no atn data requested at all.
+  await page.click('button[role="tab"]:has-text("ATN")');
+  await expect(page.locator(".lab__empty")).toContainText("Switch Strategy");
+
+  await page.getByLabel("Strategy").selectOption("ll-star");
+  await expect(page.locator(".lab__panel")).toContainText("Ll.recognize", {
+    timeout: 5000,
+  });
+  // Scoped to .lab__panel: StatusBar's own always-visible badge reuses the same
+  // .lab__parsestatus class, and both are in the DOM at once once this tab is active.
+  await expect(page.locator(".lab__panel .lab__parsestatus")).toHaveText(
+    "accepted",
+  );
+  await expect(page.locator(".lab__panel")).toContainText("DFA cache hits");
+  await expect(page.locator(".lab__panel")).toContainText(
+    "No ambiguities — every decision resolved uniquely.",
+  );
 });
 
 test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", async ({
