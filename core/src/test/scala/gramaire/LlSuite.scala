@@ -171,3 +171,66 @@ class LlSuite extends munit.FunSuite:
           }
     }
   }
+
+  test("a tracking cache records a genuine SLL ambiguity, resolved by declaration order") {
+    // S has no way to tell A from B by lookahead alone — both derive exactly "x" — so every
+    // config reaching S's end is tied between alt 0 (A) and alt 1 (B); first-alt-wins picks A.
+    val grammar = "```gramaire\nS\n  : A\n  | B\n\nA\n  : 'x'\n\nB\n  : 'x'\n```\n"
+    Lr.parse(grammar) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        lexer("x") match
+          case Left(e) => fail(s"lex failed: $e")
+          case Right(toks) =>
+            val cache = new AtnSim.Cache(track = true)
+            assert(Ll.recognize(g, toks, cache), "the ambiguous grammar should still accept")
+            assertEquals(
+              cache.ambiguities.length,
+              1,
+              s"expected one tie, got: ${cache.ambiguities}"
+            )
+            val amb = cache.ambiguities.head
+            assertEquals(amb.rule, "S")
+            assertEquals(amb.alts, Vector(0, 1), "both tied alts, in first-alt-wins order")
+  }
+
+  test("a tracking cache reports no ambiguities for an unambiguous grammar") {
+    Lr.parse(cases.head.grammar) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        cases.head.vectors.filter(_.expect).foreach { v =>
+          lexer(v.input) match
+            case Left(e) => fail(s"lex failed: $e")
+            case Right(toks) =>
+              val cache = new AtnSim.Cache(track = true)
+              Ll.recognize(g, toks, cache)
+              assertEquals(
+                cache.ambiguities,
+                Vector.empty,
+                s"unexpected ambiguity for ${v.input}: ${cache.ambiguities}"
+              )
+        }
+  }
+
+  test("an untracked cache stays at zero; a tracked one observes real hit/miss activity") {
+    Lr.parse(cases.head.grammar) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        lexer("((x))") match
+          case Left(e) => fail(s"lex failed: $e")
+          case Right(toks) =>
+            val untracked = new AtnSim.Cache
+            Ll.recognize(g, toks, untracked)
+            assertEquals((untracked.hits, untracked.misses), (0, 0))
+
+            val tracked = new AtnSim.Cache(track = true)
+            Ll.recognize(g, toks, tracked)
+            assert(tracked.misses > 0, "the first visit to any decision must be a miss")
+            assert(
+              tracked.hits > 0,
+              "S is visited three times (once per nesting level) — later visits should hit"
+            )
+  }
