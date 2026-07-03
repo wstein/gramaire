@@ -234,3 +234,41 @@ class LlSuite extends munit.FunSuite:
               "S is visited three times (once per nesting level) — later visits should hit"
             )
   }
+
+  test("Cache.pushContext/popContext behave as a plain stack") {
+    val cache = new AtnSim.Cache
+    assertEquals(cache.currentContext, Nil)
+    cache.pushContext(7)
+    assertEquals(cache.currentContext, List(7))
+    cache.pushContext(3)
+    assertEquals(cache.currentContext, List(3, 7))
+    cache.popContext()
+    assertEquals(cache.currentContext, List(7))
+    cache.popContext()
+    assertEquals(cache.currentContext, Nil)
+    // Popping past empty is a defensive no-op, not a crash (guards a push/pop discipline bug).
+    cache.popContext()
+    assertEquals(cache.currentContext, Nil)
+  }
+
+  test("Ll's real RuleCall context is fully unwound (push/pop balanced) after a nested parse") {
+    // The "balanced nesting" grammar recurses through S three times for "((x))" — every
+    // RuleCall's pushContext must be matched by a popContext, however deep, however the walk
+    // ultimately resolves (accept or reject) — otherwise this would leak a non-empty context.
+    Lr.parse(cases.head.grammar) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        val cache = new AtnSim.Cache
+        List("((x))", "(x", "x)").foreach { input =>
+          lexer(input) match
+            case Left(_) => ()
+            case Right(toks) =>
+              Ll.recognize(g, toks, cache)
+              assertEquals(
+                cache.currentContext,
+                Nil,
+                s"context leaked after recognizing '$input'"
+              )
+        }
+  }
