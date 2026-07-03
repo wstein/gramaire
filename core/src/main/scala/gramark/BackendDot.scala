@@ -1,8 +1,12 @@
 package gramark
 
-// A `format` backend: `gramark-ir` in, GraphViz DOT of the LR automaton
-// out. One node per parser state, one edge per shift (solid) and goto
-// (dashed).
+// A `format` backend: `gramark-ir` in, GraphViz DOT out. Under `--strategy lr`
+// (the default), one node per LR parser state, one edge per shift (solid) and
+// goto (dashed) — the original rendering. Under `--strategy ll-star`, `ir.atn`
+// is present (the ALL(*) port's ATN substrate) and this backend renders THAT
+// instead: one node per ATN state, one edge per atom-match/rule-call (solid)
+// and epsilon/rule-call-follow (dashed) — the first runtime consumer of
+// `IR.atn`, which until now only round-tripped through JSON unread.
 // Ported from src/Gramark/Backend/Dot.purs.
 object BackendDot:
   val backend: Backend = Backend(
@@ -29,8 +33,47 @@ object BackendDot:
   private def dotLabel(parts: Vector[String]): String =
     "\"" + parts.map(escapeDot).mkString("\\n") + "\""
 
-  /** Render the IR's parse tables as a GraphViz digraph of the LR automaton. */
-  def emit(ir: IR): String =
+  /** Render the IR's parse tables as a GraphViz digraph of the LR automaton, or — if `ir.atn` is
+    * present (`--strategy ll-star`) — the ATN instead.
+    */
+  def emit(ir: IR): String = ir.atn match
+    case Some(atn) => emitAtn(ir, atn)
+    case None      => emitLr(ir)
+
+  private def stateKindLabel(s: IRAtnState): String =
+    s.kind + s.decision.fold("")(d => s" (decision $d)")
+
+  // One node per ATN state, labelled with its id/rule/kind — a double-bordered node marks the
+  // grammar's single entry state. One edge per transition: an atom match or a rule call is
+  // solid (the "consume/descend" moves), an epsilon or a rule call's follow/return is dashed
+  // (the "no token consumed" moves) — mirroring the LR renderer's shift(solid)/goto(dashed).
+  private def emitAtn(ir: IR, atn: IRAtn): String =
+    def nodeLine(s: IRAtnState): String =
+      val label = dotLabel(Vector(s"s${s.id}", s.rule, stateKindLabel(s)))
+      val peripheries = if s.id == atn.start then ", peripheries=2" else ""
+      s"  s${s.id} [label=$label$peripheries];"
+
+    def edgesFor(s: IRAtnState): Vector[String] = s.transitions.flatMap {
+      case IRAtnTrans.IRAtnEps(target) =>
+        Vector(s"  s${s.id} -> s$target [label=${quote("ε")}, style=dashed];")
+      case IRAtnTrans.IRAtnAtom(label, target) =>
+        Vector(s"  s${s.id} -> s$target [label=${quote(label)}];")
+      case IRAtnTrans.IRAtnRule(name, target, follow) =>
+        Vector(
+          s"  s${s.id} -> s$target [label=${quote(s"call $name")}];",
+          s"  s${s.id} -> s$follow [label=${quote("follow")}, style=dashed];"
+        )
+    }
+    val edges = atn.states.flatMap(edgesFor)
+
+    "digraph " + quote(ir.grammar.name) + " {\n" +
+      "  rankdir=LR;\n" +
+      "  node [shape=box, fontname=\"monospace\"];\n" +
+      atn.states.map(nodeLine).mkString("\n") +
+      (if edges.isEmpty then "" else "\n" + edges.mkString("\n")) +
+      "\n}\n"
+
+  private def emitLr(ir: IR): String =
     val states: Vector[Int] =
       if ir.tables.stateCount <= 0 then Vector.empty else (0 until ir.tables.stateCount).toVector
     val termById: Map[Int, String] =
