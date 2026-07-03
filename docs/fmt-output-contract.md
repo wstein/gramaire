@@ -352,14 +352,14 @@ there's no Markdown here to satisfy guarantees 1–3 against in the first
 place: no headings, no fences, no `markdownlint-cli2` run at all.
 
 **Shape**: an optional `/** ... */` banner (the file's intro prose, one
-` * ` per line), `%name`/`%lang` and any `%left`/`%right`/`%nonassoc`
-declarations as bare lines, `ALLCAPS : /regex/` token definitions, and
-`Mixed-case` rule productions — each optionally preceded by `///`-prefixed
-doc-comment lines. This is exactly the shape `gramaire strip` produces from a
-`.gram.md`, and `Lr.parse` already treats it as fully valid grammar input
-via `Lr.toFenced`'s line-shape reconstruction (`isSettingDecl`/`isTokenDef`/
-`isPrecDecl`, else rule content — the same `classifyFenceContent` rules used
-everywhere, "case is law").
+` * ` per line), `%name`/`%lang` declarations as bare lines, token
+definitions such as `ALLCAPS : /regex/`, `Mixed-case` rule productions — each
+optionally preceded by `///`-prefixed doc-comment lines — and any
+`%left`/`%right`/`%nonassoc` declarations after the productions. This is
+exactly the shape `gramaire strip` produces from a `.gram.md`, and `Lr.parse`
+already treats it as fully valid grammar input via `Lr.toFenced`'s line-shape
+reconstruction (`isSettingDecl`/`isTokenDef`/`isPrecDecl`, else rule content —
+the same `classifyFenceContent` rules used everywhere, "case is law").
 
 **`gramaire check <file.gram>`** verifies:
 
