@@ -11,18 +11,20 @@ a thin skin over real machinery, never a mock.
 > **Current state (be honest about it).** The Lab exists and is live at
 > `/lab` on `feature/reimplement-site`: all ten of the gold-standard mock's
 > drawer tabs (Result, Evaluate, Tokens, Grammar analysis, Parse tree, Parse
-> trace, LR walk, All parses, Diagnostics, Lowered Core), the JVM↔JS parity
-> gate (§8), and the draggable splitter are done — §5.1's per-tab
-> "Implementation status"/progress notes are the source of truth for what
-> shipped and when, not this callout. What's still **not yet built**: every
-> Tier 2/3 T-item below that isn't one of those ten tabs (Conformance panel
-> T3.1, Recovery preview T3.3, Gallery T3.4, Embeddable lab T3.5, Codegen
-> export T2.5) and the tab→core-symbol provenance table's own
-> `docs-lint`-checked guardrail (§5.1, deliberately deferred). The previous
-> implementation (Astro + Starlight, with a Scala.js Tier 1 keystone) was
-> deleted in `4133cab` after the PureScript→Scala core migration made it
-> stale, which is why this rebuild started from the mock, not from that
-> code. Keep this callout current as further work lands.
+> trace, LR walk, All parses, Diagnostics, Lowered Core), plus an eleventh —
+> ATN diagnostics, gated behind a Strategy (`lr`/`ll-star`) selector next to
+> Method in the top bar — the JVM↔JS parity gate (§8), and the draggable
+> splitter/drawer are done — §5.1's per-tab "Implementation status"/progress
+> notes are the source of truth for what shipped and when, not this callout.
+> What's still **not yet built**: every Tier 2/3 T-item below that isn't one
+> of those eleven tabs (Conformance panel T3.1, Recovery preview T3.3,
+> Gallery T3.4, Embeddable lab T3.5, Codegen export T2.5) and the
+> tab→core-symbol provenance table's own `docs-lint`-checked guardrail
+> (§5.1, deliberately deferred — the ATN tab isn't in that table yet either).
+> The previous implementation (Astro + Starlight, with a Scala.js Tier 1
+> keystone) was deleted in `4133cab` after the PureScript→Scala core
+> migration made it stale, which is why this rebuild started from the mock,
+> not from that code. Keep this callout current as further work lands.
 
 ---
 
@@ -551,7 +553,10 @@ selector in `lab.spec.ts` with the panes' own `.lab__pane--grammar`/
 `.lab__pane--fill` modifier classes, which don't depend on sibling order.
 
 **Not yet done:** nothing — every M5+ item tracked in this section (all ten
-tabs, the JVM↔JS parity gate, the draggable splitter) is now done.
+tabs, the JVM↔JS parity gate, the draggable splitter) is now done. (The
+eleventh tab, ATN diagnostics behind the Strategy selector, landed after this
+section was written — see the top callout and docs/all-star-port-plan.md's
+item f for its own status.)
 
 **JVM↔JS parity gate** (§8, "no-import" guardrail's sibling — done). Rather
 than extending `Conformance.scala` (a differential oracle over accept/reject
