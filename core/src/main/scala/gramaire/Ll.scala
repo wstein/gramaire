@@ -1,20 +1,23 @@
 package gramaire
 
 // A top-down **LL recognizer and parser** driven by ALL(*) prediction (the
-// ALL(*) port, Phase 1/2). Desugars the grammar, lowers it to an `Atn`, and
-// walks the network: at each rule it asks `AtnSim.predict` which alternative
-// the input takes, then follows that alternative's chain — matching `Atom`
+// ALL(*) port, Phase 1/2). Desugars the grammar, optionally stratifies
+// `## Precedence`-driven ambiguous rules (`PrecClimb`), eliminates direct
+// left recursion (`LeftRec` — top-down parsing cannot descend it directly),
+// lowers the result to an `Atn`, and walks the network: at each rule it asks
+// `AtnSim.predict` which alternative the input takes (SLL first, retrying
+// with the real calling context — `pushContext`/`popContext` below — only on
+// a genuine tie), then follows that alternative's chain — matching `Atom`
 // terminals against the token stream and recursing on `RuleCall`s — until
 // the rule's block end.
 //
 // This is the LR-parity keystone: `Ll.recognize` accepts exactly the
 // inputs the LR path (`Conformance.recognize`) does, and `Ll.parse` builds
 // the exact same `Cst` the LR path does (same production ids, same shape) —
-// including for left-recursive rules, where `LeftRec.eliminate` rewrites
-// direct left recursion to a right-recursive form before the ATN is built
-// (top-down parsing cannot descend it directly), and `Ll.parse` folds the
-// resulting flat right-recursive walk back into the original left-
-// associative shape, using the provenance `LeftRec.eliminate` carries.
+// including for left-recursive rules (`LeftRec.Fold` folds the flat
+// right-recursive walk back into the original left-associative shape) and
+// `## Precedence`-driven ambiguous ones (`PrecClimb.Tag` folds the
+// precedence-level cascade back onto the original rule's own alternatives).
 // Ported from src/Gramaire/Ll.purs.
 object Ll:
   /** Accept `toks` iff the grammar's start rule recognizes the whole stream. `cache` defaults to a
@@ -76,7 +79,13 @@ object Ll:
               case Some(tok) if tok.terminal == t => walk(atn, target, toks, pos + 1, cache)
               case _                              => None
           case Vector(Transition.RuleCall(_, target, follow)) =>
-            parseRule(atn, target, toks, pos, cache) match
+            // Push/pop in exact lockstep with the real descent, so a decision inside `target`
+            // sees precisely "if I can't resolve locally, control returns to `follow` after I'm
+            // done" as its full-LL context — see AtnSim.predict.
+            cache.pushContext(follow)
+            val result = parseRule(atn, target, toks, pos, cache)
+            cache.popContext()
+            result match
               case Some(pos2) => walk(atn, follow, toks, pos2, cache)
               case None       => None
           case Vector(Transition.Epsilon(target)) => walk(atn, target, toks, pos, cache)
@@ -288,7 +297,12 @@ object Ll:
             }
           case _ => None
       case Vector(Transition.RuleCall(_, target, follow)) =>
-        parseRuleCst(ctx, target, pos).flatMap { case (childCst, pos2) =>
+        // See `walk`'s identical reasoning: push/pop bracket exactly the recursive descent into
+        // `target`, giving its own decisions the real "control returns to `follow`" context.
+        ctx.cache.pushContext(follow)
+        val childResult = parseRuleCst(ctx, target, pos)
+        ctx.cache.popContext()
+        childResult.flatMap { case (childCst, pos2) =>
           walkSyms(ctx, follow, n - 1, pos2).map { case (rest, s2, p2) =>
             (childCst +: rest, s2, p2)
           }
