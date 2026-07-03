@@ -567,13 +567,11 @@ export default function LabIsland() {
               value="ll-star"
               title="Adaptive LL(*): still produces a parse — resolving ties by declaration order — even when the grammar has real LR conflicts the methods below would refuse to build at all."
             >
-              ALL(*) — survives LR conflicts
+              ALL(*)
             </option>
-            <optgroup label="LR / GLR">
               <option value="Canonical">Canonical LR(1)</option>
               <option value="LALR">LALR(1)</option>
               <option value="IELR">IELR(1)</option>
-            </optgroup>
           </select>
         </label>
         {ruleNames.value.length > 0 && (
@@ -1246,8 +1244,24 @@ function AllParsesPanel() {
         No input given, or the grammar notation itself didn't parse.
       </p>
     );
-  if (forest.parses.length === 0)
-    return <p class="lab__empty">No parses — the input wasn't lexable.</p>;
+  if (forest.parses.length === 0) {
+    // An empty forest has two distinct causes forestFor's own code conflates into the same
+    // Vector.empty — a real lexical error (Scanner.hasErrorSpanned short-circuits before Glr.forest
+    // ever runs) vs. input that lexes fine but has no valid derivation at all (a genuine syntax
+    // error, e.g. a dangling operator). r.parse.message.stage — "lex" vs "parse" — tells them apart;
+    // r.parse itself is only ever null here when strategy is "lr" and the grammar has real,
+    // unresolved conflicts (buildOk false skips the single-result attempt entirely, per LabApi.scala),
+    // in which case there's no lexical signal available on the wire at all — say so honestly instead
+    // of guessing a stage that might be wrong.
+    const stage = r?.parse?.message?.stage;
+    const reason =
+      stage === "lex"
+        ? "the input wasn't lexable"
+        : stage !== undefined
+          ? "the input has no valid derivation"
+          : "no parse could be found for this input";
+    return <p class="lab__empty">No parses — {reason}.</p>;
+  }
   const ambiguous = forest.parses.length > 1;
   return (
     <div>
