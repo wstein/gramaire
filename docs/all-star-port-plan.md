@@ -197,15 +197,17 @@ are the parsing core; 3–6 are the language and product surface.
 - ✅ A top-down recognizer `Gramark.Ll.recognize` →
   [`Ll.scala`](../core/src/main/scala/gramark/Ll.scala) drives the ATN with the
   predictor and the token stream, accepting iff the start rule consumes the
-  whole input. **It returns `Boolean` only** — there is no tree-producing
-  `Ll.parse` (see deferred, below).
+  whole input. A tree-producing `Ll.parse` also exists now (Phase 2, since it
+  had to be built together with the left-recursion fold — see there for the
+  full story) and builds the same `Cst` the LR path does.
 - ✅ **Test (`Test.Ll`) →
   [`LlSuite.scala`](../core/src/test/scala/gramark/LlSuite.scala):**
   differential oracle — `Gramark.Ll.recognize` agrees with the LR oracle
-  (`Gramark.Conformance.recognize`) on every vector of **five** hand-built
+  (`Gramark.Conformance.recognize`) on every vector of **six** hand-built
   grammars: balanced nesting, a right-recursive list, an LL(3) decision that
-  only resolves three tokens deep, a rule-call-tail-belongs-to-caller case, and
-  a classic direct-left-recursive expression grammar.
+  only resolves three tokens deep, a rule-call-tail-belongs-to-caller case, a
+  classic direct-left-recursive expression grammar, and a left-recursive rule
+  with two distinct base alternatives.
 - ✅ **Corpus gate:** with `Gramark.LeftRec` in front of `buildAtn`, `LlSuite`
   also runs the left-recursive `lr` bootstrap (45 productions) via
   `Conformance.lrVectors`, and the JVM-only
@@ -216,10 +218,9 @@ are the parsing core; 3–6 are the language and product surface.
   `Members`/`Elements` are hand left-recursive, not `Comma<X>` sugar). **Gap:**
   `calc-prec` and `ECMA-404` still never reach the LL path.
 - ⏳ **Deferred:** full **LL** (full-context) fallback (only SLL exists; no
-  `PredictionMode`, no ambiguity-triggered retry) and a `Cst`-producing
-  `Gramark.Ll.parse`.
+  `PredictionMode`, no ambiguity-triggered retry).
 
-### Phase 2 — Left-recursion elimination ✅ recognizer
+### Phase 2 — Left-recursion elimination ✅ recognizer + Cst
 
 - ✅ `Gramark.LeftRec.eliminate` →
   [`LeftRec.scala`](../core/src/main/scala/gramark/LeftRec.scala) rewrites
@@ -228,24 +229,53 @@ are the parsing core; 3–6 are the language and product surface.
   is unchanged but every cycle passes through a terminal, keeping `Sim`'s
   closure bounded and `Ll`'s descent total. It runs after `Desugar`, so the
   left-recursive list rules that `X+`/`X*`/macros lower to are eliminated by
-  the same pass; no ATN loop states are needed. **The rewrite drops labels and
-  actions** (its internal `bare` step) — harmless for a Boolean recognizer, but
-  a blocker a future `Cst`-producing `Ll.parse` will have to lift, since it
-  needs the original labels to build the right tree shape.
-- ✅ **Test (`Test.Ll`) → `LlSuite.scala`:** a classic left-recursive
-  expression grammar plus the `lr` bootstrap and `calc` corpora all parse
-  top-down and match the LR oracle. No dedicated `LeftRec` unit suite exists —
-  the rewrite is exercised only indirectly through these grammars.
-- ⏳ **Deferred:** **indirect** (mutual) left recursion (`isLeftRec` only
-  checks an alt's head against its own rule's name; the corpus has none, so
-  this has never been exercised); the precedence-climbing variant that
-  preserves left-associative **tree shape** (with
-  `PrecedencePredicateTransition`s) for a `Cst`-producing `Ll.parse` — the
-  current rewrite produces a right-recursive form and the recognizer ignores
-  associativity entirely, so this is not needed for accept/reject parity, only
-  for a future tree-producing parse. When that lands, `examples/calc-prec`
-  should parse under `ll-star` with the same tree LR produces from
-  `## Precedence` (ADR D37 reused, different mechanism) — it does not today.
+  the same pass; no ATN loop states are needed.
+- ✅ **The rewrite now carries a `Fold`** alongside the rewritten grammar: for
+  every rule it rewrites, which _original_ alt (by index — the same numbering
+  `Table.productions` and the LR path's `Cst` use) each rewritten alternative
+  derives from. This is what unblocked the `Cst`-producing parse below — it
+  had been flagged as a blocker ("the rewrite drops labels and actions")
+  because the naive `bare()` rewrite discarded exactly this information;
+  rather than carrying labels/actions through unused, the rewrite carries the
+  minimal provenance the fold actually needs.
+- ✅ **A `Cst`-producing `Ll.parse`** (Phase 1's other deferral, closed
+  together with this one — see `Ll.scala`) walks the right-recursive rewritten
+  form as `recognize` always did, but folds the resulting flat chain of
+  (operator, operand) steps left-to-right onto the base case, using `Fold` to
+  tag each resulting branch with the _original_ rule's production id. The
+  result is byte-for-byte the same `Cst` the LR path builds — proven, not just
+  argued: `LlSuite`'s and the JVM `ConformanceSuite`'s new tests compare
+  `Ll.parse`'s output against `Conformance.parseCst`'s node-for-node, on five
+  hand grammars (including a multi-base-alternative case beyond the common
+  single-base pattern) and the real `lr`/`calc`/`json` corpora — `calc`'s
+  `expr`/`term`/`factor` and `json`'s `Members`/`Elements` are left-recursive
+  in practice, not just in theory, so this is exercised on real grammars, not
+  only synthetic ones.
+- ✅ **Test (`Test.Ll`) → `LlSuite.scala`, JVM `ConformanceSuite.scala`:** as
+  above, plus the pre-existing accept/reject parity tests, all still green.
+- ⏳ **Still deferred — precedence climbing proper:** the above folds ordinary
+  (already-stratified, e.g. `expr → term → factor`) left recursion correctly,
+  but does **not** stratify a single, `## Precedence`-declared, genuinely
+  ambiguous rule the way `examples/calc-prec.grmk.md` is written (one `expr`
+  rule with `expr '+' expr | expr '-' expr | expr '*' expr | expr '/' expr |
+  …`, disambiguated by a `%left`/`%left` precedence table, not by rule shape).
+  Feeding that rule through today's `LeftRec.eliminate` would treat all four
+  operators as equally left-associative with no precedence distinction — `1 +
+  2 * 3` would parse by whichever alternative happens to win ALL(\*)'s
+  first-alt-wins tie-break, not by declared precedence. Correctly handling it
+  needs a **new, separate mechanism**: reading `## Precedence` (already parsed
+  for the LR path, see `Lr.precedenceOf`), synthesizing the equivalent
+  stratified sub-rule cascade from it (one rule per precedence level, shaped
+  left- or right-recursive per its declared associativity), running _that_
+  through left-recursion folding, and then **de-stratifying** the result back
+  onto the original single-rule grammar's production ids so the `Cst` still
+  matches what LR's conflict-resolution-based approach produces from the same
+  source. `examples/calc-prec` does not parse correctly under `ll-star` yet —
+  still not done, tracked as its own backlog item (§8), not implied-done by
+  this phase's ordinary-left-recursion Cst support.
+- ⏳ **Also still deferred:** **indirect** (mutual) left recursion (`isLeftRec`
+  only checks an alt's head against its own rule's name; the corpus has none,
+  so this has never been exercised).
 
 ### Phase 3 — ANTLR ↔ Gramark converter (instead of growing Gramark's syntax) ✅
 
@@ -520,16 +550,19 @@ Principles kept:
    Proven on a hand-built grammar today; the `calc`/`json` file-backed
    invariant checks this step originally claimed are still open (Phase 0 gap).
 2. **Phase 1 ✅ (partial)** — SLL prediction behind `--strategy ll-star`;
-   accept/reject parity with LR proven on five hand grammars + the `lr`
+   accept/reject parity with LR proven on six hand grammars + the `lr`
    bootstrap + `calc` + `json`. **This was the keystone claim, and it now
    holds with performance evidence too**: the DFA cache (`AtnSim.Cache`)
    makes prediction amortized-linear (empirically sub-quadratic — a 10x
    `json` input costs ~6-6.5x wall time, `LlBenchmarkSuite`), so "the engine
    is real" now covers both correctness on this corpus and a demonstrated
    performance property, not just the former.
-3. **Phase 2 ✅ (recognizer only)** — left recursion (direct only); unlocks the
-   "write it the obvious way" demo for accept/reject, not yet for
-   precedence-correct trees.
+3. **Phase 2 ✅ (recognizer + Cst)** — left recursion (direct only); unlocks
+   the "write it the obvious way" demo for accept/reject **and** now for a
+   `Cst` matching LR's exactly, proven on real left-recursive grammars
+   (`calc`, `json`) — not yet for `## Precedence`-driven, single-rule
+   ambiguous grammars like `calc-prec`, which need a different, still-unbuilt
+   stratification mechanism (see Phase 2's own writeup).
 4. **Phase 3 ✅** — the **ANTLR ↔ Gramark converter**, both directions, tested,
    with "lossy is loud" now covering non-greedy suffixes and parser-rule
    charsets (previously silent — fixed alongside this audit).
@@ -542,8 +575,12 @@ Principles kept:
 a. ~~the lazy DFA cache + the Phase-1 `json` benchmark gate~~ — **done**:
    `AtnSim.Cache`, `json` wired into the `Ll.recognize` corpus gate, and
    `LlBenchmarkSuite` proving sub-quadratic growth.
-b. a `Cst`-producing `Ll.parse` + the precedence-climbing left-recursion
-   rewrite (unlocks `examples/calc-prec` under `ll-star`);
+b. ~~a `Cst`-producing `Ll.parse`~~ — **done** for ordinary (already-
+   stratified) left recursion, proven byte-for-byte against the LR oracle's
+   `Cst` on real grammars (`calc`, `json`) as well as hand-built ones
+   (`LeftRec.Fold`, `Ll.parse`). **Still open:** the precedence-climbing
+   stratification `## Precedence`-driven single-rule ambiguous grammars need
+   — `examples/calc-prec` does not parse under `ll-star` yet;
 c. full-LL (full-context) fallback beyond SLL;
 d. `{%? %}` front-end parsing that populates `rules[].predicate` (ADR D42) and
    upgrades the ANTLR importer from flag-and-drop to a real predicate node;
