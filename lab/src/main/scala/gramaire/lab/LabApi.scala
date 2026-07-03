@@ -14,6 +14,7 @@ package gramaire.lab
 // step 4 (`parseInput`) once per `EVALUATE`.
 
 import gramaire.{
+  AtnSim,
   BackendJs,
   Cst,
   ConformanceLexers,
@@ -23,6 +24,7 @@ import gramaire.{
   Glr,
   Grammar,
   IR,
+  Ll,
   LrStep,
   Lr,
   Method,
@@ -137,6 +139,15 @@ object LabApi:
         val productions = Some(productionsOf(grammar))
         val forest = request.input.map(forestFor(request.source, request.method, grammar, _))
         val analysis = Some(analysisOf(prec, grammar))
+        // Additive, not a second execution path: `atn` only ever ADDS a diagnostics tab under
+        // `--strategy ll-star` — it never changes buildOk/parse/forest/analysis/evaluatorJs, which
+        // stay the LR/GLR pipeline they always were (Ll.parse has no step-trace or codegen
+        // equivalent to swap in). Independent of buildOk, like forest — a grammar the LR table
+        // build rejects can still be worth seeing through ALL(*)'s own lens.
+        val atn =
+          if request.strategy == "ll-star" then
+            request.input.map(atnDiagnosticsFor(request.source, grammar, _))
+          else None
         // Soft diagnostics (unknown `#[attr]`/`%setting`, an unreachable rule, an unused token
         // class) are independent of whether the target grammar's tables build — a grammar can have
         // both real conflicts AND an unused token class, and both should be visible together.
@@ -155,7 +166,8 @@ object LabApi:
               parse = None,
               productions = productions,
               forest = forest,
-              analysis = analysis
+              analysis = analysis,
+              atn = atn
             )
           case Right(table) =>
             val parse = request.input.map(parseInput(request.source, grammar, table, _))
@@ -167,7 +179,8 @@ object LabApi:
               productions = productions,
               forest = forest,
               analysis = analysis,
-              evaluatorJs = Some(evaluatorJsFor(prec, request.source, grammar))
+              evaluatorJs = Some(evaluatorJsFor(prec, request.source, grammar)),
+              atn = atn
             )
 
   // The Lab's start-rule picker (M5+): core has no separate "start rule" concept anywhere —
@@ -283,6 +296,22 @@ object LabApi:
       val plainTokens = spanned.map(s => Token(s.terminal, s.text))
       val all = Glr.forest(method, grammar, plainTokens)
       ForestResult(all.take(forestCap).map(Cst.toJson), truncated = all.length > forestCap)
+
+  // The `--strategy ll-star` diagnostics tab's data: run `Ll.recognize` with a tracking
+  // `AtnSim.Cache`, the same idiom `cli/jvm`'s `gramaire conformance` uses per corpus
+  // (`runLlStarConformance`), just per grammar/input here. A lexical error yields a non-accepted,
+  // empty-stats result — Ll.recognize never runs on tokens the grammar's own lexer already
+  // rejects, mirroring how `forestFor` treats the same case.
+  private def atnDiagnosticsFor(source: String, grammar: Grammar, input: String): AtnDiagnostics =
+    val items = Scanner.buildItems(tokenDefsOf(source), ConformanceLexers.grammarLiterals(grammar))
+    val spanned = Scanner.scanSpanned(items, input)
+    if Scanner.hasErrorSpanned(spanned) then AtnDiagnostics(accepted = false, 0, 0, Vector.empty)
+    else
+      val toks = spanned.map(s => Token(s.terminal, s.text))
+      val cache = new AtnSim.Cache(track = true)
+      val accepted = Ll.recognize(grammar, toks, cache)
+      val ambiguities = cache.ambiguities.map(a => AmbiguityInfo(a.rule, a.decision, a.pos, a.alts))
+      AtnDiagnostics(accepted, cache.hits, cache.misses, ambiguities)
 
   // The grammar's own declared `## Tokens` block, or none — shared by `parseInput` and
   // `forestFor`, both of which lex the same target input against the same token definitions.

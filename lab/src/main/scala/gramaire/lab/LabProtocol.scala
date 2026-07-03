@@ -19,13 +19,19 @@ package gramaire.lab
 import gramaire.{Json, Method}
 
 /** A request from the Lab UI: the full .gram.md source, an optional target-language input to parse,
-  * the table-construction method to build with, and an optional start-rule override.
+  * the table-construction method to build with, an optional start-rule override, and the parse
+  * strategy (`"lr"` — the default — or `"ll-star"`; `IR.withStrategy`'s own two values,
+  * D-strategy). `strategy` is purely additive: it never changes
+  * `buildOk`/`parse`/`forest`/`analysis`/ `evaluatorJs`, which stay the LR/GLR pipeline they always
+  * were (`Ll.parse` has no step-trace or codegen equivalent) — it only gates whether
+  * `LabResponse.atn` is populated (see its own doc).
   */
 final case class LabRequest(
     source: String,
     input: Option[String],
     method: Method,
-    startRule: Option[String] = None
+    startRule: Option[String] = None,
+    strategy: String = "lr"
 )
 
 object LabRequest:
@@ -50,7 +56,12 @@ object LabRequest:
           case Some(Json.JString(s))   => Right(Some(s))
           case Some(Json.JNull) | None => Right(None)
           case _                       => Left("LabRequest.startRule must be a string or null")
-      yield LabRequest(source, input, method, startRule)
+        strategy <- m.get("strategy") match
+          case Some(Json.JString(s)) if s == "lr" || s == "ll-star" => Right(s)
+          case Some(Json.JString(other)) => Left(s"unknown strategy: $other")
+          case Some(Json.JNull) | None   => Right("lr")
+          case _                         => Left("LabRequest.strategy must be a string")
+      yield LabRequest(source, input, method, startRule, strategy)
     case _ => Left("LabRequest must be a JSON object")
 
   private def methodFromJson(j: Json): Either[String, Method] = j match
@@ -274,6 +285,50 @@ object GrammarAnalysis:
       )
     )
 
+/** One `AtnSim.Ambiguity`, wire-rendered: a decision the ALL(*) predictor couldn't resolve down to
+  * one alternative on its own, resolved by declaration order instead (first-alt-wins) — the same
+  * notion `gramaire conformance`'s `ll-star:` lines report per corpus, here surfaced per grammar/
+  * input in the Lab instead.
+  */
+final case class AmbiguityInfo(rule: String, decision: Int, pos: Int, alts: Vector[Int])
+
+object AmbiguityInfo:
+  def toJson(a: AmbiguityInfo): Json =
+    Json.JObject(
+      Vector(
+        "rule" -> Json.JString(a.rule),
+        "decision" -> Json.JInt(a.decision),
+        "pos" -> Json.JInt(a.pos),
+        "alts" -> Json.JArray(a.alts.map(Json.JInt.apply))
+      )
+    )
+
+/** The `--strategy ll-star` diagnostics tab's data: whether `Ll.recognize` accepts
+  * `LabRequest.input` against the compiled grammar, the DFA prediction cache's hit/miss counts, and
+  * every declaration- order-resolved ambiguity hit along the way — `AtnSim.Cache(track = true)` run
+  * fresh per request, exactly the way `cli/jvm`'s `gramaire conformance` already does per corpus.
+  * Populated only when `LabRequest.strategy == "ll-star"` and `input` is given; independent of
+  * `buildOk` (like `forest`, since a genuinely ambiguous grammar the LR table build rejects can
+  * still be worth seeing through ALL(*)'s own lens).
+  */
+final case class AtnDiagnostics(
+    accepted: Boolean,
+    hits: Int,
+    misses: Int,
+    ambiguities: Vector[AmbiguityInfo]
+)
+
+object AtnDiagnostics:
+  def toJson(d: AtnDiagnostics): Json =
+    Json.JObject(
+      Vector(
+        "accepted" -> Json.JBool(d.accepted),
+        "hits" -> Json.JInt(d.hits),
+        "misses" -> Json.JInt(d.misses),
+        "ambiguities" -> Json.JArray(d.ambiguities.map(AmbiguityInfo.toJson))
+      )
+    )
+
 /** The Lab's full response: whether the grammar itself built, any diagnostics, and — if input was
   * given and the grammar built — the parse result. `evaluatorJs` (the Evaluate tab's data, M5+) is
   * `BackendJs.emitTraced`'s generated ES module SOURCE TEXT, not a computed value — the Worker
@@ -289,7 +344,8 @@ final case class LabResponse(
     productions: Option[Vector[ProductionInfo]] = None,
     forest: Option[ForestResult] = None,
     analysis: Option[GrammarAnalysis] = None,
-    evaluatorJs: Option[String] = None
+    evaluatorJs: Option[String] = None,
+    atn: Option[AtnDiagnostics] = None
 )
 
 object LabResponse:
@@ -313,7 +369,8 @@ object LabResponse:
           .getOrElse(Json.JNull),
         "forest" -> r.forest.map(ForestResult.toJson).getOrElse(Json.JNull),
         "analysis" -> r.analysis.map(GrammarAnalysis.toJson).getOrElse(Json.JNull),
-        "evaluatorJs" -> r.evaluatorJs.map(Json.JString.apply).getOrElse(Json.JNull)
+        "evaluatorJs" -> r.evaluatorJs.map(Json.JString.apply).getOrElse(Json.JNull),
+        "atn" -> r.atn.map(AtnDiagnostics.toJson).getOrElse(Json.JNull)
       )
     )
 

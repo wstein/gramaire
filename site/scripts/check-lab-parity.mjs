@@ -110,6 +110,16 @@ const fixtures = [
     input: "1+2*3",
     method: "Canonical",
   },
+  {
+    // `strategy: "ll-star"` exercises the additive `atn` field this gate hadn't covered before —
+    // `ambiguousGrammar` (buildOk always false) proves `atn` populates independently of buildOk,
+    // the same way `forest` does, and gives it a genuine ambiguity to report.
+    name: "ll-star-ambiguous",
+    source: ambiguousGrammar,
+    input: "xxx",
+    method: "Canonical",
+    strategy: "ll-star",
+  },
 ];
 
 function jvmResponses(fixtures, tmpDir) {
@@ -117,7 +127,12 @@ function jvmResponses(fixtures, tmpDir) {
     const p = path.join(tmpDir, `${i}-${f.name}.json`);
     writeFileSync(
       p,
-      JSON.stringify({ source: f.source, input: f.input, method: f.method }),
+      JSON.stringify({
+        source: f.source,
+        input: f.input,
+        method: f.method,
+        strategy: f.strategy ?? null,
+      }),
     );
     return p;
   });
@@ -149,7 +164,12 @@ async function jsResponses(fixtures) {
   const { gramaireLabEvaluate } = await import(engineUrl);
   return fixtures.map((f) =>
     gramaireLabEvaluate(
-      JSON.stringify({ source: f.source, input: f.input, method: f.method }),
+      JSON.stringify({
+        source: f.source,
+        input: f.input,
+        method: f.method,
+        strategy: f.strategy ?? null,
+      }),
     ),
   );
 }
