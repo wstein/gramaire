@@ -581,6 +581,31 @@ class LabApiSuite extends munit.FunSuite:
         assert(p.message.exists(_.span.isDefined), "expected the reject diagnostic to carry a span")
   }
 
+  test(
+    "evaluate: strategy \"ll-star\" trailing input after a complete parse never leaks the internal EOF sentinel"
+  ) {
+    // "1+2" is a complete, valid parse on its own; the trailing " 3" is what triggers
+    // LlError.expected == Vector("$") — the internal marker for "the walk finished early, input
+    // remained" — which diagnosticForLlError must never surface verbatim as an expected terminal.
+    val resp =
+      LabApi.evaluate(LabRequest(calcMd, Some("1+2 3"), Method.Canonical, strategy = "ll-star"))
+    resp.parse match
+      case None => fail("expected a parse result")
+      case Some(p) =>
+        assert(!p.accepted)
+        p.message match
+          case None => fail("expected a located reject diagnostic")
+          case Some(m) =>
+            assert(
+              m.message.contains("after a complete parse"),
+              s"expected the complete-parse message, got: ${m.message}"
+            )
+            assert(
+              m.notes.forall(!_.contains("`$`")),
+              s"must not leak the internal EOF sentinel as an expected terminal, got: ${m.notes}"
+            )
+  }
+
   test("evaluate: strategy \"lr\" never populates llTrace, even on an accepted parse") {
     val resp = LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.Canonical))
     assert(resp.parse.exists(_.accepted))

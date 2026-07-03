@@ -559,8 +559,12 @@ object LabApi:
   // means the walk completed a full parse but input remained — everywhere else, `expected` names
   // the terminal(s) that would have continued the parse at `pos`.
   private def diagnosticForLlError(err: LlError, spanned: Vector[Spanned]): Diagnostic =
+    // `expected == Vector("$")` is the internal EOF sentinel (the walk completed a full parse but
+    // input remained) — the message below already says so in plain language; a "note: expected
+    // one of: `$`" alongside it would leak that sentinel to the user instead of naming a real
+    // terminal, which is what this note means everywhere else.
     val expectedNote =
-      if err.expected.isEmpty then Vector.empty
+      if err.expected.isEmpty || err.expected == Vector("$") then Vector.empty
       else Vector("note: expected one of: " + err.expected.map(t => s"`$t`").mkString(", "))
     val message = spanned.lift(err.pos) match
       case Some(s) if err.expected == Vector("$") =>
