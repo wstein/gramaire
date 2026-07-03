@@ -52,3 +52,29 @@ class ConformanceSuite extends munit.FunSuite:
               )
         }
   }
+
+  private def jsonLexerOf(jsonMd: String, g: Grammar): ConformanceLexers.Lexer =
+    val defs = ConformanceLexers
+      .tokensBlock(jsonMd)
+      .flatMap(block => Tokens.parseTokens(block).toOption)
+      .getOrElse(Vector.empty)
+    ConformanceLexers.scannerLexer(defs, g)
+
+  test("the `json` corpus parses top-down (Phase 1 gap closed)") {
+    val jsonMd = readFile("examples/json.grmk.md")
+    Lr.parse(jsonMd) match
+      case Left(e) => fail(s"json grammar should parse: $e")
+      case Right(g) =>
+        val jsonLexer = jsonLexerOf(jsonMd, g)
+        Conformance.jsonVectors.foreach { v =>
+          val want = v.expect == Outcome.Accept
+          jsonLexer(v.input) match
+            case Left(_) => assert(!want, s"json / ${v.name}: lex failed but expected accept")
+            case Right(toks) =>
+              assertEquals(
+                Ll.recognize(g, toks),
+                want,
+                s"json / ${v.name}: ${v.input} expected ${v.expect}"
+              )
+        }
+  }
