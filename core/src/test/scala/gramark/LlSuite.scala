@@ -393,6 +393,39 @@ class LlSuite extends munit.FunSuite:
                 assertEquals(err.expected, Vector("a"))
   }
 
+  // `E : E E | 'x'` has real, unresolved LR conflicts under every method (Table.buildTablesFor
+  // never builds a canonical table for it) — exactly the class of grammar `LabApi.evaluate`'s
+  // ll-star strategy now accepts (buildOk=true) despite the conflict, and exactly the class no
+  // LR-oracle differential test (assertSameCst/assertSameTracedCst) can touch, since there is no
+  // LR table to diff against. `Glr.forest` is a real oracle here though: its multi-action table
+  // never fails on ambiguity, so it enumerates every Cst the grammar genuinely admits for the
+  // input — whatever `Ll.parseTraced`'s declaration-order tie-break picks must be a MEMBER of
+  // that set, or the tie-break produced an outright wrong tree, not just "not the LR-preferred
+  // one". Also pins that the tie-break is deterministic (same input, same pick, every run).
+  test(
+    "Ll.parseTraced's declaration-order-resolved Cst is one of the GLR forest's real parses, for a genuinely ambiguous grammar"
+  ) {
+    val grammar = "```gramark\nE\n  : E E\n  | 'x'\n```\n"
+    Lr.parse(grammar) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        lexer("xxx") match
+          case Left(e) => fail(s"lex failed: $e")
+          case Right(toks) =>
+            val forest = Glr.forest(Method.Canonical, g, toks)
+            assert(forest.length > 1, s"expected a genuinely ambiguous forest, got: $forest")
+            val picks = Vector.fill(5)(Ll.parseTraced(g, toks) match
+              case Left(err)       => fail(s"parseTraced should accept: $err")
+              case Right((cst, _)) => cst
+            )
+            assertEquals(picks.distinct.length, 1, "the tie-break should be deterministic")
+            assert(
+              forest.contains(picks.head),
+              s"Ll.parseTraced's tie-broken Cst isn't among the grammar's real GLR-verified parses: ${picks.head}"
+            )
+  }
+
   test("a tracking cache records a genuine SLL ambiguity, resolved by declaration order") {
     // S has no way to tell A from B by lookahead alone — both derive exactly "x" — so every
     // config reaching S's end is tied between alt 0 (A) and alt 1 (B); first-alt-wins picks A.
