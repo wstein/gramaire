@@ -150,6 +150,55 @@ class IRSuite extends munit.FunSuite:
                 )
   }
 
+  test("`{%? p %}` survives Desugar's Opt/Star sugar-enumeration wrap") {
+    // Regression: `wrap` (the enumerated-variant lambda `enumerateAlt` builds for an alt with an
+    // Opt/Star element) used to bury a predicate's leading `?` mid-string — inside the parens
+    // around the already-`?`-prefixed action — so IR.irGrammarOf's startsWith("?") check never
+    // fired and the predicate silently degraded into an ordinary value action.
+    val md = "```gramaire\nS\n  : 'x' NUM?   {%? isKeyword %}\n```\n"
+    Lr.parse(md) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        IR.buildIR(Method.Canonical, "PredOpt", g) match
+          case Left(e) => fail(s"predicate grammar should build: $e")
+          case Right(ir) =>
+            assert(ir.grammar.rules.nonEmpty, "at least one enumerated variant should exist")
+            ir.grammar.rules.foreach { r =>
+              assert(
+                r.predicate.isDefined,
+                s"every enumerated variant of a predicate alt should still be a predicate: $r"
+              )
+              assert(
+                r.actions.values.forall(!_.startsWith("?")),
+                s"the `?` flag must not leak into the stored action body: $r"
+              )
+            }
+            assertEquals(IRValidate.validate(ir), Vector.empty, "should still validate clean")
+  }
+
+  test("`{%? p %}` survives Desugar's #[inline] composition wrap") {
+    // Regression: buildWrapped's final composition had the identical defect as `wrap` — an
+    // outer alt's own `?`-prefixed action, composed around an inlined reference, buried the
+    // flag the same way.
+    val md =
+      "```gramaire\n#[inline] Inner\n  : NUM   {% (c) => c[0] %}\n\nS\n  : Inner   {%? isKeyword %}\n```\n"
+    Lr.parse(md) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        IR.buildIR(Method.Canonical, "PredInline", g) match
+          case Left(e) => fail(s"predicate grammar should build: $e")
+          case Right(ir) =>
+            ir.grammar.rules.headOption match
+              case None => fail("a rule should be present")
+              case Some(r) =>
+                assertEquals(r.predicate, Some(IRPredicateEffect(Vector.empty, Vector.empty)))
+                assert(
+                  r.actions.values.forall(!_.startsWith("?")),
+                  s"the `?` flag must not leak into the stored action body: $r"
+                )
+            assertEquals(IRValidate.validate(ir), Vector.empty, "should still validate clean")
+  }
+
   test("an ordinary `{% p %}` action never sets predicate") {
     val g = Grammar(
       Vector(Rule("S", Vector.empty, Vector(Alt(Vector(Ref("NUM")), None, Some("(c) => c[0]")))))
