@@ -268,6 +268,19 @@ surface is reached by **conversion**, not syntax expansion (§4).
     - a bare `[charset]` used in a **parser** rule (no Core parser-atom home),
       widened to `.` and named by rule (was silent; now warns — same fix). A
       `[charset]` inside a **lexer** rule is fine as-is and does not warn.
+    - a **negated** `[charset]` in a **parser** rule (`~[set]`) — widening its
+      inner set to `.` and rendering `~.` is _not_ an option here: Gramark's
+      `NotArg` production only accepts an IDENT/literal, never `.`, so `~.` is
+      not parseable Gramark syntax at all. The whole atom is dropped instead,
+      with a warning naming the rule. `~[set]` inside a **lexer** rule is fine
+      as-is (`[^set]`, valid regex) and does not warn — this drop path is
+      parser-only and explicitly skips lexer rules.
+    - an alternative every one of whose elements drops to nothing (the case
+      above, or a lone dropped action/predicate) has no representation either
+      — Gramark has no epsilon/empty-alternative syntax (neither a bare
+      `:`/`|` with nothing after it nor a `/* … */` placeholder parses,
+      confirmed against `Lr.parse` directly). The whole alternative is
+      dropped, and the rule too if that empties it, each loudly warned.
   - **Dropped silently, no warning** (structural or metadata, not lossy
     content): `prequel`s (`options`/`tokens`/`channels`/`@header`/`import`/
     `mode`); rule `returns`/`locals`/`throws`/`[args]`; `#Label`/`x=`/`x+=`
@@ -279,9 +292,11 @@ surface is reached by **conversion**, not syntax expansion (§4).
   [`ConvertAntlrSuite.scala`](../core/src/test/scala/gramark/ConvertAntlrSuite.scala):**
   a small ANTLR grammar imports to a parsing `.grmk.md`; the round trip
   `import → parse → IR → emit antlr → import` reaches a **fixed point**;
-  predicates/actions are flagged and never leak into output; a dedicated case
-  asserts the non-greedy and parser-charset warnings both fire and the output
-  normalizes to greedy/`.`.
+  predicates/actions are flagged and never leak into output; dedicated cases
+  cover the non-greedy/parser-charset warnings, the negated-charset drop (with
+  a round trip through `Lr.parse` proving the output stays valid), the
+  whole-rule-dropped case, and — as a negative check — that the same `~[set]`
+  inside a lexer rule is preserved untouched.
 - `examples/antlr/antlr4.grmk.md` is a **hand-converted** worked example (the
   full ANTLR4-of-ANTLR4 grammar) demonstrating the ANTLR→Gramark direction —
   it is not run through the automated converter and is not a test; the
