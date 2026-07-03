@@ -457,7 +457,7 @@ test("the Lab's splitter resizes the panes and clamps at 28%/72%", async ({
   await expect(splitter).toHaveAttribute("aria-valuenow", "28");
 });
 
-test("the Lab's drawer splitter resizes the drawer and clamps at 160px/640px", async ({
+test("the Lab's drawer splitter resizes the drawer by percentage and clamps at 20%/72%", async ({
   page,
 }) => {
   await page.goto("/lab/");
@@ -466,7 +466,9 @@ test("the Lab's drawer splitter resizes the drawer and clamps at 160px/640px", a
   });
 
   const hsplitter = page.locator(".lab__hsplitter");
-  await expect(hsplitter).toHaveAttribute("aria-valuenow", "300"); // default
+  await expect(hsplitter).toHaveAttribute("aria-valuemin", "20");
+  await expect(hsplitter).toHaveAttribute("aria-valuemax", "72");
+  await expect(hsplitter).toHaveAttribute("aria-valuenow", "40"); // default
 
   const before = await page.locator(".lab__drawer").boundingBox();
   const box = await hsplitter.boundingBox();
@@ -482,23 +484,23 @@ test("the Lab's drawer splitter resizes the drawer and clamps at 160px/640px", a
   if (!after) throw new Error("expected a bounding box");
   expect(after.height).toBeGreaterThan(before.height + 50);
 
-  // Drag far past the top edge — clamps at 640px, never grows unbounded.
+  // Drag far past the top edge — clamps at 72%, never grows unbounded.
   const box2 = await hsplitter.boundingBox();
   if (!box2) throw new Error("expected a bounding box");
   await page.mouse.move(box2.x + 20, box2.y + 3);
   await page.mouse.down();
   await page.mouse.move(box2.x + 20, box2.y - 2000, { steps: 5 });
   await page.mouse.up();
-  await expect(hsplitter).toHaveAttribute("aria-valuenow", "640");
+  await expect(hsplitter).toHaveAttribute("aria-valuenow", "72");
 
-  // Drag far past the bottom edge — clamps at 160px.
+  // Drag far past the bottom edge — clamps at 20%.
   const box3 = await hsplitter.boundingBox();
   if (!box3) throw new Error("expected a bounding box");
   await page.mouse.move(box3.x + 20, box3.y + 3);
   await page.mouse.down();
   await page.mouse.move(box3.x + 20, box3.y + 2000, { steps: 5 });
   await page.mouse.up();
-  await expect(hsplitter).toHaveAttribute("aria-valuenow", "160");
+  await expect(hsplitter).toHaveAttribute("aria-valuenow", "20");
 });
 
 test("the Lab's example switcher loads a real examples/*.gram.md fixture", async ({

@@ -72,12 +72,12 @@ const hoverRule = signal<string | null>(null);
 const collapsedPaths = signal<Set<string>>(new Set());
 // "copy LISP" transient feedback (Parse tree tab).
 const copied = signal(false);
-const splitPercent = signal(55);
-const SPLIT_MIN = 28;
-const SPLIT_MAX = 72;
-const drawerHeight = signal(300);
-const DRAWER_MIN = 160;
-const DRAWER_MAX = 640;
+const grammarPanePercent = signal(55);
+const GRAMMAR_PANE_MIN_PERCENT = 28;
+const GRAMMAR_PANE_MAX_PERCENT = 72;
+const drawerPanePercent = signal(40);
+const DRAWER_PANE_MIN_PERCENT = 20;
+const DRAWER_PANE_MAX_PERCENT = 72;
 
 // The two source textareas' live DOM nodes, set via callback refs where they render (inside the
 // main component) — plain module-level mutables, same convention as `worker`/`requestId` below,
@@ -391,17 +391,20 @@ function revealLeaf(cst: CstNode, idx: number) {
   collapsedPaths.value = next;
 }
 
-// Draggable splitter (M5+, docs/playground-spec.md §6): default 55/45, clamped 28-72. Position is
-// in-memory only (not persisted) — the spec doesn't call for localStorage, so this doesn't add one
-// speculatively. `panesEl` is measured live on every move rather than cached at drag-start, since
-// a cached rect would go stale if the window were resized mid-drag.
+// Draggable grammar/input splitter (M5+, docs/playground-spec.md §6): default 55/45, clamped
+// 28-72. Position is in-memory only (not persisted) — the spec doesn't call for localStorage, so
+// this doesn't add one speculatively. `panesEl` is measured live on every move rather than cached
+// at drag-start, since a cached rect would go stale if the window were resized mid-drag.
 function startSplitterDrag(panesEl: HTMLDivElement) {
   return (e: MouseEvent) => {
     e.preventDefault();
     const onMove = (moveEvent: MouseEvent) => {
       const rect = panesEl.getBoundingClientRect();
       const pct = ((moveEvent.clientX - rect.left) / rect.width) * 100;
-      splitPercent.value = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, pct));
+      grammarPanePercent.value = Math.min(
+        GRAMMAR_PANE_MAX_PERCENT,
+        Math.max(GRAMMAR_PANE_MIN_PERCENT, pct),
+      );
     };
     const onUp = () => {
       document.removeEventListener("mousemove", onMove);
@@ -413,17 +416,18 @@ function startSplitterDrag(panesEl: HTMLDivElement) {
 }
 
 // The vertical counterpart of startSplitterDrag: resizes the bottom drawer (tabs + panel) against
-// the top panes, clamped DRAWER_MIN-DRAWER_MAX px. Measured in pixels rather than a percentage of
-// `labEl`'s height — a percentage would make the drawer's size depend on viewport height even
-// when the user hasn't touched this splitter, unlike the grammar/input split where a percentage
-// is exactly what's wanted.
+// the top panes as a percentage of the whole Lab height, so the chosen layout scales with viewport
+// height the same way the grammar/input split scales with width.
 function startDrawerDrag(labEl: HTMLDivElement) {
   return (e: MouseEvent) => {
     e.preventDefault();
     const onMove = (moveEvent: MouseEvent) => {
       const rect = labEl.getBoundingClientRect();
-      const height = rect.bottom - moveEvent.clientY;
-      drawerHeight.value = Math.min(DRAWER_MAX, Math.max(DRAWER_MIN, height));
+      const pct = ((rect.bottom - moveEvent.clientY) / rect.height) * 100;
+      drawerPanePercent.value = Math.min(
+        DRAWER_PANE_MAX_PERCENT,
+        Math.max(DRAWER_PANE_MIN_PERCENT, pct),
+      );
     };
     const onUp = () => {
       document.removeEventListener("mousemove", onMove);
@@ -543,7 +547,7 @@ export default function LabIsland() {
       <div class="lab__panes" ref={panesRef}>
         <div
           class="lab__pane lab__pane--grammar"
-          style={{ flex: `0 0 ${splitPercent.value}%` }}
+          style={{ flex: `0 0 ${grammarPanePercent.value}%` }}
         >
           <div class="lab__pane-label">Grammar (.gram.md)</div>
           <div class="lab__editor-wrap">
@@ -610,9 +614,9 @@ export default function LabIsland() {
           class="lab__splitter"
           role="separator"
           aria-orientation="vertical"
-          aria-valuemin={SPLIT_MIN}
-          aria-valuemax={SPLIT_MAX}
-          aria-valuenow={Math.round(splitPercent.value)}
+          aria-valuemin={GRAMMAR_PANE_MIN_PERCENT}
+          aria-valuemax={GRAMMAR_PANE_MAX_PERCENT}
+          aria-valuenow={Math.round(grammarPanePercent.value)}
           onMouseDown={(e) => {
             if (panesRef.current) startSplitterDrag(panesRef.current)(e);
           }}
@@ -664,14 +668,17 @@ export default function LabIsland() {
         class="lab__hsplitter"
         role="separator"
         aria-orientation="horizontal"
-        aria-valuemin={DRAWER_MIN}
-        aria-valuemax={DRAWER_MAX}
-        aria-valuenow={Math.round(drawerHeight.value)}
+        aria-valuemin={DRAWER_PANE_MIN_PERCENT}
+        aria-valuemax={DRAWER_PANE_MAX_PERCENT}
+        aria-valuenow={Math.round(drawerPanePercent.value)}
         onMouseDown={(e) => {
           if (labRef.current) startDrawerDrag(labRef.current)(e);
         }}
       />
-      <div class="lab__drawer" style={{ flex: `0 0 ${drawerHeight.value}px` }}>
+      <div
+        class="lab__drawer"
+        style={{ flex: `0 0 ${drawerPanePercent.value}%` }}
+      >
         <div class="lab__tabs" role="tablist">
           {(
             [

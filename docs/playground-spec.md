@@ -529,22 +529,26 @@ starts a `document`-level `mousemove`/`mouseup` listener pair that computes
 the grammar pane's percentage live from the cursor's X position relative to
 `.lab__panes`' own bounding rect (measured fresh on every move, not cached
 at drag-start, so a mid-drag window resize can't go stale), clamped to
-28–72% via a `splitPercent` signal (default 55, matching the mock spec) —
-in-memory only, no `localStorage`, since the spec doesn't call for
+28–72% via a `grammarPanePercent` signal (default 55, matching the mock
+spec) — in-memory only, no `localStorage`, since the spec doesn't call for
 persistence and this doesn't add one speculatively. The input pane always
 gets `flex: 1 1 auto` (fills whatever's left) rather than a second computed
-percentage, so the two panes never need to sum to exactly 100% by hand. On
-the `≤720px` stacked-mobile layout the splitter is hidden and each pane
-falls back to its natural height (dragging a horizontal grip on a vertical
-stack isn't a meaningful gesture the mock speced, so this doesn't invent
-one). One real regression caught by the existing suite, not this feature's
-own new test: the splitter's DOM position shifted `.lab__panes`' children
-from `[grammarPane, inputPane]` to `[grammarPane, splitter, inputPane]`,
-which silently broke three existing Playwright tests that targeted the
-input editor via `.lab__pane:nth-child(2)` (now the splitter, not the input
-pane) — fixed by replacing every positional pane selector in `lab.spec.ts`
-with the panes' own `.lab__pane--grammar`/`.lab__pane--fill` modifier
-classes, which don't depend on sibling order.
+percentage, so the two panes never need to sum to exactly 100% by hand.
+The bottom drawer follows the same model: the horizontal splitter writes a
+`drawerPanePercent` signal (default 40, clamped 20–72%) and the drawer's
+inline flex-basis is expressed as a percentage of the Lab height, not an
+absolute pixel height, so the chosen layout scales with viewport changes.
+On the `≤720px` stacked-mobile layout the grammar/input splitter is hidden
+and each pane falls back to its natural height (dragging a horizontal grip
+on a vertical stack isn't a meaningful gesture the mock speced, so this
+doesn't invent one). One real regression caught by the existing suite, not
+this feature's own new test: the splitter's DOM position shifted
+`.lab__panes`' children from `[grammarPane, inputPane]` to `[grammarPane,
+splitter, inputPane]`, which silently broke three existing Playwright tests
+that targeted the input editor via `.lab__pane:nth-child(2)` (now the
+splitter, not the input pane) — fixed by replacing every positional pane
+selector in `lab.spec.ts` with the panes' own `.lab__pane--grammar`/
+`.lab__pane--fill` modifier classes, which don't depend on sibling order.
 
 **Not yet done:** nothing — every M5+ item tracked in this section (all ten
 tabs, the JVM↔JS parity gate, the draggable splitter) is now done.
