@@ -25,6 +25,9 @@ import gramaire.{
   Grammar,
   IR,
   Ll,
+  LlAction,
+  LlError,
+  LlStep,
   LrStep,
   Lr,
   Method,
@@ -125,11 +128,14 @@ object LabApi:
         // for any grammar (like `examples/calc-prec.gram.md`) whose parseability depends on it. The
         // CLI threads this the same way (`Main.scala`'s `Lr.precedenceOf(md)`); the Lab must too.
         val prec = Lr.precedenceOf(request.source)
-        // `productions`/`forest` depend only on the grammar notation having parsed, not on
-        // `Table.buildTablesFor` succeeding — `Glr.forest`'s multi-action table never fails (it
-        // keeps every conflicting action instead of rejecting), which is exactly what lets a
-        // genuinely ambiguous grammar (real conflicts under every method, so `buildOk` is always
-        // false for it) still show the All-parses tab's forest instead of only a diagnostic.
+        // `productions`/`forest`/`analysis` depend only on the grammar notation having parsed, not
+        // on `Table.buildTablesFor` succeeding, and stay LR/GLR-driven under BOTH strategies —
+        // `Glr.forest`'s multi-action table never fails (it keeps every conflicting action instead
+        // of rejecting), which is exactly what lets a genuinely ambiguous grammar (real conflicts
+        // under every method, so `buildOk` is always false under `lr`) still show the All-parses
+        // tab's forest instead of only a diagnostic; `method` still selects the automaton `forest`/
+        // `analysis` are built from even under `ll-star`, where `parse`/`evaluatorJs`/`atn` no
+        // longer depend on it.
         //
         // No separate `Diagnostics.undefinedNonterminals` call belongs here: `Lr.parseWith` already
         // runs it, as its own last step (`Desugar.desugar(g).flatMap(Diagnostics.checkDefined)`) —
@@ -137,63 +143,95 @@ object LabApi:
         // `LabApi` needs to compute separately. A grammar that reaches this `Right(grammar)` branch
         // is guaranteed already free of them.
         val productions = Some(productionsOf(grammar))
-        // Lexed once per call, not once per tab: forest/atn/parse below all read the same
-        // target-input scan against the same token definitions instead of each re-lexing it.
+        // Lexed once per call, not once per tab: forest/parse below all read the same target-input
+        // scan against the same token definitions instead of each re-lexing it.
         val spanned = request.input.map(lexInput(request.source, grammar, _))
         val forest = spanned.map(forestFor(request.method, grammar, _))
         val analysis = Some(analysisOf(prec, grammar))
-        // Additive, not a second execution path: `atn` only ever ADDS a diagnostics tab under
-        // `--strategy ll-star` — it never changes buildOk/parse/forest/analysis/evaluatorJs, which
-        // stay the LR/GLR pipeline they always were (Ll.parse has no step-trace or codegen
-        // equivalent to swap in). Independent of buildOk, like forest — a grammar the LR table
-        // build rejects can still be worth seeing through ALL(*)'s own lens.
-        val atn =
-          if request.strategy == "ll-star" then spanned.map(atnDiagnosticsFor(grammar, _))
-          else None
         // Soft diagnostics (unknown `#[attr]`/`%setting`, an unreachable rule, an unused token
         // class) are independent of whether the target grammar's tables build — a grammar can have
         // both real conflicts AND an unused token class, and both should be visible together.
         val warnings =
           Lr.warningsFor(request.source).map(toDiagnosticInfo(_, grammarSourceName, src, spanSafe))
-        Table.buildTablesForP(prec, request.method, grammar) match
-          case Left(conflicts) =>
-            val spans = Lr.spanIndexOf(request.source)
-            val conflictInfos = Diagnostics
-              .conflictDiagnostics(grammar, spans, conflicts)
-              .map(toDiagnosticInfo(_, grammarSourceName, src, spanSafe))
-            LabResponse(
-              LabResponse.version,
-              buildOk = false,
-              diagnostics = conflictInfos ++ warnings,
-              parse = None,
-              productions = productions,
-              forest = forest,
-              analysis = analysis,
-              atn = atn
-            )
-          case Right(table) =>
-            val parse = request.input.zip(spanned).map { case (input, sp) =>
-              parseInput(table, input, sp)
-            }
-            val (evaluatorJs, predicateWarning) =
-              evaluatorJsFor(prec, request.source, grammar) match
-                case Right(js) => (Some(js), Vector.empty)
-                case Left(msg) =>
-                  (
-                    None,
-                    Vector(DiagnosticInfo("warning", "internal", msg, None, Vector.empty, msg))
+        val tableResult = Table.buildTablesForP(prec, request.method, grammar)
+
+        if request.strategy == "ll-star" then
+          // A genuine alternate pipeline, not merely additive: buildOk no longer depends on
+          // tableResult (the grammar notation already parsed and desugared, which is all ALL(*)
+          // needs) — an LR conflict only downgrades to a warning, since ALL(*) resolves the same
+          // tie itself, by declaration order (the same idiom `gramaire conformance`'s `ll-star:`
+          // lines already report).
+          val conflictWarnings = tableResult match
+            case Left(conflicts) =>
+              val spans = Lr.spanIndexOf(request.source)
+              Diagnostics
+                .conflictDiagnostics(grammar, spans, conflicts)
+                .map(d =>
+                  toDiagnosticInfo(
+                    d.copy(severity = Severity.Warning),
+                    grammarSourceName,
+                    src,
+                    spanSafe
                   )
-            LabResponse(
-              LabResponse.version,
-              buildOk = true,
-              diagnostics = warnings ++ predicateWarning,
-              parse = parse,
-              productions = productions,
-              forest = forest,
-              analysis = analysis,
-              evaluatorJs = evaluatorJs,
-              atn = atn
+                )
+            case Right(_) => Vector.empty
+          // One tracking cache shared by `parse` and `atn` — the ATN diagnostics describe the
+          // actual parse, not a separate shadow run against the same input.
+          val cache = new AtnSim.Cache(track = true)
+          val parse = request.input.zip(spanned).map { case (input, sp) =>
+            parseInputLl(prec, grammar, input, sp, cache)
+          }
+          val atn = parse.map { p =>
+            AtnDiagnostics(
+              p.accepted,
+              cache.hits,
+              cache.misses,
+              cache.ambiguities.map(a => AmbiguityInfo(a.rule, a.decision, a.pos, a.alts))
             )
+          }
+          val (evaluatorJs, predicateWarning) = evaluatorJsResult(prec, request.source, grammar)
+          LabResponse(
+            LabResponse.version,
+            buildOk = true,
+            diagnostics = warnings ++ conflictWarnings ++ predicateWarning,
+            parse = parse,
+            productions = productions,
+            forest = forest,
+            analysis = analysis,
+            evaluatorJs = evaluatorJs,
+            atn = atn
+          )
+        else
+          tableResult match
+            case Left(conflicts) =>
+              val spans = Lr.spanIndexOf(request.source)
+              val conflictInfos = Diagnostics
+                .conflictDiagnostics(grammar, spans, conflicts)
+                .map(toDiagnosticInfo(_, grammarSourceName, src, spanSafe))
+              LabResponse(
+                LabResponse.version,
+                buildOk = false,
+                diagnostics = conflictInfos ++ warnings,
+                parse = None,
+                productions = productions,
+                forest = forest,
+                analysis = analysis
+              )
+            case Right(table) =>
+              val parse = request.input.zip(spanned).map { case (input, sp) =>
+                parseInput(table, input, sp)
+              }
+              val (evaluatorJs, predicateWarning) = evaluatorJsResult(prec, request.source, grammar)
+              LabResponse(
+                LabResponse.version,
+                buildOk = true,
+                diagnostics = warnings ++ predicateWarning,
+                parse = parse,
+                productions = productions,
+                forest = forest,
+                analysis = analysis,
+                evaluatorJs = evaluatorJs
+              )
 
   // The Lab's start-rule picker (M5+): core has no separate "start rule" concept anywhere —
   // `Table.analyze`'s startSymbol and `IR.irGrammarOf`'s startSymbol both just take
@@ -269,16 +307,15 @@ object LabApi:
 
   // The Evaluate tab's data (M5+): BackendJs.emitTraced's generated ES module source text — the
   // Worker dynamically imports and runs it, never this module (Scala never executes the grammar
-  // author's JS). Uses IR.irGrammarOf, not the table-building IR.buildIRP/buildIR, since
-  // evaluate() already confirmed the table builds via Table.buildTablesFor above — irGrammarOf
-  // skips the redundant automaton build BackendJs never needed in the first place (it only reads
-  // IR.grammar).
-  // `Left` when the grammar declares a `{%? %}` predicate: the traced JS runtime has no
-  // equivalent of the CLI's `Main.strategyIgnoresPredicates` gate (the Lab only ever builds LR
-  // tables — `Table.buildTablesForP` above — there is no `ll-star`/prediction concept here at
-  // all), so evaluating it would silently run the predicate's boolean-test expression as if it
-  // were the production's value, with no indication anything is wrong. No evaluator is a more
-  // honest result than a confidently-wrong one.
+  // author's JS). Uses IR.irGrammarOf, not the table-building IR.buildIRP/buildIR — irGrammarOf
+  // reads only IR.grammar, no automaton, which is exactly why this runs under BOTH strategies:
+  // it needs no LR table build to succeed (ll-star) and no ATN either (lr).
+  // `Left` when the grammar declares a `{%? %}` predicate: neither runtime evaluates it — under
+  // `lr` there's no prediction concept at all to give it meaning; under `ll-star`, `Ll.parseTraced`
+  // still doesn't evaluate predicate bodies (ADR D42 tracks the effect, nothing consumes it yet) —
+  // so either way the traced JS runtime would silently run the predicate's boolean-test expression
+  // as if it were the production's value. No evaluator is a more honest result than a
+  // confidently-wrong one.
   private def evaluatorJsFor(
       prec: Precedence,
       source: String,
@@ -300,6 +337,19 @@ object LabApi:
       val tagged = IR.withActionLangGrammar(Lr.actionLangOf(source), irGrammar)
       Right(BackendJs.emitTraced(tagged))
 
+  // `evaluatorJsFor`'s Either, folded into the (evaluatorJs, extra-diagnostics) shape both
+  // `evaluate` branches build their LabResponse from — shared so the predicate-warning rendering
+  // can't drift between the two.
+  private def evaluatorJsResult(
+      prec: Precedence,
+      source: String,
+      grammar: Grammar
+  ): (Option[String], Vector[DiagnosticInfo]) =
+    evaluatorJsFor(prec, source, grammar) match
+      case Right(js) => (Some(js), Vector.empty)
+      case Left(msg) =>
+        (None, Vector(DiagnosticInfo("warning", "internal", msg, None, Vector.empty, msg)))
+
   private def toDiaSym(nts: Set[String], s: Sym): Railroad.DiaSym = s match
     case Sym.Ref(name)       => Railroad.DiaSym(name, term = !nts.contains(name))
     case Sym.Lit(text)       => Railroad.DiaSym(text, term = true)
@@ -319,22 +369,8 @@ object LabApi:
       val all = Glr.forest(method, grammar, plainTokens)
       ForestResult(all.take(forestCap).map(Cst.toJson), truncated = all.length > forestCap)
 
-  // The `--strategy ll-star` diagnostics tab's data: run `Ll.recognize` with a tracking
-  // `AtnSim.Cache`, the same idiom `cli/jvm`'s `gramaire conformance` uses per corpus
-  // (`runLlStarConformance`), just per grammar/input here. A lexical error yields a non-accepted,
-  // empty-stats result — Ll.recognize never runs on tokens the grammar's own lexer already
-  // rejects, mirroring how `forestFor` treats the same case.
-  private def atnDiagnosticsFor(grammar: Grammar, spanned: Vector[Spanned]): AtnDiagnostics =
-    if Scanner.hasErrorSpanned(spanned) then AtnDiagnostics(accepted = false, 0, 0, Vector.empty)
-    else
-      val toks = spanned.map(s => Token(s.terminal, s.text))
-      val cache = new AtnSim.Cache(track = true)
-      val accepted = Ll.recognize(grammar, toks, cache)
-      val ambiguities = cache.ambiguities.map(a => AmbiguityInfo(a.rule, a.decision, a.pos, a.alts))
-      AtnDiagnostics(accepted, cache.hits, cache.misses, ambiguities)
-
   // The grammar's own declared `## Tokens` block, or none — feeds `lexInput`, shared by
-  // `forestFor`/`atnDiagnosticsFor`/`parseInput`, all of which read the same target input lexed
+  // `forestFor`/`parseInput`/`parseInputLl`, all of which read the same target input lexed
   // against the same token definitions (one scan per `evaluate` call, not one each).
   private def tokenDefsOf(source: String): Vector[TokenDef] =
     ConformanceLexers.tokensBlock(source) match
@@ -436,6 +472,75 @@ object LabApi:
             trace
           )
 
+  // The `ll-star` strategy's counterpart to `parseInput`: `Ll.parseTraced` instead of
+  // `Parser.run`/`Parser.walk`, and `llTrace` instead of `trace` — same tokens-populated-on-reject,
+  // cst/trace-only-on-accept lifecycle either way. `cache` is the one `evaluate` shares with the
+  // ATN diagnostics tab, so its hit/miss/ambiguity counts describe this exact parse.
+  private def parseInputLl(
+      prec: Precedence,
+      grammar: Grammar,
+      input: String,
+      spanned: Vector[Spanned],
+      cache: AtnSim.Cache
+  ): ParseResult =
+    val labTokens = spanned.map(s => LabToken(s.text, s.terminal, s.start, s.end))
+
+    if Scanner.hasErrorSpanned(spanned) then
+      val errorRuns = Scanner.mergeErrorRuns(spanned)
+      val d = errorRuns.headOption match
+        case Some(s) =>
+          Diagnostic.error(
+            Stage.Lex,
+            s"""unexpected character `${s.text}`""",
+            Some(SrcSpan(s.start, s.end))
+          )
+        case None => Diagnostic.error(Stage.Lex, "lexical error in input")
+      ParseResult(
+        accepted = false,
+        message = Some(toDiagnosticInfo(d, inputSourceName, input, spanSafe = true)),
+        labTokens,
+        cst = None
+      )
+    else
+      val plainTokens = spanned.map(s => Token(s.terminal, s.text))
+      Ll.parseTraced(grammar, plainTokens, prec, cache) match
+        case Left(err) =>
+          val d = diagnosticForLlError(err, spanned)
+          ParseResult(
+            accepted = false,
+            message = Some(toDiagnosticInfo(d, inputSourceName, input, spanSafe = true)),
+            labTokens,
+            cst = None
+          )
+        case Right((cst, steps)) =>
+          ParseResult(
+            accepted = true,
+            message = None,
+            labTokens,
+            cst = Some(Cst.toJson(cst)),
+            trace = None,
+            llTrace = Some(steps.map(toLlStepInfo))
+          )
+
+  // The ll-star analogue of `diagnosticForInputParseError`: `LlError.expected == Vector("$")`
+  // means the walk completed a full parse but input remained — everywhere else, `expected` names
+  // the terminal(s) that would have continued the parse at `pos`.
+  private def diagnosticForLlError(err: LlError, spanned: Vector[Spanned]): Diagnostic =
+    def spanFor(pos: Int): Option[SrcSpan] =
+      spanned
+        .lift(pos)
+        .map(s => SrcSpan(s.start, s.end))
+        .orElse(spanned.lastOption.map(s => SrcSpan(s.end, s.end)))
+    val expectedNote =
+      if err.expected.isEmpty then Vector.empty
+      else Vector("note: expected one of: " + err.expected.map(t => s"`$t`").mkString(", "))
+    val message = spanned.lift(err.pos) match
+      case Some(s) if err.expected == Vector("$") =>
+        s"unexpected `${s.text}` after a complete parse"
+      case Some(s) => s"unexpected `${s.text}`"
+      case None    => "unexpected end of input"
+    Diagnostic.error(Stage.Parse, message, spanFor(err.pos), expectedNote)
+
   // The Parse trace / LR walk tabs' data: gramaire.LrStep, wire-rendered — GSym stack/remaining-
   // input symbols and the reduce action's rhs all go through `renderSym`, same as everywhere else
   // in this file.
@@ -453,3 +558,15 @@ object LabApi:
       step.stackSymbols.map(renderSym),
       step.remainingSymbols.map(renderSym)
     )
+
+  // The LL walk tab's data: gramaire.LlStep, wire-rendered — `ruleStack`/action fields are already
+  // plain strings (rule names, terminal spellings), unlike LrStep's GSym stack, so no `renderSym`
+  // pass is needed here.
+  private def toLlStepInfo(step: LlStep): LlStepInfo =
+    val action = step.action match
+      case LlAction.Predict(rule, chosenAlt, altCount) =>
+        LlActionInfo.Predict(rule, chosenAlt, altCount)
+      case LlAction.Match(terminal, lexeme) => LlActionInfo.Match(terminal, lexeme)
+      case LlAction.ExitRule(rule)          => LlActionInfo.ExitRule(rule)
+      case LlAction.Accept                  => LlActionInfo.Accept
+    LlStepInfo(step.index, step.ruleStack, action, step.pos)

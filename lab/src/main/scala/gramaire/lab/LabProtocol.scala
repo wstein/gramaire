@@ -21,10 +21,13 @@ import gramaire.{Json, Method}
 /** A request from the Lab UI: the full .gram.md source, an optional target-language input to parse,
   * the table-construction method to build with, an optional start-rule override, and the parse
   * strategy (`"lr"` — the default — or `"ll-star"`; `IR.withStrategy`'s own two values,
-  * D-strategy). `strategy` is purely additive: it never changes
-  * `buildOk`/`parse`/`forest`/`analysis`/ `evaluatorJs`, which stay the LR/GLR pipeline they always
-  * were (`Ll.parse` has no step-trace or codegen equivalent) — it only gates whether
-  * `LabResponse.atn` is populated (see its own doc).
+  * D-strategy). Under `"lr"`, `buildOk`/`parse`/`evaluatorJs` are driven by the LR table build, and
+  * `atn`/`ParseResult.llTrace` are always absent. Under `"ll-star"`, `parse`/`evaluatorJs`/`atn`
+  * are driven by `Ll.parseTraced` instead — a genuine alternate pipeline, not merely additive:
+  * `buildOk` no longer depends on the LR table build succeeding (an LR conflict downgrades to a
+  * warning instead, since ALL(*) resolves the same tie itself, by declaration order), and
+  * `parse.trace` is always absent in favor of `parse.llTrace`. `forest`/`analysis` stay
+  * LR/GLR-driven under both strategies — `method` always selects the automaton they're built from.
   */
 final case class LabRequest(
     source: String,
@@ -178,19 +181,74 @@ object LrActionInfo:
     case LrActionInfo.Accept =>
       Json.JObject(Vector("kind" -> Json.JString("accept")))
 
+/** One step of an ALL(*) walk (`gramaire.LlStep`, wire-rendered): the `lr` walk's ll-star
+  * counterpart. `ruleStack` is bottom to top, including the rule the action concerns — the LL walk
+  * tab's stepper renders it where the LR walk tab renders `LrStepInfo.stackSymbols`. `Predict.rule`
+  * names the rule the walk actually descends (a `LeftRec`-folded tail rule or
+  * `PrecClimb`-stratified level, not the original grammar rule an alt may fold back to on the
+  * `Cst`).
+  */
+final case class LlStepInfo(index: Int, ruleStack: Vector[String], action: LlActionInfo, pos: Int)
+
+object LlStepInfo:
+  def toJson(s: LlStepInfo): Json =
+    Json.JObject(
+      Vector(
+        "index" -> Json.JInt(s.index),
+        "ruleStack" -> Json.JArray(s.ruleStack.map(Json.JString.apply)),
+        "action" -> LlActionInfo.toJson(s.action),
+        "pos" -> Json.JInt(s.pos)
+      )
+    )
+
+/** `gramaire.LlAction`, wire-rendered as a `kind`-tagged object, mirroring `LrActionInfo`'s shape.
+  */
+enum LlActionInfo:
+  case Predict(rule: String, chosenAlt: Int, altCount: Int)
+  case Match(terminal: String, lexeme: String)
+  case ExitRule(rule: String)
+  case Accept
+
+object LlActionInfo:
+  def toJson(a: LlActionInfo): Json = a match
+    case LlActionInfo.Predict(rule, chosenAlt, altCount) =>
+      Json.JObject(
+        Vector(
+          "kind" -> Json.JString("predict"),
+          "rule" -> Json.JString(rule),
+          "chosenAlt" -> Json.JInt(chosenAlt),
+          "altCount" -> Json.JInt(altCount)
+        )
+      )
+    case LlActionInfo.Match(terminal, lexeme) =>
+      Json.JObject(
+        Vector(
+          "kind" -> Json.JString("match"),
+          "terminal" -> Json.JString(terminal),
+          "lexeme" -> Json.JString(lexeme)
+        )
+      )
+    case LlActionInfo.ExitRule(rule) =>
+      Json.JObject(Vector("kind" -> Json.JString("exitRule"), "rule" -> Json.JString(rule)))
+    case LlActionInfo.Accept =>
+      Json.JObject(Vector("kind" -> Json.JString("accept")))
+
 /** The outcome of parsing `LabRequest.input` against the compiled grammar. `tokens` is populated
-  * even on a reject (so the Tokens tab still has something to show); `cst`/`trace` are `None`
-  * unless `accepted` — `trace` shares that lifecycle with `cst` (a rejected/incomplete parse has no
-  * walk to show), which is why it lives here rather than as a top-level `LabResponse` field the way
-  * `forest` does (forest's whole reason to exist is showing data when `buildOk` is false — trace
-  * has no equivalent case).
+  * even on a reject (so the Tokens tab still has something to show); `cst` is `None` unless
+  * `accepted`. `trace` (the LR walk) and `llTrace` (the ll-star walk) are mutually exclusive —
+  * `LabRequest.strategy` decides which one a given response ever populates, never both — and both
+  * share `cst`'s accepted-only lifecycle (a rejected/incomplete parse has no walk to show), which
+  * is why they live here rather than as a top-level `LabResponse` field the way `forest` does
+  * (forest's whole reason to exist is showing data when `buildOk` is false — trace/llTrace have no
+  * equivalent case: `buildOk` under ll-star never blocks a parse attempt in the first place).
   */
 final case class ParseResult(
     accepted: Boolean,
     message: Option[DiagnosticInfo],
     tokens: Vector[LabToken],
     cst: Option[Json],
-    trace: Option[Vector[LrStepInfo]] = None
+    trace: Option[Vector[LrStepInfo]] = None,
+    llTrace: Option[Vector[LlStepInfo]] = None
 )
 
 object ParseResult:
@@ -201,7 +259,10 @@ object ParseResult:
         "message" -> p.message.map(DiagnosticInfo.toJson).getOrElse(Json.JNull),
         "tokens" -> Json.JArray(p.tokens.map(LabToken.toJson)),
         "cst" -> p.cst.getOrElse(Json.JNull),
-        "trace" -> p.trace.map(ts => Json.JArray(ts.map(LrStepInfo.toJson))).getOrElse(Json.JNull)
+        "trace" -> p.trace.map(ts => Json.JArray(ts.map(LrStepInfo.toJson))).getOrElse(Json.JNull),
+        "llTrace" -> p.llTrace
+          .map(ts => Json.JArray(ts.map(LlStepInfo.toJson)))
+          .getOrElse(Json.JNull)
       )
     )
 
@@ -303,13 +364,12 @@ object AmbiguityInfo:
       )
     )
 
-/** The `--strategy ll-star` diagnostics tab's data: whether `Ll.recognize` accepts
-  * `LabRequest.input` against the compiled grammar, the DFA prediction cache's hit/miss counts, and
-  * every declaration- order-resolved ambiguity hit along the way — `AtnSim.Cache(track = true)` run
-  * fresh per request, exactly the way `cli/jvm`'s `gramaire conformance` already does per corpus.
-  * Populated only when `LabRequest.strategy == "ll-star"` and `input` is given; independent of
-  * `buildOk` (like `forest`, since a genuinely ambiguous grammar the LR table build rejects can
-  * still be worth seeing through ALL(*)'s own lens).
+/** The ATN diagnostics tab's data, under `LabRequest.strategy == "ll-star"`: whether
+  * `Ll.parseTraced` accepts `LabRequest.input` (mirroring `parse.accepted`), the DFA prediction
+  * cache's hit/miss counts, and every declaration-order-resolved ambiguity hit along the way — from
+  * the SAME `AtnSim.Cache(track = true)` run that produced `parse`, not a separate one (so the
+  * numbers describe the actual parse, not a shadow recognizer run against the same input).
+  * Populated only when `input` is given.
   */
 final case class AtnDiagnostics(
     accepted: Boolean,
