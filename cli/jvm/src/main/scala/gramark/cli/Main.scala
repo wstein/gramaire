@@ -193,6 +193,9 @@ object Main:
   private def runStrip(args: Vector[String]): Unit =
     args.headOption match
       case None => die("strip: no grammar file given")
+      case Some(file) if isNativeGrmk(file) =>
+        die(s"strip: $file is already native `.grmk` (first-class, not a projection of anything " +
+          "to strip) — use `gramark fmt` on it directly")
       case Some(file) =>
         readFile(file) match
           case Left(err) => die(s"strip: cannot read $file: $err")
@@ -240,6 +243,12 @@ object Main:
 
   // `gramark check <file.grmk.md>`: the structure + drift gates (see
   // `GramarkCheck`; the lint gate lives in a separate `docs-lint` CI step).
+  // A `.grmk.md` file is checked/formatted against the Markdown structure+drift contract;
+  // a bare `.grmk` file (first-class since ADR D36 was extended — see GramarkCheck.scala's
+  // "Native `.grmk` format" section) against its own, much lighter native contract. The suffix
+  // check is unambiguous: "foo.grmk.md" never ends with ".grmk" (it ends with ".md").
+  def isNativeGrmk(file: String): Boolean = file.endsWith(".grmk")
+
   private def runCheck(args: Vector[String]): Unit =
     args.headOption match
       case None => die("check: no grammar file given")
@@ -247,11 +256,18 @@ object Main:
         readFile(file) match
           case Left(err) => die(s"check: cannot read $file: $err")
           case Right(src) =>
-            val doc = GramarkCheck.parse(src)
-            val gates = Vector(
-              GramarkCheck.GateResult("structure", GramarkCheck.checkStructure(doc)),
-              GramarkCheck.GateResult("drift", GramarkCheck.checkDrift(file, doc))
-            )
+            val gates =
+              if isNativeGrmk(file) then
+                Vector(
+                  GramarkCheck.GateResult("structure", GramarkCheck.checkNativeStructure(src)),
+                  GramarkCheck.GateResult("drift", GramarkCheck.checkNativeDrift(file, src))
+                )
+              else
+                val doc = GramarkCheck.parse(src)
+                Vector(
+                  GramarkCheck.GateResult("structure", GramarkCheck.checkStructure(doc)),
+                  GramarkCheck.GateResult("drift", GramarkCheck.checkDrift(file, doc))
+                )
             val base = Path.of(file).getFileName
             println(s"gramark --check $base\n")
             var failed = false
@@ -286,7 +302,8 @@ object Main:
         readFile(f) match
           case Left(err) => die(s"fmt: cannot read $f: $err")
           case Right(src) =>
-            println(GramarkCheck.fmt(f, GramarkCheck.parse(src), mode, layout))
+            if isNativeGrmk(f) then println(GramarkCheck.fmtNative(f, src))
+            else println(GramarkCheck.fmt(f, GramarkCheck.parse(src), mode, layout))
 
   // `gramark codegen-regen`: regenerate `Generated/LrReduce.scala` from
   // the bootstrap grammar (mirrors `Gramark.Codegen.Main`, the prior
@@ -334,28 +351,33 @@ object Main:
 
   private def usage(): Unit =
     Vector(
-      "gramark — generate parsers and artifacts from .grmk.md grammars",
+      "gramark — generate parsers and artifacts from .grmk.md/.grmk grammars",
       "",
       "Usage:",
-      "  gramark emit <file.grmk.md> [--backend <name>] [--out <dir>] [--strategy <name>]",
+      "  gramark emit <file.grmk.md|file.grmk> [--backend <name>] [--out <dir>] [--strategy <name>]",
       "  gramark import <file.g4> [--out <dir>]",
       "  gramark strip <file.grmk.md>",
       "  gramark conformance",
-      "  gramark explain-conflict <file.grmk.md>",
-      "  gramark check <file.grmk.md>",
-      "  gramark fmt [--diagrams=sidecar|mermaid] [--inline-source] <file.grmk.md>",
+      "  gramark explain-conflict <file.grmk.md|file.grmk>",
+      "  gramark check <file.grmk.md|file.grmk>",
+      "  gramark fmt [--diagrams=sidecar|mermaid] [--inline-source] <file.grmk.md|file.grmk>",
       "  gramark codegen-regen",
       "",
       s"Backends: $backendNames",
       "",
       "With no --out, the artifact is written to stdout.",
       "import converts an ANTLR4 .g4 grammar to a .grmk.md.",
-      "strip writes the raw .grmk projection (grammar + docs as comments).",
+      "strip writes the raw .grmk projection of a .grmk.md (grammar + docs as comments) —",
+      "  a one-way export; run it against a .grmk.md, not against an already-native .grmk file.",
       "conformance runs the differential oracle over the built-in corpora.",
       "explain-conflict classifies conflicts: LALR artifact, resolved by declaration, or genuine.",
-      "check verifies the structure + drift gates (see docs-lint for the markdown-lint gate).",
-      "fmt regenerates the FIRST/FOLLOW table, railroad diagrams, and the .grmk.lock sidecar.",
-      "By default (sidecar mode only), fmt hoists each rule's diagram above its fence and tucks",
-      "  the fence behind a <details><summary>Source</summary> disclosure; --inline-source opts",
-      "  out, keeping fences fully visible (not sticky — a plain re-run re-collapses the file)."
+      "check verifies the structure + drift gates (see docs-lint for the markdown-lint gate on",
+      "  .grmk.md; a bare .grmk has its own, much lighter native contract — no Markdown to lint).",
+      "fmt on a .grmk.md regenerates the FIRST/FOLLOW table, railroad diagrams, and the lock",
+      "  sidecar. By default (sidecar mode only), it hoists each rule's diagram above its fence",
+      "  and tucks the fence behind a <details><summary>Source</summary> disclosure;",
+      "  --inline-source opts out, keeping fences fully visible (not sticky — a plain re-run",
+      "  re-collapses the file). fmt on a bare .grmk normalizes whitespace and writes a",
+      "  <file>.native-grmk.lock sidecar — no diagrams/tables, since a comment-only format has",
+      "  no Markdown to embed them in."
     ).foreach(println)

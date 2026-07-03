@@ -340,3 +340,48 @@ instantly recognisable language on one screen, with a value-union and two
 bracketed lists that render into clear railroad diagrams. For the optional
 `## Precedence` section, see [`examples/calc.grmk.md`](../examples/calc.grmk.md).
 Both pass `markdownlint-cli2` with the default ruleset and no configuration.
+
+## Native `.grmk` format contract
+
+Everything above is specific to `.grmk.md`. A bare `.grmk` file (ADR D36) is
+a **first-class sibling format**, not merely a derived export of a
+`.grmk.md` — it can be authored directly (see
+[`examples/lua.grmk`](../examples/lua.grmk)) and has its own `check`/`fmt`/
+lock gate, deliberately much lighter than the Markdown one above, since
+there's no Markdown here to satisfy guarantees 1–3 against in the first
+place: no headings, no fences, no `markdownlint-cli2` run at all.
+
+**Shape**: an optional `/** ... */` banner (the file's intro prose, one
+` * ` per line), `%name`/`%lang` and any `%left`/`%right`/`%nonassoc`
+declarations as bare lines, `ALLCAPS : /regex/` token definitions, and
+`Mixed-case` rule productions — each optionally preceded by `///`-prefixed
+doc-comment lines. This is exactly the shape `gramark strip` produces from a
+`.grmk.md`, and `Lr.parse` already treats it as fully valid grammar input
+via `Lr.toFenced`'s line-shape reconstruction (`isSettingDecl`/`isTokenDef`/
+`isPrecDecl`, else rule content — the same `classifyFenceContent` rules used
+everywhere, "case is law").
+
+**`gramark check <file.grmk>`** verifies:
+
+1. The grammar parses (`Lr.parse`) and has a `%name` directive — the only
+   two things that were ever actually _required_ for correctness.
+2. Plain-text hygiene: no CRLF, no trailing whitespace on any line, exactly
+   one trailing newline.
+3. **Drift** — a `<file>.native-grmk.lock` sidecar (distinct suffix from a
+   `.grmk.md`'s `<stem>.grmk.lock`, so a `.grmk` sitting next to a derived
+   `.grmk.md` sibling never collides with it) records the grammar's
+   `sha256`; drift means the file was hand-edited after the last `fmt`.
+
+There is **no** canonical-structure re-derivation the way `.grmk.md`'s `##`
+section order is (comparing the file against what `gramark fmt` would
+produce byte-for-byte) — doing that would mean parsing back out of `strip`'s
+own `/** */`/`///` comment shape, which `Lr.strip` deliberately does not
+attempt (see its idempotence-guard code comment): a hand-authored `.grmk`
+file's prose is trusted as-is, not reformatted into a house style.
+
+**`gramark fmt <file.grmk>`** normalizes hygiene (trailing whitespace, final
+newline) and writes the lock. **There are no diagrams or FIRST/FOLLOW
+tables for this format** — a plain-text doc comment has no embedding target
+for an `![...]` image link or a Markdown pipe table. This is an accepted,
+documented gap, not something faked with an unreferenced sidecar file: an
+author who wants generated diagrams/tables writes a `.grmk.md` instead.

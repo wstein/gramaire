@@ -685,3 +685,89 @@ object GramarkCheck:
     |$artifactsJson
     |  ]
     |}""".stripMargin
+
+  // ---- Native `.grmk` format ------------------------------------------------
+  //
+  // `.grmk` (ADR D36) is a first-class sibling of `.grmk.md`, not merely a derived export of it —
+  // it can be authored directly (see examples/lua.grmk) and carries its own check/fmt/lock gates
+  // here. It has no headings, no fences, and no embedding target for diagrams or FIRST/FOLLOW
+  // tables (a plain-text `///` doc comment can't hold an `![...]` image link or a Markdown pipe
+  // table), so its canonical-structure contract is deliberately much lighter than the Markdown
+  // one: no MD03x-style rules apply, because there's no Markdown here to lint. "Canonical" means
+  // exactly what `Lr.parse`/`Lr.nameOf` already require plus plain-text hygiene (no CRLF, no
+  // trailing whitespace, exactly one trailing newline) — not a byte-for-byte re-derivation the way
+  // the Markdown gate's `## ` section order is, since doing that properly would mean parsing back
+  // out of `strip`'s own `/** */`/`///` comment shape, which `Lr.strip` deliberately does NOT do
+  // (see its idempotence-guard comment) rather than risk misinterpreting a hand-author's own prose.
+
+  final case class NativeLock(version: Int, grammarSha256: String)
+
+  // A distinct suffix from `lockPathFor`'s `<stem>.grmk.lock`, so a `.grmk` file that happens to
+  // sit alongside a `.grmk.md` sibling (a derived projection of it) never collides with that
+  // sibling's own lock path.
+  def lockPathForNative(file: String): String = file + ".native-grmk.lock"
+
+  private def hasTrailingWhitespace(src: String): Boolean =
+    src.split("\n", -1).exists(l => l.nonEmpty && l != l.replaceAll("[ \t]+$", ""))
+
+  def checkNativeStructure(src: String): Vector[String] =
+    val fails = Vector.newBuilder[String]
+    if Lr.nameOf(src).isEmpty then
+      fails += "missing required `%name` directive"
+    Lr.parse(src) match
+      case Left(err) => fails += s"grammar does not parse: $err"
+      case Right(_)  => ()
+    if src.contains("\r") then fails += "CRLF line ending found; use LF"
+    if hasTrailingWhitespace(src) then fails += "trailing whitespace on a line; run `gramark fmt`"
+    if !src.endsWith("\n") then fails += "file does not end with a newline"
+    if src.endsWith("\n\n") then fails += "file ends with more than one trailing newline"
+    fails.result()
+
+  private def parseNativeLock(json: String): Either[String, NativeLock] =
+    gramark.Json.parse(json).flatMap {
+      case gramark.Json.JObject(kvs) =>
+        val m = kvs.toMap
+        for
+          version <- m
+            .get("version")
+            .collect { case gramark.Json.JInt(n) => n }
+            .toRight("lock: missing version")
+          grammarSha256 <- m
+            .get("grammarSha256")
+            .collect { case gramark.Json.JString(s) => s }
+            .toRight("lock: missing grammarSha256")
+        yield NativeLock(version, grammarSha256)
+      case _ => Left("lock: expected an object")
+    }
+
+  def checkNativeDrift(file: String, src: String): Vector[String] =
+    val lockPath = lockPathForNative(file)
+    if !Files.exists(Path.of(lockPath)) then
+      Vector(s"no lock file (${Path.of(lockPath).getFileName}); run `gramark fmt`")
+    else
+      parseNativeLock(Files.readString(Path.of(lockPath))) match
+        case Left(e) => Vector(s"could not read lock file: $e")
+        case Right(lock) =>
+          if lock.grammarSha256 != sha256(src) then
+            Vector("stale: grammar hash does not match lock; run `gramark fmt`")
+          else Vector.empty
+
+  private def nativeLockJson(lock: NativeLock): String =
+    s"""{
+    |  "version": ${lock.version},
+    |  "format": "native",
+    |  "grammarSha256": ${jstr(lock.grammarSha256)}
+    |}""".stripMargin
+
+  // Canonicalizes hygiene only (trailing whitespace/newline, CRLF) — there is no diagram/table
+  // regeneration for this format (see the section comment above) and no comment-shape rewriting
+  // (see `Lr.strip`'s idempotence-guard comment: it deliberately treats already-fence-free input
+  // as already-native and leaves it untouched, rather than risk corrupting hand-authored prose).
+  def fmtNative(file: String, src: String): String =
+    val canonical =
+      src.split("\n", -1).map(_.replaceAll("[ \t]+$", "")).mkString("\n").replaceAll("\n+$", "") + "\n"
+    if canonical != src then Files.writeString(Path.of(file), canonical)
+    val lock = NativeLock(1, sha256(canonical))
+    val lockPath = lockPathForNative(file)
+    Files.writeString(Path.of(lockPath), nativeLockJson(lock) + "\n")
+    s"formatted ${Path.of(file).getFileName} (native); wrote ${Path.of(lockPath).getFileName}"

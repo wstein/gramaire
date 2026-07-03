@@ -49,3 +49,10 @@ class MainSuite extends munit.FunSuite:
       )
     )
   }
+
+  test("isNativeGrmk: a bare .grmk is native, a .grmk.md never is") {
+    assert(Main.isNativeGrmk("examples/lua.grmk"))
+    assert(Main.isNativeGrmk("lua.grmk"))
+    assert(!Main.isNativeGrmk("examples/lua.grmk.md"))
+    assert(!Main.isNativeGrmk("examples/lua.grmk.lock"))
+  }
