@@ -24,6 +24,7 @@
 // can't be mistaken for the current one.
 import type { LabRequest, LabResponse } from "./protocol";
 import { LAB_PROTOCOL_VERSION } from "./protocol";
+import { internalErrorResponse } from "./internalDiagnosticResponse";
 
 export interface WorkerRequestMessage {
   id: number;
@@ -73,26 +74,7 @@ const enginePromise: Promise<Engine> = import(/* @vite-ignore */ engineUrl);
 // loudly as one clear diagnostic instead of the UI throwing on fields the old shape never had.
 function staleEngineResponse(actualVersion: number): LabResponse {
   const message = `Lab engine bundle is out of date (protocol v${actualVersion}, page expects v${LAB_PROTOCOL_VERSION}) — reload the page.`;
-  return {
-    labProtocolVersion: actualVersion,
-    buildOk: false,
-    diagnostics: [
-      {
-        severity: "error",
-        stage: "internal",
-        message,
-        span: null,
-        notes: [],
-        rendered: `error: ${message}`,
-      },
-    ],
-    parse: null,
-    productions: null,
-    forest: null,
-    analysis: null,
-    evaluatorJs: null,
-    atn: null,
-  };
+  return internalErrorResponse(actualVersion, message);
 }
 
 // A synthesized LabResponse for a failure that never reached the engine's own "never throws"
@@ -105,26 +87,7 @@ function staleEngineResponse(actualVersion: number): LabResponse {
 function engineErrorResponse(e: unknown): LabResponse {
   const detail = e instanceof Error ? e.message : String(e);
   const message = `Lab engine failed unexpectedly (${detail}) — reload the page.`;
-  return {
-    labProtocolVersion: LAB_PROTOCOL_VERSION,
-    buildOk: false,
-    diagnostics: [
-      {
-        severity: "error",
-        stage: "internal",
-        message,
-        span: null,
-        notes: [],
-        rendered: `error: ${message}`,
-      },
-    ],
-    parse: null,
-    productions: null,
-    forest: null,
-    analysis: null,
-    evaluatorJs: null,
-    atn: null,
-  };
+  return internalErrorResponse(LAB_PROTOCOL_VERSION, message);
 }
 
 // Run the grammar author's own generated evaluator (LabResponse.evaluatorJs) against the accepted
