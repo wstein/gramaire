@@ -1498,6 +1498,7 @@ function ParseTracePanel() {
 
 function LrWalkPanel() {
   const trace = getTrace();
+  const cst = response.value?.parse?.cst;
   if (!trace || trace.length === 0)
     return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
   // Clamped, not reset-on-response: if a new response's trace is shorter than the step the user
@@ -1507,109 +1508,90 @@ function LrWalkPanel() {
 
   return (
     <div class="lab__walk">
-      <div class="lab__walk-controls">
-        <button
-          type="button"
-          disabled={current === 0}
-          onClick={() => (walkStep.value = 0)}
-          aria-label="first step"
-        >
-          ⏮
-        </button>
-        <button
-          type="button"
-          disabled={current === 0}
-          onClick={() => (walkStep.value = current - 1)}
-        >
-          ◀ prev
-        </button>
-        <span class="lab__walk-counter">
-          step {current + 1} / {trace.length}
-        </span>
-        <button
-          type="button"
-          disabled={current === trace.length - 1}
-          onClick={() => (walkStep.value = current + 1)}
-        >
-          next ▶
-        </button>
-        <button
-          type="button"
-          disabled={current === trace.length - 1}
-          onClick={() => (walkStep.value = trace.length - 1)}
-          aria-label="last step"
-        >
-          ⏭
-        </button>
-        <input
-          class="lab__walk-slider"
-          type="range"
-          min={0}
-          max={trace.length - 1}
-          value={current}
-          onInput={(e) => {
-            walkStep.value = Number((e.target as HTMLInputElement).value);
-          }}
-        />
+      <div class="lab__walk-tree">
+        <div class="lab__analysis-heading">parse tree</div>
+        {cst ? (
+          <pre class="lab__tree">
+            <CstNodeView node={cst} counter={{ i: 0 }} path="walk" />
+          </pre>
+        ) : (
+          <p class="lab__empty">No parse tree — the input wasn't accepted.</p>
+        )}
       </div>
 
-      <div class="lab__walk-action">
-        <span class="lab__analysis-heading">action</span>
-        {actionText(step.action)}
-      </div>
+      <div class="lab__walk-state">
+        <div class="lab__walk-controls">
+          <button
+            type="button"
+            disabled={current === 0}
+            onClick={() => (walkStep.value = 0)}
+            aria-label="first step"
+          >
+            ⏮
+          </button>
+          <button
+            type="button"
+            disabled={current === 0}
+            onClick={() => (walkStep.value = current - 1)}
+          >
+            ◀ prev
+          </button>
+          <span class="lab__walk-counter">
+            step {current + 1} / {trace.length}
+          </span>
+          <button
+            type="button"
+            disabled={current === trace.length - 1}
+            onClick={() => (walkStep.value = current + 1)}
+          >
+            next ▶
+          </button>
+          <button
+            type="button"
+            disabled={current === trace.length - 1}
+            onClick={() => (walkStep.value = trace.length - 1)}
+            aria-label="last step"
+          >
+            ⏭
+          </button>
+          <input
+            class="lab__walk-slider"
+            type="range"
+            min={0}
+            max={trace.length - 1}
+            value={current}
+            onInput={(e) => {
+              walkStep.value = Number((e.target as HTMLInputElement).value);
+            }}
+          />
+        </div>
 
-      <div class="lab__walk-panes">
-        <div>
-          <div class="lab__analysis-heading">parse stack</div>
-          <div class="lab__walk-chips">
-            {step.stackSymbols.length === 0 ? (
-              <span class="lab__empty">empty</span>
-            ) : (
-              step.stackSymbols.map((s, i) => (
+        <div class="lab__walk-panes">
+          <div>
+            <div class="lab__analysis-heading">parse stack</div>
+            <div class="lab__walk-chips">
+              {step.stackSymbols.length === 0 ? (
+                <span class="lab__empty">empty</span>
+              ) : (
+                step.stackSymbols.map((s, i) => (
+                  <span key={i} class="lab__chip">
+                    {s}
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
+          <div>
+            <div class="lab__analysis-heading">remaining input</div>
+            <div class="lab__walk-chips">
+              {step.remainingSymbols.map((s, i) => (
                 <span key={i} class="lab__chip">
                   {s}
                 </span>
-              ))
-            )}
+              ))}
+            </div>
           </div>
         </div>
-        <div>
-          <div class="lab__analysis-heading">remaining input</div>
-          <div class="lab__walk-chips">
-            {step.remainingSymbols.map((s, i) => (
-              <span key={i} class="lab__chip">
-                {s}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div class="lab__walk-history">
-        <table class="lab__table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {trace.map((s) => (
-              <tr
-                key={s.index}
-                class={
-                  s.index === current
-                    ? "lab__walk-row lab__walk-row--current"
-                    : "lab__walk-row"
-                }
-                onClick={() => (walkStep.value = s.index)}
-              >
-                <td class="lab__mono">{s.index}</td>
-                <td class="lab__mono">{actionText(s.action)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </div>
   );

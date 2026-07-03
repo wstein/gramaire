@@ -159,12 +159,17 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
 
   await page.click('button[role="tab"]:has-text("LR walk")');
   await expect(page.locator(".lab__walk-counter")).toHaveText("step 1 / 14");
-  await expect(page.locator(".lab__walk-action")).toContainText("shift");
+  await expect(page.locator(".lab__walk-tree .lab__tree")).toContainText(
+    "Expr",
+  );
+  await expect(page.locator(".lab__walk-action")).toHaveCount(0);
+  await expect(page.locator(".lab__walk-history")).toHaveCount(0);
   await page.click('button:has-text("next")');
   await expect(page.locator(".lab__walk-counter")).toHaveText("step 2 / 14");
+  await expect(page.locator(".lab__walk-panes")).toContainText("`NUMBER`");
   await page.click('button[aria-label="last step"]');
   await expect(page.locator(".lab__walk-counter")).toHaveText("step 14 / 14");
-  await expect(page.locator(".lab__walk-action")).toContainText("accept");
+  await expect(page.locator(".lab__walk-panes")).toContainText("Expr");
 
   // ATN diagnostics is additive: Strategy defaults to LR, so the tab starts disabled, with a
   // title tooltip explaining why — no dead-end click into an empty panel.
@@ -798,7 +803,7 @@ test("hovering/clicking a nonterminal box in the railroad diagram cross-links th
   );
 });
 
-test("the LR walk tab keeps its controls/action/stack panels and the table header pinned while only the step-history rows scroll", async ({
+test("the LR walk tab splits parse tree from controls, stack, and remaining input", async ({
   page,
 }) => {
   await page.goto("/lab/");
@@ -810,34 +815,32 @@ test("the LR walk tab keeps its controls/action/stack panels and the table heade
     timeout: 5000,
   });
   await page.click('button[role="tab"]:has-text("LR walk")');
-  await page.waitForSelector(".lab__walk-history");
+  await page.waitForSelector(".lab__walk-tree .lab__tree");
+
+  await expect(page.locator(".lab__walk")).toBeVisible();
+  await expect(page.locator(".lab__walk-tree")).toContainText("parse tree");
+  await expect(page.locator(".lab__walk-state")).toContainText("parse stack");
+  await expect(page.locator(".lab__walk-state")).toContainText(
+    "remaining input",
+  );
+  await expect(page.locator(".lab__walk-action")).toHaveCount(0);
+  await expect(page.locator(".lab__walk-history")).toHaveCount(0);
 
   const controls = page.locator(".lab__walk-controls");
-  const action = page.locator(".lab__walk-action");
   const panes = page.locator(".lab__walk-panes");
   const controlsTopBefore = (await controls.boundingBox())?.y;
 
-  const header = page.locator(".lab__walk-history thead th").first();
-  const headerTopBefore = (await header.boundingBox())?.y;
-
-  await page
-    .locator(".lab__walk-history")
-    .evaluate((el) => (el.scrollTop = el.scrollHeight));
+  await page.locator(".lab__walk-tree").evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
 
   await expect(controls).toBeVisible();
-  await expect(action).toBeVisible();
   await expect(panes).toBeVisible();
   const controlsTopAfter = (await controls.boundingBox())?.y;
   expect(controlsTopAfter).toBe(controlsTopBefore);
 
-  // The "# action" header row is part of the scrolling table itself — it must stay pinned via its
-  // own sticky positioning, not just ride along with the (already-pinned) panels above it.
-  await expect(header).toBeVisible();
-  const headerTopAfter = (await header.boundingBox())?.y;
-  expect(headerTopAfter).toBe(headerTopBefore);
-
   const scrollTop = await page
-    .locator(".lab__walk-history")
+    .locator(".lab__walk-tree")
     .evaluate((el) => el.scrollTop);
   expect(scrollTop).toBeGreaterThan(0);
 });

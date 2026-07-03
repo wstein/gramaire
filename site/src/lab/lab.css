@@ -284,10 +284,8 @@
   padding: 14px 18px;
   font-size: 13px;
 }
-/* LR walk: the controls/action/parse-stack panels above the step-history table stay pinned in
-   view — only the table itself scrolls, so the stepper stays reachable no matter how long the
-   trace is. lab__panel's own overflow is turned off in favor of lab__walk-history's, or the two
-   scroll containers would fight each other. */
+/* LR walk owns its own split scroll regions, so the panel's overflow is disabled here instead of
+   competing with the parse-tree/state panes. */
 .lab__panel--walk {
   display: flex;
   flex-direction: column;
@@ -295,24 +293,26 @@
   overflow: hidden;
 }
 .lab__walk {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(320px, 0.78fr);
+  gap: 18px;
   min-height: 0;
   flex: 1 1 auto;
 }
-.lab__walk-history {
-  flex: 1 1 auto;
-  min-height: 40px;
-  overflow-y: auto;
+.lab__walk-tree,
+.lab__walk-state {
+  min-width: 0;
+  min-height: 0;
 }
-/* The "# action" header row stays pinned at the top of the scrolling step-history table too, not
-   just the panels above it — sticky needs an opaque background (matching .lab's own, since
-   .lab__panel itself sets none) or scrolled-past rows would show through under the header text. */
-.lab__walk-history thead th {
-  position: sticky;
-  top: 0;
-  background: var(--bg);
-  z-index: 1;
+.lab__walk-tree {
+  overflow: auto;
+  border-right: 1px solid var(--border);
+  padding-right: 18px;
+}
+.lab__walk-state {
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
 }
 .lab__empty {
   color: var(--fg-faint);
@@ -618,9 +618,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 14px;
-  /* flex:none — a flex child's default flex-shrink:1 would otherwise let a cramped drawer squash
-     the controls themselves instead of the (deliberately shrinkable) history table below. */
+  margin-bottom: 16px;
+  flex-wrap: wrap;
   flex: none;
 }
 .lab__walk-controls button {
@@ -644,36 +643,15 @@
   white-space: nowrap;
 }
 .lab__walk-slider {
-  flex: 1;
+  flex: 1 1 160px;
+  min-width: 120px;
   accent-color: var(--accent);
 }
-.lab__walk-action {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius, 6px);
-  background: var(--bg-1);
-  margin-bottom: 14px;
-  flex: none;
-}
 .lab__walk-panes {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-bottom: 18px;
-  /* A long input can wrap the parse-stack/remaining-input chips across many lines — capping this
-     region and letting it scroll internally keeps the step-history table from being squeezed down
-     to nothing below it. flex:none for the same reason as .lab__walk-controls above: making this
-     ALSO flex-shrinkable sounds fairer (share the deficit with history instead of dumping it all
-     on history), but flex's shrink math weights by flex-basis, and an auto/content basis on a
-     scrolling item like history is its full (often much larger than visible) content height — that
-     made panes shrink to its floor even on a perfectly comfortable default-sized drawer. A modest
-     static cap keeps the common case unaffected while still leaving history a real (if tight)
-     minimum in the pathological very-long-input case. */
-  max-height: 70px;
-  overflow-y: auto;
-  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
 }
 .lab__walk-chips {
   display: flex;
@@ -683,6 +661,8 @@
   border: 1px solid var(--border);
   border-radius: var(--radius, 6px);
   min-height: 20px;
+  max-height: 34vh;
+  overflow: auto;
 }
 .lab__chip {
   font-family: var(--font-mono);
@@ -693,13 +673,6 @@
   background: var(--bg);
   color: var(--fg-secondary);
 }
-.lab__walk-row {
-  cursor: pointer;
-}
-.lab__walk-row--current {
-  background: var(--accent-softer);
-}
-
 .lab__value-chip {
   display: inline-block;
   font-family: var(--font-mono);
@@ -746,5 +719,14 @@
   }
   .lab__pane:first-child {
     border-top: 0;
+  }
+  .lab__walk {
+    grid-template-columns: 1fr;
+  }
+  .lab__walk-tree {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding-right: 0;
+    padding-bottom: 14px;
   }
 }
