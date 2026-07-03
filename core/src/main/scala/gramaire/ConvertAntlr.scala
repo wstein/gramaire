@@ -131,8 +131,9 @@ object ConvertAntlr:
 
   // ── Parse tree ──────────────────────────────────────────────────────
 
-  // One element: an atom plus an optional repetition suffix.
-  private final case class Elem(atom: Atom, suffix: Suffix)
+  // One element: an atom plus an optional repetition suffix. `nonGreedy` marks a
+  // `*?`/`+?`/`??` suffix that was normalized to its greedy form on import (flagged, §warnings).
+  private final case class Elem(atom: Atom, suffix: Suffix, nonGreedy: Boolean = false)
 
   private enum Atom:
     case ARef(name: String)
@@ -191,15 +192,19 @@ object ConvertAntlr:
 
   // ── Parser ────────────────────────────────────────────────────────
 
-  private def suffixOf(ts: List[Tok]): (Suffix, List[Tok]) =
-    def dropNonGreedy(xs: List[Tok]): List[Tok] = xs match
-      case TQuest :: tail => tail // `*?`/`+?`/`??` non-greedy -> greedy
-      case _              => xs
+  private def suffixOf(ts: List[Tok]): (Suffix, Boolean, List[Tok]) =
+    // `*?`/`+?`/`??` non-greedy -> greedy; report whether one was stripped.
+    def dropNonGreedy(xs: List[Tok]): (Boolean, List[Tok]) = xs match
+      case TQuest :: tail => (true, tail)
+      case _              => (false, xs)
     ts match
-      case TQuest :: tail => (SOpt, dropNonGreedy(tail))
-      case TStar :: tail  => (SStar, dropNonGreedy(tail))
-      case TPlus :: tail  => (SPlus, dropNonGreedy(tail))
-      case _              => (SNone, ts)
+      case TQuest :: tail =>
+        val (ng, rest) = dropNonGreedy(tail); (SOpt, ng, rest)
+      case TStar :: tail =>
+        val (ng, rest) = dropNonGreedy(tail); (SStar, ng, rest)
+      case TPlus :: tail =>
+        val (ng, rest) = dropNonGreedy(tail); (SPlus, ng, rest)
+      case _ => (SNone, false, ts)
 
   private def atomFrom(head: Tok, tail: List[Tok]): Option[(Atom, List[Tok])] = head match
     case TId(name) =>
@@ -230,8 +235,8 @@ object ConvertAntlr:
       case head :: tail =>
         atomFrom(head, tail) match
           case Some((atom, rest)) =>
-            val (suf, rest2) = suffixOf(rest)
-            go(acc :+ Elem(atom, suf), rest2)
+            val (suf, nonGreedy, rest2) = suffixOf(rest)
+            go(acc :+ Elem(atom, suf, nonGreedy), rest2)
           case None => go(acc, tail) // skip an unconsumable token defensively
     go(Vector.empty, ts0)
 
@@ -312,14 +317,33 @@ object ConvertAntlr:
 
   private def shorten(a: String): String = if a.length > 20 then a.take(20) + "…" else a
 
+  // The non-greedy spelling of a suffix (`suffixOf` only sets `nonGreedy` on
+  // SOpt/SStar/SPlus, never SNone, so this always has a real suffix to append to).
+  private def suffixText(s: Suffix): String = renderSuffix(s) + "?"
+
   private def collectWarnings(rules: Vector[G4Rule]): Vector[String] =
-    def elemWarn(e: Elem): Vector[String] = e.atom match
-      case AInline(a) =>
-        Vector(s"dropped an inline action/predicate `{${shorten(a)}}` (no Core equivalent)")
-      case AGroup(alts) => alts.flatMap(_.flatMap(elemWarn))
-      case ANot(inner)  => elemWarn(Elem(inner, SNone))
-      case _            => Vector.empty
-    rules.flatMap(r => r.alts.flatMap(_.flatMap(elemWarn))).distinct
+    def elemWarn(inLexer: Boolean, ruleName: String, e: Elem): Vector[String] =
+      val atomWarn: Vector[String] = e.atom match
+        case AInline(a) =>
+          Vector(
+            s"dropped an inline action/predicate `{${shorten(a)}}` in rule `$ruleName` (no Core equivalent)"
+          )
+        case AGroup(alts) => alts.flatMap(_.flatMap(elemWarn(inLexer, ruleName, _)))
+        case ANot(inner)  => elemWarn(inLexer, ruleName, Elem(inner, SNone))
+        case ASet(s) if !inLexer =>
+          Vector(s"widened a character set `[${shorten(s)}]` in parser rule `$ruleName` to `.`")
+        case _ => Vector.empty
+      val nonGreedyWarn: Vector[String] =
+        if e.nonGreedy then
+          Vector(
+            s"normalized a non-greedy suffix `${suffixText(e.suffix)}` to greedy in rule `$ruleName` (no Core equivalent)"
+          )
+        else Vector.empty
+      atomWarn ++ nonGreedyWarn
+    // `.distinct` dedupes only truly identical warnings (e.g. the same dropped action
+    // repeated within one rule); every message above is rule-scoped so it can't collapse
+    // warnings from two different rules into one.
+    rules.flatMap(r => r.alts.flatMap(_.flatMap(e => elemWarn(r.lexer, r.name, e)))).distinct
 
   private def parseG4(toks0: Vector[Tok]): Either[String, Parsed] =
     for
