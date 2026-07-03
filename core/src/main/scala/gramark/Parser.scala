@@ -102,6 +102,17 @@ object Parser:
     * semantic value. A separate function, not a `run` variant with a trace hook — `run` is the hot
     * path every other caller (including the self-hosting bootstrap) shares, and this walks the
     * exact same state-stack logic in lockstep with a parallel symbol stack purely for display.
+    *
+    * KNOWN LATENT COST, not yet addressed: `stackBefore`/`remainingBefore` below are recomputed
+    * from scratch at every step (`st.symbols.reverse.toVector` / `input.drop(pos).map(...)`), each
+    * O(current stack depth) / O(remaining input length) — so a full walk over `n` tokens costs
+    * O(n^2) total, not O(n). `lab/src/main/scala/gramark/lab/LabApi.scala`'s `capSteps` bounds the
+    * WIRE-exposed step count (mirroring `Glr.forest`'s `forestCap`), but that cap is applied to the
+    * already-fully-computed result — it does not bound the cost of getting here, so a long accepted
+    * input still pays the full O(n^2) cost before any cap helps. Predates ll-star (this function is
+    * LR-only), but ll-star's own trace-capping work (`LabApi.traceCap`) surfaced it as a real
+    * pathological-input risk while testing that cap: see the discussion in `capSteps`'s own doc
+    * comment for why an end-to-end reproduction test wasn't added.
     */
   def walk(table: ParseTable, input: Vector[Token]): Either[ParseError, Vector[LrStep]] =
     final case class St(states: List[Int], symbols: List[GSym])
