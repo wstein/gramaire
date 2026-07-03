@@ -332,15 +332,6 @@
   color: var(--fg-faint);
   font-style: italic;
 }
-/* AllParsesPanel/GrammarAnalysisPanel's ProvenanceNote — shown only under Engine=ALL(*), a small
-   disclosure that this specific tab is still LR/GLR-built regardless. */
-.lab__provenance {
-  color: var(--fg-faint);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  margin: 0 0 10px;
-}
-
 /* ParseTracePanel/WalkPanel's TruncatedNote — shown when LabApi's traceCap cut the walk short, so
    a trace ending mid-parse reads as "capped here" instead of "the parse only took this many steps". */
 .lab__truncated-note {

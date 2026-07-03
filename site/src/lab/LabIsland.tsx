@@ -47,10 +47,12 @@ const METHODS = ["Canonical", "LALR", "IELR"] as const;
 const grammarSource = signal(DEFAULT_SOURCE);
 const targetInput = signal(DEFAULT_INPUT);
 const method = signal<Method>("Canonical");
-// "lr" (the default) leaves LabResponse.atn null; "ll-star" is a genuine alternate pipeline that
-// also redefines buildOk (an LR conflict downgrades to a warning) — see LabRequest.strategy's own
-// doc comment in protocol.ts.
-const strategy = signal<Strategy>("lr");
+// "ll-star" (the default) is a genuine alternate pipeline that redefines buildOk (an LR conflict
+// downgrades to a warning instead of blocking the build) and drives parse/evaluatorJs/atn from
+// Ll.parseTraced; "lr" leaves LabResponse.atn null — see LabRequest.strategy's own doc comment in
+// protocol.ts. Defaulting to ll-star means a first-time visitor lands on the engine that survives
+// LR conflicts, rather than one that silently can't build some grammars at all.
+const strategy = signal<Strategy>("ll-star");
 // null means "no override" — the request omits startRule, so the engine uses the grammar's own
 // natural declaration order (its first rule). Set only by the start-rule picker.
 const startRule = signal<string | null>(null);
@@ -1228,18 +1230,6 @@ function DiagnosticsList({ diagnostics }: { diagnostics: DiagnosticInfo[] }) {
   );
 }
 
-// forest/analysis stay LR/GLR-driven under BOTH strategies (no ALL(*) equivalent exists for a
-// GLR forest or per-LR-method stats) — this note discloses that so Engine=ALL(*) is never
-// mistaken for having changed what a tab showing it is actually built from. Each caller computes
-// its own `show` condition instead of a shared one baked in here, since the two tabs' actual
-// dependence on the Engine picker differs: All parses is always Canonical-built regardless of
-// `method.value` too (not just `strategy`), so it needs disclosing whenever EITHER differs from
-// what's shown — Grammar analysis never varies by `method.value` at all, only `strategy`.
-function ProvenanceNote({ show, text }: { show: boolean; text: string }) {
-  if (!show) return null;
-  return <p class="lab__provenance">{text}</p>;
-}
-
 function AllParsesPanel() {
   const r = response.value;
   const forest = r?.forest;
@@ -1270,7 +1260,6 @@ function AllParsesPanel() {
   const ambiguous = forest.parses.length > 1;
   return (
     <div>
-  
       <p
         class={`lab__forest-status lab__forest-status--${ambiguous ? "ambiguous" : "ok"}`}
       >

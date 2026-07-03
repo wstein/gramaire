@@ -20,20 +20,21 @@ a thin skin over real machinery, never a mock.
 > render `Ll.parseTraced`'s own step trace under ALL(\*) (a rule-call stack,
 > not an LR state/symbol stack), `buildOk`/`evaluatorJs` no longer require the
 > LR table build to succeed under it (a conflict downgrades to a warning
-> noting ALL(\*) resolves the same tie by declaration order), and All
-> parses/Grammar analysis (which have no ALL(\*) equivalent) carry a small "via
-> GLR"/"via LR tables" note disclosing that they stay LR/GLR-built either way.
-> Neither tab's content actually varies with which method the Engine picker
-> has selected: All parses is always built from `Method.Canonical` (this
-> codebase's own designated oracle — see `Table.buildTables`'s doc comment),
-> since "what parses does this grammar admit" is a property of the grammar,
-> not a code-gen method choice, and Grammar analysis already reports every
-> method's stats unconditionally (`Table.statsForAll`) — so there's no
-> secondary method control anywhere; the merged Engine picker is the only
-> method-adjacent control there is. The provenance note discloses this
-> whenever the Engine picker's own selection would otherwise suggest
-> otherwise (strategy `ll-star`, or a non-Canonical LR method under `lr`).
-> Parse trace/Walk are capped at a step count (mirroring All parses' own
+> noting ALL(\*) resolves the same tie by declaration order), and ALL(\*) is
+> the Engine picker's default — a first-time visitor lands on the engine that
+> survives LR conflicts, not one that silently can't build some grammars at
+> all. All parses/Grammar analysis have no ALL(\*) equivalent and stay
+> LR/GLR-built regardless of Engine — All parses is always built from
+> `Method.Canonical` specifically (this codebase's own designated oracle —
+> see `Table.buildTables`'s doc comment), since "what parses does this
+> grammar admit" is a property of the grammar, not a code-gen method choice,
+> and Grammar analysis already reports every method's stats unconditionally
+> (`Table.statsForAll`) — so there's no secondary method control anywhere;
+> the merged Engine picker is the only method-adjacent control there is. A
+> prior "via GLR"/"via LR tables" disclosure note was tried and then removed
+> as unnecessary UI noise; the underlying pinned-to-Canonical behavior is
+> still verified at the API layer (`LabApiSuite`), just not surfaced as its
+> own UI signal. Parse trace/Walk are capped at a step count (mirroring All parses' own
 > `forestCap`) so a pathological or LR-conflicted grammar can't blow up the
 > response on every debounced keystroke — a `traceTruncated`/`llTraceTruncated`
 > flag says so in the UI rather than the walk silently ending mid-parse. §5.1's

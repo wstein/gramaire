@@ -86,6 +86,13 @@ test("the line-number gutter widens for 4+ digit line counts instead of crowding
 
 test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await gotoLabReady(page);
+  // Engine defaults to "ll-star" now — this test exercises the LR-specific Parse trace/Walk
+  // vocabulary (shift/reduce, a 14-step count) deliberately, so select Canonical explicitly rather
+  // than relying on a default that's no longer LR.
+  await page.getByLabel("Engine").selectOption("Canonical");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
 
   await page.click('button[role="tab"]:has-text("Tokens")');
   const rows = page.locator(".lab__table tbody tr");
@@ -160,8 +167,8 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await expect(page.locator(".lab__walk-counter")).toHaveText("step 14 / 14");
   await expect(page.locator(".lab__walk-panes")).toContainText("Expr");
 
-  // Engine defaults to "lr", which never populates atn — the tab starts disabled, with a title
-  // tooltip explaining why, instead of a dead-end click into an empty panel.
+  // Still on Canonical (selected above) — which never populates atn — so the tab starts disabled,
+  // with a title tooltip explaining why, instead of a dead-end click into an empty panel.
   const atnTab = page.locator('button[role="tab"]:has-text("ATN")');
   await expect(atnTab).toBeDisabled();
   await expect(atnTab).toHaveAttribute("title", /Switch Engine/);
@@ -230,6 +237,11 @@ test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", 
   page,
 }) => {
   await gotoLabReady(page);
+  // This grammar has real, unresolved conflicts under every LR method — buildOk false is the whole
+  // point (All parses populating anyway is the tab's reason to exist). Under ll-star (now the
+  // default) the same conflict just downgrades to a warning instead, so select Canonical explicitly
+  // to keep testing the LR buildOk=false case this test is actually about.
+  await page.getByLabel("Engine").selectOption("Canonical");
 
   await page
     .locator(".lab__pane--grammar .lab__editor")
@@ -742,6 +754,9 @@ test("the Walk tab splits parse trace from controls, stack, and remaining input"
   page,
 }) => {
   await gotoLabReady(page);
+  // "parse stack" (vs. ll-star's "rule stack") is LR-walk-specific vocabulary — select Canonical
+  // explicitly since ll-star is now the default Engine.
+  await page.getByLabel("Engine").selectOption("Canonical");
   await page.locator(".lab__pane--fill .lab__editor").fill("1+2*3+4*5-6+7*8-9");
   await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
     timeout: 5000,
@@ -830,80 +845,83 @@ test("Engine=ALL(*) drives Parse trace/Walk from Ll.parseTraced, and badges the 
     page.locator(".lab__walk-trace .lab__walk-row--current"),
   ).toContainText("accept");
 
-  // All parses/Grammar analysis stay GLR/LR-built under ll-star — the provenance note discloses
-  // that instead of silently showing data with no indication of which engine produced it.
+  // All parses/Grammar analysis stay GLR/LR-built under ll-star too (no ProvenanceNote disclosure
+  // anymore — removed as unnecessary — so this just confirms both tabs still show real data
+  // regardless of Engine; "All parses is always Canonical-built..." below covers the cross-engine
+  // consistency in more depth).
   await page.click('button[role="tab"]:has-text("All parses")');
-  await expect(page.locator(".lab__provenance")).toContainText("via GLR");
+  await expect(page.locator(".lab__forest-status")).toContainText(
+    "Unambiguous",
+  );
 
   await page.click('button[role="tab"]:has-text("Grammar analysis")');
-  await expect(page.locator(".lab__provenance")).toContainText("via LR tables");
-
-  // Switching back to LR/GLR, the provenance note disappears (both tabs are what they claim to
-  // be again) and the badge doesn't leak into strategy "lr" output.
-  await page.getByLabel("Engine").selectOption("Canonical");
-  await expect(page.locator(".lab__provenance")).toHaveCount(0);
+  const methodRows = page
+    .locator(".lab__panel .lab__table")
+    .first()
+    .locator("tbody tr");
+  await expect(methodRows).toHaveCount(3);
 });
 
-test("All parses is always Canonical-built, regardless of Engine — no separate method control", async ({
+test("All parses stays populated across every Engine choice — no separate method control", async ({
   page,
 }) => {
   await gotoLabReady(page);
 
   // No secondary method control exists anywhere — the merged Engine dropdown is the only
-  // method-adjacent control there is, full stop, under any Engine selection.
+  // method-adjacent control there is, full stop, under any Engine selection. (The claim that All
+  // parses is specifically pinned to Method.Canonical — not whichever method Engine shows — is
+  // verified at the API layer: LabApiSuite's "forest is always Canonical-built, regardless of
+  // request.method" compares Canonical/LALR/IELR requests' forests for byte equality; there's no
+  // UI-visible disclosure of that anymore, so this test only checks the UI doesn't break.)
   await expect(page.getByLabel("LR method")).toHaveCount(0);
 
   await page.click('button[role="tab"]:has-text("All parses")');
-  // Default Engine is Canonical, which is also what All parses is always built from — nothing to
-  // disclose since the two already agree.
-  await expect(page.locator(".lab__provenance")).toHaveCount(0);
+  await expect(page.locator(".lab__forest-status")).toContainText(
+    "Unambiguous",
+  );
 
-  // Picking LALR still changes Output/Parse tree/Evaluate (the real, single-result LR table) —
-  // but All parses stays Canonical-built regardless, a real mismatch the note now discloses that
-  // was previously invisible (the note only ever showed under strategy "ll-star" before).
+  // Picking LALR changes Output/Parse tree/Evaluate (the real, single-result LR table) — All
+  // parses should still render the same populated result, not break or empty out.
   await page.getByLabel("Engine").selectOption("LALR");
   await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
     timeout: 5000,
   });
-  await expect(page.locator(".lab__provenance")).toContainText(
-    "Canonical LR(1)",
+  await expect(page.locator(".lab__forest-status")).toContainText(
+    "Unambiguous",
   );
   await expect(page.getByLabel("LR method")).toHaveCount(0);
 
-  // Same story under ALL(*): still Canonical, still no secondary control to change it with, since
-  // there's nothing left for one to drive.
+  // Same story under ALL(*): All parses still renders fine, still no secondary control.
   await page.getByLabel("Engine").selectOption("ll-star");
   await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
     timeout: 5000,
   });
-  await expect(page.locator(".lab__provenance")).toContainText(
-    "Canonical LR(1)",
+  await expect(page.locator(".lab__forest-status")).toContainText(
+    "Unambiguous",
   );
   await expect(page.getByLabel("LR method")).toHaveCount(0);
 
   // Grammar analysis: analysisOf computes every method's stats unconditionally (Table.statsForAll),
-  // so its own content — the method-comparison table and its provenance note — never varies with
-  // Engine's method selection at all, unlike All parses above.
+  // so its own content — the method-comparison table — never varies with Engine's method
+  // selection at all, unlike All parses above.
   await page.click('button[role="tab"]:has-text("Grammar analysis")');
-  await expect(page.locator(".lab__provenance")).toContainText("via LR tables");
   const methodRows = page
     .locator(".lab__panel .lab__table")
     .first()
     .locator("tbody tr");
   await expect(methodRows).toHaveCount(3); // Canonical, LALR, IELR — always all three
 
-  // Back to Canonical: Engine and All parses agree again, so the note disappears.
   await page.getByLabel("Engine").selectOption("Canonical");
   await expect(page.getByLabel("Engine")).toHaveValue("Canonical");
 });
 
-test("the Engine picker explains ALL(*) before it's selected, not just after", async ({
+test("the Engine picker's tooltips explain ALL(*) and the picker's own scope", async ({
   page,
 }) => {
   await gotoLabReady(page);
 
   // A bare "ALL(*)" acronym gives a first-time user no reason to pick it over the LR/GLR methods
-  // — the option itself should say why, before it's ever selected.
+  // — the option's title explains why, on hover.
   await expect(page.locator('option[value="ll-star"]')).toHaveAttribute(
     "title",
     /LR conflicts/,
@@ -911,13 +929,6 @@ test("the Engine picker explains ALL(*) before it's selected, not just after", a
   await expect(page.getByLabel("Engine")).toHaveAttribute(
     "title",
     /Output.*Parse tree.*Evaluate/,
-  );
-
-  // The title tooltips above never fire on touch, and never fire while arrowing through an open
-  // <select> with a keyboard either — the option's own VISIBLE text has to carry the same
-  // explanation as real, always-readable content, not just a hover-only attribute.
-  await expect(page.locator('option[value="ll-star"]')).toHaveText(
-    /survives LR conflicts/,
   );
 });
 
