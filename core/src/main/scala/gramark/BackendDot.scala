@@ -33,6 +33,16 @@ object BackendDot:
   private def dotLabel(parts: Vector[String]): String =
     "\"" + parts.map(escapeDot).mkString("\\n") + "\""
 
+  // The digraph wrapper shared by emitAtn/emitLr — they differ only in how nodeLines/edgeLines
+  // are computed, not in this preamble/closing boilerplate.
+  private def digraph(name: String, nodeLines: Vector[String], edgeLines: Vector[String]): String =
+    "digraph " + quote(name) + " {\n" +
+      "  rankdir=LR;\n" +
+      "  node [shape=box, fontname=\"monospace\"];\n" +
+      nodeLines.mkString("\n") +
+      (if edgeLines.isEmpty then "" else "\n" + edgeLines.mkString("\n")) +
+      "\n}\n"
+
   /** Render the IR's parse tables as a GraphViz digraph of the LR automaton, or — if `ir.atn` is
     * present (`--strategy ll-star`) — the ATN instead.
     */
@@ -65,13 +75,7 @@ object BackendDot:
         )
     }
     val edges = atn.states.flatMap(edgesFor)
-
-    "digraph " + quote(ir.grammar.name) + " {\n" +
-      "  rankdir=LR;\n" +
-      "  node [shape=box, fontname=\"monospace\"];\n" +
-      atn.states.map(nodeLine).mkString("\n") +
-      (if edges.isEmpty then "" else "\n" + edges.mkString("\n")) +
-      "\n}\n"
+    digraph(ir.grammar.name, atn.states.map(nodeLine), edges)
 
   private def emitLr(ir: IR): String =
     val states: Vector[Int] =
@@ -114,10 +118,4 @@ object BackendDot:
       )
     }
     val edges = shiftEdges ++ gotoEdges
-
-    "digraph " + quote(ir.grammar.name) + " {\n" +
-      "  rankdir=LR;\n" +
-      "  node [shape=box, fontname=\"monospace\"];\n" +
-      states.map(nodeLine).mkString("\n") +
-      (if edges.isEmpty then "" else "\n" + edges.mkString("\n")) +
-      "\n}\n"
+    digraph(ir.grammar.name, states.map(nodeLine), edges)

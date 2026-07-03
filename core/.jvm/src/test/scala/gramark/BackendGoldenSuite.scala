@@ -59,6 +59,26 @@ class BackendGoldenSuite extends munit.FunSuite:
       case Right(ir) => assertEquals(BackendDot.emit(ir), readFile("test/golden/tiny.dot"))
   }
 
+  // Pins docs/all-star-port-plan.md's "IR.atn's first runtime reader, on a real grammar
+  // (examples/calc.grmk.md, smoke-tested end to end)" claim to an actual committed test —
+  // before this, that grammar/strategy combination was only ever run by hand, not by `make test`.
+  test(
+    "dot (ATN): examples/calc.grmk.md under --strategy ll-star matches the committed golden"
+  ) {
+    val md = readFile("examples/calc.grmk.md")
+    Lr.parse(md) match
+      case Left(e) => fail(s"could not parse examples/calc.grmk.md: $e")
+      case Right(g) =>
+        IR.buildIR(Method.Canonical, "Calc", g) match
+          case Left(_) => fail("could not build IR for calc")
+          case Right(ir) =>
+            val irLl = IR.withStrategy("ll-star", g, ir)
+            assert(irLl.atn.isDefined, "ll-star strategy should attach an ATN")
+            val dot = BackendDot.emit(irLl)
+            assert(dot.contains("blockStart"), "renders ATN state kinds, not the LR table")
+            assertEquals(dot, readFile("test/golden/calc-atn.dot"))
+  }
+
   test(
     "js: calc-js bakes its inline actions into one evaluate(cst), matching the committed golden"
   ) {
