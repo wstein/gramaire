@@ -167,7 +167,7 @@ class ConvertAntlrSuite extends munit.FunSuite:
           s"expected a negated-character-set warning naming rule `r`, got: ${imp.warnings}"
         )
         assert(
-          imp.warnings.exists(w => w.contains("dropped an alternative") && w.contains("`r`")),
+          imp.warnings.exists(w => w.contains("dropped alternative") && w.contains("`r`")),
           s"expected an alternative-dropped warning naming rule `r`, got: ${imp.warnings}"
         )
         assert(
@@ -194,6 +194,67 @@ class ConvertAntlrSuite extends munit.FunSuite:
           s"expected a whole-rule-dropped warning naming `r`, got: ${imp.warnings}"
         )
         assert(!imp.markdown.contains("## r\n"), "rule `r` itself must not appear once it is empty")
+  }
+
+  test(
+    "convert: two distinct dropped alternatives in the same rule each warn, one doesn't swallow the other"
+  ) {
+    val twoDroppedAltsG4 =
+      """grammar TwoDropped;
+        |r : ~[a-c] | {pred}? | ID ;
+        |ID : [a-z]+ ;
+        |""".stripMargin
+    ConvertAntlr.importAntlr(twoDroppedAltsG4) match
+      case Left(e) => fail(s"twoDroppedAlts.g4 should import: $e")
+      case Right(imp) =>
+        val altDropWarnings = imp.warnings.filter(_.contains("dropped alternative"))
+        assertEquals(
+          altDropWarnings.size,
+          2,
+          s"expected one warning per dropped alternative, got: $altDropWarnings"
+        )
+  }
+
+  test(
+    "convert: dropping a whole rule cascades to any other rule that references it, never leaving a dangling ref"
+  ) {
+    val danglingRefG4 =
+      """grammar DanglingRef;
+        |s : r | ID ;
+        |r : ~[a-c] ;
+        |ID : [a-z]+ ;
+        |""".stripMargin
+    ConvertAntlr.importAntlr(danglingRefG4) match
+      case Left(e) => fail(s"danglingRef.g4 should import: $e")
+      case Right(imp) =>
+        assert(!imp.markdown.contains("## r\n"), "the unrepresentable rule `r` is gone")
+        assert(
+          imp.warnings.exists(w => w.contains("dropped alternative") && w.contains("`s`")),
+          s"expected s's dangling alternative referencing `r` to be dropped too, got: ${imp.warnings}"
+        )
+        assert(imp.markdown.contains("ID"), "s's surviving alternative is still rendered")
+        Lr.parse(imp.markdown) match
+          case Left(e) =>
+            fail(s"the imported grammar must not contain a dangling reference to `r`: $e")
+          case Right(_) => ()
+  }
+
+  test(
+    "convert: a parenthesized group whose only alternative is unrepresentable collapses instead of emitting `(  )`"
+  ) {
+    val emptyGroupG4 =
+      """grammar EmptyGroup;
+        |r : ( ~[a-c] ) | ID ;
+        |ID : [a-z]+ ;
+        |""".stripMargin
+    ConvertAntlr.importAntlr(emptyGroupG4) match
+      case Left(e) => fail(s"emptyGroup.g4 should import: $e")
+      case Right(imp) =>
+        assert(!imp.markdown.contains("(  )"), "an empty group must never be emitted")
+        assert(imp.markdown.contains("ID"), "the surviving alternative is still rendered")
+        Lr.parse(imp.markdown) match
+          case Left(e)  => fail(s"the imported grammar must still be valid, parseable Gramark: $e")
+          case Right(_) => ()
   }
 
   test("convert: a negated character set in a LEXER rule is preserved, not dropped") {
