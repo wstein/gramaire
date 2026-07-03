@@ -1031,3 +1031,31 @@ test("Engine=ALL(*) still builds an LR-conflicted grammar, with the conflict as 
     page.locator('button[role="tab"]:has-text("Evaluate")'),
   ).toBeEnabled();
 });
+
+test("a normal-length trace/llTrace never shows the truncated note, LR or ALL(*)", async ({
+  page,
+}) => {
+  // LabApi's traceCap (5000 steps) only ever bites a pathologically long parse — forcing a real
+  // one through the browser's own engine build would hit the same pre-existing, unrelated
+  // stack/memory ceilings LabApiSuite's own capSteps tests were written around (see LabApi.scala's
+  // capSteps doc comment). This is the regression half instead: a normal short parse's trace must
+  // render with NO truncated note, guarding against TruncatedNote firing unconditionally.
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  await page.click('button[role="tab"]:has-text("Parse trace")');
+  await expect(page.locator(".lab__truncated-note")).toHaveCount(0);
+  await page.click('button[role="tab"]:has-text("Walk")');
+  await expect(page.locator(".lab__truncated-note")).toHaveCount(0);
+
+  await page.getByLabel("Engine").selectOption("ll-star");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+  await page.click('button[role="tab"]:has-text("Parse trace")');
+  await expect(page.locator(".lab__truncated-note")).toHaveCount(0);
+  await page.click('button[role="tab"]:has-text("Walk")');
+  await expect(page.locator(".lab__truncated-note")).toHaveCount(0);
+});

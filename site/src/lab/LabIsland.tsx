@@ -1539,10 +1539,29 @@ function getTrace(): LrStepInfo[] | null {
   return response.value?.parse?.trace ?? null;
 }
 
+function getTraceTruncated(): boolean {
+  return response.value?.parse?.traceTruncated ?? false;
+}
+
 // Mutually exclusive with getTrace() per LabRequest.strategy — never both non-null on the same
 // response (ParseResult's own doc comment).
 function getLlTrace(): LlStepInfo[] | null {
   return response.value?.parse?.llTrace ?? null;
+}
+
+function getLlTraceTruncated(): boolean {
+  return response.value?.parse?.llTraceTruncated ?? false;
+}
+
+// A capped walk (LabApi's traceCap) would otherwise just end mid-parse with no indication
+// anything was cut — this says so, the same way ForestResult.truncated does for All parses.
+function TruncatedNote({ shownCount }: { shownCount: number }) {
+  return (
+    <p class="lab__truncated-note">
+      Showing the first {shownCount.toLocaleString()} steps — the real walk ran
+      longer than that.
+    </p>
+  );
 }
 
 function ParseTracePanel() {
@@ -1551,6 +1570,33 @@ function ParseTracePanel() {
     if (llTrace.length === 0)
       return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
     return (
+      <>
+        {getLlTraceTruncated() && <TruncatedNote shownCount={llTrace.length} />}
+        <table class="lab__table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {llTrace.map((s) => (
+              <tr key={s.index}>
+                <td class="lab__mono">{s.index}</td>
+                <td class="lab__mono">{llActionText(s.action)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </>
+    );
+  }
+  const trace = getTrace();
+  if (!trace || trace.length === 0)
+    return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
+  return (
+    <>
+      {getTraceTruncated() && <TruncatedNote shownCount={trace.length} />}
       <table class="lab__table">
         <thead>
           <tr>
@@ -1559,36 +1605,15 @@ function ParseTracePanel() {
           </tr>
         </thead>
         <tbody>
-          {llTrace.map((s) => (
+          {trace.map((s) => (
             <tr key={s.index}>
               <td class="lab__mono">{s.index}</td>
-              <td class="lab__mono">{llActionText(s.action)}</td>
+              <td class="lab__mono">{actionText(s.action)}</td>
             </tr>
           ))}
         </tbody>
       </table>
-    );
-  }
-  const trace = getTrace();
-  if (!trace || trace.length === 0)
-    return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
-  return (
-    <table class="lab__table">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {trace.map((s) => (
-          <tr key={s.index}>
-            <td class="lab__mono">{s.index}</td>
-            <td class="lab__mono">{actionText(s.action)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    </>
   );
 }
 
@@ -1666,6 +1691,7 @@ function LlWalkPanel(trace: LlStepInfo[], walkRef: RefObject<HTMLDivElement>) {
         style={{ flex: `0 0 ${lrWalkTracePercent.value}%` }}
       >
         <div class="lab__analysis-heading">parse trace</div>
+        {getLlTraceTruncated() && <TruncatedNote shownCount={trace.length} />}
         <table class="lab__table">
           <thead>
             <tr>
@@ -1762,6 +1788,7 @@ function WalkPanel() {
         style={{ flex: `0 0 ${lrWalkTracePercent.value}%` }}
       >
         <div class="lab__analysis-heading">parse trace</div>
+        {getTraceTruncated() && <TruncatedNote shownCount={trace.length} />}
         <table class="lab__table">
           <thead>
             <tr>
