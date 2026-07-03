@@ -9,15 +9,10 @@ package gramark
 // JVM-only: builds large synthetic `json` inputs and needs `examples/json.grmk.md` for a
 // real, left-recursive corpus grammar (`Members`/`Elements` are hand left-recursive).
 class LlBenchmarkSuite extends munit.FunSuite:
+  import ConformanceLexers.tokensLexerOf
+
   private def readFile(path: String): String =
     java.nio.file.Files.readString(java.nio.file.Path.of(path))
-
-  private def jsonLexerOf(jsonMd: String, g: Grammar): ConformanceLexers.Lexer =
-    val defs = ConformanceLexers
-      .tokensBlock(jsonMd)
-      .flatMap(block => Tokens.parseTokens(block).toOption)
-      .getOrElse(Vector.empty)
-    ConformanceLexers.scannerLexer(defs, g)
 
   // A flat array of `n` structurally-identical small objects — every element revisits
   // the exact same decisions, exactly the pattern the DFA cache is meant to amortize.
@@ -35,7 +30,7 @@ class LlBenchmarkSuite extends munit.FunSuite:
     Lr.parse(jsonMd) match
       case Left(e) => fail(s"json grammar should parse: $e")
       case Right(g) =>
-        val jsonLexer = jsonLexerOf(jsonMd, g)
+        val jsonLexer = tokensLexerOf(jsonMd, g)
 
         def tokensOf(n: Int): Vector[Token] =
           jsonLexer(jsonArrayOf(n)) match
