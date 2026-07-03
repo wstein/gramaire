@@ -114,18 +114,25 @@ function selectSpan(
   el.scrollTop = Math.max(0, line * lineHeight - el.clientHeight / 2);
 }
 
-// Three states: errors (the GRAMMAR itself failed to build — the thing that needs the author's
-// attention), accepted (build fine AND the current input matches — a bonus confirmation), ok (build
-// fine, everything else — compile-only, or the current input happens not to match). Rejected input
-// deliberately does NOT fold into "errors": the grammar is fine either way, and a status bar that
-// called a healthy grammar "errors" just because a leftover/mismatched input didn't happen to parse
-// would be actively misleading — the actual reject reason still has its own place in Output.
-const buildStatus = computed<"pending" | "accepted" | "ok" | "errors">(() => {
+// Build state and input-match state are orthogonal — a healthy grammar can reject a given input,
+// and that's not a build problem — so they're two independent signals, not one four-way enum.
+// buildStatus alone answers "does the grammar itself need the author's attention"; a rejected
+// input deliberately does NOT fold into "errors" here, the same reasoning that used to live on
+// the old combined enum: the grammar is fine either way, and a status bar that called a healthy
+// grammar "errors" just because a leftover/mismatched input didn't happen to parse would be
+// actively misleading — the actual reject reason still has its own place in Output.
+const buildStatus = computed<"pending" | "ok" | "errors">(() => {
   const r = response.value;
   if (!r) return "pending";
-  if (!r.buildOk) return "errors";
-  if (r.parse?.accepted) return "accepted";
-  return "ok";
+  return r.buildOk ? "ok" : "errors";
+});
+
+// Only meaningful once the grammar builds and an input was actually given — `undefined` (no
+// badge shown) otherwise, rather than a misleading third value bolted onto a two-value enum.
+const parseStatus = computed<"accepted" | "rejected" | undefined>(() => {
+  const r = response.value;
+  if (!r?.buildOk || !r.parse) return undefined;
+  return r.parse.accepted ? "accepted" : "rejected";
 });
 
 // Every rule name, in the compiled grammar's current declaration order — same source `analysis`
@@ -739,6 +746,13 @@ function StatusBar() {
         >
           {pending.value ? "building…" : buildStatus.value}
         </span>
+        {!pending.value && parseStatus.value && (
+          <span
+            class={`lab__parsestatus lab__parsestatus--${parseStatus.value}`}
+          >
+            {parseStatus.value}
+          </span>
+        )}
         {errorCount > 0 && (
           <span class="lab__statusbar-errors">
             {errorCount} error{errorCount === 1 ? "" : "s"}
