@@ -425,30 +425,52 @@ surface is reached by **conversion**, not syntax expansion (§4).
   parser (a port of the `antlr4ng` predictor, or `Gramaire.Ll` shipped as the
   runtime) — the serialized `atn` is the substrate it will consume.
 
-### Phase 6 — Diagnostics, profiling, conformance ⏳ not started
+### Phase 6 — Diagnostics, profiling, conformance ✅ backend diagnostics; ⏳ Lab surface
 
-Nothing in this phase is built. What exists today under adjacent names is LR-
-native, not ALL(\*)-native:
-
-- `gramaire explain-conflict` exists, but it is the **pre-existing LR/GLR
-  conflict classifier** (`Glr.explainP`, comparing Canonical/LALR/IELR
-  construction) — it has no concept of an ATN decision or a predicted
-  alternative. The Phase-6 diagnostic this plan describes — "decision in rule
-  `R` is ambiguous between alts _i_ and _j_ on input …", reported against the
-  ATN — does not exist in any form.
-- The Lab's _Grammar analysis_ panel exists (`site/src/lab/LabIsland.tsx`) but
-  surfaces the three **LR table methods'** state/conflict counts; there is no
-  `ll-star`/strategy toggle or ATN-decision surface anywhere in the Lab.
-- No `--profile` flag exists (lookahead depth, DFA cache hits, or otherwise).
-  Note a **name collision to avoid**: `docs/multi-backend-implementation-plan.md`
-  already uses `--profile <lang>` for a codegen target-language profile
-  (doc-only, not wired into `emit` either) — a future prediction profiler needs
-  a different flag name.
-- The `gramaire conformance` CLI command runs a 3-way **LR** oracle
-  (Canonical/LALR/IELR) over the `lr` bootstrap + `calc` corpus only; it has no
-  LL column. LL⇔LR agreement is proven exclusively at the **test** level
-  (`LlSuite`, JVM `ConformanceSuite` — see Phase 1), not as a user-facing
-  conformance report.
+- ✅ **ALL(\*)-native ambiguity diagnostics** (`AtnSim.Ambiguity`,
+  `AtnSim.Cache(track = true)`, in `AtnSim.scala`). Unlike LR, ALL(\*) has no
+  static conflict table to consult — whether a decision is ambiguous can
+  depend on the actual input — so this is necessarily **input-driven**: it
+  observes real parses, not a purely static grammar property the way
+  `explain-conflict`'s LR/GLR analysis is. A tracking cache records every
+  decision where `preferCompleted` had to fall back to declaration order among
+  2+ still-viable alternatives — Gramaire's own idiom for what ANTLR calls a
+  reported ambiguity, matching this plan's original wording ("decision in rule
+  `R` is ambiguous between alts _i_ and _j_"). A tie hit while walking input
+  that ultimately gets **rejected** is not a real grammar ambiguity — just
+  SLL's local view running out of information on invalid input — so
+  ambiguities are staged as pending and only committed once the overall
+  `Ll.recognize`/`Ll.parse` call that produced them is known to have
+  **succeeded** (verified empirically: without this, the clean `lr` and `calc`
+  corpora each fabricated 11 "ambiguities," entirely from reject vectors;
+  committed-only, both report zero, and a dedicated genuinely-ambiguous
+  grammar — two rules deriving the identical string — still reports
+  correctly).
+- ✅ **DFA cache hit-rate profiling** — the same `Cache(track = true)` also
+  counts `hits`/`misses` with zero cost when untracked (`Ll.recognize`'s and
+  `Ll.parse`'s default). This covers the profiling goal without a dedicated
+  `--profile` flag: `gramaire conformance` (below) always reports it, since the
+  corpus it runs is small and fixed and the data is cheap to compute — the
+  **name collision** this plan flagged (`docs/multi-backend-implementation-plan.md`'s
+  unrelated `--profile <lang>` codegen flag) is moot as a result, having never
+  needed a flag name of its own.
+- ✅ **`gramaire conformance` gains an `ll-star` column:** the same `lr`+`calc`
+  vectors also run through `Ll.recognize` with a tracking cache, reporting
+  each grammar's DFA cache hit rate and any confirmed ambiguities, plus a
+  redundant (LlSuite/ConformanceSuite already prove this exhaustively, but
+  conformance is where a silent regression would first surface) check that
+  `Ll.recognize` still agrees with the LR oracle. Both corpora: 0
+  ambiguities, ~64–75% cache hit rate.
+- ⏳ **Still not started:** `gramaire explain-conflict` itself is untouched —
+  it remains the pre-existing LR/GLR conflict classifier (`Glr.explainP`); the
+  new ALL(\*) diagnostic lives in `conformance` instead, since it needs example
+  input `explain-conflict <file>`'s purely-static, single-grammar-argument
+  shape has no way to supply. The Lab's _Grammar analysis_ panel
+  (`site/src/lab/LabIsland.tsx`) still only surfaces the three **LR table
+  methods'** state/conflict counts — no `ll-star`/strategy toggle or
+  ATN-decision surface anywhere in the Lab; this is frontend (TypeScript/
+  Preact) work, a different surface from everything else this phase touched,
+  and remains open.
 
 ## 4. ANTLR ↔ Gramaire converter (not syntax extensions)
 
@@ -582,7 +604,9 @@ Principles kept:
    charsets (previously silent — fixed alongside this audit).
 5. **Phases 4–6**: Phase 4 (adaptive lexer) has a working, tested simulator
    that is gated off the production path; Phases 5's IR/SPI plumbing is done;
-   **Phase 6 (diagnostics/profiling) has not been started at all**.
+   **Phase 6's backend diagnostics/profiling are done** (ambiguity reporting
+   and DFA cache hit-rate, both surfaced from `gramaire conformance`) — its
+   Lab strategy/ATN surface is not.
 
 **Remaining work, roughly in dependency order:**
 
@@ -600,9 +624,12 @@ d. `{%? %}` front-end parsing that populates `rules[].predicate` (ADR D42) and
    upgrades the ANTLR importer from flag-and-drop to a real predicate node;
 e. an ATN-consuming backend (the `IR.atn` substrate already ships; nothing
    reads it at runtime yet);
-f. Phase 6: ALL(\*)-native ambiguity/prediction diagnostics, `--profile`
-   (under a name that doesn't collide with the codegen `--profile <lang>`),
-   and a Lab strategy/ATN surface;
+f. ~~Phase 6: ALL(\*)-native ambiguity/prediction diagnostics, DFA-cache-hit
+   profiling~~ — **done**: both surfaced from `gramaire conformance`
+   (`AtnSim.Ambiguity`, `AtnSim.Cache(track = true)`); no separate `--profile`
+   flag needed in the end. **Still open:** a Lab strategy/ATN surface
+   (frontend work — a different surface from everything else this phase
+   touched);
 g. corpus widening — `json` now runs through `Ll.recognize` (done, see a.);
    `calc-prec`/`ECMA-404` still don't, and no test pins ATN construction
    invariants over a real (not hand-built) grammar (open Phase 0 gap).
