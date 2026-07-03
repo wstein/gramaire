@@ -120,3 +120,35 @@ object Conformance:
   /** The `calc` corpus entry, given its grammar. */
   def calcDescriptor(g: Grammar): Descriptor =
     Descriptor("calc", g, ConformanceLexers.calcLexer, calcVectors)
+
+  /** The `json` corpus: values, nested structures, and syntax errors RFC 8259 rejects (no trailing
+    * comma — `Members`/`Elements` are hand left-recursive, not `Comma<X>` sugar). File-backed
+    * (`examples/json.gram.md`), so only usable from a JVM-only suite; the vectors themselves are
+    * filesystem-free.
+    */
+  val jsonVectors: Vector[TestVector] = Vector(
+    TestVector("a string", "\"hi\"", Outcome.Accept),
+    TestVector("a number", "42", Outcome.Accept),
+    TestVector("a negative fraction with exponent", "-1.5e10", Outcome.Accept),
+    TestVector("true", "true", Outcome.Accept),
+    TestVector("false", "false", Outcome.Accept),
+    TestVector("null", "null", Outcome.Accept),
+    TestVector("an empty object", "{}", Outcome.Accept),
+    TestVector("an empty array", "[]", Outcome.Accept),
+    TestVector("an object with one member", "{\"a\":1}", Outcome.Accept),
+    TestVector("an array of numbers", "[1,2,3]", Outcome.Accept),
+    TestVector(
+      "nested objects and arrays",
+      "{\"a\":[1,2,{\"b\":true,\"c\":[null,\"x\"]}]}",
+      Outcome.Accept
+    ),
+    TestVector("empty input", "", Outcome.Reject),
+    TestVector("an unclosed object", "{", Outcome.Reject),
+    TestVector("an unmatched close bracket", "]", Outcome.Reject),
+    TestVector("a member missing its value", "{\"a\":}", Outcome.Reject),
+    TestVector("a member missing its colon", "{\"a\" 1}", Outcome.Reject),
+    TestVector("a trailing comma in an object", "{\"a\":1,}", Outcome.Reject),
+    TestVector("a trailing comma in an array", "[1,2,]", Outcome.Reject),
+    TestVector("two values with no separator", "1 2", Outcome.Reject),
+    TestVector("an unquoted bareword", "hello", Outcome.Reject)
+  )
