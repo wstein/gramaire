@@ -301,13 +301,15 @@ Principles kept:
 - **Performance in PureScript.** The DFA cache and config-set interning are
   hot; needs `ST`/`HashMap` and care to stay amortized-linear. Benchmark against
   the LR interpreter on `json` early (Phase 1 gate).
-- **Predicate import gating (`multi-backend-implementation-plan.md` ADR D41).**
-  Today's converter flags-and-drops `{ p }?` on import (Phase 3); turning that
-  into a real `{%? %}` node is **blocked on an IR-level effect declaration**
-  (what symbol-table state a predicate reads/writes) before it ships, so
-  ANTLR-imported predicates round-trip through `.g4` export instead of silently
-  vanishing. Do not land predicate carry-through opportunistically alongside
-  unrelated prediction work — the IR shape comes first.
+- **Predicate import gating (`multi-backend-implementation-plan.md` ADR
+  D41/D42).** Today's converter still flags-and-drops `{ p }?` on import
+  (Phase 3). The prerequisite ADR D41 named — an IR-level effect declaration —
+  is now **built**: `rules[].predicate: { reads, writes }` (ADR D42,
+  `ir-schema.json`, `IR.scala`/`IRDecode.scala`/`IRValidate.scala`) ships as
+  inert, additive plumbing that no producer populates yet. Turning the
+  converter's flag-and-drop into a real `{%? %}` node that sets this field is
+  the next concrete step — still **not done**, and still not to be landed
+  opportunistically alongside unrelated prediction work.
 
 ## 7. PureScript realization notes
 
