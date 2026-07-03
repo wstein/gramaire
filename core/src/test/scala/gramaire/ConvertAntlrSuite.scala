@@ -53,6 +53,16 @@ class ConvertAntlrSuite extends munit.FunSuite:
       |ID : [a-z]+ ;
       |""".stripMargin
 
+  // A grammar exercising an ANTLR `#Label` on a NON-final alternative — regression test for
+  // stripCommandsAndLabels dropping the token right after the label along with it, which for
+  // any non-final alternative is the `|` separator, silently merging two alternatives into one.
+  private val labeledG4: String =
+    """grammar Labeled;
+      |r : a #First | b #Second ;
+      |a : 'x' ;
+      |b : 'y' ;
+      |""".stripMargin
+
   private def defsOf(md: String): Vector[TokenDef] =
     ConformanceLexers
       .tokensBlock(md)
@@ -106,6 +116,24 @@ class ConvertAntlrSuite extends munit.FunSuite:
         assert(imp.markdown.contains("ID*"), "the non-greedy suffix renders greedy")
         assert(!imp.markdown.contains("ID*?"), "no non-greedy marker leaks into the output")
         assert(imp.markdown.contains("| ."), "the bare charset in a parser rule widens to `.`")
+  }
+
+  test("convert: a #Label on a non-final alternative doesn't swallow the following `|`") {
+    ConvertAntlr.importAntlr(labeledG4) match
+      case Left(e) => fail(s"labeled.g4 should import: $e")
+      case Right(imp) =>
+        assert(
+          imp.markdown.contains("r\n  : a"),
+          s"expected rule r's first alternative, got:\n${imp.markdown}"
+        )
+        assert(
+          imp.markdown.contains("\n  | b"),
+          s"expected rule r's second alternative preserved by `|`, got:\n${imp.markdown}"
+        )
+        assert(
+          !imp.markdown.contains(": a b"),
+          s"the label must not merge the two alternatives into one, got:\n${imp.markdown}"
+        )
   }
 
   test("convert: an identical lossy pattern in two different rules warns twice, not once") {
