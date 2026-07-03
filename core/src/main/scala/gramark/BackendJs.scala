@@ -10,7 +10,8 @@ object BackendJs:
   val backend: Backend = Backend(
     name = "js",
     capabilities = Vector(Capability.Actions("js")),
-    strategies = Backend.allStrategies,
+    // Folds actions over the LR-shaped CST built from `IR.tables`; reads no ATN.
+    strategies = Vector("lr"),
     emit = ir => Vector(Output(s"${ir.grammar.name}.js", emit(ir.grammar)))
   )
 
