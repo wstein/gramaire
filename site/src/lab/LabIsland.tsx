@@ -546,7 +546,7 @@ export default function LabIsland() {
         <label class="lab__method">
           Engine
           <select
-            title="Which parsing engine builds the input parse (Output/Parse tree/Evaluate). All parses and Grammar analysis always stay LR/GLR-built, whichever Engine you pick."
+            title="Which parsing engine builds the input parse (Output/Parse tree/Evaluate). All parses is always Canonical LR(1)-built and Grammar analysis always shows all three methods — neither depends on which Engine you pick."
             value={strategy.value === "ll-star" ? "ll-star" : method.value}
             onChange={(e) => {
               const v = (e.target as HTMLSelectElement).value;
@@ -576,25 +576,6 @@ export default function LabIsland() {
             </optgroup>
           </select>
         </label>
-        {strategy.value === "ll-star" && (
-          <label
-            class="lab__method lab__method--secondary"
-            title="All parses and Grammar analysis stay LR/GLR-built under ALL(*) — this picks which LR method drives them."
-          >
-            LR method
-            <select
-              value={method.value}
-              onChange={(e) => {
-                method.value = (e.target as HTMLSelectElement).value as Method;
-                scheduleEvaluate();
-              }}
-            >
-              <option value="Canonical">Canonical LR(1)</option>
-              <option value="LALR">LALR(1)</option>
-              <option value="IELR">IELR(1)</option>
-            </select>
-          </label>
-        )}
         {ruleNames.value.length > 0 && (
           <label class="lab__method">
             Start rule
@@ -1243,9 +1224,13 @@ function DiagnosticsList({ diagnostics }: { diagnostics: DiagnosticInfo[] }) {
 
 // forest/analysis stay LR/GLR-driven under BOTH strategies (no ALL(*) equivalent exists for a
 // GLR forest or per-LR-method stats) — this note discloses that so Engine=ALL(*) is never
-// mistaken for having changed what a tab showing it is actually built from.
-function ProvenanceNote({ text }: { text: string }) {
-  if (strategy.value !== "ll-star") return null;
+// mistaken for having changed what a tab showing it is actually built from. Each caller computes
+// its own `show` condition instead of a shared one baked in here, since the two tabs' actual
+// dependence on the Engine picker differs: All parses is always Canonical-built regardless of
+// `method.value` too (not just `strategy`), so it needs disclosing whenever EITHER differs from
+// what's shown — Grammar analysis never varies by `method.value` at all, only `strategy`.
+function ProvenanceNote({ show, text }: { show: boolean; text: string }) {
+  if (!show) return null;
   return <p class="lab__provenance">{text}</p>;
 }
 
@@ -1263,7 +1248,10 @@ function AllParsesPanel() {
   const ambiguous = forest.parses.length > 1;
   return (
     <div>
-      <ProvenanceNote text={`via GLR — ${method.value}`} />
+      <ProvenanceNote
+        show={strategy.value === "ll-star" || method.value !== "Canonical"}
+        text="via GLR — Canonical LR(1), regardless of Engine"
+      />
       <p
         class={`lab__forest-status lab__forest-status--${ambiguous ? "ambiguous" : "ok"}`}
       >
@@ -1336,11 +1324,14 @@ function GrammarAnalysisPanel() {
 
   return (
     <div>
-      {/* Unlike AllParsesPanel's note, this one never names method.value — analysisOf computes
-          every method's stats unconditionally (the table below always shows all three), so nothing
-          on this tab actually varies with the LR method picker; naming one method here would imply
-          a dependency that doesn't exist. */}
-      <ProvenanceNote text="via LR tables — every method's stats shown below, independent of Engine" />
+      {/* Unlike AllParsesPanel's note, this one never names a method — analysisOf computes every
+          method's stats unconditionally (the table below always shows all three), so nothing on
+          this tab varies with the Engine picker's method selection; naming one method here would
+          imply a dependency that doesn't exist. */}
+      <ProvenanceNote
+        show={strategy.value === "ll-star"}
+        text="via LR tables — every method's stats shown below, independent of Engine"
+      />
       {current && (
         <div class="lab__analysis-section">
           <div class="lab__analysis-heading">railroad diagram</div>

@@ -514,10 +514,16 @@ surface is reached by **conversion**, not syntax expansion (§4).
   walk, capped at a step-count limit like the All-parses tab's own cap, and
   say so (`traceTruncated`/`llTraceTruncated`) rather than ending mid-parse
   silently. _All parses_/_Grammar analysis_ stay LR/GLR-built under both
-  strategies — a secondary "LR method" control keeps them changeable once
-  ALL(\*) orphans the merged picker's method value — disclosed by a
-  provenance note (`site/src/lab/LabIsland.tsx`,
-  `lab/src/main/scala/gramark/lab/LabApi.scala`,
+  strategies — All parses is always built from `Method.Canonical` (this
+  codebase's own designated oracle; "what parses exist" is a property of the
+  grammar, not a code-gen method choice) and Grammar analysis already reports
+  every method's stats unconditionally, so neither needs — or has — a
+  method-selecting control of its own; the merged Engine picker's own
+  Canonical/LALR/IELR options are the only method-adjacent control there is,
+  and only matter for `buildOk`/`parse`/`evaluatorJs` under `lr`. A
+  provenance note discloses this whenever the Engine picker's own selection
+  would otherwise suggest All parses/Grammar analysis vary with it
+  (`site/src/lab/LabIsland.tsx`, `lab/src/main/scala/gramark/lab/LabApi.scala`,
   `lab/src/main/scala/gramark/lab/LabProtocol.scala`).
 - ⏳ **Still not started:** `gramark explain-conflict` itself is untouched —
   it remains the pre-existing LR/GLR conflict classifier (`Glr.explainP`); the
@@ -744,7 +750,10 @@ f. ~~Phase 6: ALL(\*)-native ambiguity/prediction diagnostics, DFA-cache-hit
    and generates `evaluatorJs` regardless of LR table build success (it reads
    only `IR.grammar`, no automaton). `forest`/`analysis` stay LR/GLR-driven
    under both strategies — no ALL(\*) equivalent exists for a GLR forest or
-   per-LR-method stats, so `method` still selects what they're built from.
+   per-LR-method stats. `forest` is pinned to `Method.Canonical` unconditionally
+   (not `request.method`) — "what parses exist" is a property of the grammar,
+   not a code-gen method choice — and `analysis` already reports every
+   method's stats at once, so neither actually varies with `method` at all.
 
    The Lab UI's Strategy+Method dropdowns merged into one "Engine" selector
    (ALL(\*) standalone, an "LR / GLR" optgroup with Canonical/LALR/IELR);
