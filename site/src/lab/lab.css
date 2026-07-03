@@ -61,11 +61,23 @@
   font-weight: 600;
   color: var(--fg-muted);
 }
-.lab__status--accepted {
-  color: var(--accent);
-}
 .lab__status--errors {
   color: var(--danger, #b91c1c);
+}
+
+/* A second, independent indicator next to .lab__status: whether the current input matched, not
+   whether the grammar itself is healthy. Only rendered once a build succeeds and an input was
+   given (LabIsland.tsx's parseStatus), so it's never shown fighting for attention with "errors". */
+.lab__parsestatus {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+.lab__parsestatus--accepted {
+  color: var(--accent);
+}
+.lab__parsestatus--rejected {
+  color: var(--warning, #b45309);
 }
 
 .lab__statusbar {
