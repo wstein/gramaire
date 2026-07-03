@@ -194,17 +194,14 @@ object ConvertAntlr:
 
   private def suffixOf(ts: List[Tok]): (Suffix, Boolean, List[Tok]) =
     // `*?`/`+?`/`??` non-greedy -> greedy; report whether one was stripped.
-    def dropNonGreedy(xs: List[Tok]): (Boolean, List[Tok]) = xs match
-      case TQuest :: tail => (true, tail)
-      case _              => (false, xs)
+    def withSuffix(suffix: Suffix, tail: List[Tok]): (Suffix, Boolean, List[Tok]) = tail match
+      case TQuest :: rest => (suffix, true, rest)
+      case _              => (suffix, false, tail)
     ts match
-      case TQuest :: tail =>
-        val (ng, rest) = dropNonGreedy(tail); (SOpt, ng, rest)
-      case TStar :: tail =>
-        val (ng, rest) = dropNonGreedy(tail); (SStar, ng, rest)
-      case TPlus :: tail =>
-        val (ng, rest) = dropNonGreedy(tail); (SPlus, ng, rest)
-      case _ => (SNone, false, ts)
+      case TQuest :: tail => withSuffix(SOpt, tail)
+      case TStar :: tail  => withSuffix(SStar, tail)
+      case TPlus :: tail  => withSuffix(SPlus, tail)
+      case _              => (SNone, false, ts)
 
   private def atomFrom(head: Tok, tail: List[Tok]): Option[(Atom, List[Tok])] = head match
     case TId(name) =>
@@ -245,7 +242,7 @@ object ConvertAntlr:
   private def stripCommandsAndLabels(ts0: List[Tok]): (List[Tok], Boolean) =
     def go(acc: List[Tok], skip: Boolean, ts: List[Tok]): (List[Tok], Boolean) = ts match
       case Nil               => (acc, skip)
-      case TPound(_) :: tail => go(acc, skip, tail.drop(1))
+      case TPound(_) :: tail => go(acc, skip, tail)
       case TArrow :: tail =>
         val (init, rest) = tail.span(_ != TBar)
         go(acc, skip || init.contains(TId("skip")), rest)
@@ -317,6 +314,10 @@ object ConvertAntlr:
 
   private def shorten(a: String): String = if a.length > 20 then a.take(20) + "…" else a
 
+  // A bare character set in a parser rule has no Core home, so `renderAtom` widens it to
+  // this — shared with the warning text below so the two can't drift apart.
+  private val widenedParserCharset = "."
+
   // The non-greedy spelling of a suffix (`suffixOf` only sets `nonGreedy` on
   // SOpt/SStar/SPlus, never SNone, so this always has a real suffix to append to).
   private def suffixText(s: Suffix): String = renderSuffix(s) + "?"
@@ -336,7 +337,9 @@ object ConvertAntlr:
           )
         case ANot(inner) => elemWarn(inLexer, ruleName, Elem(inner, SNone))
         case ASet(s) if !inLexer =>
-          Vector(s"widened a character set `[${shorten(s)}]` in parser rule `$ruleName` to `.`")
+          Vector(
+            s"widened a character set `[${shorten(s)}]` in parser rule `$ruleName` to `$widenedParserCharset`"
+          )
         case _ => Vector.empty
       val nonGreedyWarn: Vector[String] =
         if e.nonGreedy then
@@ -403,7 +406,7 @@ object ConvertAntlr:
   private def renderAtom(a: Atom): String = a match
     case ARef(n) => n
     case ALit(s) => "'" + grmkLit(s) + "'"
-    case ASet(_) => "." // a bare set in a parser rule has no Core home; widen to `.`
+    case ASet(_) => widenedParserCharset
     case ADot    => "."
     // `~[set]` would widen to `~.`, but Gramark's own `NotArg` production only accepts
     // `SetItem | '(' SetBody ')'` (an IDENT/literal, never `.`) — `~.` isn't parseable
