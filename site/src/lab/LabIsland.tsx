@@ -9,6 +9,7 @@ import type {
   LrStepInfo,
   Method,
   ProductionInfo,
+  Strategy,
 } from "./protocol";
 import type {
   AnnotatedNode,
@@ -34,13 +35,17 @@ type Tab =
   | "walk"
   | "forest"
   | "lowered"
-  | "analysis";
+  | "analysis"
+  | "atn";
 
 const METHODS = ["Canonical", "LALR", "IELR"] as const;
 
 const grammarSource = signal(DEFAULT_SOURCE);
 const targetInput = signal(DEFAULT_INPUT);
 const method = signal<Method>("Canonical");
+// "lr" (the default) leaves LabResponse.atn null — additive only, never changes buildOk/parse/
+// forest/analysis/evaluatorJs (see LabRequest.strategy's own doc comment in protocol.ts).
+const strategy = signal<Strategy>("lr");
 // null means "no override" — the request omits startRule, so the engine uses the grammar's own
 // natural declaration order (its first rule). Set only by the start-rule picker.
 const startRule = signal<string | null>(null);
@@ -227,6 +232,7 @@ function scheduleEvaluate() {
       input: targetInput.value.length > 0 ? targetInput.value : null,
       method: method.value,
       startRule: startRule.value,
+      strategy: strategy.value,
     };
     const message: WorkerRequestMessage = { id, request };
     ensureWorker().postMessage(message);
@@ -524,6 +530,20 @@ export default function LabIsland() {
             <option value="IELR">IELR(1)</option>
           </select>
         </label>
+        <label class="lab__method">
+          Strategy
+          <select
+            value={strategy.value}
+            onChange={(e) => {
+              strategy.value = (e.target as HTMLSelectElement)
+                .value as Strategy;
+              scheduleEvaluate();
+            }}
+          >
+            <option value="lr">LR / GLR</option>
+            <option value="ll-star">ALL(*) (ll-star)</option>
+          </select>
+        </label>
         {ruleNames.value.length > 0 && (
           <label class="lab__method">
             Start rule
@@ -691,6 +711,7 @@ export default function LabIsland() {
               "forest",
               "lowered",
               "analysis",
+              "atn",
             ] as const
           ).map((tab) => (
             <button
@@ -721,6 +742,7 @@ export default function LabIsland() {
           {activeTab.value === "forest" && <AllParsesPanel />}
           {activeTab.value === "lowered" && <LoweredCorePanel />}
           {activeTab.value === "analysis" && <GrammarAnalysisPanel />}
+          {activeTab.value === "atn" && <AtnDiagnosticsPanel />}
         </div>
       </div>
       <StatusBar />
@@ -808,6 +830,11 @@ function tabLabel(tab: Tab): string {
       return "Lowered Core";
     case "analysis":
       return "Grammar analysis";
+    case "atn":
+      // Just "ATN", not "ATN diagnostics": Playwright's has-text matching is case-insensitive, and
+      // a Diagnostics substring here would collide with lab.spec.ts's "no separate Diagnostics tab"
+      // assertion (Diagnostics was folded into Output — see this file's own Tab doc comment).
+      return "ATN";
   }
 }
 
@@ -1255,6 +1282,81 @@ function GrammarAnalysisPanel() {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+// The ll-star-only diagnostics tab: whether Ll.recognize accepts the target input, the ATN
+// prediction DFA cache's hit rate, and every declaration-order-resolved ambiguity hit along the
+// way — LabResponse.atn, populated only under Strategy "ALL(*) (ll-star)" with input given, and
+// independent of buildOk (a grammar the LR table build rejects can still be worth seeing through
+// ALL(*)'s own lens, same as Forest).
+function AtnDiagnosticsPanel() {
+  if (strategy.value !== "ll-star")
+    return (
+      <p class="lab__empty">
+        Switch Strategy to "ALL(*) (ll-star)" above to see ATN diagnostics.
+      </p>
+    );
+
+  const d = response.value?.atn;
+  if (!d)
+    return (
+      <p class="lab__empty">
+        No ATN diagnostics — enter target input to run Ll.recognize.
+      </p>
+    );
+
+  const total = d.hits + d.misses;
+  const hitPct = total > 0 ? Math.round((d.hits / total) * 100) : 0;
+
+  return (
+    <div>
+      <div class="lab__analysis-section">
+        <div class="lab__analysis-heading">Ll.recognize</div>
+        <p>
+          <span
+            class={`lab__parsestatus lab__parsestatus--${d.accepted ? "accepted" : "rejected"}`}
+          >
+            {d.accepted ? "accepted" : "rejected"}
+          </span>{" "}
+          — {d.hits}/{total} DFA cache hits ({hitPct}%)
+        </p>
+      </div>
+
+      <div class="lab__analysis-section">
+        <div class="lab__analysis-heading">ambiguities</div>
+        {d.ambiguities.length === 0 ? (
+          <p class="lab__empty">
+            No ambiguities — every decision resolved uniquely.
+          </p>
+        ) : (
+          <table class="lab__table">
+            <thead>
+              <tr>
+                <th>rule</th>
+                <th>decision</th>
+                <th>pos</th>
+                <th>tied alts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {d.ambiguities.map((a, i) => (
+                <tr
+                  key={i}
+                  onMouseEnter={() => (hoverRule.value = a.rule)}
+                  onMouseLeave={() => (hoverRule.value = null)}
+                >
+                  <td class="lab__mono">{a.rule}</td>
+                  <td class="lab__mono">{a.decision}</td>
+                  <td class="lab__mono">{a.pos}</td>
+                  <td class="lab__mono">{a.alts.join(", ")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
