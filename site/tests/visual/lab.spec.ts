@@ -159,8 +159,8 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
 
   await page.click('button[role="tab"]:has-text("LR walk")');
   await expect(page.locator(".lab__walk-counter")).toHaveText("step 1 / 14");
-  await expect(page.locator(".lab__walk-tree .lab__tree")).toContainText(
-    "Expr",
+  await expect(page.locator(".lab__walk-trace")).toContainText(
+    "shift `NUMBER`",
   );
   await expect(page.locator(".lab__walk-action")).toHaveCount(0);
   await expect(page.locator(".lab__walk-history")).toHaveCount(0);
@@ -803,7 +803,7 @@ test("hovering/clicking a nonterminal box in the railroad diagram cross-links th
   );
 });
 
-test("the LR walk tab splits parse tree from controls, stack, and remaining input", async ({
+test("the LR walk tab splits parse trace from controls, stack, and remaining input", async ({
   page,
 }) => {
   await page.goto("/lab/");
@@ -815,10 +815,11 @@ test("the LR walk tab splits parse tree from controls, stack, and remaining inpu
     timeout: 5000,
   });
   await page.click('button[role="tab"]:has-text("LR walk")');
-  await page.waitForSelector(".lab__walk-tree .lab__tree");
+  await page.waitForSelector(".lab__walk-trace .lab__table");
 
   await expect(page.locator(".lab__walk")).toBeVisible();
-  await expect(page.locator(".lab__walk-tree")).toContainText("parse tree");
+  await expect(page.locator(".lab__walk-trace")).toContainText("parse trace");
+  await expect(page.locator(".lab__walk-trace")).toContainText("accept");
   await expect(page.locator(".lab__walk-state")).toContainText("parse stack");
   await expect(page.locator(".lab__walk-state")).toContainText(
     "remaining input",
@@ -833,8 +834,9 @@ test("the LR walk tab splits parse tree from controls, stack, and remaining inpu
   const controls = page.locator(".lab__walk-controls");
   const panes = page.locator(".lab__walk-panes");
   const controlsTopBefore = (await controls.boundingBox())?.y;
-  const treeWidthBefore = (await page.locator(".lab__walk-tree").boundingBox())
-    ?.width;
+  const traceWidthBefore = (
+    await page.locator(".lab__walk-trace").boundingBox()
+  )?.width;
   const splitterBox = await page.locator(".lab__walk-splitter").boundingBox();
   if (!splitterBox) throw new Error("expected LR walk splitter to be visible");
 
@@ -848,11 +850,11 @@ test("the LR walk tab splits parse tree from controls, stack, and remaining inpu
     splitterBox.y + splitterBox.height / 2,
   );
   await page.mouse.up();
-  const treeWidthAfter = (await page.locator(".lab__walk-tree").boundingBox())
+  const traceWidthAfter = (await page.locator(".lab__walk-trace").boundingBox())
     ?.width;
-  expect(treeWidthAfter).toBeGreaterThan(treeWidthBefore ?? 0);
+  expect(traceWidthAfter).toBeGreaterThan(traceWidthBefore ?? 0);
 
-  await page.locator(".lab__walk-tree").evaluate((el) => {
+  await page.locator(".lab__walk-trace").evaluate((el) => {
     el.scrollTop = el.scrollHeight;
   });
 
@@ -862,7 +864,7 @@ test("the LR walk tab splits parse tree from controls, stack, and remaining inpu
   expect(controlsTopAfter).toBe(controlsTopBefore);
 
   const scrollTop = await page
-    .locator(".lab__walk-tree")
+    .locator(".lab__walk-trace")
     .evaluate((el) => el.scrollTop);
   expect(scrollTop).toBeGreaterThan(0);
 });
