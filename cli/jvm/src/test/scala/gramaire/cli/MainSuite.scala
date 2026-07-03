@@ -49,3 +49,10 @@ class MainSuite extends munit.FunSuite:
       )
     )
   }
+
+  test("isNativeGram: a bare .gram is native, a .gram.md never is") {
+    assert(Main.isNativeGram("examples/lua.gram"))
+    assert(Main.isNativeGram("lua.gram"))
+    assert(!Main.isNativeGram("examples/lua.gram.md"))
+    assert(!Main.isNativeGram("examples/lua.gram.lock"))
+  }

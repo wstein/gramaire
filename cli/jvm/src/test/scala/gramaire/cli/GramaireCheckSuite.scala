@@ -337,3 +337,85 @@ class GramaireCheckSuite extends munit.FunSuite:
     assertEquals(GramaireCheck.longestBacktickRun("a ``` b ```` c"), 4)
     assertEquals(GramaireCheck.lockPathFor("examples/calc.gram.md"), "examples/calc.gram.lock")
   }
+
+  // ---- Native `.gram` format (ADR D36 extended to first-class — no headings, no fences, no
+  // diagrams/tables; a much lighter contract than the Markdown one) --------------------------
+
+  private val nativeFixture =
+    """/**
+      | * Throwaway
+      | *
+      | * A tiny fixture, not real prose.
+      | */
+      |
+      |%name Throwaway
+      |
+      |NUMBER : /[0-9]+/
+      |
+      |/// A value is just a number.
+      |Value
+      |  : NUMBER
+      |""".stripMargin
+
+  test("lockPathForNative: distinct suffix, no collision with a .gram.md sibling's lock") {
+    assertEquals(GramaireCheck.lockPathForNative("examples/lua.gram"), "examples/lua.gram.native-gram.lock")
+    assert(GramaireCheck.lockPathForNative("examples/lua.gram") != GramaireCheck.lockPathFor("examples/lua.gram.md"))
+  }
+
+  test("checkNativeStructure: a canonical fixture passes cleanly") {
+    assertEquals(GramaireCheck.checkNativeStructure(nativeFixture), Vector.empty)
+  }
+
+  test("checkNativeStructure: a missing %name directive fails") {
+    val noName = nativeFixture.replace("%name Throwaway\n\n", "")
+    assert(GramaireCheck.checkNativeStructure(noName).exists(_.contains("missing required `%name`")))
+  }
+
+  test("checkNativeStructure: malformed grammar notation fails to parse") {
+    val broken = "%name Broken\n\nValue\n  : | |\n"
+    assert(GramaireCheck.checkNativeStructure(broken).exists(_.contains("does not parse")))
+  }
+
+  test("checkNativeStructure: trailing whitespace and a missing final newline are both flagged") {
+    val messy = nativeFixture.stripSuffix("\n") + " \n  : NUMBER"
+    val fails = GramaireCheck.checkNativeStructure(messy)
+    assert(fails.exists(_.contains("trailing whitespace")), fails)
+    assert(fails.exists(_.contains("does not end with a newline")), fails)
+  }
+
+  test("checkNativeDrift: a missing lock file is reported, not silently skipped") {
+    val fails = GramaireCheck.checkNativeDrift("does-not-exist.gram", nativeFixture)
+    assert(fails.exists(_.contains("no lock file")))
+  }
+
+  test("fmtNative: writes a lock, is idempotent, and survives its own check") {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-native")
+    val file = dir.resolve("sample.gram")
+    java.nio.file.Files.writeString(file, nativeFixture)
+
+    val msg = GramaireCheck.fmtNative(file.toString, nativeFixture)
+    assert(msg.contains("(native)"), msg)
+    val written = java.nio.file.Files.readString(file)
+    assertEquals(written, nativeFixture, "already-canonical input is untouched byte-for-byte")
+
+    val lockPath = java.nio.file.Path.of(GramaireCheck.lockPathForNative(file.toString))
+    assert(java.nio.file.Files.exists(lockPath))
+    assertEquals(GramaireCheck.checkNativeStructure(written), Vector.empty)
+    assertEquals(GramaireCheck.checkNativeDrift(file.toString, written), Vector.empty)
+
+    // Idempotence: formatting the already-formatted file again changes nothing.
+    val _ = GramaireCheck.fmtNative(file.toString, written)
+    assertEquals(java.nio.file.Files.readString(file), written)
+  }
+
+  test("fmtNative: normalizes trailing whitespace and a missing/doubled final newline") {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-native-messy")
+    val file = dir.resolve("sample.gram")
+    val messy = "%name Messy   \n\nValue\n  : NUMBER\n\n\n"
+    java.nio.file.Files.writeString(file, messy)
+
+    val _ = GramaireCheck.fmtNative(file.toString, messy)
+    val written = java.nio.file.Files.readString(file)
+    assertEquals(written, "%name Messy\n\nValue\n  : NUMBER\n")
+    assertEquals(GramaireCheck.checkNativeStructure(written), Vector.empty)
+  }

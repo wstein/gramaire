@@ -193,6 +193,9 @@ object Main:
   private def runStrip(args: Vector[String]): Unit =
     args.headOption match
       case None => die("strip: no grammar file given")
+      case Some(file) if isNativeGram(file) =>
+        die(s"strip: $file is already native `.gram` (first-class, not a projection of anything " +
+          "to strip) — use `gramaire fmt` on it directly")
       case Some(file) =>
         readFile(file) match
           case Left(err) => die(s"strip: cannot read $file: $err")
@@ -240,6 +243,12 @@ object Main:
 
   // `gramaire check <file.gram.md>`: the structure + drift gates (see
   // `GramaireCheck`; the lint gate lives in a separate `docs-lint` CI step).
+  // A `.gram.md` file is checked/formatted against the Markdown structure+drift contract;
+  // a bare `.gram` file (first-class since ADR D36 was extended — see GramaireCheck.scala's
+  // "Native `.gram` format" section) against its own, much lighter native contract. The suffix
+  // check is unambiguous: "foo.gram.md" never ends with ".gram" (it ends with ".md").
+  def isNativeGram(file: String): Boolean = file.endsWith(".gram")
+
   private def runCheck(args: Vector[String]): Unit =
     args.headOption match
       case None => die("check: no grammar file given")
@@ -247,11 +256,18 @@ object Main:
         readFile(file) match
           case Left(err) => die(s"check: cannot read $file: $err")
           case Right(src) =>
-            val doc = GramaireCheck.parse(src)
-            val gates = Vector(
-              GramaireCheck.GateResult("structure", GramaireCheck.checkStructure(doc)),
-              GramaireCheck.GateResult("drift", GramaireCheck.checkDrift(file, doc))
-            )
+            val gates =
+              if isNativeGram(file) then
+                Vector(
+                  GramaireCheck.GateResult("structure", GramaireCheck.checkNativeStructure(src)),
+                  GramaireCheck.GateResult("drift", GramaireCheck.checkNativeDrift(file, src))
+                )
+              else
+                val doc = GramaireCheck.parse(src)
+                Vector(
+                  GramaireCheck.GateResult("structure", GramaireCheck.checkStructure(doc)),
+                  GramaireCheck.GateResult("drift", GramaireCheck.checkDrift(file, doc))
+                )
             val base = Path.of(file).getFileName
             println(s"gramaire --check $base\n")
             var failed = false
@@ -286,7 +302,8 @@ object Main:
         readFile(f) match
           case Left(err) => die(s"fmt: cannot read $f: $err")
           case Right(src) =>
-            println(GramaireCheck.fmt(f, GramaireCheck.parse(src), mode, layout))
+            if isNativeGram(f) then println(GramaireCheck.fmtNative(f, src))
+            else println(GramaireCheck.fmt(f, GramaireCheck.parse(src), mode, layout))
 
   // `gramaire codegen-regen`: regenerate `Generated/LrReduce.scala` from
   // the bootstrap grammar (mirrors `Gramaire.Codegen.Main`, the prior
@@ -334,28 +351,33 @@ object Main:
 
   private def usage(): Unit =
     Vector(
-      "gramaire — generate parsers and artifacts from .gram.md grammars",
+      "gramaire — generate parsers and artifacts from .gram.md/.gram grammars",
       "",
       "Usage:",
-      "  gramaire emit <file.gram.md> [--backend <name>] [--out <dir>] [--strategy <name>]",
+      "  gramaire emit <file.gram.md|file.gram> [--backend <name>] [--out <dir>] [--strategy <name>]",
       "  gramaire import <file.g4> [--out <dir>]",
       "  gramaire strip <file.gram.md>",
       "  gramaire conformance",
-      "  gramaire explain-conflict <file.gram.md>",
-      "  gramaire check <file.gram.md>",
-      "  gramaire fmt [--diagrams=sidecar|mermaid] [--inline-source] <file.gram.md>",
+      "  gramaire explain-conflict <file.gram.md|file.gram>",
+      "  gramaire check <file.gram.md|file.gram>",
+      "  gramaire fmt [--diagrams=sidecar|mermaid] [--inline-source] <file.gram.md|file.gram>",
       "  gramaire codegen-regen",
       "",
       s"Backends: $backendNames",
       "",
       "With no --out, the artifact is written to stdout.",
       "import converts an ANTLR4 .g4 grammar to a .gram.md.",
-      "strip writes the raw .gram projection (grammar + docs as comments).",
+      "strip writes the raw .gram projection of a .gram.md (grammar + docs as comments) —",
+      "  a one-way export; run it against a .gram.md, not against an already-native .gram file.",
       "conformance runs the differential oracle over the built-in corpora.",
       "explain-conflict classifies conflicts: LALR artifact, resolved by declaration, or genuine.",
-      "check verifies the structure + drift gates (see docs-lint for the markdown-lint gate).",
-      "fmt regenerates the FIRST/FOLLOW table, railroad diagrams, and the .gram.lock sidecar.",
-      "By default (sidecar mode only), fmt hoists each rule's diagram above its fence and tucks",
-      "  the fence behind a <details><summary>Source</summary> disclosure; --inline-source opts",
-      "  out, keeping fences fully visible (not sticky — a plain re-run re-collapses the file)."
+      "check verifies the structure + drift gates (see docs-lint for the markdown-lint gate on",
+      "  .gram.md; a bare .gram has its own, much lighter native contract — no Markdown to lint).",
+      "fmt on a .gram.md regenerates the FIRST/FOLLOW table, railroad diagrams, and the lock",
+      "  sidecar. By default (sidecar mode only), it hoists each rule's diagram above its fence",
+      "  and tucks the fence behind a <details><summary>Source</summary> disclosure;",
+      "  --inline-source opts out, keeping fences fully visible (not sticky — a plain re-run",
+      "  re-collapses the file). fmt on a bare .gram normalizes whitespace and writes a",
+      "  <file>.native-gram.lock sidecar — no diagrams/tables, since a comment-only format has",
+      "  no Markdown to embed them in."
     ).foreach(println)
