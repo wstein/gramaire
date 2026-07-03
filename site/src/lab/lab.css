@@ -270,6 +270,14 @@
   font-weight: 600;
   background: var(--bg-1);
 }
+.lab__tab:disabled {
+  cursor: not-allowed;
+  color: var(--fg-muted);
+  opacity: 0.4;
+}
+.lab__tab:disabled:hover {
+  color: var(--fg-muted);
+}
 .lab__panel {
   flex: 1 1 auto;
   overflow: auto;
