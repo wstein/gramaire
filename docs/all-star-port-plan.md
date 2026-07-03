@@ -697,9 +697,23 @@ f. ~~Phase 6: ALL(\*)-native ambiguity/prediction diagnostics, DFA-cache-hit
    flag needed in the end. **Still open:** a Lab strategy/ATN surface
    (frontend work — a different surface from everything else this phase
    touched);
-g. corpus widening — `json` now runs through `Ll.recognize` (done, see a.);
+g. ~~corpus widening — `json` now runs through `Ll.recognize` (done, see a.);
    `calc-prec`/`ECMA-404` still don't, and no test pins ATN construction
-   invariants over a real (not hand-built) grammar (open Phase 0 gap).
+   invariants over a real (not hand-built) grammar (open Phase 0 gap)~~ —
+   **done**: `examples/ECMA-404.grmk.md` now runs through `Ll.recognize`,
+   Cst-parity, and the precedence-free LR differential oracle (its lexis
+   matches `json`'s, so it reuses `jsonVectors`); `calc-prec` now runs
+   through `Ll.recognize` too (`Conformance.calcPrecVectors`) — deliberately
+   _not_ through the precedence-free LR oracle, since its `expr` rule is
+   ambiguous by design without `## Precedence` (ADR D37) and would only
+   report spurious conflicts there; `gramark conformance` reports DFA
+   cache hit-rate/ambiguities for all five corpora now (lr, calc, json,
+   ECMA-404, calc-prec). `AtnInvariantSuite` (new, JVM-only) closes the
+   Phase 0 gap: `Atn.wellFormed` plus a per-rule start-reaches-stop check,
+   run over calc/json/ECMA-404/calc-prec's real, `Lr.parse`d grammars
+   through the same desugar → fold-left-recursion → `AtnBuild` pipeline
+   `IR.withStrategy("ll-star", …)` uses — not just `AtnSuite`'s hand-built
+   two-rule fixture.
 
 Land each phase green across `make test` (sbt, JVM + Scala.js), `make lint`,
 and the site, with a conformance column proving the new engine agrees with the
