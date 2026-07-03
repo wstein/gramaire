@@ -620,7 +620,7 @@ object IR:
         case Right(dg) =>
           ir.copy(
             strategy = "ll-star",
-            atn = Some(irAtnOf(AtnBuild.buildAtn(LeftRec.eliminate(dg))))
+            atn = Some(irAtnOf(AtnBuild.buildAtn(LeftRec.eliminate(dg)._1)))
           )
         case Left(_) => ir.copy(strategy = "ll-star")
     case other => ir.copy(strategy = other)
