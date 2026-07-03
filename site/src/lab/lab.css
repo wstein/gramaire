@@ -122,7 +122,7 @@
   flex-direction: column;
   min-width: 0;
 }
-/* The grammar pane's flex-basis is set inline from the splitPercent signal; the input pane
+/* The grammar pane's flex-basis is set inline from the grammarPanePercent signal; the input pane
    always fills whatever's left, so the two never need to sum to exactly 100% by hand. */
 .lab__pane--fill {
   flex: 1 1 auto;
@@ -239,8 +239,8 @@
 }
 
 .lab__drawer {
-  /* flex-basis set inline from the drawerHeight signal (px, draggable via .lab__hsplitter) —
-     same pattern as .lab__pane--grammar's splitPercent. */
+  /* flex-basis set inline from the drawerPanePercent signal (draggable via .lab__hsplitter) —
+     same percentage-based pattern as .lab__pane--grammar's grammarPanePercent. */
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -727,7 +727,7 @@
     flex-direction: column;
   }
   /* Stacked panes have no meaningful horizontal split to drag; each pane just takes its
-     natural height instead (the inline flex-basis from splitPercent only applies to the
+     natural height instead (the inline flex-basis from grammarPanePercent only applies to the
      horizontal desktop layout). */
   .lab__splitter {
     display: none;
