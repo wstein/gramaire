@@ -182,6 +182,7 @@ function workerErrorResponse(message: string): LabResponse {
     forest: null,
     analysis: null,
     evaluatorJs: null,
+    atn: null,
   };
 }
 
@@ -517,20 +518,6 @@ export default function LabIsland() {
           </select>
         </label>
         <label class="lab__method">
-          Method
-          <select
-            value={method.value}
-            onChange={(e) => {
-              method.value = (e.target as HTMLSelectElement).value as Method;
-              scheduleEvaluate();
-            }}
-          >
-            <option value="Canonical">Canonical LR(1)</option>
-            <option value="LALR">LALR(1)</option>
-            <option value="IELR">IELR(1)</option>
-          </select>
-        </label>
-        <label class="lab__method">
           Strategy
           <select
             value={strategy.value}
@@ -542,6 +529,20 @@ export default function LabIsland() {
           >
             <option value="lr">LR / GLR</option>
             <option value="ll-star">ALL(*) (ll-star)</option>
+          </select>
+        </label>
+        <label class="lab__method">
+          Method
+          <select
+            value={method.value}
+            onChange={(e) => {
+              method.value = (e.target as HTMLSelectElement).value as Method;
+              scheduleEvaluate();
+            }}
+          >
+            <option value="Canonical">Canonical LR(1)</option>
+            <option value="LALR">LALR(1)</option>
+            <option value="IELR">IELR(1)</option>
           </select>
         </label>
         {ruleNames.value.length > 0 && (
@@ -703,7 +704,6 @@ export default function LabIsland() {
           {(
             [
               "result",
-              "evaluate",
               "tokens",
               "tree",
               "trace",
@@ -711,20 +711,26 @@ export default function LabIsland() {
               "forest",
               "lowered",
               "analysis",
+              "evaluate",
               "atn",
             ] as const
-          ).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              role="tab"
-              aria-selected={activeTab.value === tab}
-              class="lab__tab"
-              onClick={() => (activeTab.value = tab)}
-            >
-              {tabLabel(tab)}
-            </button>
-          ))}
+          ).map((tab) => {
+            const reason = tabDisabledReason(tab, response.value);
+            return (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={activeTab.value === tab}
+                disabled={reason !== undefined}
+                title={reason}
+                class="lab__tab"
+                onClick={() => (activeTab.value = tab)}
+              >
+                {tabLabel(tab)}
+              </button>
+            );
+          })}
         </div>
         <div
           class={
@@ -835,6 +841,51 @@ function tabLabel(tab: Tab): string {
       // a Diagnostics substring here would collide with lab.spec.ts's "no separate Diagnostics tab"
       // assertion (Diagnostics was folded into Output — see this file's own Tab doc comment).
       return "ATN";
+  }
+}
+
+// Whether a tab has nothing meaningful to show yet, and why — surfaced as both a disabled button
+// (no dead-end click into an empty panel) and a native title tooltip, so the reason is still
+// discoverable without a click, unlike each panel's own internal empty-state message.
+function tabDisabledReason(
+  tab: Tab,
+  r: LabResponse | null,
+): string | undefined {
+  switch (tab) {
+    case "result":
+      return undefined;
+    case "tokens":
+      return r?.parse ? undefined : "Enter target input to see its tokens.";
+    case "tree":
+      return r?.parse?.cst
+        ? undefined
+        : "Enter input the grammar accepts to see its parse tree.";
+    case "trace":
+      return r?.parse?.trace
+        ? undefined
+        : "Enter input the grammar accepts to see its parse trace.";
+    case "walk":
+      return r?.parse?.trace
+        ? undefined
+        : "Enter input the grammar accepts to see the LR walk.";
+    case "forest":
+      return r?.forest ? undefined : "Enter target input to see All parses.";
+    case "lowered":
+      return r?.productions
+        ? undefined
+        : "The grammar notation must parse to see Lowered Core.";
+    case "analysis":
+      return r?.analysis
+        ? undefined
+        : "The grammar notation must parse to see Grammar analysis.";
+    case "evaluate":
+      return r?.evaluatorJs
+        ? undefined
+        : "The grammar must build with no conflicts to run Evaluate.";
+    case "atn":
+      return strategy.value === "ll-star"
+        ? undefined
+        : 'Switch Strategy to "ALL(*) (ll-star)" above to see ATN diagnostics.';
   }
 }
 

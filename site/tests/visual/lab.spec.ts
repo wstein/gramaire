@@ -166,12 +166,15 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await expect(page.locator(".lab__walk-counter")).toHaveText("step 14 / 14");
   await expect(page.locator(".lab__walk-action")).toContainText("accept");
 
-  // ATN diagnostics is additive: Strategy defaults to LR, so the tab starts as an empty state
-  // prompting the user to switch, with no atn data requested at all.
-  await page.click('button[role="tab"]:has-text("ATN")');
-  await expect(page.locator(".lab__empty")).toContainText("Switch Strategy");
+  // ATN diagnostics is additive: Strategy defaults to LR, so the tab starts disabled, with a
+  // title tooltip explaining why — no dead-end click into an empty panel.
+  const atnTab = page.locator('button[role="tab"]:has-text("ATN")');
+  await expect(atnTab).toBeDisabled();
+  await expect(atnTab).toHaveAttribute("title", /Switch Strategy/);
 
   await page.getByLabel("Strategy").selectOption("ll-star");
+  await expect(atnTab).toBeEnabled();
+  await atnTab.click();
   await expect(page.locator(".lab__panel")).toContainText("Ll.recognize", {
     timeout: 5000,
   });
@@ -184,6 +187,52 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await expect(page.locator(".lab__panel")).toContainText(
     "No ambiguities — every decision resolved uniquely.",
   );
+});
+
+test("tabs with nothing to show are disabled, with a tooltip explaining why", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  // With input given and a clean build, every input/build-dependent tab is enabled.
+  for (const label of [
+    "Tokens",
+    "Parse tree",
+    "Parse trace",
+    "LR walk",
+    "All parses",
+    "Lowered Core",
+    "Grammar analysis",
+    "Evaluate",
+  ]) {
+    await expect(
+      page.locator(`button[role="tab"]:has-text("${label}")`),
+    ).toBeEnabled();
+  }
+
+  // Clearing the input drops parse/forest, disabling the tabs that depend on it — Lowered
+  // Core/Grammar analysis/Evaluate only need the grammar notation to parse, not an input, so
+  // they stay enabled.
+  await page.locator(".lab__pane--fill .lab__editor").fill("");
+  await expect(page.locator(".lab__statusbar")).toContainText("ok", {
+    timeout: 5000,
+  });
+  for (const label of ["Tokens", "Parse tree", "Parse trace", "LR walk"]) {
+    const tab = page.locator(`button[role="tab"]:has-text("${label}")`);
+    await expect(tab).toBeDisabled();
+    await expect(tab).toHaveAttribute("title", /Enter (target )?input/);
+  }
+  const forestTab = page.locator('button[role="tab"]:has-text("All parses")');
+  await expect(forestTab).toBeDisabled();
+  await expect(forestTab).toHaveAttribute("title", /Enter target input/);
+  for (const label of ["Lowered Core", "Grammar analysis", "Evaluate"]) {
+    await expect(
+      page.locator(`button[role="tab"]:has-text("${label}")`),
+    ).toBeEnabled();
+  }
 });
 
 test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", async ({
