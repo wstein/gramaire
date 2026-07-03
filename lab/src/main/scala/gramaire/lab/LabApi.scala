@@ -64,8 +64,12 @@ object LabApi:
   // Factored out so LabApiSuite can pin the cap against a synthetic vector instead of forcing a
   // real multi-thousand-step parse through the engine — `Parser.walk`'s O(n) per-step stack/
   // remaining-input snapshots and `Ll.walkSyms`'s per-symbol recursion both have their own,
-  // pre-existing memory/stack-depth costs on a parse that long, unrelated to this cap.
-  private[lab] def capSteps[A](steps: Vector[A]): Vector[A] = steps.take(traceCap)
+  // pre-existing memory/stack-depth costs on a parse that long, unrelated to this cap. Returns
+  // whether truncation actually happened (mirrors `ForestResult.truncated`) so a capped walk can
+  // say so, instead of `ParseResult.trace`/`llTrace` silently ending mid-parse with no indication
+  // anything was cut.
+  private[lab] def capSteps[A](steps: Vector[A]): (Vector[A], Boolean) =
+    (steps.take(traceCap), steps.length > traceCap)
 
   // The Lab has no real "file" for the grammar source (a browser textarea) or the target input —
   // generic placeholder source names for `Diagnostic.render`'s `-->` line, distinguishing the two
@@ -484,14 +488,14 @@ object LabApi:
           // walk and run are differentially tested to agree (core/src/test/scala/gramaire/
           // ParserSuite.scala) — `.toOption` here is defensive, not expected to ever discard a
           // Left in practice, since run() just accepted the exact same table/tokens.
-          val trace =
-            Parser.walk(table, plainTokens).toOption.map(steps => capSteps(steps).map(toLrStepInfo))
+          val capped = Parser.walk(table, plainTokens).toOption.map(steps => capSteps(steps))
           ParseResult(
             accepted = true,
             message = None,
             labTokens,
             cst = Some(Cst.toJson(cst)),
-            trace
+            trace = capped.map { case (steps, _) => steps.map(toLrStepInfo) },
+            traceTruncated = capped.exists { case (_, truncated) => truncated }
           )
 
   // The `ll-star` strategy's counterpart to `parseInput`: `Ll.parseTraced` instead of
@@ -535,13 +539,15 @@ object LabApi:
             cst = None
           )
         case Right((cst, steps)) =>
+          val (capped, truncated) = capSteps(steps)
           ParseResult(
             accepted = true,
             message = None,
             labTokens,
             cst = Some(Cst.toJson(cst)),
             trace = None,
-            llTrace = Some(capSteps(steps).map(toLlStepInfo))
+            llTrace = Some(capped.map(toLlStepInfo)),
+            llTraceTruncated = truncated
           )
 
   // The ll-star analogue of `diagnosticForInputParseError`: `LlError.expected == Vector("$")`

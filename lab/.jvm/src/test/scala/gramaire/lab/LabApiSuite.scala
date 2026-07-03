@@ -300,6 +300,7 @@ class LabApiSuite extends munit.FunSuite:
       case None => fail("expected a parse result")
       case Some(p) =>
         assert(p.accepted)
+        assert(!p.traceTruncated, "a 14-step trace is nowhere near the cap")
         p.trace match
           case None => fail("expected a trace for an accepted parse")
           case Some(steps) =>
@@ -542,6 +543,7 @@ class LabApiSuite extends munit.FunSuite:
       case Some(p) =>
         assert(p.accepted)
         assertEquals(p.trace, None, "the LR trace field is lr-strategy-only")
+        assert(!p.llTraceTruncated, "a short trace is nowhere near the cap")
         p.llTrace match
           case None => fail("expected an llTrace for an accepted ll-star parse")
           case Some(steps) =>
@@ -582,16 +584,26 @@ class LabApiSuite extends munit.FunSuite:
   // `Parser.walk`'s O(n) per-step stack/remaining-input snapshots or `Ll.walkSyms`'s per-symbol
   // recursion, both of which have their own pre-existing memory/stack-depth ceilings on a parse
   // that long — unrelated to, and far more expensive than, the cap itself.
-  test("LabApi.capSteps truncates a step vector at the trace/llTrace size limit") {
+  test("LabApi.capSteps truncates a step vector at the trace/llTrace size limit, and says so") {
     val huge = Vector.fill(LabApi.traceCap * 2)(())
-    val capped = LabApi.capSteps(huge)
+    val (capped, truncated) = LabApi.capSteps(huge)
     assertEquals(capped.length, LabApi.traceCap)
     assertEquals(capped, Vector.fill(LabApi.traceCap)(()))
+    assert(truncated, "expected truncated=true when the input exceeded the cap")
   }
 
-  test("LabApi.capSteps is a no-op under the cap") {
+  test("LabApi.capSteps is a no-op under the cap, and says so") {
     val small = Vector(1, 2, 3)
-    assertEquals(LabApi.capSteps(small), small)
+    val (capped, truncated) = LabApi.capSteps(small)
+    assertEquals(capped, small)
+    assert(!truncated, "expected truncated=false when the input was already under the cap")
+  }
+
+  test("LabApi.capSteps at exactly the cap is not truncated") {
+    val exact = Vector.fill(LabApi.traceCap)(())
+    val (capped, truncated) = LabApi.capSteps(exact)
+    assertEquals(capped, exact)
+    assert(!truncated, "exactly `traceCap` steps is the full walk, not a truncation")
   }
 
   test("LabResponse.serialize is valid, canonical JSON (parse . stringify is the identity)") {

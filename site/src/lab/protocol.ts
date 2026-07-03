@@ -156,13 +156,21 @@ export interface ParseResult {
   tokens: LabToken[];
   cst: CstNode | null;
   /**
-   * The Parse trace / LR walk tabs' data under strategy "lr": the full shift/reduce/accept sequence, one entry per step. Present only when accepted.
+   * The Parse trace / LR walk tabs' data under strategy "lr": the shift/reduce/accept sequence, one entry per step, capped at LabApi's traceCap. Present only when accepted.
    */
   trace: LrStepInfo[] | null;
   /**
-   * The Parse trace / LL walk tabs' data under strategy "ll-star": the full predict/match/exitRule/accept sequence, one entry per step. Present only when accepted.
+   * True when the real walk had more steps than `trace` holds (LabApi's traceCap).
+   */
+  traceTruncated: boolean;
+  /**
+   * The Parse trace / LL walk tabs' data under strategy "ll-star": the predict/match/exitRule/accept sequence, one entry per step, capped at LabApi's traceCap. Present only when accepted.
    */
   llTrace: LlStepInfo[] | null;
+  /**
+   * True when the real walk had more steps than `llTrace` holds (LabApi's traceCap).
+   */
+  llTraceTruncated: boolean;
 }
 /**
  * A single lexed token from the Lab's Tokens tab, with its source span (start/end are code-unit offsets into LabRequest.input, [start, end) — matching gramaire.Spanned's own convention).

@@ -341,6 +341,15 @@
   margin: 0 0 10px;
 }
 
+/* ParseTracePanel/WalkPanel's TruncatedNote — shown when LabApi's traceCap cut the walk short, so
+   a trace ending mid-parse reads as "capped here" instead of "the parse only took this many steps". */
+.lab__truncated-note {
+  color: var(--warning, #b45309);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin: 0 0 10px;
+}
+
 .lab__result {
   display: flex;
   align-items: center;

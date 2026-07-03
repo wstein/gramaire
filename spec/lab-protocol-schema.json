@@ -258,7 +258,16 @@
       "title": "ParseResult",
       "description": "The outcome of parsing LabRequest.input against the compiled grammar. `tokens` is populated even on a reject, so the Tokens tab still has something to show; `cst` is null unless `accepted`. `trace` (strategy \"lr\") and `llTrace` (strategy \"ll-star\") are mutually exclusive — exactly one of the two is ever non-null, matching LabRequest.strategy — and both share `cst`'s accepted-only lifecycle.",
       "type": "object",
-      "required": ["accepted", "message", "tokens", "cst", "trace", "llTrace"],
+      "required": [
+        "accepted",
+        "message",
+        "tokens",
+        "cst",
+        "trace",
+        "traceTruncated",
+        "llTrace",
+        "llTraceTruncated"
+      ],
       "additionalProperties": false,
       "properties": {
         "accepted": { "type": "boolean" },
@@ -278,14 +287,22 @@
             { "type": "array", "items": { "$ref": "#/$defs/lrStepInfo" } },
             { "type": "null" }
           ],
-          "description": "The Parse trace / LR walk tabs' data under strategy \"lr\": the full shift/reduce/accept sequence, one entry per step. Present only when accepted."
+          "description": "The Parse trace / LR walk tabs' data under strategy \"lr\": the shift/reduce/accept sequence, one entry per step, capped at LabApi's traceCap. Present only when accepted."
+        },
+        "traceTruncated": {
+          "type": "boolean",
+          "description": "True when the real walk had more steps than `trace` holds (LabApi's traceCap)."
         },
         "llTrace": {
           "oneOf": [
             { "type": "array", "items": { "$ref": "#/$defs/llStepInfo" } },
             { "type": "null" }
           ],
-          "description": "The Parse trace / LL walk tabs' data under strategy \"ll-star\": the full predict/match/exitRule/accept sequence, one entry per step. Present only when accepted."
+          "description": "The Parse trace / LL walk tabs' data under strategy \"ll-star\": the predict/match/exitRule/accept sequence, one entry per step, capped at LabApi's traceCap. Present only when accepted."
+        },
+        "llTraceTruncated": {
+          "type": "boolean",
+          "description": "True when the real walk had more steps than `llTrace` holds (LabApi's traceCap)."
         }
       }
     },

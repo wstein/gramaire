@@ -241,6 +241,9 @@ object LlActionInfo:
   * is why they live here rather than as a top-level `LabResponse` field the way `forest` does
   * (forest's whole reason to exist is showing data when `buildOk` is false — trace/llTrace have no
   * equivalent case: `buildOk` under ll-star never blocks a parse attempt in the first place).
+  * `traceTruncated`/`llTraceTruncated` mirror `ForestResult.truncated`: true when the real walk had
+  * more steps than `trace`/`llTrace` holds (LabApi's `traceCap`), so the UI can say so instead of a
+  * capped walk silently ending mid-parse with no indication anything was cut.
   */
 final case class ParseResult(
     accepted: Boolean,
@@ -248,7 +251,9 @@ final case class ParseResult(
     tokens: Vector[LabToken],
     cst: Option[Json],
     trace: Option[Vector[LrStepInfo]] = None,
-    llTrace: Option[Vector[LlStepInfo]] = None
+    traceTruncated: Boolean = false,
+    llTrace: Option[Vector[LlStepInfo]] = None,
+    llTraceTruncated: Boolean = false
 )
 
 object ParseResult:
@@ -260,9 +265,11 @@ object ParseResult:
         "tokens" -> Json.JArray(p.tokens.map(LabToken.toJson)),
         "cst" -> p.cst.getOrElse(Json.JNull),
         "trace" -> p.trace.map(ts => Json.JArray(ts.map(LrStepInfo.toJson))).getOrElse(Json.JNull),
+        "traceTruncated" -> Json.JBool(p.traceTruncated),
         "llTrace" -> p.llTrace
           .map(ts => Json.JArray(ts.map(LlStepInfo.toJson)))
-          .getOrElse(Json.JNull)
+          .getOrElse(Json.JNull),
+        "llTraceTruncated" -> Json.JBool(p.llTraceTruncated)
       )
     )
 
