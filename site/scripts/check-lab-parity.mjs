@@ -111,12 +111,24 @@ const fixtures = [
     method: "Canonical",
   },
   {
-    // `strategy: "ll-star"` exercises the additive `atn` field this gate hadn't covered before —
-    // `ambiguousGrammar` (buildOk always false) proves `atn` populates independently of buildOk,
-    // the same way `forest` does, and gives it a genuine ambiguity to report.
+    // `strategy: "ll-star"` exercises the `atn` field this gate hadn't covered before.
+    // `ambiguousGrammar` has real conflicts under LR (buildOk is false for every other fixture
+    // above that uses it), but ll-star resolves the same tie itself by declaration order, so
+    // buildOk flips to true here — this fixture proves that redefinition round-trips identically
+    // on both platforms, and gives `atn` a genuine ambiguity to report.
     name: "ll-star-ambiguous",
     source: ambiguousGrammar,
     input: "xxx",
+    method: "Canonical",
+    strategy: "ll-star",
+  },
+  {
+    // A rejected ll-star parse — every other ll-star fixture above accepts. Exercises
+    // `parse.message`/`atn.accepted = false` on the strategy's own error path (distinct from
+    // `lexical-error-in-input`, which rejects during lexing, before Ll.parseTraced ever runs).
+    name: "ll-star-rejected",
+    source: readGrammar("examples/calc.grmk.md"),
+    input: "1+",
     method: "Canonical",
     strategy: "ll-star",
   },

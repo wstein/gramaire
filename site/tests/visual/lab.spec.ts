@@ -171,8 +171,8 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await expect(page.locator(".lab__walk-counter")).toHaveText("step 14 / 14");
   await expect(page.locator(".lab__walk-panes")).toContainText("Expr");
 
-  // ATN diagnostics is additive: Engine defaults to LR/GLR, so the tab starts disabled, with a
-  // title tooltip explaining why — no dead-end click into an empty panel.
+  // Engine defaults to "lr", which never populates atn — the tab starts disabled, with a title
+  // tooltip explaining why, instead of a dead-end click into an empty panel.
   const atnTab = page.locator('button[role="tab"]:has-text("ATN")');
   await expect(atnTab).toBeDisabled();
   await expect(atnTab).toHaveAttribute("title", /Switch Engine/);
