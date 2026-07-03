@@ -60,6 +60,13 @@ object PrecClimb:
         litText(op).flatMap(t => prec.terms.get(t).map(p => t -> p))
       case _ => None
 
+  // Same doubly-self-referential shape as `asBinaryOp`, but without requiring the middle
+  // literal to have a declared precedence — used to catch an operator `stratifyRule` can't
+  // place at any level (see there for why leaving it as a "base" alt is unsafe).
+  private def isBinaryShaped(ruleName: String, alt: Alt): Boolean = alt.syms match
+    case Vector(l, _, r) => headRef(l).contains(ruleName) && headRef(r).contains(ruleName)
+    case _               => false
+
   /** Rewrite every rule with at least one `## Precedence`-declared, doubly-self-referential
     * binary-operator alternative (and at least one non-operator alternative to bottom out on) into
     * a precedence-level cascade, alongside a [[Tag]] for every alt of every rule this touches —
@@ -80,7 +87,16 @@ object PrecClimb:
         asBinaryOp(rule.name, prec, a).map { case (lit, p) => (i, lit, p) }
       }
       val baseIdx = indexed.collect { case (_, i) if !ops.exists(_._1 == i) => i }
-      if ops.isEmpty || baseIdx.isEmpty then (Vector(rule), Map.empty)
+      // A base alt that's ALSO doubly-self-referential (an operator whose literal isn't
+      // covered by `## Precedence`) can't be carried into the atom rule as-is: it would still
+      // reference the original rule name, which this rewrite repurposes as the loosest level
+      // — reintroducing an uncontrolled, unstratified self-reference at what's supposed to be
+      // the non-recursive bottom of the cascade. Left in place, that recursion has no
+      // precedence level to resolve at, and AtnSim's closure computation over it blows up
+      // combinatorially instead of terminating. Bail out for the whole rule (same as the
+      // no-operators-covered case) rather than silently absorb it.
+      val hasUncoveredOperator = baseIdx.exists(i => isBinaryShaped(rule.name, rule.alts(i)))
+      if ops.isEmpty || baseIdx.isEmpty || hasUncoveredOperator then (Vector(rule), Map.empty)
       else
         val byLevel = ops.groupBy(_._3.level).toVector.sortBy(_._1) // loosest (lowest) first
         val atomName = fresh(rule.name + "_atom")
