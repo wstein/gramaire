@@ -69,8 +69,3 @@ object Transform:
     fold(meta, handlers, default)(cst) match
       case Child.ChildVal(a)    => Some(a)
       case Child.ChildTok(_, _) => None
-
-  /** The value of a child, if it is a reduced value (not a raw token). */
-  def childValue[A](c: Child[A]): Option[A] = c match
-    case Child.ChildVal(a)    => Some(a)
-    case Child.ChildTok(_, _) => None
