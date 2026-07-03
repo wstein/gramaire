@@ -424,6 +424,16 @@ object Ll:
   // `RuleCall` — and returning them plus the state and position immediately after the nth step
   // (never consuming whatever transition comes after — a folded rule's trailing tail-rule call,
   // or a plain rule's path to `BlockEnd`, are the caller's concern).
+  //
+  // KNOWN LATENT RISK, not yet addressed: the Atom/RuleCall recursive calls below are wrapped in
+  // `.map`, so they're NOT in tail position — each of the `n` real symbols in a single production's
+  // RHS consumes one JVM/JS call-stack frame. A grammar with one very long production body (large
+  // `n`, e.g. hundreds/thousands of RHS symbols in one alternative) can stack-overflow this walk.
+  // Surfaced while testing `lab/src/main/scala/gramaire/lab/LabApi.scala`'s `capSteps` trace cap
+  // (see that function's own doc comment) — a flat-RHS fixture built to exceed the step cap hit
+  // this overflow before the cap logic was ever reached. Left unaddressed here: fixing it (e.g. an
+  // explicit work-list instead of real recursion) is a bigger change than this cap deserves, and
+  // ordinary grammars' RHS lengths are nowhere near the JVM/V8 default stack depth.
   private def walkSyms(ctx: Ctx, state: Int, n: Int, pos: Int): Option[(Vector[Cst], Int, Int)] =
     Atn.stateAt(ctx.atn, state).transitions match
       case Vector(Transition.Epsilon(target)) => walkSyms(ctx, target, n, pos)

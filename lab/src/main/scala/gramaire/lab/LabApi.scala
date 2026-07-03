@@ -59,6 +59,11 @@ object LabApi:
   // full `Ll.parseTraced` walk on every 200ms-debounced keystroke, with no table-driven bound on
   // step count the way LR's own walk has. Mirrors `forestCap`'s cap-not-fail pattern rather than
   // adding a step budget to the engine itself.
+  //
+  // The value itself is picked, not measured — same as `forestCap` — against no actual latency or
+  // Walk-tab DOM-render budget. Tuning it properly would mean profiling `WalkPanel`/`ParseTracePanel`
+  // render cost per row in `site/src/lab/LabIsland.tsx` and this function's own (documented) O(n)-
+  // per-step cost, then picking a cap the 200ms debounce window can actually absorb — not done here.
   private[lab] val traceCap = 5000
 
   // Factored out so LabApiSuite can pin the cap against a synthetic vector instead of forcing a
