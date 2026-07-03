@@ -647,9 +647,10 @@ Principles kept:
    that is gated off the production path; Phases 5's IR/SPI plumbing is done;
    **Phase 6's backend diagnostics/profiling are done** (ambiguity reporting
    and DFA cache hit-rate, both surfaced from `gramark conformance`), **and
-   its Lab strategy/ATN surface is now done too** — a Strategy selector and
-   an ATN diagnostics tab, additive to the LR/GLR pipeline the rest of the
-   Lab is built on.
+   its Lab strategy/ATN surface is now a real alternate pipeline** — an
+   "Engine" selector (ALL(\*) vs. Canonical/LALR/IELR LR), an ll-star-driven
+   parse/trace/Evaluate, and an ATN diagnostics tab — not merely additive on
+   top of the LR/GLR pipeline the way it first shipped.
 
 **Remaining work, roughly in dependency order:**
 
@@ -697,17 +698,38 @@ f. ~~Phase 6: ALL(\*)-native ambiguity/prediction diagnostics, DFA-cache-hit
    profiling~~ — **done**: both surfaced from `gramark conformance`
    (`AtnSim.Ambiguity`, `AtnSim.Cache(track = true)`); no separate `--profile`
    flag needed in the end. ~~Still open: a Lab strategy/ATN surface~~ —
-   **done**: `LabRequest.strategy` (`"lr"` | `"ll-star"`, additive — it never
-   changes `buildOk`/`parse`/`forest`/`analysis`/`evaluatorJs`, which stay the
-   LR/GLR pipeline they always were, since `Ll.parse` has no step-trace or
-   codegen equivalent to swap in) threads through `LabApi.evaluate` to a new
-   `LabResponse.atn` field: `Ll.recognize` run with a tracking
-   `AtnSim.Cache`, the same idiom `gramark conformance` already used per
-   corpus, just per grammar/input here. The Lab UI gained a Strategy
-   selector and an "ATN" diagnostics tab (accept/reject, DFA cache hit
-   rate, a table of every declaration-order-resolved ambiguity); the
-   protocol schema/generated types/JVM↔JS parity gate all cover the new
-   field;
+   **done, and upgraded from additive to a real alternate pipeline**: a
+   first pass threaded `LabRequest.strategy` through `LabApi.evaluate` as a
+   purely additive `LabResponse.atn` field (`Ll.recognize` run separately,
+   never touching `buildOk`/`parse`/`evaluatorJs`) — a second pass replaced
+   that with `Ll.parseTraced` (`core/src/main/scala/gramark/Ll.scala`), a
+   new `Ll.parse` sibling that also returns a step-by-step trace (`LlStep`:
+   `Predict`/`Match`/`ExitRule`/`Accept`, the ALL(\*) analogue of
+   `Parser.walk`'s `LrStep`) and, on reject, a located reason (`LlError`)
+   instead of a bare `None`. Under `strategy == "ll-star"`, `LabApi.evaluate`
+   now redefines `buildOk` (true once the grammar notation parses and
+   desugars, independent of the LR table build — an LR conflict downgrades
+   to a warning diagnostic instead of blocking the build, since ALL(\*)
+   resolves the same tie itself, by declaration order), drives
+   `parse`/`ParseResult.llTrace` from `Ll.parseTraced` (one
+   `AtnSim.Cache(track = true)` run shared with `atn`, so its hit/miss/
+   ambiguity counts describe the actual parse, not a separate shadow run),
+   and generates `evaluatorJs` regardless of LR table build success (it reads
+   only `IR.grammar`, no automaton). `forest`/`analysis` stay LR/GLR-driven
+   under both strategies — no ALL(\*) equivalent exists for a GLR forest or
+   per-LR-method stats, so `method` still selects what they're built from.
+
+   The Lab UI's Strategy+Method dropdowns merged into one "Engine" selector
+   (ALL(\*) standalone, an "LR / GLR" optgroup with Canonical/LALR/IELR);
+   Parse trace/Walk render the new `llTrace` (a rule-call stack instead of
+   an LR state/symbol stack) under ALL(\*); All parses/Grammar analysis gained
+   a small provenance note ("via GLR" / "via LR tables — `<method>`") since
+   they stay LR/GLR-built either way. `LabProtocol` gained
+   `LlStepInfo`/`LlActionInfo`/`ParseResult.llTrace`; schema/generated
+   types/JVM↔JS parity gate all cover the new fields, verified against the
+   real Scala.js engine end to end (an LR-conflicted grammar under ALL(\*)
+   now builds, parses, and evaluates, with the conflict surfaced as a
+   warning);
 g. ~~corpus widening — `json` now runs through `Ll.recognize` (done, see a.);
    `calc-prec`/`ECMA-404` still don't, and no test pins ATN construction
    invariants over a real (not hand-built) grammar (open Phase 0 gap)~~ —

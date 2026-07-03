@@ -11,20 +11,28 @@ a thin skin over real machinery, never a mock.
 > **Current state (be honest about it).** The Lab exists and is live at
 > `/lab` on `feature/reimplement-site`: all ten of the gold-standard mock's
 > drawer tabs (Result, Evaluate, Tokens, Grammar analysis, Parse tree, Parse
-> trace, LR walk, All parses, Diagnostics, Lowered Core), plus an eleventh —
-> ATN diagnostics, gated behind a Strategy (`lr`/`ll-star`) selector next to
-> Method in the top bar — the JVM↔JS parity gate (§8), and the draggable
-> splitter/drawer are done — §5.1's per-tab "Implementation status"/progress
-> notes are the source of truth for what shipped and when, not this callout.
-> What's still **not yet built**: every Tier 2/3 T-item below that isn't one
-> of those eleven tabs (Conformance panel T3.1, Recovery preview T3.3,
-> Gallery T3.4, Embeddable lab T3.5, Codegen export T2.5) and the
-> tab→core-symbol provenance table's own `docs-lint`-checked guardrail
-> (§5.1, deliberately deferred — the ATN tab isn't in that table yet either).
-> The previous implementation (Astro + Starlight, with a Scala.js Tier 1
-> keystone) was deleted in `4133cab` after the PureScript→Scala core
-> migration made it stale, which is why this rebuild started from the mock,
-> not from that code. Keep this callout current as further work lands.
+> trace, Walk, All parses, Diagnostics, Lowered Core), plus an eleventh — ATN
+> diagnostics — the JVM↔JS parity gate (§8), and the draggable splitter/drawer
+> are done. The top bar's Strategy and Method pickers merged into one "Engine"
+> selector (ALL(\*) standalone, an "LR / GLR" group with Canonical/LALR/IELR
+> nested) once `ll-star` became a real alternate pipeline, not merely an
+> additive `atn` field bolted onto the LR/GLR one — Parse trace/Walk now
+> render `Ll.parseTraced`'s own step trace under ALL(\*) (a rule-call stack,
+> not an LR state/symbol stack), `buildOk`/`evaluatorJs` no longer require the
+> LR table build to succeed under it, and All parses/Grammar analysis (which
+> have no ALL(\*) equivalent) carry a small "via GLR"/"via LR tables" note
+> disclosing that they stay LR/GLR-built either way. §5.1's per-tab
+> "Implementation status"/progress notes are the source of truth for what
+> shipped and when, not this callout. What's still **not yet built**: every
+> Tier 2/3 T-item below that isn't one of those eleven tabs (Conformance panel
+> T3.1, Recovery preview T3.3, Gallery T3.4, Embeddable lab T3.5, Codegen
+> export T2.5) and the tab→core-symbol provenance table's own
+> `docs-lint`-checked guardrail (§5.1, deliberately deferred — the ATN tab
+> isn't in that table yet either). The previous implementation (Astro +
+> Starlight, with a Scala.js Tier 1 keystone) was deleted in `4133cab` after
+> the PureScript→Scala core migration made it stale, which is why this
+> rebuild started from the mock, not from that code. Keep this callout
+> current as further work lands.
 
 ---
 
@@ -554,7 +562,7 @@ selector in `lab.spec.ts` with the panes' own `.lab__pane--grammar`/
 
 **Not yet done:** nothing — every M5+ item tracked in this section (all ten
 tabs, the JVM↔JS parity gate, the draggable splitter) is now done. (The
-eleventh tab, ATN diagnostics behind the Strategy selector, landed after this
+eleventh tab, ATN diagnostics behind the Engine selector, landed after this
 section was written — see the top callout and docs/all-star-port-plan.md's
 item f for its own status.)
 
