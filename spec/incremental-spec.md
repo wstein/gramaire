@@ -209,6 +209,15 @@ actions, and the driver forks.
   deterministic driver MUST ignore multi-action data entirely; GLR is strictly
   opt-in.
 
+**ALL(\*) predicates — deferred alongside GLR.** Semantic predicates (`{%? %}`,
+the D-predicates decision in `docs/all-star-port-plan.md`) are out of scope for
+this spec version, same as GLR above: a predicate evaluated during prediction
+reads host-side state outside the CST, and this spec does not yet define how
+`edit()` invalidates a parse decision that depended on one. Until Phase F
+defines that invalidation semantics, a predicate-using `ll-star` grammar MUST
+NOT claim the `incremental` capability (ADR D22) — it inherits GLR's deferred,
+opt-in-only treatment rather than a bespoke exception.
+
 ## 8. LSP surface
 
 The server is a thin layer over the runtime. **Tier-1 capabilities (MUST):**
