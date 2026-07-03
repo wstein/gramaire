@@ -152,3 +152,43 @@ object Conformance:
     TestVector("two values with no separator", "1 2", Outcome.Reject),
     TestVector("an unquoted bareword", "hello", Outcome.Reject)
   )
+
+  /** The `json` corpus entry, given its grammar and the document text its `## Tokens` block comes
+    * from (json declares its own STRING/NUMBER/WS, not one of the hand-written lexers above).
+    */
+  def jsonDescriptor(md: String, g: Grammar): Descriptor =
+    Descriptor("json", g, ConformanceLexers.tokensLexerOf(md, g), jsonVectors)
+
+  /** The ECMA-404 corpus entry: same lexis and language as `json` (the `Json`/`Value` wrapper rule
+    * doesn't change what's accepted), so it reuses `jsonVectors` rather than re-deriving an
+    * equivalent list.
+    */
+  def ecma404Descriptor(md: String, g: Grammar): Descriptor =
+    Descriptor("ECMA-404", g, ConformanceLexers.tokensLexerOf(md, g), jsonVectors)
+
+  /** The `calc-prec` corpus: same language as `calc`, but `expr` is deliberately left ambiguous
+    * without `## Precedence` (ADR D37) — a precedence-free LR build (`Table.buildTablesFor`, what
+    * `recognize`/`runSuite` use) genuinely conflicts on it, so this corpus is never added to
+    * `Conformance.runSuites`'s differential oracle. It's still meaningful through `Ll.recognize`
+    * (accept/reject doesn't depend on which tied alternative wins, only the tree shape does) — see
+    * `calcPrecDescriptor` and its `ll-star`-only conformance use.
+    */
+  val calcPrecVectors: Vector[TestVector] = Vector(
+    TestVector("a single number", "42", Outcome.Accept),
+    TestVector("mixed precedence, tighter operator second", "1+2*3", Outcome.Accept),
+    TestVector("mixed precedence, tighter operator first", "1*2+3", Outcome.Accept),
+    TestVector("same-level left-associativity", "1-2-3", Outcome.Accept),
+    TestVector("same-level, mixed operators", "1-2+3", Outcome.Accept),
+    TestVector("multiple levels", "1+2*3-4/5", Outcome.Accept),
+    TestVector("parens reset precedence", "(1+2)*3", Outcome.Accept),
+    TestVector("nested parens", "1*(2+3)-4", Outcome.Accept),
+    TestVector("a trailing operator", "1+", Outcome.Reject),
+    TestVector("a leading operator", "+1", Outcome.Reject),
+    TestVector("an unbalanced paren", "(1+2", Outcome.Reject),
+    TestVector("two numbers, no operator", "1 2", Outcome.Reject),
+    TestVector("empty input", "", Outcome.Reject)
+  )
+
+  /** The `calc-prec` corpus entry — see `calcPrecVectors`' doc for why it's `ll-star`-only. */
+  def calcPrecDescriptor(md: String, g: Grammar): Descriptor =
+    Descriptor("calc-prec", g, ConformanceLexers.tokensLexerOf(md, g), calcPrecVectors)

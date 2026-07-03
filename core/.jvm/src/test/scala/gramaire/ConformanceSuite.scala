@@ -54,29 +54,49 @@ class ConformanceSuite extends munit.FunSuite:
   }
 
   private def tokensLexerOf(md: String, g: Grammar): ConformanceLexers.Lexer =
-    val defs = ConformanceLexers
-      .tokensBlock(md)
-      .flatMap(block => Tokens.parseTokens(block).toOption)
-      .getOrElse(Vector.empty)
-    ConformanceLexers.scannerLexer(defs, g)
+    ConformanceLexers.tokensLexerOf(md, g)
+
+  private def runLlRecognize(
+      label: String,
+      g: Grammar,
+      lexer: ConformanceLexers.Lexer,
+      vectors: Vector[TestVector]
+  ): Unit =
+    vectors.foreach { v =>
+      val want = v.expect == Outcome.Accept
+      lexer(v.input) match
+        case Left(_) => assert(!want, s"$label / ${v.name}: lex failed but expected accept")
+        case Right(toks) =>
+          assertEquals(
+            Ll.recognize(g, toks),
+            want,
+            s"$label / ${v.name}: ${v.input} expected ${v.expect}"
+          )
+    }
 
   test("the `json` corpus parses top-down (Phase 1 gap closed)") {
     val jsonMd = readFile("examples/json.gram.md")
     Lr.parse(jsonMd) match
-      case Left(e) => fail(s"json grammar should parse: $e")
+      case Left(e)  => fail(s"json grammar should parse: $e")
+      case Right(g) => runLlRecognize("json", g, tokensLexerOf(jsonMd, g), Conformance.jsonVectors)
+  }
+
+  test("the ECMA-404 corpus parses top-down (corpus widening)") {
+    val md = readFile("examples/ECMA-404.gram.md")
+    Lr.parse(md) match
+      case Left(e) => fail(s"ECMA-404 grammar should parse: $e")
       case Right(g) =>
-        val jsonLexer = tokensLexerOf(jsonMd, g)
-        Conformance.jsonVectors.foreach { v =>
-          val want = v.expect == Outcome.Accept
-          jsonLexer(v.input) match
-            case Left(_) => assert(!want, s"json / ${v.name}: lex failed but expected accept")
-            case Right(toks) =>
-              assertEquals(
-                Ll.recognize(g, toks),
-                want,
-                s"json / ${v.name}: ${v.input} expected ${v.expect}"
-              )
-        }
+        runLlRecognize("ECMA-404", g, tokensLexerOf(md, g), Conformance.jsonVectors)
+  }
+
+  test(
+    "the `calc-prec` corpus parses top-down (corpus widening — precedence doesn't affect accept/reject)"
+  ) {
+    val md = readFile("examples/calc-prec.gram.md")
+    Lr.parse(md) match
+      case Left(e) => fail(s"calc-prec grammar should parse: $e")
+      case Right(g) =>
+        runLlRecognize("calc-prec", g, tokensLexerOf(md, g), Conformance.calcPrecVectors)
   }
 
   // Assert Ll.parse builds a Cst byte-for-byte identical to the LR path's, for every accept
@@ -101,7 +121,7 @@ class ConformanceSuite extends munit.FunSuite:
             case (_, None)    => fail(s"$label / ${v.name}: Ll.parse should accept")
     }
 
-  test("Ll.parse builds the exact same Cst as the LR oracle, over lr/calc/json") {
+  test("Ll.parse builds the exact same Cst as the LR oracle, over lr/calc/json/ECMA-404") {
     val lrG = Bootstrap.bootstrapGrammar
     assertSameCst("lr", ConformanceLexers.lrLexer, lrG, Conformance.lrVectors)
 
@@ -115,6 +135,12 @@ class ConformanceSuite extends munit.FunSuite:
     Lr.parse(jsonMd) match
       case Left(e)  => fail(s"json grammar should parse: $e")
       case Right(g) => assertSameCst("json", tokensLexerOf(jsonMd, g), g, Conformance.jsonVectors)
+
+    val ecmaMd = readFile("examples/ECMA-404.gram.md")
+    Lr.parse(ecmaMd) match
+      case Left(e) => fail(s"ECMA-404 grammar should parse: $e")
+      case Right(g) =>
+        assertSameCst("ECMA-404", tokensLexerOf(ecmaMd, g), g, Conformance.jsonVectors)
   }
 
   // calc-prec's `expr` is a single rule, ambiguous on purpose — every operator its own
