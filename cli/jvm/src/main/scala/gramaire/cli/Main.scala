@@ -68,9 +68,15 @@ object Main:
   def backendSupportsStrategy(b: Backend, strategy: String): Boolean =
     b.strategies.contains(strategy)
 
-  /** Whether `ir`'s grammar declares a `{%? %}` predicate that `strategy` has no semantics for —
-    * only `ll-star` evaluates predicates during prediction; an `lr` build ignores them entirely
-    * (D-predicates). Pulled out so it's checkable without going through `die`/`sys.exit`.
+  /** Whether `ir`'s grammar declares a `{%? %}` predicate that `strategy` has no semantics for — an
+    * `lr` build has no runtime hook for a predicate at all (D-predicates require ALL(*)'s
+    * per-decision prediction), so it can only ever silently ignore one; `ll-star` is the strategy
+    * that can eventually give it real semantics, though nothing in the ATN/prediction engine
+    * (`AtnSim`/`Ll`/`Atn`/`AtnBuild`) evaluates a predicate's body yet — the IR's `predicate:
+    * Option[IRPredicateEffect]` is inert bookkeeping today (ADR D42), reserved for a future
+    * consumer, not a currently-implemented capability. Gating on `ll-star` here is about not
+    * silently accepting a predicate an `lr` build can never honor, not a runtime guarantee. Pulled
+    * out so it's checkable without going through `die`/`sys.exit`.
     */
   def strategyIgnoresPredicates(ir: IR, strategy: String): Boolean =
     strategy != "ll-star" && ir.grammar.rules.exists(_.predicate.isDefined)
@@ -136,7 +142,9 @@ object Main:
                           case Right(ir0) =>
                             if strategyIgnoresPredicates(ir0, opts.strategy) then
                               die(
-                                s"emit: $file uses semantic predicates; build with --strategy ll-star"
+                                s"emit: $file uses semantic predicates, which 'lr' cannot represent at all; " +
+                                  "build with --strategy ll-star (note: prediction doesn't evaluate " +
+                                  "predicates yet, so this only avoids silently discarding them — ADR D42)"
                               )
                             else if !backendSupportsStrategy(b, opts.strategy) then
                               die(

@@ -171,15 +171,23 @@ object LabApi:
             )
           case Right(table) =>
             val parse = request.input.map(parseInput(request.source, grammar, table, _))
+            val (evaluatorJs, predicateWarning) =
+              evaluatorJsFor(prec, request.source, grammar) match
+                case Right(js) => (Some(js), Vector.empty)
+                case Left(msg) =>
+                  (
+                    None,
+                    Vector(DiagnosticInfo("warning", "internal", msg, None, Vector.empty, msg))
+                  )
             LabResponse(
               LabResponse.version,
               buildOk = true,
-              diagnostics = warnings,
+              diagnostics = warnings ++ predicateWarning,
               parse = parse,
               productions = productions,
               forest = forest,
               analysis = analysis,
-              evaluatorJs = Some(evaluatorJsFor(prec, request.source, grammar)),
+              evaluatorJs = evaluatorJs,
               atn = atn
             )
 
@@ -261,15 +269,32 @@ object LabApi:
   // evaluate() already confirmed the table builds via Table.buildTablesFor above — irGrammarOf
   // skips the redundant automaton build BackendJs never needed in the first place (it only reads
   // IR.grammar).
-  private def evaluatorJsFor(prec: Precedence, source: String, grammar: Grammar): String =
+  // `Left` when the grammar declares a `{%? %}` predicate: the traced JS runtime has no
+  // equivalent of the CLI's `Main.strategyIgnoresPredicates` gate (the Lab only ever builds LR
+  // tables — `Table.buildTablesForP` above — there is no `ll-star`/prediction concept here at
+  // all), so evaluating it would silently run the predicate's boolean-test expression as if it
+  // were the production's value, with no indication anything is wrong. No evaluator is a more
+  // honest result than a confidently-wrong one.
+  private def evaluatorJsFor(
+      prec: Precedence,
+      source: String,
+      grammar: Grammar
+  ): Either[String, String] =
     // No CLI-shaped `file` path exists in the Lab's browser context to fall back to; "grammar" is
     // only ever cosmetic (BackendJs's header comment), mirroring cli/jvm's own grammarName's H1
     // extraction (that helper is CLI-only, reading a file path this module doesn't have).
     val name =
       source.split("\n", -1).find(_.startsWith("# ")).map(_.drop(2).trim).getOrElse("grammar")
     val irGrammar = IR.irGrammarOf(prec, name, grammar)
-    val tagged = IR.withActionLangGrammar(Lr.actionLangOf(source), irGrammar)
-    BackendJs.emitTraced(tagged)
+    if irGrammar.rules.exists(_.predicate.isDefined) then
+      Left(
+        "a semantic predicate (`{%? %}`) is declared, but the Evaluate tab's traced JS runtime " +
+          "doesn't evaluate predicates yet (ADR D42) — its body would run as an ordinary value " +
+          "action instead, so no evaluator is generated for this grammar"
+      )
+    else
+      val tagged = IR.withActionLangGrammar(Lr.actionLangOf(source), irGrammar)
+      Right(BackendJs.emitTraced(tagged))
 
   private def toDiaSym(nts: Set[String], s: Sym): Railroad.DiaSym = s match
     case Sym.Ref(name)       => Railroad.DiaSym(name, term = !nts.contains(name))
