@@ -153,6 +153,25 @@ class LlSuite extends munit.FunSuite:
     }
   }
 
+  test(
+    "PrecClimb.stratify never corrupts the atom rule with an operator ## Precedence doesn't cover"
+  ) {
+    // `%` is deliberately left undeclared — this must not silently carry `expr '%' expr` into
+    // the fresh atom rule still self-referencing `expr`, which would blow up the ATN closure
+    // computation (regression: it used to). Bailing out on stratification for this rule is the
+    // correct fallback, matching the no-operators-covered case.
+    val grammar = "```gramark\nexpr\n  : expr '+' expr\n  | expr '%' expr\n  | 'n'\n```\n"
+    Lr.parse(grammar) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        val prec = Precedence(Map("+" -> Prec(0, Assoc.LeftA)))
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        lexer("n") match
+          case Left(e) => fail(s"lex failed: $e")
+          case Right(toks) =>
+            assert(Ll.parse(g, toks, prec).isDefined, "'n' alone should still parse")
+  }
+
   test("Ll.parse rejects exactly what the LR oracle rejects") {
     cases.foreach { c =>
       Lr.parse(c.grammar) match
