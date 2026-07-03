@@ -591,18 +591,6 @@ object Lr:
   private val knownAttrs: Vector[String] = Vector("inline")
   private val knownSettingDirectives: Vector[String] = Vector("%lang", "%name")
 
-  private def refsOf(s: Sym): Vector[String] = s match
-    case Ref(n)          => Vector(n)
-    case Lit(_)          => Vector.empty
-    case Rep(inner)      => refsOf(inner)
-    case Star(inner)     => refsOf(inner)
-    case Opt(inner)      => refsOf(inner)
-    case Field(_, inner) => refsOf(inner)
-    case Macro(_, args)  => args.flatMap(refsOf)
-    case Group(alts)     => alts.flatMap(_.flatMap(refsOf))
-    case Any             => Vector.empty
-    case Not(set)        => set.flatMap(refsOf)
-
   // Every `#[attr]` the author wrote that isn't `inline` (the only attribute Desugar recognizes) —
   // today these are silently ignored, so a typo like `#[inlien]` has no effect and no signal.
   private def unknownAttrWarnings(g: Grammar, spans: SpanIndex): Vector[Diagnostic] =
@@ -644,7 +632,7 @@ object Lr:
       case None => Vector.empty
       case Some(start) =>
         val byName = g.rules.map(r => r.name -> r).toMap
-        def refsOfRule(r: Rule): Vector[String] = r.alts.flatMap(_.syms.flatMap(refsOf))
+        def refsOfRule(r: Rule): Vector[String] = r.alts.flatMap(_.syms.flatMap(Sym.refs))
         def bfs(seen: Set[String], frontier: Vector[String]): Set[String] =
           if frontier.isEmpty then seen
           else
@@ -675,7 +663,7 @@ object Lr:
         Tokens.parseTokens(block) match
           case Left(_) => Vector.empty // malformed tokens already rejected `parseWith` itself
           case Right(defs) =>
-            val used: Set[String] = g.rules.flatMap(_.alts.flatMap(_.syms.flatMap(refsOf))).toSet
+            val used: Set[String] = g.rules.flatMap(_.alts.flatMap(_.syms.flatMap(Sym.refs))).toSet
             defs
               .filterNot(d => d.skip || used.contains(d.name))
               .map(d =>

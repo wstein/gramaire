@@ -20,6 +20,25 @@ enum Sym derives CanEqual:
   case Any // the `.` wildcard: any one terminal; lowered to a closed-alphabet group
   case Not(set: Vector[Sym]) // negation ~X / ~(a|b): any terminal not in the set
 
+object Sym:
+  /** Every nonterminal/terminal name transitively referenced inside a symbol (a `name:X` field is
+    * transparent; a literal contributes nothing). Shared by every pass that needs to know what a
+    * symbol mentions — reference-checking (`Diagnostics.undefinedNonterminals`), self-reference
+    * detection (`Lr`'s unused-token/precedence checks), and inline-rule cycle detection
+    * (`Desugar`'s `#[inline]` expansion).
+    */
+  def refs(s: Sym): Vector[String] = s match
+    case Sym.Ref(n)          => Vector(n)
+    case Sym.Lit(_)          => Vector.empty
+    case Sym.Rep(inner)      => refs(inner)
+    case Sym.Star(inner)     => refs(inner)
+    case Sym.Opt(inner)      => refs(inner)
+    case Sym.Field(_, inner) => refs(inner)
+    case Sym.Macro(_, args)  => args.flatMap(refs)
+    case Sym.Group(alts)     => alts.flatMap(_.flatMap(refs))
+    case Sym.Any             => Vector.empty
+    case Sym.Not(set)        => set.flatMap(refs)
+
 // An alternative: a sequence of right-hand symbols, an optional `# Label`
 // naming the alternative (per-alternative visitor methods and CST
 // accessors, ADR D26), and an optional semantic action kept as raw source

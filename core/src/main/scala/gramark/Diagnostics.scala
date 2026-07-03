@@ -16,26 +16,11 @@ object Diagnostics:
     */
   private def isNonterminalName(name: String): Boolean = name.toUpperCase != name
 
-  /** Every nonterminal reference inside a symbol (a `name:X` field is transparent; a literal
-    * contributes nothing).
-    */
-  private def refsOf(s: Sym): Vector[String] = s match
-    case Ref(n)          => Vector(n)
-    case Lit(_)          => Vector.empty
-    case Rep(inner)      => refsOf(inner)
-    case Star(inner)     => refsOf(inner)
-    case Opt(inner)      => refsOf(inner)
-    case Field(_, inner) => refsOf(inner)
-    case Macro(_, args)  => args.flatMap(refsOf)
-    case Group(alts)     => alts.flatMap(_.flatMap(refsOf))
-    case Any             => Vector.empty
-    case Not(set)        => set.flatMap(refsOf)
-
   /** Names referenced as nonterminals but never defined by a rule. */
   def undefinedNonterminals(g: Grammar): Vector[String] =
     val defined = Table.nontermSet(g)
     def undefined(name: String): Boolean = isNonterminalName(name) && !defined.contains(name)
-    g.rules.flatMap(_.alts.flatMap(_.syms.flatMap(refsOf))).filter(undefined).distinct
+    g.rules.flatMap(_.alts.flatMap(_.syms.flatMap(Sym.refs))).filter(undefined).distinct
 
   // Every ALL-CAPS name referenced anywhere in the grammar — a proxy for "declared token classes"
   // (the grammar has no separate token-class list of its own; `checkDefined` only ever sees the
@@ -43,7 +28,10 @@ object Diagnostics:
   // author who typed `Number` almost certainly meant the token class `NUMBER`, and `NUMBER` being
   // ALL-CAPS means it was never flagged as undefined itself.
   private def terminalLikeRefs(g: Grammar): Vector[String] =
-    g.rules.flatMap(_.alts.flatMap(_.syms.flatMap(refsOf))).filter(n => n.toUpperCase == n).distinct
+    g.rules
+      .flatMap(_.alts.flatMap(_.syms.flatMap(Sym.refs)))
+      .filter(n => n.toUpperCase == n)
+      .distinct
 
   // Iterative Levenshtein edit distance (classic DP, O(len(a)*len(b))).
   private[gramark] def levenshtein(a: String, b: String): Int =
