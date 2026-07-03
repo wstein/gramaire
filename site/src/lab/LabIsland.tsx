@@ -1,11 +1,13 @@
 import { signal, computed } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
+import type { RefObject } from "preact";
 import type {
   CstNode,
   CstToken,
   DiagnosticInfo,
   LabRequest,
   LabResponse,
+  LlStepInfo,
   LrStepInfo,
   Method,
   ProductionInfo,
@@ -541,31 +543,26 @@ export default function LabIsland() {
           </select>
         </label>
         <label class="lab__method">
-          Strategy
+          Engine
           <select
-            value={strategy.value}
+            value={strategy.value === "ll-star" ? "ll-star" : method.value}
             onChange={(e) => {
-              strategy.value = (e.target as HTMLSelectElement)
-                .value as Strategy;
+              const v = (e.target as HTMLSelectElement).value;
+              if (v === "ll-star") {
+                strategy.value = "ll-star";
+              } else {
+                strategy.value = "lr";
+                method.value = v as Method;
+              }
               scheduleEvaluate();
             }}
           >
-            <option value="lr">LR / GLR</option>
-            <option value="ll-star">ALL(*) (ll-star)</option>
-          </select>
-        </label>
-        <label class="lab__method">
-          Method
-          <select
-            value={method.value}
-            onChange={(e) => {
-              method.value = (e.target as HTMLSelectElement).value as Method;
-              scheduleEvaluate();
-            }}
-          >
-            <option value="Canonical">Canonical LR(1)</option>
-            <option value="LALR">LALR(1)</option>
-            <option value="IELR">IELR(1)</option>
+            <option value="ll-star">ALL(*)</option>
+            <optgroup label="LR / GLR">
+              <option value="Canonical">Canonical LR(1)</option>
+              <option value="LALR">LALR(1)</option>
+              <option value="IELR">IELR(1)</option>
+            </optgroup>
           </select>
         </label>
         {ruleNames.value.length > 0 && (
@@ -767,7 +764,7 @@ export default function LabIsland() {
           {activeTab.value === "tokens" && <TokensPanel />}
           {activeTab.value === "tree" && <TreePanel />}
           {activeTab.value === "trace" && <ParseTracePanel />}
-          {activeTab.value === "walk" && <LrWalkPanel />}
+          {activeTab.value === "walk" && <WalkPanel />}
           {activeTab.value === "forest" && <AllParsesPanel />}
           {activeTab.value === "lowered" && <LoweredCorePanel />}
           {activeTab.value === "analysis" && <GrammarAnalysisPanel />}
@@ -852,7 +849,7 @@ function tabLabel(tab: Tab): string {
     case "trace":
       return "Parse trace";
     case "walk":
-      return "LR walk";
+      return "Walk";
     case "forest":
       return "All parses";
     case "lowered":
@@ -884,13 +881,13 @@ function tabDisabledReason(
         ? undefined
         : "Enter input the grammar accepts to see its parse tree.";
     case "trace":
-      return r?.parse?.trace
+      return r?.parse?.trace || r?.parse?.llTrace
         ? undefined
         : "Enter input the grammar accepts to see its parse trace.";
     case "walk":
-      return r?.parse?.trace
+      return r?.parse?.trace || r?.parse?.llTrace
         ? undefined
-        : "Enter input the grammar accepts to see the LR walk.";
+        : "Enter input the grammar accepts to see the walk.";
     case "forest":
       return r?.forest ? undefined : "Enter target input to see All parses.";
     case "lowered":
@@ -904,11 +901,11 @@ function tabDisabledReason(
     case "evaluate":
       return r?.evaluatorJs
         ? undefined
-        : "The grammar must build with no conflicts to run Evaluate.";
+        : "The grammar must build successfully, with no `{%? %}` predicate, to run Evaluate.";
     case "atn":
       return strategy.value === "ll-star"
         ? undefined
-        : 'Switch Strategy to "ALL(*) (ll-star)" above to see ATN diagnostics.';
+        : 'Switch Engine to "ALL(*)" above to see ATN diagnostics.';
   }
 }
 
@@ -918,6 +915,19 @@ function actionText(action: LrStepInfo["action"]): string {
       return `shift ${action.terminal} ${JSON.stringify(action.lexeme)}`;
     case "reduce":
       return `reduce ${action.lhs} → ${action.rhs.join(" ")} (pop ${action.rhs.length}, goto ${action.lhs})`;
+    case "accept":
+      return "accept";
+  }
+}
+
+function llActionText(action: LlStepInfo["action"]): string {
+  switch (action.kind) {
+    case "predict":
+      return `predict ${action.rule} → alt ${action.chosenAlt + 1}/${action.altCount}`;
+    case "match":
+      return `match ${action.terminal} ${JSON.stringify(action.lexeme)}`;
+    case "exitRule":
+      return `exit ${action.rule}`;
     case "accept":
       return "accept";
   }
@@ -1201,6 +1211,14 @@ function DiagnosticsList({ diagnostics }: { diagnostics: DiagnosticInfo[] }) {
   );
 }
 
+// forest/analysis stay LR/GLR-driven under BOTH strategies (no ALL(*) equivalent exists for a
+// GLR forest or per-LR-method stats) — this note discloses that so Engine=ALL(*) is never
+// mistaken for having changed what a tab showing it is actually built from.
+function ProvenanceNote({ text }: { text: string }) {
+  if (strategy.value !== "ll-star") return null;
+  return <p class="lab__provenance">{text}</p>;
+}
+
 function AllParsesPanel() {
   const r = response.value;
   const forest = r?.forest;
@@ -1215,6 +1233,7 @@ function AllParsesPanel() {
   const ambiguous = forest.parses.length > 1;
   return (
     <div>
+      <ProvenanceNote text={`via GLR — ${method.value}`} />
       <p
         class={`lab__forest-status lab__forest-status--${ambiguous ? "ambiguous" : "ok"}`}
       >
@@ -1287,6 +1306,7 @@ function GrammarAnalysisPanel() {
 
   return (
     <div>
+      <ProvenanceNote text={`via LR tables — ${method.value}`} />
       {current && (
         <div class="lab__analysis-section">
           <div class="lab__analysis-heading">railroad diagram</div>
@@ -1361,16 +1381,15 @@ function GrammarAnalysisPanel() {
   );
 }
 
-// The ll-star-only diagnostics tab: whether Ll.recognize accepts the target input, the ATN
-// prediction DFA cache's hit rate, and every declaration-order-resolved ambiguity hit along the
-// way — LabResponse.atn, populated only under Strategy "ALL(*) (ll-star)" with input given, and
-// independent of buildOk (a grammar the LR table build rejects can still be worth seeing through
-// ALL(*)'s own lens, same as Forest).
+// The ll-star-only diagnostics tab: whether Ll.parseTraced accepts the target input (mirroring
+// parse.accepted), the ATN prediction DFA cache's hit rate, and every declaration-order-resolved
+// ambiguity hit along the way — from the same cache run that produced `parse`, populated
+// whenever Engine is "ALL(*)" and input is given.
 function AtnDiagnosticsPanel() {
   if (strategy.value !== "ll-star")
     return (
       <p class="lab__empty">
-        Switch Strategy to "ALL(*) (ll-star)" above to see ATN diagnostics.
+        Switch Engine to "ALL(*)" above to see ATN diagnostics.
       </p>
     );
 
@@ -1384,7 +1403,7 @@ function AtnDiagnosticsPanel() {
       <p class="lab__empty">
         {notationFailed
           ? "No ATN diagnostics — the grammar notation didn't parse."
-          : "No ATN diagnostics — enter target input to run Ll.recognize."}
+          : "No ATN diagnostics — enter target input to run Ll.parseTraced."}
       </p>
     );
   }
@@ -1395,7 +1414,7 @@ function AtnDiagnosticsPanel() {
   return (
     <div>
       <div class="lab__analysis-section">
-        <div class="lab__analysis-heading">Ll.recognize</div>
+        <div class="lab__analysis-heading">Ll.parseTraced</div>
         <p>
           <span
             class={`lab__parsestatus lab__parsestatus--${d.accepted ? "accepted" : "rejected"}`}
@@ -1495,7 +1514,36 @@ function getTrace(): LrStepInfo[] | null {
   return response.value?.parse?.trace ?? null;
 }
 
+// Mutually exclusive with getTrace() per LabRequest.strategy — never both non-null on the same
+// response (ParseResult's own doc comment).
+function getLlTrace(): LlStepInfo[] | null {
+  return response.value?.parse?.llTrace ?? null;
+}
+
 function ParseTracePanel() {
+  const llTrace = getLlTrace();
+  if (llTrace) {
+    if (llTrace.length === 0)
+      return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
+    return (
+      <table class="lab__table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {llTrace.map((s) => (
+            <tr key={s.index}>
+              <td class="lab__mono">{s.index}</td>
+              <td class="lab__mono">{llActionText(s.action)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
   const trace = getTrace();
   if (!trace || trace.length === 0)
     return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
@@ -1519,9 +1567,162 @@ function ParseTracePanel() {
   );
 }
 
-function LrWalkPanel() {
-  const trace = getTrace();
+// Shared by WalkPanel's LR and LL branches: the prev/next/first/last/slider controls over
+// `length` steps, driven by the one shared `walkStep` signal.
+function WalkControls({
+  current,
+  length,
+}: {
+  current: number;
+  length: number;
+}) {
+  return (
+    <div class="lab__walk-controls">
+      <button
+        type="button"
+        disabled={current === 0}
+        onClick={() => (walkStep.value = 0)}
+        aria-label="first step"
+      >
+        ⏮
+      </button>
+      <button
+        type="button"
+        disabled={current === 0}
+        onClick={() => (walkStep.value = current - 1)}
+      >
+        ◀ prev
+      </button>
+      <span class="lab__walk-counter">
+        step {current + 1} / {length}
+      </span>
+      <button
+        type="button"
+        disabled={current === length - 1}
+        onClick={() => (walkStep.value = current + 1)}
+      >
+        next ▶
+      </button>
+      <button
+        type="button"
+        disabled={current === length - 1}
+        onClick={() => (walkStep.value = length - 1)}
+        aria-label="last step"
+      >
+        ⏭
+      </button>
+      <input
+        class="lab__walk-slider"
+        type="range"
+        min={0}
+        max={length - 1}
+        value={current}
+        onInput={(e) => {
+          walkStep.value = Number((e.target as HTMLInputElement).value);
+        }}
+      />
+    </div>
+  );
+}
+
+function LlWalkPanel(trace: LlStepInfo[], walkRef: RefObject<HTMLDivElement>) {
+  // Clamped, not reset-on-response: see the LR branch's identical comment.
+  const current = Math.min(walkStep.value, trace.length - 1);
+  const step = trace[current];
+  // The ll-star analogue of the LR walk's "remaining input" pane: LlStepInfo carries no
+  // remaining-symbols field of its own (ALL(*) prediction has already committed by the time a
+  // step is recorded), so this derives it from the shared token list and the step's own `pos`.
+  const remainingTokens = (response.value?.parse?.tokens ?? []).slice(step.pos);
+
+  return (
+    <div class="lab__walk" ref={walkRef}>
+      <div
+        class="lab__walk-trace"
+        style={{ flex: `0 0 ${lrWalkTracePercent.value}%` }}
+      >
+        <div class="lab__analysis-heading">parse trace</div>
+        <table class="lab__table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {trace.map((s) => (
+              <tr
+                key={s.index}
+                class={
+                  s.index === current
+                    ? "lab__walk-row lab__walk-row--current"
+                    : "lab__walk-row"
+                }
+                onClick={() => (walkStep.value = s.index)}
+              >
+                <td class="lab__mono">{s.index}</td>
+                <td class="lab__mono">{llActionText(s.action)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div
+        class="lab__walk-splitter"
+        role="separator"
+        aria-orientation="vertical"
+        aria-valuemin={LR_WALK_TRACE_MIN_PERCENT}
+        aria-valuemax={LR_WALK_TRACE_MAX_PERCENT}
+        aria-valuenow={Math.round(lrWalkTracePercent.value)}
+        onMouseDown={(e) => {
+          if (walkRef.current) startLrWalkPaneDrag(walkRef.current)(e);
+        }}
+      />
+
+      <div class="lab__walk-state">
+        <WalkControls current={current} length={trace.length} />
+
+        <div class="lab__walk-panes">
+          <div>
+            <div class="lab__analysis-heading">rule stack</div>
+            <div class="lab__walk-chips">
+              {step.ruleStack.length === 0 ? (
+                <span class="lab__empty">empty</span>
+              ) : (
+                step.ruleStack.map((s, i) => (
+                  <span key={i} class="lab__chip">
+                    {s}
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
+          <div>
+            <div class="lab__analysis-heading">remaining input</div>
+            <div class="lab__walk-chips">
+              {remainingTokens.length === 0 ? (
+                <span class="lab__empty">empty</span>
+              ) : (
+                remainingTokens.map((t, i) => (
+                  <span key={i} class="lab__chip">{`\`${t.terminal}\``}</span>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WalkPanel() {
   const walkRef = useRef<HTMLDivElement>(null);
+  const llTrace = getLlTrace();
+  if (llTrace) {
+    if (llTrace.length === 0)
+      return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
+    return LlWalkPanel(llTrace, walkRef);
+  }
+  const trace = getTrace();
   if (!trace || trace.length === 0)
     return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
   // Clamped, not reset-on-response: if a new response's trace is shorter than the step the user
@@ -1574,51 +1775,7 @@ function LrWalkPanel() {
       />
 
       <div class="lab__walk-state">
-        <div class="lab__walk-controls">
-          <button
-            type="button"
-            disabled={current === 0}
-            onClick={() => (walkStep.value = 0)}
-            aria-label="first step"
-          >
-            ⏮
-          </button>
-          <button
-            type="button"
-            disabled={current === 0}
-            onClick={() => (walkStep.value = current - 1)}
-          >
-            ◀ prev
-          </button>
-          <span class="lab__walk-counter">
-            step {current + 1} / {trace.length}
-          </span>
-          <button
-            type="button"
-            disabled={current === trace.length - 1}
-            onClick={() => (walkStep.value = current + 1)}
-          >
-            next ▶
-          </button>
-          <button
-            type="button"
-            disabled={current === trace.length - 1}
-            onClick={() => (walkStep.value = trace.length - 1)}
-            aria-label="last step"
-          >
-            ⏭
-          </button>
-          <input
-            class="lab__walk-slider"
-            type="range"
-            min={0}
-            max={trace.length - 1}
-            value={current}
-            onInput={(e) => {
-              walkStep.value = Number((e.target as HTMLInputElement).value);
-            }}
-          />
-        </div>
+        <WalkControls current={current} length={trace.length} />
 
         <div class="lab__walk-panes">
           <div>
