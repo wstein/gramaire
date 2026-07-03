@@ -52,6 +52,24 @@
   padding: 4px 8px;
 }
 
+/* The secondary "LR method" control (shown only once Engine=ALL(*) orphans method.value from the
+   merged picker) is visually identical to Engine by default — same label style, same select style,
+   sitting right next to it — which reads as a second independent peer control instead of a
+   dependent one, risking a misclick between the two. Tuck it flush against Engine (negative margin
+   closes the toolbar's usual gap) with an accent-colored left edge and a smaller, muted look, so it
+   reads as "attached to Engine" rather than "another Engine". */
+.lab__method--secondary {
+  margin-left: -8px;
+  padding: 3px 10px 3px 12px;
+  border-left: 2px solid var(--accent);
+  background: var(--bg-1);
+  border-radius: 0 var(--radius, 6px) var(--radius, 6px) 0;
+  font-size: 12px;
+}
+.lab__method--secondary select {
+  padding: 3px 6px;
+}
+
 /* Plain colored text, not a badge/pill — it sits inline in the status bar next to the error/warning
    counts (also plain colored text, .lab__statusbar-errors/-warnings), so a bordered chip here would
    be the only boxed element in an otherwise flat, dense strip. */

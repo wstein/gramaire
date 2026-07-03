@@ -558,11 +558,15 @@ export default function LabIsland() {
               scheduleEvaluate();
             }}
           >
+            {/* The option's own visible text carries the value proposition, not just its title —
+                a title tooltip never fires on touch, and never fires while arrowing through an open
+                <select> with a keyboard either, so hover-only text left both audiences with nothing.
+                This is real, always-readable content instead. */}
             <option
               value="ll-star"
               title="Adaptive LL(*): still produces a parse — resolving ties by declaration order — even when the grammar has real LR conflicts the methods below would refuse to build at all."
             >
-              ALL(*)
+              ALL(*) — survives LR conflicts
             </option>
             <optgroup label="LR / GLR">
               <option value="Canonical">Canonical LR(1)</option>
@@ -573,7 +577,7 @@ export default function LabIsland() {
         </label>
         {strategy.value === "ll-star" && (
           <label
-            class="lab__method"
+            class="lab__method lab__method--secondary"
             title="All parses and Grammar analysis stay LR/GLR-built under ALL(*) — this picks which LR method drives them."
           >
             LR method
