@@ -17,6 +17,11 @@
         "startRule": {
           "type": ["string", "null"],
           "description": "The rule to treat as the grammar's start/entry rule, overriding the default of the first declared rule. Null (or omitted) means use the grammar's own declaration order, exactly like every non-Lab caller (the CLI, core test suites)."
+        },
+        "strategy": {
+          "oneOf": [{ "$ref": "#/$defs/strategy" }, { "type": "null" }],
+          "default": "lr",
+          "description": "Which parse strategy to additionally run. Null (or omitted) means \"lr\" — the default table-driven pipeline every other field in LabResponse is built from, unaffected either way. \"ll-star\" only ever ADDS the `atn` diagnostics field; it never changes buildOk/parse/forest/analysis/evaluatorJs."
         }
       }
     },
@@ -24,6 +29,12 @@
       "description": "Which table-construction method to build with — mirrors gramark.Method exactly.",
       "type": "string",
       "enum": ["Canonical", "LALR", "IELR"]
+    },
+    "strategy": {
+      "title": "Strategy",
+      "description": "Which parse strategy to build under — mirrors gramark.IR's two D-strategy values. \"lr\" is the table-driven LR/GLR pipeline; \"ll-star\" is the ALL(*) port (Ll.recognize/Ll.parse over an Atn), which the Lab surfaces only as the additive `LabResponse.atn` diagnostics — it has no step-trace or codegen equivalent to swap in for the rest of the response.",
+      "type": "string",
+      "enum": ["lr", "ll-star"]
     },
     "labResponse": {
       "title": "LabResponse",
@@ -37,7 +48,8 @@
         "productions",
         "forest",
         "analysis",
-        "evaluatorJs"
+        "evaluatorJs",
+        "atn"
       ],
       "additionalProperties": false,
       "properties": {
@@ -78,6 +90,10 @@
         "evaluatorJs": {
           "type": ["string", "null"],
           "description": "The Evaluate tab's data: BackendJs.emitTraced's generated ES module source text, run by the Worker (not this schema's owner — Scala never executes it). Present only when buildOk is true (it needs a valid compiled table); null otherwise."
+        },
+        "atn": {
+          "oneOf": [{ "$ref": "#/$defs/atnDiagnostics" }, { "type": "null" }],
+          "description": "The `--strategy ll-star` diagnostics tab's data: whether Ll.recognize accepts `input`, the DFA prediction cache's hit/miss counts, and every declaration-order-resolved ambiguity hit along the way — the same idiom `gramark conformance` reports per corpus, here per grammar/input. Present only when the request's strategy is \"ll-star\" and `input` is given; independent of buildOk, like forest (a grammar the LR table build rejects can still be worth seeing through ALL(*)'s own lens)."
         }
       }
     },
@@ -116,6 +132,50 @@
         "rendered": {
           "type": "string",
           "description": "The plain-text rendering (Diagnostic.render): a headline, an optional --> name:line:col location with a caret-underlined source line, then the notes — the same text the CLI prints."
+        }
+      }
+    },
+    "atnDiagnostics": {
+      "title": "AtnDiagnostics",
+      "description": "Whether Ll.recognize accepts the target input, the DFA prediction cache's hit/miss counts, and every declaration-order-resolved ambiguity hit while walking it — AtnSim.Cache(track = true) run fresh per request, exactly the way `gramark conformance` runs it per corpus.",
+      "type": "object",
+      "required": ["accepted", "hits", "misses", "ambiguities"],
+      "additionalProperties": false,
+      "properties": {
+        "accepted": {
+          "type": "boolean",
+          "description": "Whether Ll.recognize accepts the input — expected to always agree with the LR/GLR path's own verdict; a disagreement would itself be a real engine bug."
+        },
+        "hits": { "type": "integer", "minimum": 0 },
+        "misses": { "type": "integer", "minimum": 0 },
+        "ambiguities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ambiguityInfo" }
+        }
+      }
+    },
+    "ambiguityInfo": {
+      "title": "AmbiguityInfo",
+      "description": "One decision the ALL(*) predictor couldn't resolve down to a single alternative on its own — resolved by declaration order instead (first-alt-wins), the same notion AtnSim.Ambiguity carries.",
+      "type": "object",
+      "required": ["rule", "decision", "pos", "alts"],
+      "additionalProperties": false,
+      "properties": {
+        "rule": { "type": "string" },
+        "decision": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The ATN's decision number for this block-start state."
+        },
+        "pos": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The token position in the input where this decision was made."
+        },
+        "alts": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 },
+          "description": "The tied alternative indices, in first-alt-wins declaration order."
         }
       }
     },

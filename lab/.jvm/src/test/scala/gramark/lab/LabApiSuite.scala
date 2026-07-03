@@ -403,6 +403,62 @@ class LabApiSuite extends munit.FunSuite:
     assert(resp.parse.exists(_.accepted))
   }
 
+  test("evaluate: strategy defaults to \"lr\", which never populates atn") {
+    val resp = LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.Canonical))
+    assertEquals(resp.atn, None)
+  }
+
+  test("evaluate: strategy \"lr\" explicitly requested still never populates atn") {
+    val resp =
+      LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.Canonical, strategy = "lr"))
+    assertEquals(resp.atn, None)
+  }
+
+  test("evaluate: strategy \"ll-star\" with no input populates every other field but no atn") {
+    val resp = LabApi.evaluate(LabRequest(calcMd, None, Method.Canonical, strategy = "ll-star"))
+    assert(resp.buildOk)
+    assertEquals(resp.atn, None)
+  }
+
+  test(
+    "evaluate: strategy \"ll-star\" reports Ll.recognize's own accept/reject and cache activity"
+  ) {
+    val accept =
+      LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.Canonical, strategy = "ll-star"))
+    accept.atn match
+      case None => fail("expected atn diagnostics for an ll-star request with input")
+      case Some(d) =>
+        assert(d.accepted, "Ll.recognize should accept the same input the LR path accepts")
+        assert(d.hits + d.misses > 0, "the DFA cache should see real activity")
+        assertEquals(d.ambiguities, Vector.empty, "calc is unambiguous by construction")
+
+    val reject =
+      LabApi.evaluate(LabRequest(calcMd, Some("1+"), Method.Canonical, strategy = "ll-star"))
+    assert(reject.atn.exists(!_.accepted), "Ll.recognize should reject what the LR path rejects")
+  }
+
+  test("evaluate: strategy \"ll-star\" atn is populated even when buildOk is false") {
+    // ambiguousMd (E : E E | 'x') has real LR conflicts under every method — buildOk is always
+    // false for it — but Ll.recognize still runs and reports the tie it resolves by declaration
+    // order, the same way `forest` stays populated on a buildOk=false grammar.
+    val resp =
+      LabApi.evaluate(LabRequest(ambiguousMd, Some("xxx"), Method.Canonical, strategy = "ll-star"))
+    assert(!resp.buildOk)
+    resp.atn match
+      case None => fail("expected atn diagnostics despite buildOk being false")
+      case Some(d) =>
+        assert(d.accepted, "Ll.recognize should still accept \"xxx\"")
+        assert(d.ambiguities.nonEmpty, "E : E E | 'x' is genuinely ambiguous on repeated E's")
+  }
+
+  test(
+    "evaluate: strategy \"ll-star\" atn reflects a lexical error as a non-accepted, empty result"
+  ) {
+    val resp =
+      LabApi.evaluate(LabRequest(calcMd, Some("1+@"), Method.Canonical, strategy = "ll-star"))
+    assertEquals(resp.atn, Some(AtnDiagnostics(accepted = false, 0, 0, Vector.empty)))
+  }
+
   test("LabResponse.serialize is valid, canonical JSON (parse . stringify is the identity)") {
     // Json.stringify sorts object keys ascending; Json.parse preserves
     // whatever order the text had, so comparing a parsed JObject's Vector
@@ -467,6 +523,32 @@ class LabApiSuite extends munit.FunSuite:
       Vector(
         "source" -> Json.JString(calcMd),
         "method" -> Json.JString("Earley")
+      )
+    )
+    assert(LabRequest.fromJson(j).isLeft)
+  }
+
+  test("LabRequest.fromJson decodes strategy, defaulting to \"lr\" when absent") {
+    val withStrategy = Json.JObject(
+      Vector(
+        "source" -> Json.JString(calcMd),
+        "method" -> Json.JString("Canonical"),
+        "strategy" -> Json.JString("ll-star")
+      )
+    )
+    val withoutKey = Json.JObject(
+      Vector("source" -> Json.JString(calcMd), "method" -> Json.JString("Canonical"))
+    )
+    assertEquals(LabRequest.fromJson(withStrategy).map(_.strategy), Right("ll-star"))
+    assertEquals(LabRequest.fromJson(withoutKey).map(_.strategy), Right("lr"))
+  }
+
+  test("LabRequest.fromJson rejects an unknown strategy") {
+    val j = Json.JObject(
+      Vector(
+        "source" -> Json.JString(calcMd),
+        "method" -> Json.JString("Canonical"),
+        "strategy" -> Json.JString("glr")
       )
     )
     assert(LabRequest.fromJson(j).isLeft)

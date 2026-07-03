@@ -9,6 +9,10 @@
  * Which table-construction method to build with — mirrors gramark.Method exactly.
  */
 export type Method = "Canonical" | "LALR" | "IELR";
+/**
+ * Which parse strategy to build under — mirrors gramark.IR's two D-strategy values. "lr" is the table-driven LR/GLR pipeline; "ll-star" is the ALL(*) port (Ll.recognize/Ll.parse over an Atn), which the Lab surfaces only as the additive `LabResponse.atn` diagnostics — it has no step-trace or codegen equivalent to swap in for the rest of the response.
+ */
+export type Strategy = "lr" | "ll-star";
 
 /**
  * A request from the Lab UI: the full .grmk.md source, an optional target-language input to parse, and the table-construction method to build with. Omitting `input` (or sending null) means compile-only.
@@ -21,6 +25,10 @@ export interface LabRequest {
    * The rule to treat as the grammar's start/entry rule, overriding the default of the first declared rule. Null (or omitted) means use the grammar's own declaration order, exactly like every non-Lab caller (the CLI, core test suites).
    */
   startRule?: string | null;
+  /**
+   * Which parse strategy to additionally run. Null (or omitted) means "lr" — the default table-driven pipeline every other field in LabResponse is built from, unaffected either way. "ll-star" only ever ADDS the `atn` diagnostics field; it never changes buildOk/parse/forest/analysis/evaluatorJs.
+   */
+  strategy?: Strategy | null;
 }
 
 /**
@@ -82,6 +90,10 @@ export interface LabResponse {
    * The Evaluate tab's data: BackendJs.emitTraced's generated ES module source text, run by the Worker (not this schema's owner — Scala never executes it). Present only when buildOk is true (it needs a valid compiled table); null otherwise.
    */
   evaluatorJs: string | null;
+  /**
+   * The `--strategy ll-star` diagnostics tab's data: whether Ll.recognize accepts `input`, the DFA prediction cache's hit/miss counts, and every declaration-order-resolved ambiguity hit along the way — the same idiom `gramark conformance` reports per corpus, here per grammar/input. Present only when the request's strategy is "ll-star" and `input` is given; independent of buildOk, like forest (a grammar the LR table build rejects can still be worth seeing through ALL(*)'s own lens).
+   */
+  atn: AtnDiagnostics | null;
 }
 /**
  * One structured diagnostic: a severity, which pipeline stage raised it, a message, an optional source span, free-form note/help lines, and a plain-text rendering (the same caret-framed text the CLI prints) as a display fallback.
@@ -209,6 +221,36 @@ export interface RuleFirstFollow {
   name: string;
   first: string[];
   follow: string[];
+}
+/**
+ * Whether Ll.recognize accepts the target input, the DFA prediction cache's hit/miss counts, and every declaration-order-resolved ambiguity hit while walking it — AtnSim.Cache(track = true) run fresh per request, exactly the way `gramark conformance` runs it per corpus.
+ */
+export interface AtnDiagnostics {
+  /**
+   * Whether Ll.recognize accepts the input — expected to always agree with the LR/GLR path's own verdict; a disagreement would itself be a real engine bug.
+   */
+  accepted: boolean;
+  hits: number;
+  misses: number;
+  ambiguities: AmbiguityInfo[];
+}
+/**
+ * One decision the ALL(*) predictor couldn't resolve down to a single alternative on its own — resolved by declaration order instead (first-alt-wins), the same notion AtnSim.Ambiguity carries.
+ */
+export interface AmbiguityInfo {
+  rule: string;
+  /**
+   * The ATN's decision number for this block-start state.
+   */
+  decision: number;
+  /**
+   * The token position in the input where this decision was made.
+   */
+  pos: number;
+  /**
+   * The tied alternative indices, in first-alt-wins declaration order.
+   */
+  alts: number[];
 }
 
 export const LAB_PROTOCOL_VERSION = 1;
