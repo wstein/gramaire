@@ -203,6 +203,53 @@ class ConvertAntlrSuite extends munit.FunSuite:
   }
 
   test(
+    "convert: a LEXER rule whose only alternative is a dropped action is dropped entirely, never emitted as `//`"
+  ) {
+    val lexerOnlyActionG4 =
+      """grammar LexerOnlyAction;
+        |s : TOK | ID ;
+        |TOK : {System.out.println("hi");} ;
+        |ID : [a-z]+ ;
+        |""".stripMargin
+    ConvertAntlr.importAntlr(lexerOnlyActionG4) match
+      case Left(e) => fail(s"lexerOnlyAction.g4 should import: $e")
+      case Right(imp) =>
+        assert(
+          !imp.markdown.contains("//"),
+          s"a zero-width token must never be emitted, got:\n${imp.markdown}"
+        )
+        assert(
+          imp.warnings.exists(w => w.contains("dropped") && w.contains("`TOK`")),
+          s"expected TOK's drop to be warned about, got: ${imp.warnings}"
+        )
+        assert(imp.markdown.contains("ID"), "s's surviving alternative is still rendered")
+        Lr.parse(imp.markdown) match
+          case Left(e) =>
+            fail(s"the imported grammar must not contain a dangling reference to `TOK`: $e")
+          case Right(_) => ()
+  }
+
+  test(
+    "convert: a LEXER rule's group whose only alternative is a dropped action collapses instead of emitting `(?:)`"
+  ) {
+    val lexerEmptyGroupG4 =
+      """grammar LexerEmptyGroup;
+        |r : TOK ;
+        |TOK : ( {a} ) | 'x' ;
+        |""".stripMargin
+    ConvertAntlr.importAntlr(lexerEmptyGroupG4) match
+      case Left(e) => fail(s"lexerEmptyGroup.g4 should import: $e")
+      case Right(imp) =>
+        assert(
+          !imp.markdown.contains("(?:)"),
+          s"an empty group must never be emitted, got:\n${imp.markdown}"
+        )
+        Lr.parse(imp.markdown) match
+          case Left(e)  => fail(s"the imported grammar must still be valid, parseable Gramaire: $e")
+          case Right(_) => ()
+  }
+
+  test(
     "convert: dropping a whole rule cascades to any other rule that references it, never leaving a dangling ref"
   ) {
     val danglingRefG4 =
