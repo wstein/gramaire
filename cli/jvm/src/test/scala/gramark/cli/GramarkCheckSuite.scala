@@ -17,6 +17,14 @@ class GramarkCheckSuite extends munit.FunSuite:
     "examples/antlr/antlr4.grmk.md"
   )
 
+  // Standalone native `.grmk` files (ADR D36, first-class — see GramarkCheck.scala's "Native
+  // `.grmk` format" section) — a separate list from `gatedFiles` above since the two formats use
+  // genuinely different check functions (checkNativeStructure/checkNativeDrift, not
+  // checkStructure/checkDrift), not just a different file extension. Keep in sync with the
+  // Makefile's `NATIVE_EXAMPLE_FILES` glob, which discovers this file automatically; this list is
+  // the one place that still needs a manual add.
+  private val nativeGatedFiles = Vector("examples/lua.grmk")
+
   // NOTE: this gate is STRUCTURE + DRIFT only — canonical Markdown shape and
   // artifact freshness, never whether the grammar itself parses/builds.
   // antlr4.grmk.md currently does NOT parse (`Lr.parseWith` rejects an empty
@@ -29,6 +37,16 @@ class GramarkCheckSuite extends munit.FunSuite:
       val doc = GramarkCheck.parse(readFile(file))
       assertEquals(GramarkCheck.checkStructure(doc), Vector.empty, s"$file: structure")
       assertEquals(GramarkCheck.checkDrift(file, doc), Vector.empty, s"$file: drift")
+  }
+
+  // Unlike antlr4.grmk.md above, examples/lua.grmk DOES fully parse and build (see
+  // lab/.jvm/src/test/scala/gramark/lab/LabApiLuaSuite.scala for the "genuinely runnable,
+  // not just structure-passing" proof) — its own notation needed no gaps to work around.
+  test("the CI-gated native .grmk files pass both the structure and drift gates") {
+    for file <- nativeGatedFiles do
+      val src = readFile(file)
+      assertEquals(GramarkCheck.checkNativeStructure(src), Vector.empty, s"$file: structure")
+      assertEquals(GramarkCheck.checkNativeDrift(file, src), Vector.empty, s"$file: drift")
   }
 
   test("checkStructure: a document missing its H1 fails MD041/MD025") {
