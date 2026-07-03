@@ -19,8 +19,8 @@ class IRGoldenSuite extends munit.FunSuite:
           case Left(_)       => fail(s"could not build IR for $path")
           case Right(actual) => assertEquals(actual, readFile(goldenPath))
 
-  test("grammar/lr.grmk.md -> IR matches the committed golden") {
-    golden("grammar/lr.grmk.md", "test/golden/lr.ir.json", "Lr")
+  test("grammar/Productions.grmk.md -> IR matches the committed golden") {
+    golden("grammar/Productions.grmk.md", "test/golden/lr.ir.json", "Lr")
   }
 
   test("examples/json.grmk.md -> IR matches the committed golden") {
@@ -48,7 +48,7 @@ class IRGoldenSuite extends munit.FunSuite:
           case _ => fail(s"$path: could not build/serialize the IR")
 
   for (path, name) <- List(
-      "grammar/lr.grmk.md" -> "Lr",
+      "grammar/Productions.grmk.md" -> "Lr",
       "examples/json.grmk.md" -> "Json",
       "examples/calc.grmk.md" -> "Calc"
     )
@@ -93,24 +93,16 @@ class IRGoldenSuite extends munit.FunSuite:
           case Left(_) => fail("calc should build an IR")
           case Right(ir) =>
             assert(ir.grammar.rules.nonEmpty, "calc has at least one rule")
-            val withPredicate = ir.copy(grammar =
-              ir.grammar.copy(rules =
-                ir.grammar.rules.updated(
-                  0,
-                  ir.grammar
-                    .rules(0)
-                    .copy(predicate =
-                      Some(IRPredicateEffect(Vector("typeName"), Vector("declared")))
-                    )
-                )
-              )
+            val withPredicate = IRTestSupport.withRule0(ir)(
+              _.copy(predicate = Some(IRPredicateEffect(Vector("typeName"), Vector("declared"))))
             )
             assertEquals(
               IRValidate.validate(withPredicate),
               Vector.empty,
               "an IR carrying one predicate effect still validates clean"
             )
-            Json.parse(Json.stringify(IR.toJson(withPredicate))).flatMap(IRDecode.decode) match
+            val touchedJson = Json.stringify(IR.toJson(withPredicate))
+            Json.parse(touchedJson).flatMap(IRDecode.decode) match
               case Left(e) => fail(s"predicate-effect round-trip failed: $e")
               case Right(back) =>
                 assertEquals(
@@ -121,7 +113,6 @@ class IRGoldenSuite extends munit.FunSuite:
             // Every rule but the one just touched must serialize identically to the
             // untouched IR — the field is additive and per-rule, not a global toggle.
             val untouchedJson = Json.stringify(IR.toJson(ir))
-            val touchedJson = Json.stringify(IR.toJson(withPredicate))
             assert(untouchedJson != touchedJson, "the touched rule's JSON does change")
             assert(
               !untouchedJson.contains("\"predicate\""),
