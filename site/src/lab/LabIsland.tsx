@@ -565,6 +565,25 @@ export default function LabIsland() {
             </optgroup>
           </select>
         </label>
+        {strategy.value === "ll-star" && (
+          <label
+            class="lab__method"
+            title="All parses and Grammar analysis stay LR/GLR-built under ALL(*) — this picks which LR method drives them."
+          >
+            LR method
+            <select
+              value={method.value}
+              onChange={(e) => {
+                method.value = (e.target as HTMLSelectElement).value as Method;
+                scheduleEvaluate();
+              }}
+            >
+              <option value="Canonical">Canonical LR(1)</option>
+              <option value="LALR">LALR(1)</option>
+              <option value="IELR">IELR(1)</option>
+            </select>
+          </label>
+        )}
         {ruleNames.value.length > 0 && (
           <label class="lab__method">
             Start rule

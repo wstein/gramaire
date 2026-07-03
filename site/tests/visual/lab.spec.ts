@@ -915,6 +915,42 @@ test("Engine=ALL(*) drives Parse trace/Walk from Ll.parseTraced, and badges the 
   await expect(page.locator(".lab__provenance")).toHaveCount(0);
 });
 
+test("Engine=ALL(*) exposes an LR method control, so All parses/Grammar analysis stay changeable", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  // Under LR/GLR the merged Engine picker IS the method control — no separate one is shown.
+  await expect(page.getByLabel("LR method")).toHaveCount(0);
+
+  await page.getByLabel("Engine").selectOption("ll-star");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  // Selecting ALL(*) orphans method.value from the merged dropdown — this secondary control is
+  // the only remaining way to change it, and it still drives All parses/Grammar analysis (which
+  // stay LR/GLR-built, per the provenance note).
+  const lrMethod = page.getByLabel("LR method");
+  await expect(lrMethod).toBeVisible();
+  await expect(lrMethod).toHaveValue("Canonical");
+
+  await page.click('button[role="tab"]:has-text("Grammar analysis")');
+  await expect(page.locator(".lab__provenance")).toContainText("Canonical");
+
+  await lrMethod.selectOption("LALR");
+  await expect(page.locator(".lab__provenance")).toContainText("LALR");
+
+  // Switching back to LR/GLR retires the secondary control (the merged dropdown is authoritative
+  // again) without losing the method choice it just drove.
+  await page.getByLabel("Engine").selectOption("Canonical");
+  await expect(page.getByLabel("LR method")).toHaveCount(0);
+  await expect(page.getByLabel("Engine")).toHaveValue("Canonical");
+});
+
 test("Engine=ALL(*) still builds an LR-conflicted grammar, with the conflict as a warning", async ({
   page,
 }) => {
