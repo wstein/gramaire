@@ -196,28 +196,38 @@ object Desugar:
     case Field(f, inner) => rhsOf(inner, present).map(Field(f, _))
     case other           => Vector(lowerOne(other))
 
+  // A `{%? %}` predicate's leading `?` flag must survive this wrap too, the same way
+  // `normalizeAction` preserves it through its own recursion (D42): strip it, wrap the rest,
+  // then re-prepend it to the whole result, rather than let it end up buried mid-string where
+  // `IR.irGrammarOf`'s `startsWith("?")` check would never see it.
   private def wrap(presences: Vector[(Sym, Boolean)], orig: String): String =
-    final case class Acc(params: Vector[String], args: Vector[String], k: Int)
-    def consume(acc: Acc): Acc =
-      acc.copy(params = acc.params :+ param(acc.k), args = acc.args :+ param(acc.k), k = acc.k + 1)
-    def step(acc: Acc, sym: Sym, present: Boolean): Acc = sym match
-      case Opt(_) =>
-        if present then
-          acc.copy(
-            params = acc.params :+ param(acc.k),
-            args = acc.args :+ s"(Just ${param(acc.k)})",
-            k = acc.k + 1
-          )
-        else acc.copy(args = acc.args :+ "Nothing")
-      case Star(_) =>
-        if present then consume(acc) else acc.copy(args = acc.args :+ "[]")
-      // the field is just a name; value is the inner's
-      case Field(_, inner) => step(acc, inner, present)
-      case _               => consume(acc)
-    val r = presences.foldLeft(Acc(Vector.empty, Vector.empty, 0)) { case (acc, (sym, present)) =>
-      step(acc, sym, present)
-    }
-    "\\" + r.params.mkString(" ") + " -> (" + orig + ") " + r.args.mkString(" ")
+    if orig.startsWith("?") then "?" + wrap(presences, orig.drop(1))
+    else
+      final case class Acc(params: Vector[String], args: Vector[String], k: Int)
+      def consume(acc: Acc): Acc =
+        acc.copy(
+          params = acc.params :+ param(acc.k),
+          args = acc.args :+ param(acc.k),
+          k = acc.k + 1
+        )
+      def step(acc: Acc, sym: Sym, present: Boolean): Acc = sym match
+        case Opt(_) =>
+          if present then
+            acc.copy(
+              params = acc.params :+ param(acc.k),
+              args = acc.args :+ s"(Just ${param(acc.k)})",
+              k = acc.k + 1
+            )
+          else acc.copy(args = acc.args :+ "Nothing")
+        case Star(_) =>
+          if present then consume(acc) else acc.copy(args = acc.args :+ "[]")
+        // the field is just a name; value is the inner's
+        case Field(_, inner) => step(acc, inner, present)
+        case _               => consume(acc)
+      val r = presences.foldLeft(Acc(Vector.empty, Vector.empty, 0)) { case (acc, (sym, present)) =>
+        step(acc, sym, present)
+      }
+      "\\" + r.params.mkString(" ") + " -> (" + orig + ") " + r.args.mkString(" ")
 
   // a bare-body action (no leading lambda) binds the field names (#5/D28).
   // A `{%? %}` predicate's leading `?` flag must survive this wrap so IR
@@ -402,9 +412,14 @@ object Desugar:
             }
         }
         .map(r =>
+          // Same reasoning as `wrap`: a leading `?` on `usingAction` (the outer alt's own
+          // predicate, per `normalizeAction`) must end up leading the *whole* result, not
+          // buried inside the parens around it.
+          val (flag, action) =
+            if usingAction.startsWith("?") then ("?", usingAction.drop(1)) else ("", usingAction)
           Wrapped(
             r.syms,
-            "\\" + r.params.mkString(" ") + " -> (" + usingAction + ") " + r.args.mkString(" ")
+            flag + "\\" + r.params.mkString(" ") + " -> (" + action + ") " + r.args.mkString(" ")
           )
         )
 
