@@ -48,11 +48,20 @@ object IRValidate:
     def checkActionKey(rid: Int, k: String): Vector[String] =
       if k == "" then Vector(s"rule $rid: empty action profile name") else Vector.empty
 
+    def checkPredicateEffect(rid: Int, p: IRPredicateEffect): Vector[String] =
+      (p.reads ++ p.writes).collect {
+        case k if k.isEmpty => s"rule $rid: predicate effect key must not be empty"
+      }
+
     def checkRule(r: IRRule): Vector[String] =
       (if ntSet.contains(r.lhs) then Vector.empty
        else Vector(s"rule ${r.id}: lhs ${r.lhs} is not a nonterminal id")) ++
         r.rhs.flatMap(checkRef(r.id, _)) ++
-        r.actions.keys.toVector.flatMap(k => checkActionKey(r.id, k))
+        r.actions.keys.toVector.flatMap(k => checkActionKey(r.id, k)) ++
+        r.predicate.toVector.flatMap(checkPredicateEffect(r.id, _)) ++
+        (if r.predicate.isDefined && r.actions.isEmpty then
+           Vector(s"rule ${r.id}: declares a predicate effect but has no action body")
+         else Vector.empty)
 
     val algorithmCheck: Vector[String] =
       if Vector("canonical-lr1", "lalr1", "ielr1").contains(ir.tables.algorithm) then Vector.empty

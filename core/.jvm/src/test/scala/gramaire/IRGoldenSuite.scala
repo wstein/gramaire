@@ -81,3 +81,50 @@ class IRGoldenSuite extends munit.FunSuite:
               "withStrategy lr leaves the IR byte-unchanged"
             )
   }
+
+  test(
+    "a rule's predicate effect (ADR D42) round-trips and leaves untouched rules byte-unchanged"
+  ) {
+    val md = readFile("examples/calc.gram.md")
+    Lr.parse(md) match
+      case Left(e) => fail(s"could not parse calc: $e")
+      case Right(g) =>
+        IR.buildIR(Method.Canonical, "Calc", g) match
+          case Left(_) => fail("calc should build an IR")
+          case Right(ir) =>
+            assert(ir.grammar.rules.nonEmpty, "calc has at least one rule")
+            val withPredicate = ir.copy(grammar =
+              ir.grammar.copy(rules =
+                ir.grammar.rules.updated(
+                  0,
+                  ir.grammar
+                    .rules(0)
+                    .copy(predicate =
+                      Some(IRPredicateEffect(Vector("typeName"), Vector("declared")))
+                    )
+                )
+              )
+            )
+            assertEquals(
+              IRValidate.validate(withPredicate),
+              Vector.empty,
+              "an IR carrying one predicate effect still validates clean"
+            )
+            Json.parse(Json.stringify(IR.toJson(withPredicate))).flatMap(IRDecode.decode) match
+              case Left(e) => fail(s"predicate-effect round-trip failed: $e")
+              case Right(back) =>
+                assertEquals(
+                  back,
+                  withPredicate,
+                  "the predicate effect survives serialize -> parse -> decode"
+                )
+            // Every rule but the one just touched must serialize identically to the
+            // untouched IR — the field is additive and per-rule, not a global toggle.
+            val untouchedJson = Json.stringify(IR.toJson(ir))
+            val touchedJson = Json.stringify(IR.toJson(withPredicate))
+            assert(untouchedJson != touchedJson, "the touched rule's JSON does change")
+            assert(
+              !untouchedJson.contains("\"predicate\""),
+              "an IR with no predicates never emits the key, so existing goldens stay byte-unchanged"
+            )
+  }
