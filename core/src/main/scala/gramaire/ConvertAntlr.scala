@@ -353,6 +353,15 @@ object ConvertAntlr:
     // warnings from two different rules into one.
     rules.flatMap(r => r.alts.flatMap(_.flatMap(e => elemWarn(r.lexer, r.name, e)))).distinct
 
+  // Every `ARef` an alt's elements reach, recursively through `AGroup`/`ANot` — what
+  // dropUnrepresentableRules needs to know an alt is dangling once some other rule it
+  // names has been dropped.
+  private def refsIn(a: Atom): Set[String] = a match
+    case ARef(n)      => Set(n)
+    case ANot(inner)  => refsIn(inner)
+    case AGroup(alts) => alts.flatMap(_.flatMap(e => refsIn(e.atom))).toSet
+    case _            => Set.empty
+
   // A PARSER-rule alternative every one of whose elements renders to "" (a dropped
   // action/predicate, a dropped `~[set]`) cannot be written at all — Gramaire's front end
   // requires at least one real symbol per alternative; confirmed neither a blank body nor
@@ -361,21 +370,41 @@ object ConvertAntlr:
   // renderer (lexer rules render via `regexOfAtom`, where e.g. `~[set]` is valid `[^set]`),
   // so lexer rules are passed through untouched — applying it to them would wrongly drop
   // a perfectly good lexer rule whose body happens to use the same atoms.
-  private def dropUnrepresentableAlts(rules: Vector[G4Rule]): (Vector[G4Rule], Vector[String]) =
-    val perRule = rules.map { r =>
-      if r.lexer then (Some(r), Vector.empty)
-      else
-        val (kept, dropped) = r.alts.partition(alt => renderAlt(alt).nonEmpty)
-        val altWarnings =
-          dropped.map(_ => s"dropped an alternative in rule `${r.name}` (no Core equivalent)")
-        if kept.nonEmpty then (Some(r.copy(alts = kept)), altWarnings)
+  //
+  // Dropping a whole rule can dangle another rule's reference to it, which is just as
+  // unwritable as the original empty-render case — so this repeats to a fixed point,
+  // re-checking every remaining rule's alts against the shrinking set of names still
+  // defined, until a pass drops nothing further.
+  private def dropUnrepresentableRules(rules: Vector[G4Rule]): (Vector[G4Rule], Vector[String]) =
+    def onePass(rs: Vector[G4Rule]): (Vector[G4Rule], Vector[String], Boolean) =
+      val alive = rs.map(_.name).toSet
+      var changed = false
+      val perRule = rs.map { r =>
+        if r.lexer then (Some(r), Vector.empty[String])
         else
-          (
-            None,
-            altWarnings :+ s"dropped rule `${r.name}` entirely (every alternative had no Core equivalent)"
-          )
-    }
-    (perRule.flatMap(_._1), perRule.flatMap(_._2))
+          val (kept, dropped) = r.alts.zipWithIndex.partition { case (alt, _) =>
+            renderAlt(alt).nonEmpty && alt.forall(e => refsIn(e.atom).subsetOf(alive))
+          }
+          val altWarnings = dropped.map { case (_, i) =>
+            s"dropped alternative #${i + 1} in rule `${r.name}` (no Core equivalent, or a reference to a dropped rule)"
+          }
+          if dropped.nonEmpty then changed = true
+          if kept.nonEmpty then (Some(r.copy(alts = kept.map(_._1))), altWarnings)
+          else
+            changed = true
+            (
+              None,
+              altWarnings :+ s"dropped rule `${r.name}` entirely (every alternative had no Core equivalent)"
+            )
+      }
+      val (kept, warnings) = perRule.unzip
+      (kept.flatten, warnings.flatten, changed)
+
+    def loop(rs: Vector[G4Rule], acc: Vector[String]): (Vector[G4Rule], Vector[String]) =
+      val (next, warnings, changed) = onePass(rs)
+      if changed then loop(next, acc ++ warnings) else (next, acc ++ warnings)
+
+    loop(rules, Vector.empty)
 
   private def parseG4(toks0: Vector[Tok]): Either[String, Parsed] =
     for
@@ -383,7 +412,7 @@ object ConvertAntlr:
       rules <- rulesOf(afterDecl, Vector.empty)
     yield
       val kept = rules.filterNot(_.alts.isEmpty)
-      val (reduced, altWarnings) = dropUnrepresentableAlts(kept)
+      val (reduced, altWarnings) = dropUnrepresentableRules(kept)
       Parsed(name, reduced, (collectWarnings(kept) ++ altWarnings).distinct)
 
   // ── Render to `.gram.md` ─────────────────────────────────────────────
@@ -413,8 +442,15 @@ object ConvertAntlr:
     // Gramaire syntax, so drop the whole atom rather than emit invalid output (warned).
     case ANot(ASet(_)) => ""
     case ANot(inner)   => "~" + renderAtom(inner)
-    case AGroup(alts)  => "( " + alts.map(renderAlt).mkString(" | ") + " )"
-    case AInline(_)    => "" // dropped (warned)
+    // An inner alt that itself renders to "" (a dropped atom, recursively) can't be kept —
+    // `( ` + "" + ` )` would emit an invalid empty group, not propagate the emptiness up
+    // to the containing alt's own "" check (dropUnrepresentableRules never sees inside a
+    // group). Filtering here first makes the whole group "" too once every branch drops,
+    // so it composes with that check instead of hiding an unrepresentable alt inside parens.
+    case AGroup(alts) =>
+      val kept = alts.map(renderAlt).filter(_.nonEmpty)
+      if kept.isEmpty then "" else "( " + kept.mkString(" | ") + " )"
+    case AInline(_) => "" // dropped (warned)
 
   private def renderElem(e: Elem): String = renderAtom(e.atom) + renderSuffix(e.suffix)
 
@@ -422,7 +458,7 @@ object ConvertAntlr:
   // element rendered to "" (all its parts were dropped, no Core equivalent). Neither case
   // is representable in Gramaire: there is no epsilon/empty-alternative syntax (a bare
   // `:`/`|` with nothing after it, and a `/* … */` comment, both fail to parse). Callers
-  // must not emit an alt this returns "" for — `dropUnrepresentableAlts` drops it instead.
+  // must not emit an alt this returns "" for — `dropUnrepresentableRules` drops it instead.
   private def renderAlt(els: Vector[Elem]): String =
     els.map(renderElem).filter(_ != "").mkString(" ")
 
