@@ -282,7 +282,13 @@ object AtnSim:
       case Vector(Transition.Atom(t, target)) if t == term => Vector(c.copy(state = target))
       case _                                               => Vector.empty
 
-  private def firstAlt(configs: Vector[Config]): Option[Int] = configs.headOption.map(_.alt)
+  // The lowest (earliest-declared) alt among `configs` — ANTLR's "first alternative that
+  // matches wins" convention for a genuine ambiguity, and not incidentally dependent on
+  // `configs`' vector order (which `AtnSim.Cache.reachClosure`'s set-keyed memoization doesn't
+  // preserve across cache hits — see its own doc comment on why that's still safe: this makes
+  // it doubly so, since `preferCompleted`'s tie-break no longer depends on order at all).
+  private def firstAlt(configs: Vector[Config]): Option[Int] =
+    if configs.isEmpty then None else Some(configs.map(_.alt).min)
 
   private def uniqueAlt(configs: Vector[Config]): Option[Int] =
     firstAlt(configs) match
