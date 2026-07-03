@@ -208,15 +208,54 @@ actions, and the driver forks.
   survives, and the resulting tree MUST equal the deterministic parse. The
   deterministic driver MUST ignore multi-action data entirely; GLR is strictly
   opt-in.
+- **R20 (GSS reuse and invalidation).** Extending R14 to GLR mode: a GSS branch
+  node (a `(state, subtree)` pair reached by a fork) MAY be reused verbatim iff
+  its subtree satisfies R14's reuse conditions (undamaged, error-free, `goto`
+  valid in the current state, lookahead unaffected) **and** the branch's merge
+  history (which sibling branches it merged with, per R16) reproduces
+  identically under the new source — an edit that changes which branches would
+  merge at a shared state invalidates the branch even when its own subtree is
+  undamaged. A branch that fails either condition MUST be discarded and
+  rebuilt by re-forking from the nearest surviving ancestor branch; discarding
+  a branch MUST also invalidate any merge-state cache keyed on it. R13
+  (equivalence) still governs: the *set* of surviving parses after `edit()`
+  MUST match `parseForest(b)` — reuse is purely an optimization, never a
+  relaxation of R13.
+- **R21 (GLR promotion).** A GLR-mode backend MAY claim the `incremental`
+  capability (ADR D22) once it implements R20 and passes the GLR incremental
+  descriptors (Section 11); until then GLR MUST NOT claim it and stays
+  opt-in, non-incremental — today's status
+  ([`Glr.scala`](../core/src/main/scala/gramark/Glr.scala)'s forest driver is a
+  naive worklist fork, not yet a graph-structured stack).
 
-**ALL(\*) predicates — deferred alongside GLR.** Semantic predicates (`{%? %}`,
-the D-predicates decision in `docs/all-star-port-plan.md`) are out of scope for
-this spec version, same as GLR above: a predicate evaluated during prediction
-reads host-side state outside the CST, and this spec does not yet define how
-`edit()` invalidates a parse decision that depended on one. Until Phase F
-defines that invalidation semantics, a predicate-using `ll-star` grammar MUST
-NOT claim the `incremental` capability (ADR D22) — it inherits GLR's deferred,
-opt-in-only treatment rather than a bespoke exception.
+**ALL(\*) predicates.** Semantic predicates (`{%? %}`, the D-predicates
+decision in `docs/all-star-port-plan.md`) read host-side state outside the
+CST during prediction, so their edit-invalidation depends on knowing what
+state a predicate touches. The IR-level effect declaration (ADR D42,
+`rules[].predicate.reads`/`.writes` in `ir-schema.json` §10) exists to answer
+exactly that; today it is inert plumbing (no producer populates it — see
+`docs/all-star-port-plan.md`'s Phase 3 gating note), so the rules below are
+the specification a future predicate-carrying `ll-star` backend must satisfy,
+not a description of running code.
+
+- **R22 (predicate reuse and invalidation).** A cached prediction decision
+  that evaluated a rule's `predicate` (ADR D42) MAY be reused across `edit()`
+  iff none of that predicate's declared `reads` keys were written — by
+  another predicate's declared `writes`, or by a structural change to the
+  subtree that establishes a `reads` key — within the edited range or at any
+  point source-order-before the decision's span but source-order-after the
+  edit. A decision that fails this condition MUST be invalidated and its
+  prediction re-run, which MUST also invalidate every decision nested inside
+  its span (R13 equivalence applies transitively through the CST). A runtime
+  that cannot track per-key read/write provenance precisely MUST fall back to
+  invalidating every predicate-dependent decision from the edited range to
+  the end of the tree — conservative over incorrect.
+- **R23 (predicate promotion).** An `ll-star` backend MAY claim the
+  `incremental` capability (ADR D22) once it implements R22 (consuming
+  `rules[].predicate.reads`/`.writes`) and passes the predicate incremental
+  descriptors (Section 11); until then a predicate-using grammar MUST NOT
+  claim it and stays opt-in, non-incremental, the same status GLR has under
+  R21.
 
 ## 8. LSP surface
 
@@ -269,6 +308,11 @@ absence is meaningful.
   (Section 4). SHOULD be present; absence falls back to FOLLOW-set resync.
 - `tables.glr: { enabled: boolean, conflictStates: integer[] }` — GLR opt-in and
   the states where forking may occur (Section 7).
+- `rules[].predicate: { reads: string[], writes: string[] }` (ADR D42) —
+  REQUIRED by R22/R23 for a predicate-using `ll-star` backend to claim the
+  `incremental` capability; absence means the rule's action is an ordinary
+  value-building action (or the front end does not yet emit predicates —
+  today's state).
 - Stable `rules[].id` and symbol `id`s — REQUIRED so reused subtrees keep
   identity across IR revisions within a major (R3). The IR's canonical hash
   (the `*.grmk.lock` digest, `[S12]`) covers these.
@@ -279,7 +323,13 @@ The incremental runtime is conformant iff, for the descriptors in
 `conformance/incremental/` (`[S18]`):
 
 - **C1 — equivalence.** For every `(a, edit, b)` descriptor, R13 holds:
-  `edit(parse(a), edit, b)` is structurally identical to `parse(b)`.
+  `edit(parse(a), edit, b)` is structurally identical to `parse(b)`. GLR's R20
+  and predicates' R22 are checked under this same dimension, not a bespoke
+  one: a GLR- or predicate-specific descriptor set (R21/R23's gate) still
+  reduces to "the reused/invalidated result equals a full reparse." No such
+  descriptors exist yet — GLR and predicate incremental support are both
+  unimplemented (Section 7) — so C1 today only exercises the deterministic
+  driver.
 - **C2 — fidelity.** R1 holds for every parsed source: the tree reconstructs the
   bytes exactly.
 - **C3 — recovery.** For every malformed-input descriptor, the produced error
@@ -320,3 +370,18 @@ plan ADR that resolves it, so the spec and plan agree.
    per-target profile (errors are input-facing prose, not host code) and not
    per-locale in v0; localization is an additive runtime/LSP catalog keyed by
    the same ids, with no consumer yet.
+4. **GLR edit invalidation — GSS span/merge-history reuse (R20), gated
+   promotion (R21).** A GLR branch reuses across `edit()` under R14's ordinary
+   conditions plus an added merge-history check; anything that fails is
+   rebuilt from the nearest surviving ancestor, never patched in place. GLR
+   stays opt-in and non-incremental (ADR D22) until a backend implements R20
+   and passes conformance — the rules are settled, the implementation is not
+   (Section 7).
+5. **Predicate edit invalidation — effect-declared reuse (R22), gated
+   promotion (R23).** A predicate-dependent prediction decision reuses iff its
+   declared `reads` (ADR D42) weren't touched by an intervening edit or write;
+   otherwise it and everything nested inside it are re-predicted. This is why
+   D42 declares `reads`/`writes` instead of leaving predicate bodies fully
+   opaque — an incremental runtime has nothing else to key invalidation off of.
+   Same gated-promotion shape as GLR: opt-in until R22 is implemented and
+   conformance-checked.
