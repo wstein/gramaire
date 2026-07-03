@@ -4,15 +4,15 @@ import Sym.*
 
 // Iteration-0 bootstrap.
 //
-// This is the `lr` grammar of `lr.grmk.md`, encoded by hand as a `Grammar`
+// This is the productions grammar of `Productions.grmk.md`, encoded by hand as a `Grammar`
 // value. The table builder is fed THIS directly — no bootstrap parser is
 // needed to get the toolchain off the ground. Once `buildTables` + codegen
-// produce an `lr` parser, and that generated parser reads `lr.grmk.md` back
+// produce the internal `lr` parser, and that generated parser reads `Productions.grmk.md` back
 // to a value equal to `bootstrapGrammar` (the dogfood test), this literal
 // is deleted and the `.grmk.md` file becomes the single source of truth.
 //
 // Each action string is the exact `%lang javascript` text between `{%` and
-// `%}` in the corresponding rule of `lr.grmk.md` — real, executable JS
+// `%}` in the corresponding rule of `Productions.grmk.md` — real, executable JS
 // (`gramark emit --backend js` bakes it into a working evaluator), but
 // still not what drives this file's own self-hosting proof: `CodegenScala`'s
 // Scala-emitting reduce is generated from a separate, hand-written Scala
@@ -21,7 +21,7 @@ import Sym.*
 // Ported from src/Gramark/Bootstrap.purs.
 object Bootstrap:
 
-  // The `lr` notation's lexis — the `## Tokens` block of `lr.grmk.md`,
+  // The productions notation's lexis — the `## Tokens` block of `Productions.grmk.md`,
   // encoded here so the parse path can build its scanner without reading
   // the file.
   val lrTokensSource: String = List(

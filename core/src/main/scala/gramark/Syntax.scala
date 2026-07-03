@@ -34,5 +34,5 @@ final case class Rule(name: String, attrs: Vector[String], alts: Vector[Alt])
 //
 // Structural equality (free via `derives CanEqual` + case-class/enum
 // equals) lets the self-hosting test assert that the parser, once
-// generated, reads `lr.grmk.md` back to a value equal to the literal.
+// generated, reads `Productions.grmk.md` back to a value equal to the literal.
 final case class Grammar(rules: Vector[Rule]) derives CanEqual

@@ -4,7 +4,7 @@ package gramark
 // (render/JSON shape/validate), built by hand rather than through a real
 // parse (which needs Conformance/Conformance.Lexers, Phase 1.6, plus a
 // golden-file harness) — revisit once those land to also cover the
-// golden-locked `lr.grmk.md` sample parse.
+// golden-locked `Productions.grmk.md` sample parse.
 class CstSuite extends munit.FunSuite:
 
   // Sum : Sum '+' NUM | NUM, parsed by hand for "1+2+3":

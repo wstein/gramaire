@@ -17,7 +17,7 @@ actions. The two never touch directly.
 This plan slots **on top of** the existing automaton. That work is done: the
 PureScript core already lexes an `lr` block, builds tables by canonical LR(1),
 LALR(1), and IELR(1), runs them through a table-driven parser, and **closes the
-self-host loop** (`parse(lr.grmk.md) == bootstrapGrammar` under all three
+self-host loop** (`parse(Productions.grmk.md) == bootstrapGrammar` under all three
 methods), with a differential oracle pinning the methods against each other.
 
 > **Revision note.** This revision folds in the LALRPOP and ANTLR-ng lessons
@@ -193,7 +193,7 @@ Rules: a grammar may carry **zero or more** profiles; a backend honors the
 profile matching its target and ignores the rest. **Zero actions = fully
 universal.** A present profile lets that backend build a typed AST instead of a
 generic CST. Bare `{% … %}` is sugar for the **default profile**, which is
-`purescript` (back-compat with today's grammars and `lr.grmk.md`).
+`purescript` (back-compat with today's grammars and `Productions.grmk.md`).
 
 > **Superseded (post-migration correction).** D5's "bare `{% %}` implicitly
 > means the reference implementation's own language" reading doesn't survive
@@ -203,7 +203,7 @@ generic CST. Bare `{% … %}` is sugar for the **default profile**, which is
 > text with no `%lang` gets no implicit language and no implicit consumer —
 > the IR still records that text (under an `actions` key literally named
 > `"default"` now, not `"purescript"`), but it is opaque, unexecuted payload
-> until a real `%lang` names it. `grammar/lr.grmk.md` and the `examples/`
+> until a real `%lang` names it. `grammar/Productions.grmk.md` and the `examples/`
 > grammars were retagged `%lang javascript` with real, executed actions to
 > match — the migration holdout this note originally flagged is fixed.
 

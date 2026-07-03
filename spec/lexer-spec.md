@@ -200,7 +200,7 @@ reference token stream byte-for-byte.
 
 ## 8. Self-host
 
-`grammar/lr.grmk.md` carries its own Tokens-role `gramark` fence (§10), and the scanner
+`grammar/Productions.grmk.md` carries its own Tokens-role `gramark` fence (§10), and the scanner
 built from it is the **production** lexer for `gramark` grammar source: `Gramark.Lr`
 scans with `lrScanItems` (that block plus the implicit `` `:` `` / `` `|` ``
 literals), trimming each `ACTION` body in the consumer (M5). `Gramark.Lexer` is
@@ -208,10 +208,10 @@ now iteration-0 **bootstrap** — kept only as the self-host oracle's reference.
 
 The oracle (`Test.LexerSelfHost`) proves the generated scanner reproduces that
 bootstrap lexer **token-for-token** — terminal _and_ text, thanks to capture
-(M5) — not just on a snippet but across the whole of `grammar/lr.grmk.md`; a
+(M5) — not just on a snippet but across the whole of `grammar/Productions.grmk.md`; a
 second guard checks the bootstrapped `lrTokensSource` still parses to the same
 classes as the file's block. Because the parse path now scans with the generated
-lexer, the existing parser self-host (`parse(lr.grmk.md) == bootstrapGrammar`)
+lexer, the existing parser self-host (`parse(Productions.grmk.md) == bootstrapGrammar`)
 and the whole grammar corpus are themselves an end-to-end check on it.
 
 ## 9. fmt and structure
@@ -225,7 +225,7 @@ and the whole grammar corpus are themselves an end-to-end check on it.
   (it is significant — M2). The `*.grmk.lock` hashes the normalized token
   definitions so a pattern change is drift-visible.
 
-## 10. Worked example — `lr.grmk.md`
+## 10. Worked example — `Productions.grmk.md`
 
 The `gramark` notation, defining its own tokens, with capture groups (M5) for the
 payload-bearing classes and `ATTR` ordered before `IDENT` / `LABEL` so `#[name]`
@@ -277,7 +277,7 @@ tie-breaks needed.
 - **L3 (extras populate the IR).** `%skip` tokens appear in `grammar.extras` and
   as CST trivia (incremental-spec §3).
 - **L4 (self-host lexer).** The generated `gramark` lexer reproduces the bootstrap
-  lexer's token stream on `grammar/lr.grmk.md` (§8) — terminals now, text once
+  lexer's token stream on `grammar/Productions.grmk.md` (§8) — terminals now, text once
   capture lands.
 - **L5 (json self-contained).** `json.grmk.md` plus its Tokens-role `gramark`
   fence parses a JSON corpus with no hand-written scanner.

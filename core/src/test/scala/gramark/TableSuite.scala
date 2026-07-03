@@ -3,7 +3,7 @@ package gramark
 import Sym.*
 
 // Ported from test/Test/Table.purs. The expected FIRST/FOLLOW sets are
-// exactly the table documented in grammar/lr.grmk.md, so this closes the
+// exactly the table documented in grammar/Productions.grmk.md, so this closes the
 // loop: the literal, the algorithm, and the docs must all agree — the
 // single highest-value parity gate for this module (Granularity 1 of the
 // migration plan's Phase 1.2 methodology).
@@ -139,11 +139,11 @@ class TableSuite extends munit.FunSuite:
     assertEquals(Table.analyze(Bootstrap.bootstrapGrammar).start, "Grammar")
   }
 
-  test("FIRST sets match grammar/lr.grmk.md") {
+  test("FIRST sets match grammar/Productions.grmk.md") {
     assertEquals(Table.analyze(Bootstrap.bootstrapGrammar).firsts, expectedFirst)
   }
 
-  test("FOLLOW sets match grammar/lr.grmk.md") {
+  test("FOLLOW sets match grammar/Productions.grmk.md") {
     assertEquals(Table.analyze(Bootstrap.bootstrapGrammar).follows, expectedFollow)
   }
 

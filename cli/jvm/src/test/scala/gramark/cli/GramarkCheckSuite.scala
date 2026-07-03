@@ -8,7 +8,7 @@ class GramarkCheckSuite extends munit.FunSuite:
     java.nio.file.Files.readString(java.nio.file.Path.of(path))
 
   private val gatedFiles = Vector(
-    "grammar/lr.grmk.md",
+    "grammar/Productions.grmk.md",
     "examples/calc.grmk.md",
     "examples/calc-prec.grmk.md",
     "examples/calc-js.grmk.md",
@@ -95,7 +95,7 @@ class GramarkCheckSuite extends munit.FunSuite:
   }
 
   test("checkDrift: a missing lock file is reported, not silently skipped") {
-    val doc = GramarkCheck.parse(readFile("grammar/lr.grmk.md"))
+    val doc = GramarkCheck.parse(readFile("grammar/Productions.grmk.md"))
     val fails = GramarkCheck.checkDrift("grammar/does-not-exist.grmk.md", doc)
     assert(fails.exists(_.contains("no lock file")))
   }
@@ -103,11 +103,11 @@ class GramarkCheckSuite extends munit.FunSuite:
   test("checkDrift: a grammar edited after fmt is stale") {
     // Mutate a rule's fenced content (not just prose) so the grammar hash
     // actually changes — grammarHashes only hashes `gramark`* block bodies.
-    val original = readFile("grammar/lr.grmk.md")
+    val original = readFile("grammar/Productions.grmk.md")
     val mutated = original.replaceFirst("(?s)(```gramark\\n)(.*?)(\\n```)", "$1$2 EDITED$3")
     assert(mutated != original, "the replacement should have matched a gramark block")
     val doc = GramarkCheck.parse(mutated)
-    val fails = GramarkCheck.checkDrift("grammar/lr.grmk.md", doc)
+    val fails = GramarkCheck.checkDrift("grammar/Productions.grmk.md", doc)
     assert(fails.exists(_.contains("stale tables")))
   }
 
@@ -122,7 +122,12 @@ class GramarkCheckSuite extends munit.FunSuite:
     // Explicit Inline: collapsing is the default, but this test is about the diagram file/link,
     // not the layout, so pin the layout to keep the assertions below layout-agnostic.
     val _ =
-      GramarkCheck.fmt(file.toString, doc, GramarkCheck.DiagramMode.Sidecar, GramarkCheck.SourceLayout.Inline)
+      GramarkCheck.fmt(
+        file.toString,
+        doc,
+        GramarkCheck.DiagramMode.Sidecar,
+        GramarkCheck.SourceLayout.Inline
+      )
 
     assert(java.nio.file.Files.exists(dir.resolve("diagrams-sample/value.svg")))
     assert(java.nio.file.Files.readString(file).contains("](diagrams-sample/value.svg)"))
@@ -198,7 +203,8 @@ class GramarkCheckSuite extends munit.FunSuite:
 
   test("applySourceLayout: Inline is the identity on an already-inline document") {
     assertEquals(
-      GramarkCheck.applySourceLayout(inlineFixture, contentByRule, GramarkCheck.SourceLayout.Inline),
+      GramarkCheck
+        .applySourceLayout(inlineFixture, contentByRule, GramarkCheck.SourceLayout.Inline),
       inlineFixture
     )
   }
@@ -220,7 +226,8 @@ class GramarkCheckSuite extends munit.FunSuite:
       contentByRule,
       GramarkCheck.SourceLayout.Collapsed
     )
-    val twice = GramarkCheck.applySourceLayout(once, contentByRule, GramarkCheck.SourceLayout.Collapsed)
+    val twice =
+      GramarkCheck.applySourceLayout(once, contentByRule, GramarkCheck.SourceLayout.Collapsed)
     assertEquals(twice, once)
   }
 
@@ -246,7 +253,9 @@ class GramarkCheckSuite extends munit.FunSuite:
       |![Railroad diagram for the Expr rule](diagrams-t/expr.svg)
       |""".stripMargin
 
-  test("applySourceLayout: Collapsed wraps the Settings fence behind <details><summary>Declarations</summary>") {
+  test(
+    "applySourceLayout: Collapsed wraps the Settings fence behind <details><summary>Declarations</summary>"
+  ) {
     val collapsed = GramarkCheck.applySourceLayout(
       inlineFixtureWithSettings,
       contentByRule,
@@ -301,7 +310,8 @@ class GramarkCheckSuite extends munit.FunSuite:
       contentByRule,
       GramarkCheck.SourceLayout.Collapsed
     )
-    val twice = GramarkCheck.applySourceLayout(once, contentByRule, GramarkCheck.SourceLayout.Collapsed)
+    val twice =
+      GramarkCheck.applySourceLayout(once, contentByRule, GramarkCheck.SourceLayout.Collapsed)
     assertEquals(twice, once)
   }
 
@@ -319,7 +329,8 @@ class GramarkCheckSuite extends munit.FunSuite:
     val written = java.nio.file.Files.readString(file)
     assert(written.contains("<details>\n<summary>Source</summary>"), written)
     assert(written.contains("<details>\n<summary>Declarations</summary>"), written)
-    val lockText = java.nio.file.Files.readString(java.nio.file.Path.of(GramarkCheck.lockPathFor(file.toString)))
+    val lockText =
+      java.nio.file.Files.readString(java.nio.file.Path.of(GramarkCheck.lockPathFor(file.toString)))
     assert(lockText.contains(""""sourceLayout": "collapsed""""), lockText)
 
     // structure/drift are layout-agnostic — a collapsed file is exactly as canonical as an
@@ -339,11 +350,17 @@ class GramarkCheckSuite extends munit.FunSuite:
 
     val doc = GramarkCheck.parse(src)
     val _ =
-      GramarkCheck.fmt(file.toString, doc, GramarkCheck.DiagramMode.Sidecar, GramarkCheck.SourceLayout.Inline)
+      GramarkCheck.fmt(
+        file.toString,
+        doc,
+        GramarkCheck.DiagramMode.Sidecar,
+        GramarkCheck.SourceLayout.Inline
+      )
 
     val written = java.nio.file.Files.readString(file)
     assert(!written.contains("<details>"), written)
-    val lockText = java.nio.file.Files.readString(java.nio.file.Path.of(GramarkCheck.lockPathFor(file.toString)))
+    val lockText =
+      java.nio.file.Files.readString(java.nio.file.Path.of(GramarkCheck.lockPathFor(file.toString)))
     assert(!lockText.contains("sourceLayout"), lockText)
   }
 
@@ -376,8 +393,15 @@ class GramarkCheckSuite extends munit.FunSuite:
       |""".stripMargin
 
   test("lockPathForNative: distinct suffix, no collision with a .grmk.md sibling's lock") {
-    assertEquals(GramarkCheck.lockPathForNative("examples/lua.grmk"), "examples/lua.grmk.native-grmk.lock")
-    assert(GramarkCheck.lockPathForNative("examples/lua.grmk") != GramarkCheck.lockPathFor("examples/lua.grmk.md"))
+    assertEquals(
+      GramarkCheck.lockPathForNative("examples/lua.grmk"),
+      "examples/lua.grmk.native-grmk.lock"
+    )
+    assert(
+      GramarkCheck.lockPathForNative("examples/lua.grmk") != GramarkCheck.lockPathFor(
+        "examples/lua.grmk.md"
+      )
+    )
   }
 
   test("checkNativeStructure: a canonical fixture passes cleanly") {
