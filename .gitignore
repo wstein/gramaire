@@ -42,3 +42,11 @@ site/blob-report/
 
 # Bun lockfile
 bun.lock
+
+# Derived raw grammar projections (`gramark strip`); never authoritative for a `.grmk.md` that
+# has one (ADR D36) — regenerate with `make strip`/`make strip-examples`, don't commit them. A
+# standalone, hand-authored `.grmk` with no `.grmk.md` sibling is first-class (GramarkCheck's
+# native check/fmt/lock gate) and IS meant to be committed — list each one here as an explicit
+# `!` exception, kept in sync with GramarkCheckSuite.scala's `nativeGatedFiles`.
+*.grmk
+!examples/lua.grmk
