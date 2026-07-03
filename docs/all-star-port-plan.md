@@ -503,12 +503,14 @@ surface is reached by **conversion**, not syntax expansion (§4).
   `Ll.recognize` still agrees with the LR oracle. Both corpora: 0
   ambiguities, ~64–75% cache hit rate.
 - ✅ **Lab surface, done:** the Lab's ll-star strategy is a genuine alternate
-  pipeline now, not an additive overlay. A merged _Engine_ picker (`ALL(\*)`
-  vs. an `LR / GLR` optgroup of `Canonical`/`LALR`/`IELR`) drives
-  `parse`/`evaluatorJs`/`atn` from `Ll.parseTraced` when ALL(\*) is selected;
-  `buildOk` no longer depends on the LR table build succeeding (a conflict
-  downgrades to a warning, with a note explaining ALL(\*) resolves the same
-  tie by declaration order). The _ATN_ tab surfaces `Ll.parseTraced`'s own
+  pipeline now, not an additive overlay. A merged _Engine_ picker (`ALL(\*)`,
+  then `Canonical`/`LALR`/`IELR`) drives `parse`/`evaluatorJs`/`atn` from
+  `Ll.parseTraced` when ALL(\*) is selected — the picker's default, so a
+  first-time visitor lands on the engine that survives LR conflicts rather
+  than one that can silently fail to build some grammars at all; `buildOk`
+  no longer depends on the LR table build succeeding (a conflict downgrades
+  to a warning, with a note explaining ALL(\*) resolves the same tie by
+  declaration order). The _ATN_ tab surfaces `Ll.parseTraced`'s own
   tracking-cache hit/miss/ambiguity counts; _Parse trace_/_Walk_ render the
   LL walk (predict/match/exitRule/accept) with full stepper parity to the LR
   walk, capped at a step-count limit like the All-parses tab's own cap, and
@@ -520,10 +522,12 @@ surface is reached by **conversion**, not syntax expansion (§4).
   every method's stats unconditionally, so neither needs — or has — a
   method-selecting control of its own; the merged Engine picker's own
   Canonical/LALR/IELR options are the only method-adjacent control there is,
-  and only matter for `buildOk`/`parse`/`evaluatorJs` under `lr`. A
-  provenance note discloses this whenever the Engine picker's own selection
-  would otherwise suggest All parses/Grammar analysis vary with it
-  (`site/src/lab/LabIsland.tsx`, `lab/src/main/scala/gramark/lab/LabApi.scala`,
+  and only matter for `buildOk`/`parse`/`evaluatorJs` under `lr`. An earlier
+  UI disclosure note for this (a small "via GLR"/"via LR tables" caption) was
+  tried and then removed as unnecessary noise; the pinned-to-Canonical
+  behavior itself is still verified at the API layer, not surfaced as its
+  own UI signal (`site/src/lab/LabIsland.tsx`,
+  `lab/src/main/scala/gramark/lab/LabApi.scala`,
   `lab/src/main/scala/gramark/lab/LabProtocol.scala`).
 - ⏳ **Still not started:** `gramark explain-conflict` itself is untouched —
   it remains the pre-existing LR/GLR conflict classifier (`Glr.explainP`); the
@@ -756,11 +760,13 @@ f. ~~Phase 6: ALL(\*)-native ambiguity/prediction diagnostics, DFA-cache-hit
    method's stats at once, so neither actually varies with `method` at all.
 
    The Lab UI's Strategy+Method dropdowns merged into one "Engine" selector
-   (ALL(\*) standalone, an "LR / GLR" optgroup with Canonical/LALR/IELR);
-   Parse trace/Walk render the new `llTrace` (a rule-call stack instead of
-   an LR state/symbol stack) under ALL(\*); All parses/Grammar analysis gained
-   a small provenance note ("via GLR" / "via LR tables — `<method>`") since
-   they stay LR/GLR-built either way. `LabProtocol` gained
+   (ALL(\*), then Canonical/LALR/IELR — ALL(\*) is the default); Parse
+   trace/Walk render the new `llTrace` (a rule-call stack instead of an LR
+   state/symbol stack) under ALL(\*). All parses/Grammar analysis stay
+   LR/GLR-built either way (a small "via GLR"/"via LR tables" provenance note
+   disclosed this at first, later removed as unnecessary noise once All
+   parses was pinned to `Method.Canonical` unconditionally, closing the
+   underlying question the note existed to flag). `LabProtocol` gained
    `LlStepInfo`/`LlActionInfo`/`ParseResult.llTrace`; schema/generated
    types/JVM↔JS parity gate all cover the new fields, verified against the
    real Scala.js engine end to end (an LR-conflicted grammar under ALL(\*)
