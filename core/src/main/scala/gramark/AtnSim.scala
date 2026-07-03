@@ -1,5 +1,7 @@
 package gramark
 
+import scala.collection.mutable
+
 // ALL(*) **SLL adaptive prediction** over the ATN (the ALL(*) port,
 // Phase 1).
 //
@@ -25,17 +27,48 @@ object AtnSim:
   // consuming input is treated as non-terminating (left recursion) and pruned.
   private val maxDepth = 80
 
-  /** Predict the alternative to take at `decision` (a `BlockStart`) for the input from `pos`, or
-    * `None` if no alternative is viable there.
+  /** A lazy DFA cache: memoizes the two closure computations `predict` would otherwise repeat on
+    * every visit — a decision's start closure (depends only on `decision`, never on where in the
+    * input we are) and the reach-on-one-token step (depends only on the *set* of live configs and
+    * the terminal consumed, not on the path that reached them). The second visit to a decision or
+    * configuration set already seen becomes a table lookup, which is what makes prediction
+    * amortized-linear over a whole parse.
+    *
+    * Config `state` ids are dense and globally unique across the whole `Atn` (`AtnBuild` allocates
+    * every rule's states from one shared counter) — two different decisions can only ever produce
+    * set-equal config sets by genuinely converging on the same continuation (e.g. the same callee
+    * rule reached with the same return stack), in which case sharing the cached result is exactly
+    * the intended DFA-state-sharing behavior, not a correctness hazard.
+    *
+    * Scoped to one `Atn`: state ids are only meaningful against the network that produced them, so
+    * a `Cache` must not be reused across different grammars/builds. Not thread-safe.
     */
-  def predict(atn: Atn, decision: Int, input: Vector[Token], pos0: Int): Option[Int] =
+  final class Cache:
+    private val starts = mutable.HashMap.empty[Int, Vector[Config]]
+    private val reach = mutable.HashMap.empty[(Set[Config], String), Vector[Config]]
+
+    private[AtnSim] def startClosure(decision: Int)(compute: => Vector[Config]): Vector[Config] =
+      starts.getOrElseUpdate(decision, compute)
+
+    private[AtnSim] def reachClosure(configs: Vector[Config], term: String)(
+        compute: => Vector[Config]
+    ): Vector[Config] =
+      reach.getOrElseUpdate((configs.toSet, term), compute)
+
+  /** Predict the alternative to take at `decision` (a `BlockStart`) for the input from `pos`, or
+    * `None` if no alternative is viable there. `cache` is threaded across every call within one
+    * parse so repeated visits to the same decision or configuration set are memoized.
+    */
+  def predict(atn: Atn, decision: Int, input: Vector[Token], pos0: Int, cache: Cache): Option[Int] =
     def startConfig(i: Int, t: Transition): Config = t match
       case Transition.Epsilon(target) => Config(target, i, Nil)
       case _                          => Config(decision, i, Nil)
 
-    val starts =
-      Atn.stateAt(atn, decision).transitions.zipWithIndex.map { case (t, i) => startConfig(i, t) }
-    val initial = closureAll(atn, starts)
+    val initial = cache.startClosure(decision) {
+      val starts =
+        Atn.stateAt(atn, decision).transitions.zipWithIndex.map { case (t, i) => startConfig(i, t) }
+      closureAll(atn, starts)
+    }
 
     def loop(configs: Vector[Config], pos: Int): Option[Int] =
       uniqueAlt(configs) match
@@ -45,7 +78,9 @@ object AtnSim:
             // Input exhausted: the viable alternative is one that finishes here.
             case None => preferCompleted(atn, configs)
             case Some(tok) =>
-              val advanced = closureAll(atn, configs.flatMap(move(atn, tok.terminal, _)))
+              val advanced = cache.reachClosure(configs, tok.terminal) {
+                closureAll(atn, configs.flatMap(move(atn, tok.terminal, _)))
+              }
               // A dead end means no alternative consumes this token: it must
               // belong to an enclosing rule, so prefer the one that completes here.
               if advanced.isEmpty then preferCompleted(atn, configs) else loop(advanced, pos + 1)
