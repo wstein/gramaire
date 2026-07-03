@@ -248,6 +248,151 @@ class LlSuite extends munit.FunSuite:
     }
   }
 
+  test("Ll.parseTraced builds the exact same Cst as Ll.parse, across the whole case corpus") {
+    cases.foreach { c =>
+      Lr.parse(c.grammar) match
+        case Left(e) => fail(s"${c.name}: grammar should parse: $e")
+        case Right(g) =>
+          val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+          c.vectors.filter(_.expect).foreach { v =>
+            lexer(v.input) match
+              case Left(e) => fail(s"${c.name} / ${v.input}: lex failed: $e")
+              case Right(toks) =>
+                val plain = Ll.parse(g, toks)
+                Ll.parseTraced(g, toks) match
+                  case Left(err) => fail(s"${c.name} / ${v.input}: parseTraced should accept: $err")
+                  case Right((cst, _)) =>
+                    assertEquals(
+                      Some(cst),
+                      plain,
+                      s"${c.name} / ${v.input}: parseTraced's Cst differs from parse's"
+                    )
+          }
+    }
+  }
+
+  test("Ll.parseTraced's trace ends in Accept, with a Match step per consumed token in order") {
+    val grammar = "```gramark\nS\n  : 'a' 'b' 'c'\n```\n"
+    Lr.parse(grammar) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        lexer("abc") match
+          case Left(e) => fail(s"lex failed: $e")
+          case Right(toks) =>
+            Ll.parseTraced(g, toks) match
+              case Left(err) => fail(s"parseTraced should accept: $err")
+              case Right((_, steps)) =>
+                assertEquals(steps.lastOption.map(_.action), Some(LlAction.Accept))
+                val matches = steps.collect { case LlStep(_, _, LlAction.Match(t, lex), _) =>
+                  (t, lex)
+                }
+                assertEquals(matches, Vector(("a", "a"), ("b", "b"), ("c", "c")))
+                // Every step's `index` is its own position in the trace.
+                assertEquals(steps.map(_.index), steps.indices.toVector)
+  }
+
+  test("Ll.parseTraced's ruleStack reflects nested rule calls") {
+    // A : B 'z' ; B : 'a' 'b' | 'a' — inside B's Match steps, the stack must be [A, B].
+    val grammar = "```gramark\nA\n  : B 'z'\n\nB\n  : 'a' 'b'\n  | 'a'\n```\n"
+    Lr.parse(grammar) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        lexer("abz") match
+          case Left(e) => fail(s"lex failed: $e")
+          case Right(toks) =>
+            Ll.parseTraced(g, toks) match
+              case Left(err) => fail(s"parseTraced should accept: $err")
+              case Right((_, steps)) =>
+                val insideB = steps.collect {
+                  case LlStep(_, stack, LlAction.Match(t, _), _) if stack.contains("B") => t
+                }
+                assertEquals(insideB, Vector("a", "b"))
+                assert(
+                  steps.exists(_.ruleStack == Vector("A")),
+                  s"expected a step at just [A] (matching 'z'), got: ${steps.map(_.ruleStack)}"
+                )
+  }
+
+  test("Ll.parseTraced names the LeftRec-rewritten tail rule in its Predict steps") {
+    Lr.parse(cases(4).grammar) match // "direct left recursion — classic expression grammar"
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        lexer("n+n*n") match
+          case Left(e) => fail(s"lex failed: $e")
+          case Right(toks) =>
+            Ll.parseTraced(g, toks) match
+              case Left(err) => fail(s"parseTraced should accept: $err")
+              case Right((_, steps)) =>
+                val predictedRules = steps.collect {
+                  case LlStep(_, _, LlAction.Predict(r, _, _), _) =>
+                    r
+                }
+                assert(
+                  predictedRules.contains("E_tail"),
+                  s"expected a Predict over the rewritten E_tail rule, got: $predictedRules"
+                )
+  }
+
+  test("Ll.parseTraced rejects with a located LlError, not a silent None") {
+    cases.foreach { c =>
+      Lr.parse(c.grammar) match
+        case Left(e) => fail(s"${c.name}: grammar should parse: $e")
+        case Right(g) =>
+          val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+          c.vectors.filterNot(_.expect).foreach { v =>
+            lexer(v.input) match
+              case Left(_) => () // a lex failure is itself a rejection, out of scope here
+              case Right(toks) =>
+                Ll.parseTraced(g, toks) match
+                  case Right((cst, _)) =>
+                    fail(s"${c.name} / ${v.input}: parseTraced should reject, got $cst")
+                  case Left(err) =>
+                    assert(
+                      err.pos >= 0 && err.pos <= toks.length,
+                      s"${c.name} / ${v.input}: LlError.pos out of range: $err"
+                    )
+          }
+    }
+  }
+
+  test("Ll.parseTraced reports trailing input as an LlError expecting `$`") {
+    val grammar = "```gramark\nS\n  : 'x'\n```\n"
+    Lr.parse(grammar) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        lexer("xx") match
+          case Left(e) => fail(s"lex failed: $e")
+          case Right(toks) =>
+            Ll.parseTraced(g, toks) match
+              case Right((cst, _)) => fail(s"expected a reject, got $cst")
+              case Left(err) =>
+                assertEquals(err.pos, 1, "should break right after the complete parse of 'x'")
+                assertEquals(err.expected, Vector("$"))
+                assertEquals(err.rule, "S")
+  }
+
+  test("Ll.parseTraced reports an unmatched terminal as an LlError naming it as expected") {
+    val grammar = "```gramark\nS\n  : 'a' 'b'\n```\n"
+    Lr.parse(grammar) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        // Both 'a' and 'b' lex fine as literals — "ba" is a genuine parse-level (not lexical)
+        // mismatch: the second token isn't 'b' as S requires.
+        lexer("ba") match
+          case Left(e) => fail(s"lex failed: $e")
+          case Right(toks) =>
+            Ll.parseTraced(g, toks) match
+              case Right((cst, _)) => fail(s"expected a reject, got $cst")
+              case Left(err) =>
+                assertEquals(err.pos, 0, "should break at the first token, which isn't 'a'")
+                assertEquals(err.expected, Vector("a"))
+  }
+
   test("a tracking cache records a genuine SLL ambiguity, resolved by declaration order") {
     // S has no way to tell A from B by lookahead alone — both derive exactly "x" — so every
     // config reaching S's end is tied between alt 0 (A) and alt 1 (B); first-alt-wins picks A.
