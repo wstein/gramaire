@@ -19,13 +19,22 @@ a thin skin over real machinery, never a mock.
 > additive `atn` field bolted onto the LR/GLR one — Parse trace/Walk now
 > render `Ll.parseTraced`'s own step trace under ALL(\*) (a rule-call stack,
 > not an LR state/symbol stack), `buildOk`/`evaluatorJs` no longer require the
-> LR table build to succeed under it, and All parses/Grammar analysis (which
-> have no ALL(\*) equivalent) carry a small "via GLR"/"via LR tables" note
-> disclosing that they stay LR/GLR-built either way. §5.1's per-tab
-> "Implementation status"/progress notes are the source of truth for what
-> shipped and when, not this callout. What's still **not yet built**: every
-> Tier 2/3 T-item below that isn't one of those eleven tabs (Conformance panel
-> T3.1, Recovery preview T3.3, Gallery T3.4, Embeddable lab T3.5, Codegen
+> LR table build to succeed under it (a conflict downgrades to a warning
+> noting ALL(\*) resolves the same tie by declaration order), and All
+> parses/Grammar analysis (which have no ALL(\*) equivalent) carry a small "via
+> GLR"/"via LR tables" note disclosing that they stay LR/GLR-built either way
+> — the latter never names a method, since its content doesn't vary by one,
+> unlike the former. Selecting ALL(\*) orphans the merged picker's own method
+> value, so a second "LR method" control appears alongside it, driving those
+> two tabs (and the status bar's live stats) without leaving ALL(\*). Parse
+> trace/Walk are capped at a step count (mirroring All parses' own
+> `forestCap`) so a pathological or LR-conflicted grammar can't blow up the
+> response on every debounced keystroke — a `traceTruncated`/`llTraceTruncated`
+> flag says so in the UI rather than the walk silently ending mid-parse. §5.1's
+> per-tab "Implementation status"/progress notes are the source of truth for
+> what shipped and when, not this callout. What's still **not yet built**:
+> every Tier 2/3 T-item below that isn't one of those eleven tabs (Conformance
+> panel T3.1, Recovery preview T3.3, Gallery T3.4, Embeddable lab T3.5, Codegen
 > export T2.5) and the tab→core-symbol provenance table's own
 > `docs-lint`-checked guardrail (§5.1, deliberately deferred — the ATN tab
 > isn't in that table yet either). The previous implementation (Astro +

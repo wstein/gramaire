@@ -466,7 +466,7 @@ surface is reached by **conversion**, not syntax expansion (§4).
   parser (a port of the `antlr4ng` predictor, or `Gramark.Ll` shipped as the
   runtime) — the serialized `atn` is the substrate it will consume.
 
-### Phase 6 — Diagnostics, profiling, conformance ✅ backend diagnostics; ⏳ Lab surface
+### Phase 6 — Diagnostics, profiling, conformance ✅ done (backend + Lab surface)
 
 - ✅ **ALL(\*)-native ambiguity diagnostics** (`AtnSim.Ambiguity`,
   `AtnSim.Cache(track = true)`, in `AtnSim.scala`). Unlike LR, ALL(\*) has no
@@ -502,16 +502,28 @@ surface is reached by **conversion**, not syntax expansion (§4).
   conformance is where a silent regression would first surface) check that
   `Ll.recognize` still agrees with the LR oracle. Both corpora: 0
   ambiguities, ~64–75% cache hit rate.
+- ✅ **Lab surface, done:** the Lab's ll-star strategy is a genuine alternate
+  pipeline now, not an additive overlay. A merged _Engine_ picker (`ALL(\*)`
+  vs. an `LR / GLR` optgroup of `Canonical`/`LALR`/`IELR`) drives
+  `parse`/`evaluatorJs`/`atn` from `Ll.parseTraced` when ALL(\*) is selected;
+  `buildOk` no longer depends on the LR table build succeeding (a conflict
+  downgrades to a warning, with a note explaining ALL(\*) resolves the same
+  tie by declaration order). The _ATN_ tab surfaces `Ll.parseTraced`'s own
+  tracking-cache hit/miss/ambiguity counts; _Parse trace_/_Walk_ render the
+  LL walk (predict/match/exitRule/accept) with full stepper parity to the LR
+  walk, capped at a step-count limit like the All-parses tab's own cap, and
+  say so (`traceTruncated`/`llTraceTruncated`) rather than ending mid-parse
+  silently. _All parses_/_Grammar analysis_ stay LR/GLR-built under both
+  strategies — a secondary "LR method" control keeps them changeable once
+  ALL(\*) orphans the merged picker's method value — disclosed by a
+  provenance note (`site/src/lab/LabIsland.tsx`,
+  `lab/src/main/scala/gramark/lab/LabApi.scala`,
+  `lab/src/main/scala/gramark/lab/LabProtocol.scala`).
 - ⏳ **Still not started:** `gramark explain-conflict` itself is untouched —
   it remains the pre-existing LR/GLR conflict classifier (`Glr.explainP`); the
-  new ALL(\*) diagnostic lives in `conformance` instead, since it needs example
-  input `explain-conflict <file>`'s purely-static, single-grammar-argument
-  shape has no way to supply. The Lab's _Grammar analysis_ panel
-  (`site/src/lab/LabIsland.tsx`) still only surfaces the three **LR table
-  methods'** state/conflict counts — no `ll-star`/strategy toggle or
-  ATN-decision surface anywhere in the Lab; this is frontend (TypeScript/
-  Preact) work, a different surface from everything else this phase touched,
-  and remains open.
+  ALL(\*) diagnostic lives in `conformance`/the Lab instead, since
+  `explain-conflict <file>`'s purely-static, single-grammar-argument shape has
+  no way to supply example input.
 
 ## 4. ANTLR ↔ Gramark converter (not syntax extensions)
 
