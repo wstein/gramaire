@@ -646,8 +646,10 @@ Principles kept:
 5. **Phases 4–6**: Phase 4 (adaptive lexer) has a working, tested simulator
    that is gated off the production path; Phases 5's IR/SPI plumbing is done;
    **Phase 6's backend diagnostics/profiling are done** (ambiguity reporting
-   and DFA cache hit-rate, both surfaced from `gramaire conformance`) — its
-   Lab strategy/ATN surface is not.
+   and DFA cache hit-rate, both surfaced from `gramaire conformance`), **and
+   its Lab strategy/ATN surface is now done too** — a Strategy selector and
+   an ATN diagnostics tab, additive to the LR/GLR pipeline the rest of the
+   Lab is built on.
 
 **Remaining work, roughly in dependency order:**
 
@@ -694,9 +696,18 @@ e. ~~an ATN-consuming backend (the `IR.atn` substrate already ships; nothing
 f. ~~Phase 6: ALL(\*)-native ambiguity/prediction diagnostics, DFA-cache-hit
    profiling~~ — **done**: both surfaced from `gramaire conformance`
    (`AtnSim.Ambiguity`, `AtnSim.Cache(track = true)`); no separate `--profile`
-   flag needed in the end. **Still open:** a Lab strategy/ATN surface
-   (frontend work — a different surface from everything else this phase
-   touched);
+   flag needed in the end. ~~Still open: a Lab strategy/ATN surface~~ —
+   **done**: `LabRequest.strategy` (`"lr"` | `"ll-star"`, additive — it never
+   changes `buildOk`/`parse`/`forest`/`analysis`/`evaluatorJs`, which stay the
+   LR/GLR pipeline they always were, since `Ll.parse` has no step-trace or
+   codegen equivalent to swap in) threads through `LabApi.evaluate` to a new
+   `LabResponse.atn` field: `Ll.recognize` run with a tracking
+   `AtnSim.Cache`, the same idiom `gramaire conformance` already used per
+   corpus, just per grammar/input here. The Lab UI gained a Strategy
+   selector and an "ATN" diagnostics tab (accept/reject, DFA cache hit
+   rate, a table of every declaration-order-resolved ambiguity); the
+   protocol schema/generated types/JVM↔JS parity gate all cover the new
+   field;
 g. ~~corpus widening — `json` now runs through `Ll.recognize` (done, see a.);
    `calc-prec`/`ECMA-404` still don't, and no test pins ATN construction
    invariants over a real (not hand-built) grammar (open Phase 0 gap)~~ —
