@@ -520,6 +520,15 @@ class LabApiSuite extends munit.FunSuite:
     // level, without LabApi's request/response plumbing in the way).
     (resp.parse.flatMap(_.cst), resp.forest) match
       case (Some(cst), Some(forest)) =>
+        // Glr.forest is a sound completeness oracle only when this grammar/input pair stays well
+        // under its internal step budget (Glr.scala's own doc comment) — LabApi additionally caps
+        // the wire-exposed forest at forestCap (50), so an untruncated response this small is
+        // nowhere near either limit; forest.parses.contains below is a real membership check.
+        assert(
+          !forest.truncated && forest.parses.length < 50,
+          s"forest is truncated or at LabApi's forestCap — too close to either limit to trust as " +
+            s"a completeness oracle: $forest"
+        )
         assert(
           forest.parses.contains(cst),
           s"ll-star's resolved parse.cst isn't among All-parses' GLR-verified forest: $cst"

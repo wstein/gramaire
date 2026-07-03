@@ -414,6 +414,15 @@ class LlSuite extends munit.FunSuite:
           case Left(e) => fail(s"lex failed: $e")
           case Right(toks) =>
             val forest = Glr.forest(Method.Canonical, g, toks)
+            // Glr.forest is a sound completeness oracle only when this specific grammar/input pair
+            // stays well under its internal step budget (Glr.scala's own doc comment) — a forest
+            // this small for a 3-token input is nowhere close to that, so "forest.contains(...)"
+            // below is a real membership check, not a false pass from silent truncation.
+            assert(
+              forest.length < 100,
+              s"forest is suspiciously large for a 3-token input (${forest.length} parses) — too " +
+                "close to Glr's step budget to trust as a completeness oracle; verify it isn't truncated"
+            )
             assert(forest.length > 1, s"expected a genuinely ambiguous forest, got: $forest")
             val picks = Vector.fill(5)(Ll.parseTraced(g, toks) match
               case Left(err)       => fail(s"parseTraced should accept: $err")
@@ -447,6 +456,37 @@ class LlSuite extends munit.FunSuite:
             val amb = cache.ambiguities.head
             assertEquals(amb.rule, "S")
             assertEquals(amb.alts, Vector(0, 1), "both tied alts, in first-alt-wins order")
+  }
+
+  // The test above only shows the tie was RECORDED as alt-0-wins (AtnSim.Ambiguity.alts) — it never
+  // inspects the actual tree `Ll.recognize`'s sibling `Ll.parseTraced` builds. This closes that gap:
+  // same grammar, but checks the resulting Cst's top production is literally "S : A" (declared
+  // first), not "S : B" — proving the tie-break picks the first alternative's TREE, not merely that
+  // something gets recorded as alt 0 in the ambiguity metadata.
+  test(
+    "the declaration-order tie-break builds the first alternative's own Cst, not just records it as the winner"
+  ) {
+    val grammar = "```gramark\nS\n  : A\n  | B\n\nA\n  : 'x'\n\nB\n  : 'x'\n```\n"
+    Lr.parse(grammar) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        val lexer = ConformanceLexers.scannerLexer(Vector.empty, g)
+        lexer("x") match
+          case Left(e) => fail(s"lex failed: $e")
+          case Right(toks) =>
+            Ll.parseTraced(g, toks) match
+              case Left(err) => fail(s"parseTraced should accept: $err")
+              case Right((cst, _)) =>
+                val prods = Table.productions(g)
+                cst match
+                  case Cst.Branch(prod, _) =>
+                    assertEquals(prods(prod).lhs, "S")
+                    assertEquals(
+                      prods(prod).rhs,
+                      Vector(GSym.NonTerm("A")),
+                      s"expected S's first-declared alternative (S : A) to win, got production: ${prods(prod)}"
+                    )
+                  case other => fail(s"expected a Branch at the top, got: $other")
   }
 
   test("a tracking cache reports no ambiguities for an unambiguous grammar") {
