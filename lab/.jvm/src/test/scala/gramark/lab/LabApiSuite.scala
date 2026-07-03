@@ -452,34 +452,52 @@ class LabApiSuite extends munit.FunSuite:
   }
 
   test(
-    "evaluate: strategy \"ll-star\" reports Ll.recognize's own accept/reject and cache activity"
+    "evaluate: strategy \"ll-star\" reports Ll.parseTraced's own accept/reject and cache activity"
   ) {
     val accept =
       LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.Canonical, strategy = "ll-star"))
     accept.atn match
       case None => fail("expected atn diagnostics for an ll-star request with input")
       case Some(d) =>
-        assert(d.accepted, "Ll.recognize should accept the same input the LR path accepts")
+        assert(d.accepted, "Ll.parseTraced should accept the same input the LR path accepts")
         assert(d.hits + d.misses > 0, "the DFA cache should see real activity")
         assertEquals(d.ambiguities, Vector.empty, "calc is unambiguous by construction")
+        assertEquals(d.accepted, accept.parse.exists(_.accepted), "atn.accepted mirrors parse")
 
     val reject =
       LabApi.evaluate(LabRequest(calcMd, Some("1+"), Method.Canonical, strategy = "ll-star"))
-    assert(reject.atn.exists(!_.accepted), "Ll.recognize should reject what the LR path rejects")
+    assert(reject.atn.exists(!_.accepted), "Ll.parseTraced should reject what the LR path rejects")
   }
 
-  test("evaluate: strategy \"ll-star\" atn is populated even when buildOk is false") {
-    // ambiguousMd (E : E E | 'x') has real LR conflicts under every method — buildOk is always
-    // false for it — but Ll.recognize still runs and reports the tie it resolves by declaration
-    // order, the same way `forest` stays populated on a buildOk=false grammar.
+  test(
+    "evaluate: strategy \"ll-star\" redefines buildOk — an LR-conflicted grammar still builds, with the conflict as a warning"
+  ) {
+    // ambiguousMd (E : E E | 'x') has real LR conflicts under every method. Under "lr", buildOk is
+    // always false for it (see the earlier "unresolved conflicts fails to build" test) — but under
+    // "ll-star" the grammar notation already parsed and desugared, which is all ALL(*) needs: it
+    // resolves the same tie itself, by declaration order, so the conflict downgrades to a warning
+    // instead of blocking the build.
     val resp =
       LabApi.evaluate(LabRequest(ambiguousMd, Some("xxx"), Method.Canonical, strategy = "ll-star"))
-    assert(!resp.buildOk)
+    assert(resp.buildOk, s"expected buildOk under ll-star, diagnostics: ${resp.diagnostics}")
+    assert(
+      resp.diagnostics.exists(d => d.severity == "warning" && d.message.contains("conflict")),
+      s"expected the LR conflict surfaced as a warning, got: ${resp.diagnostics}"
+    )
+    assert(
+      !resp.diagnostics.exists(_.severity == "error"),
+      s"an ll-star build has no fatal errors from an LR conflict alone, got: ${resp.diagnostics}"
+    )
     resp.atn match
-      case None => fail("expected atn diagnostics despite buildOk being false")
+      case None => fail("expected atn diagnostics")
       case Some(d) =>
-        assert(d.accepted, "Ll.recognize should still accept \"xxx\"")
+        assert(d.accepted, "Ll.parseTraced should still accept \"xxx\"")
         assert(d.ambiguities.nonEmpty, "E : E E | 'x' is genuinely ambiguous on repeated E's")
+    assert(resp.parse.exists(_.accepted), "the parse itself should still succeed under ll-star")
+    assert(
+      resp.evaluatorJs.isDefined,
+      "evaluatorJs needs no LR table build, so it should still be generated"
+    )
   }
 
   test(
@@ -488,6 +506,48 @@ class LabApiSuite extends munit.FunSuite:
     val resp =
       LabApi.evaluate(LabRequest(calcMd, Some("1+@"), Method.Canonical, strategy = "ll-star"))
     assertEquals(resp.atn, Some(AtnDiagnostics(accepted = false, 0, 0, Vector.empty)))
+  }
+
+  test("evaluate: strategy \"ll-star\" carries an llTrace ending in Accept, and no LR trace") {
+    val resp =
+      LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.Canonical, strategy = "ll-star"))
+    resp.parse match
+      case None => fail("expected a parse result")
+      case Some(p) =>
+        assert(p.accepted)
+        assertEquals(p.trace, None, "the LR trace field is lr-strategy-only")
+        p.llTrace match
+          case None => fail("expected an llTrace for an accepted ll-star parse")
+          case Some(steps) =>
+            assert(steps.nonEmpty)
+            assertEquals(steps.last.action, LlActionInfo.Accept)
+            assertEquals(steps.map(_.index), steps.indices.toVector)
+            val firstMatch = steps.collectFirst {
+              case s if s.action.isInstanceOf[LlActionInfo.Match] => s
+            }
+            firstMatch match
+              case None => fail("expected at least one match step")
+              case Some(s) =>
+                assert(s.ruleStack.nonEmpty, "a match step's ruleStack should name its owning rule")
+  }
+
+  test("evaluate: strategy \"ll-star\" a rejected parse has no llTrace, but a located message") {
+    val resp =
+      LabApi.evaluate(LabRequest(calcMd, Some("1+"), Method.Canonical, strategy = "ll-star"))
+    resp.parse match
+      case None => fail("expected a parse result")
+      case Some(p) =>
+        assert(!p.accepted)
+        assertEquals(p.llTrace, None)
+        assertEquals(p.cst, None)
+        assert(p.message.isDefined, "expected a located reject diagnostic")
+        assert(p.message.exists(_.span.isDefined), "expected the reject diagnostic to carry a span")
+  }
+
+  test("evaluate: strategy \"lr\" never populates llTrace, even on an accepted parse") {
+    val resp = LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.Canonical))
+    assert(resp.parse.exists(_.accepted))
+    assertEquals(resp.parse.flatMap(_.llTrace), None)
   }
 
   test("LabResponse.serialize is valid, canonical JSON (parse . stringify is the identity)") {
