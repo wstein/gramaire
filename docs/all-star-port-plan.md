@@ -682,8 +682,15 @@ d. ~~`{%? %}` front-end parsing that populates `rules[].predicate` (ADR D42) and
    predicate-only alt (no real content) and an alt mixing a predicate with an
    ordinary action both stay unrepresentable and are dropped with a warning,
    as before;
-e. an ATN-consuming backend (the `IR.atn` substrate already ships; nothing
-   reads it at runtime yet);
+e. ~~an ATN-consuming backend (the `IR.atn` substrate already ships; nothing
+   reads it at runtime yet)~~ — **done**: `BackendDot` (`gramark emit
+   --backend dot`) is now strategy-aware — under `--strategy lr` (the
+   default) it renders the LR automaton as before; under `--strategy
+   ll-star` it renders `ir.atn` instead, one node per ATN state (ruleStart/
+   ruleStop/basic/blockStart+decision/blockEnd) and one edge per transition
+   (an atom match or rule call solid, an epsilon or a rule call's follow/
+   return dashed) — `IR.atn`'s first runtime reader, on a real grammar
+   (`examples/calc.grmk.md`, smoke-tested end to end);
 f. ~~Phase 6: ALL(\*)-native ambiguity/prediction diagnostics, DFA-cache-hit
    profiling~~ — **done**: both surfaced from `gramark conformance`
    (`AtnSim.Ambiguity`, `AtnSim.Cache(track = true)`); no separate `--profile`
