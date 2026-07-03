@@ -237,6 +237,9 @@ object Main:
     else file + ".gram"
 
   private def runConformance(): Unit =
+    // calcDescriptor ignores the doc text deliberately — calc uses a hand-written lexer
+    // (ConformanceLexers.calcLexer), not its own `## Tokens` block the way json/ECMA-404/
+    // calc-prec below do, so it doesn't need loadDescriptor's `md` the way they do.
     val calc = loadDescriptor("examples/calc.gram.md", (_, g) => Conformance.calcDescriptor(g))
     val json = loadDescriptor("examples/json.gram.md", Conformance.jsonDescriptor)
     val ecma404 = loadDescriptor("examples/ECMA-404.gram.md", Conformance.ecma404Descriptor)

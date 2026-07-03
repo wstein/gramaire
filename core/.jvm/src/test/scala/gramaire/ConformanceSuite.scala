@@ -53,9 +53,6 @@ class ConformanceSuite extends munit.FunSuite:
         }
   }
 
-  private def tokensLexerOf(md: String, g: Grammar): ConformanceLexers.Lexer =
-    ConformanceLexers.tokensLexerOf(md, g)
-
   private def runLlRecognize(
       label: String,
       g: Grammar,
@@ -77,8 +74,14 @@ class ConformanceSuite extends munit.FunSuite:
   test("the `json` corpus parses top-down (Phase 1 gap closed)") {
     val jsonMd = readFile("examples/json.gram.md")
     Lr.parse(jsonMd) match
-      case Left(e)  => fail(s"json grammar should parse: $e")
-      case Right(g) => runLlRecognize("json", g, tokensLexerOf(jsonMd, g), Conformance.jsonVectors)
+      case Left(e) => fail(s"json grammar should parse: $e")
+      case Right(g) =>
+        runLlRecognize(
+          "json",
+          g,
+          ConformanceLexers.tokensLexerOf(jsonMd, g),
+          Conformance.jsonVectors
+        )
   }
 
   test("the ECMA-404 corpus parses top-down (corpus widening)") {
@@ -86,7 +89,12 @@ class ConformanceSuite extends munit.FunSuite:
     Lr.parse(md) match
       case Left(e) => fail(s"ECMA-404 grammar should parse: $e")
       case Right(g) =>
-        runLlRecognize("ECMA-404", g, tokensLexerOf(md, g), Conformance.jsonVectors)
+        runLlRecognize(
+          "ECMA-404",
+          g,
+          ConformanceLexers.tokensLexerOf(md, g),
+          Conformance.jsonVectors
+        )
   }
 
   test(
@@ -96,7 +104,12 @@ class ConformanceSuite extends munit.FunSuite:
     Lr.parse(md) match
       case Left(e) => fail(s"calc-prec grammar should parse: $e")
       case Right(g) =>
-        runLlRecognize("calc-prec", g, tokensLexerOf(md, g), Conformance.calcPrecVectors)
+        runLlRecognize(
+          "calc-prec",
+          g,
+          ConformanceLexers.tokensLexerOf(md, g),
+          Conformance.calcPrecVectors
+        )
   }
 
   // Assert Ll.parse builds a Cst byte-for-byte identical to the LR path's, for every accept
@@ -133,14 +146,25 @@ class ConformanceSuite extends munit.FunSuite:
 
     val jsonMd = readFile("examples/json.gram.md")
     Lr.parse(jsonMd) match
-      case Left(e)  => fail(s"json grammar should parse: $e")
-      case Right(g) => assertSameCst("json", tokensLexerOf(jsonMd, g), g, Conformance.jsonVectors)
+      case Left(e) => fail(s"json grammar should parse: $e")
+      case Right(g) =>
+        assertSameCst(
+          "json",
+          ConformanceLexers.tokensLexerOf(jsonMd, g),
+          g,
+          Conformance.jsonVectors
+        )
 
     val ecmaMd = readFile("examples/ECMA-404.gram.md")
     Lr.parse(ecmaMd) match
       case Left(e) => fail(s"ECMA-404 grammar should parse: $e")
       case Right(g) =>
-        assertSameCst("ECMA-404", tokensLexerOf(ecmaMd, g), g, Conformance.jsonVectors)
+        assertSameCst(
+          "ECMA-404",
+          ConformanceLexers.tokensLexerOf(ecmaMd, g),
+          g,
+          Conformance.jsonVectors
+        )
   }
 
   // calc-prec's `expr` is a single rule, ambiguous on purpose — every operator its own
@@ -158,10 +182,8 @@ class ConformanceSuite extends munit.FunSuite:
       case Right(g) =>
         val prec = Lr.precedenceOf(md)
         assert(prec.terms.nonEmpty, "calc-prec should declare a Precedence block")
-        val lexer = tokensLexerOf(
-          md,
-          g
-        ) // calc-prec declares its own `NUM`/`WS` (not `calcLexer`'s hardcoded `NUMBER`)
+        // calc-prec declares its own `NUM`/`WS` (not `calcLexer`'s hardcoded `NUMBER`)
+        val lexer = ConformanceLexers.tokensLexerOf(md, g)
         val inputs = Vector(
           "1+2*3", // tighter operator second
           "1*2+3", // tighter operator first — the naive-fold failure case
