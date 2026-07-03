@@ -182,7 +182,8 @@ surface is reached by **conversion**, not syntax expansion (§4).
   Gramaire's regex sublanguage) — and **flags** what does not (predicates,
   actions, lexer commands beyond `-> skip`, modes, non-greedy ops), dropping it
   with a warning rather than inventing syntax. `prequel`s (`options`/`tokens`/
-  `@header`/`import`/`mode`) are skipped.
+  `@header`/`import`/`mode`) are skipped. Carrying ANTLR `{ p }?` through to a
+  real `{%? %}` node (rather than flag-and-drop) is deferred — gated per §6.
 - ✅ **Test (`Test.Convert.Antlr`):** a small ANTLR grammar imports to a parsing
   `.gram.md`; the round trip `import → parse → IR → emit antlr → import` reaches
   a **fixed point**; predicates/actions are flagged and never leak into output.
@@ -300,6 +301,13 @@ Principles kept:
 - **Performance in PureScript.** The DFA cache and config-set interning are
   hot; needs `ST`/`HashMap` and care to stay amortized-linear. Benchmark against
   the LR interpreter on `json` early (Phase 1 gate).
+- **Predicate import gating (`multi-backend-implementation-plan.md` ADR D41).**
+  Today's converter flags-and-drops `{ p }?` on import (Phase 3); turning that
+  into a real `{%? %}` node is **blocked on an IR-level effect declaration**
+  (what symbol-table state a predicate reads/writes) before it ships, so
+  ANTLR-imported predicates round-trip through `.g4` export instead of silently
+  vanishing. Do not land predicate carry-through opportunistically alongside
+  unrelated prediction work — the IR shape comes first.
 
 ## 7. PureScript realization notes
 
