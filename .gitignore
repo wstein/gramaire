@@ -42,3 +42,11 @@ site/blob-report/
 
 # Bun lockfile
 bun.lock
+
+# Derived raw grammar projections (`gramaire strip`); never authoritative for a `.gram.md` that
+# has one (ADR D36) — regenerate with `make strip`/`make strip-examples`, don't commit them. A
+# standalone, hand-authored `.gram` with no `.gram.md` sibling is first-class (GramaireCheck's
+# native check/fmt/lock gate) and IS meant to be committed — list each one here as an explicit
+# `!` exception, kept in sync with GramaireCheckSuite.scala's `nativeGatedFiles`.
+*.gram
+!examples/lua.gram
