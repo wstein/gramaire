@@ -665,8 +665,23 @@ c. ~~full-LL (full-context) fallback beyond SLL~~ — **done**: `predict`
    (`AtnSim.Cache.pushContext`/`popContext`). Tracks a single real context,
    not ANTLR's full `PredictionContext` DAG merging — a working fallback for
    the common case, not the most sophisticated corner of ALL(\*);
-d. `{%? %}` front-end parsing that populates `rules[].predicate` (ADR D42) and
-   upgrades the ANTLR importer from flag-and-drop to a real predicate node;
+d. ~~`{%? %}` front-end parsing that populates `rules[].predicate` (ADR D42) and
+   upgrades the ANTLR importer from flag-and-drop to a real predicate node~~ —
+   **done**: `IR.irGrammarOf` detects a bare action body's leading `?` and sets
+   `IRRule.predicate`; `Desugar.normalizeAction` was taught to preserve that
+   flag through its field-binding lambda wrap (`?body` → `?\body-wrapped`), so
+   the flag survives the real `Lr.parse` pipeline, not just direct `Grammar`
+   construction. `gramaire emit` now rejects a predicate-using grammar under
+   `--strategy lr` (`Main.strategyIgnoresPredicates`) — _"uses semantic
+   predicates; build with `--strategy ll-star`"_ — matching the D-predicates
+   ADR. The ANTLR importer (`ConvertAntlr.scala`) upgrades `{ p }?` from
+   flag-and-drop to a real `{%? p %}` node: a lone predicate sharing an alt
+   with real content promotes to a trailing action (Gramaire's action slot is
+   one-per-alt, trailing-only, so position within the source alt doesn't
+   matter — ALL(\*) evaluates a predicate at prediction time, not textually); a
+   predicate-only alt (no real content) and an alt mixing a predicate with an
+   ordinary action both stay unrepresentable and are dropped with a warning,
+   as before;
 e. an ATN-consuming backend (the `IR.atn` substrate already ships; nothing
    reads it at runtime yet);
 f. ~~Phase 6: ALL(\*)-native ambiguity/prediction diagnostics, DFA-cache-hit
