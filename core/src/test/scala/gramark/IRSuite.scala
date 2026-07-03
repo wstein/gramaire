@@ -53,6 +53,63 @@ class IRSuite extends munit.FunSuite:
         assertEquals(ir.grammar.extras, Vector.empty)
         assert(ir.tables.recovery.isEmpty, "tables.recovery is absent until a source exists")
         assert(ir.tables.glr.isEmpty, "tables.glr is absent until GLR ships")
+        assert(
+          ir.grammar.rules.forall(_.predicate.isEmpty),
+          "no rule declares a predicate effect until the front end parses {%? %}"
+        )
+  }
+
+  test("a predicate effect round-trips through validate") {
+    IR.buildIR(Method.Canonical, "Tiny", tiny) match
+      case Left(_) => fail("tiny grammar should build")
+      case Right(ir) =>
+        val withPredicate = ir.copy(grammar =
+          ir.grammar.copy(rules =
+            ir.grammar.rules.updated(
+              0,
+              ir.grammar
+                .rules(0)
+                .copy(predicate = Some(IRPredicateEffect(Vector("typeName"), Vector.empty)))
+            )
+          )
+        )
+        assertEquals(
+          IRValidate.validate(withPredicate),
+          Vector.empty,
+          "a well-formed predicate validates clean"
+        )
+
+        val emptyKey = withPredicate.copy(grammar =
+          withPredicate.grammar.copy(rules =
+            withPredicate.grammar.rules.updated(
+              0,
+              withPredicate.grammar
+                .rules(0)
+                .copy(predicate = Some(IRPredicateEffect(Vector(""), Vector.empty)))
+            )
+          )
+        )
+        assert(
+          IRValidate
+            .validate(emptyKey)
+            .exists(_.contains("predicate effect key must not be empty")),
+          "an empty effect key is rejected"
+        )
+
+        val noAction = withPredicate.copy(grammar =
+          withPredicate.grammar.copy(rules =
+            withPredicate.grammar.rules.updated(
+              0,
+              withPredicate.grammar.rules(0).copy(actions = Map.empty)
+            )
+          )
+        )
+        assert(
+          IRValidate
+            .validate(noAction)
+            .exists(_.contains("declares a predicate effect but has no action body")),
+          "a predicate with no action body is rejected"
+        )
   }
 
   test("a named field on a rhs symbol reaches the IR ref") {

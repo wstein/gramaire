@@ -205,7 +205,15 @@ object IRDecode:
       label <- optStr(o, "label")
       actionsKvs <- field(o, "actions").flatMap(obj)
       actions <- traverseV(actionsKvs) { case (k, v) => str(v).map(k -> _) }
-    yield IRRule(id, lhs, rhs, label, actions.toMap)
+      predicate <- optObj(o, "predicate", decodePredicateEffect)
+    yield IRRule(id, lhs, rhs, label, actions.toMap, predicate)
+
+  private def decodePredicateEffect(j: Json): Either[String, IRPredicateEffect] =
+    for
+      o <- obj(j)
+      reads <- field(o, "reads").flatMap(arr).flatMap(traverseV(_)(str))
+      writes <- field(o, "writes").flatMap(arr).flatMap(traverseV(_)(str))
+    yield IRPredicateEffect(reads, writes)
 
   private def decodeRef(j: Json): Either[String, IRRef] =
     for

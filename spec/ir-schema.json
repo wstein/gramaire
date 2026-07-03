@@ -281,6 +281,34 @@
           "additionalProperties": {
             "type": "string"
           }
+        },
+        "predicate": {
+          "$ref": "#/$defs/predicateEffect"
+        }
+      }
+    },
+    "predicateEffect": {
+      "description": "Declares this rule's action an ALL(*) semantic predicate (D-predicates, docs/all-star-port-plan.md) rather than a value-building action, and the symbol-table state it reads/writes — author-chosen names, opaque to the core (no built-in symbol-table mechanism exists), so a consumer can reason about or invalidate around a predicate without evaluating its (opaque, per-backend) body. Presence of this field, not the action body's `{%? %}` opener, is what a consumer keys off (ADR D42). Optional; absence means an ordinary value-building action.",
+      "type": "object",
+      "required": [
+        "reads",
+        "writes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "reads": {
+          "description": "Symbol-table keys this predicate's body may read.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "writes": {
+          "description": "Symbol-table keys this predicate's body may write.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

@@ -75,8 +75,18 @@ final case class IRRule(
     lhs: Int,
     rhs: Vector[IRRef],
     label: Option[String],
-    actions: Map[String, String]
+    actions: Map[String, String],
+    predicate: Option[IRPredicateEffect] = None
 )
+
+// Declares a rule's action an ALL(*) semantic predicate (D-predicates,
+// docs/all-star-port-plan.md) rather than a value-building action, and the
+// symbol-table state it reads/writes — author-chosen names, opaque to the
+// core (no built-in symbol-table mechanism exists), so a consumer can
+// reason about or invalidate around a predicate without evaluating its
+// (opaque, per-backend) body. Presence is the flag a consumer keys off,
+// not the action body's `{%? %}` opener (ADR D42).
+final case class IRPredicateEffect(reads: Vector[String], writes: Vector[String])
 
 // Panic-mode resync terminals.
 final case class IRRecovery(syncTokens: Vector[Int])
@@ -448,15 +458,24 @@ object IR:
       case IRRef.IRRefT(i, f) =>
         Json.JObject(Vector("ref" -> Json.JString("t"), "id" -> Json.JInt(i)) ++ fieldEntry(f))
 
+    def predicateEffectJson(p: IRPredicateEffect): Json =
+      Json.JObject(
+        Vector(
+          "reads" -> Json.JArray(p.reads.map(Json.JString(_))),
+          "writes" -> Json.JArray(p.writes.map(Json.JString(_)))
+        )
+      )
+
     def ruleJson(r: IRRule): Json =
       val labelEntry = r.label.map(l => "label" -> Json.JString(l)).toVector
+      val predicateEntry = r.predicate.map(p => "predicate" -> predicateEffectJson(p)).toVector
       Json.JObject(
         Vector(
           "id" -> Json.JInt(r.id),
           "lhs" -> Json.JInt(r.lhs),
           "rhs" -> Json.JArray(r.rhs.map(refJson)),
           "actions" -> Json.JObject(r.actions.toVector.map { case (k, v) => k -> Json.JString(v) })
-        ) ++ labelEntry
+        ) ++ labelEntry ++ predicateEntry
       )
 
     def ntJson(n: IRNonterminal): Json =
