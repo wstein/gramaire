@@ -317,10 +317,6 @@ object IRDecode:
 
   // rebuild the parse table --------------------------------------------------
 
-  private def terminalId(t: IRTerminal): Int = t match
-    case IRTerminal.IRLiteral(i, _) => i
-    case IRTerminal.IRClass(i, _)   => i
-
   private def terminalName(t: IRTerminal): String = t match
     case IRTerminal.IRLiteral(_, s) => s
     case IRTerminal.IRClass(_, s)   => s
@@ -331,7 +327,7 @@ object IRDecode:
     */
   def toParseTable(ir: IR): Either[String, ParseTable] =
     val termName: Map[Int, String] =
-      ir.grammar.terminals.map(t => terminalId(t) -> terminalName(t)).toMap
+      ir.grammar.terminals.map(t => t.id -> terminalName(t)).toMap
     val ntName: Map[Int, String] = ir.grammar.nonterminals.map(n => n.id -> n.name).toMap
 
     def term(i: Int): Either[String, String] = termName.get(i).toRight(s"unknown terminal id $i")

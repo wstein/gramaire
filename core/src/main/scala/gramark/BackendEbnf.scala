@@ -12,10 +12,6 @@ object BackendEbnf:
     emit = ir => Vector(Output(s"${ir.grammar.name}.ebnf", emit(ir)))
   )
 
-  private def terminalId(t: IRTerminal): Int = t match
-    case IRTerminal.IRLiteral(i, _) => i
-    case IRTerminal.IRClass(i, _)   => i
-
   // A literal terminal is quoted; a token class is written by its bare name.
   private def terminalText(t: IRTerminal): String = t match
     case IRTerminal.IRLiteral(_, spelling) => "\"" + escape(spelling) + "\""
@@ -29,7 +25,7 @@ object BackendEbnf:
     */
   def emit(ir: IR): String =
     val ntNameById: Map[Int, String] = ir.grammar.nonterminals.map(n => n.id -> n.name).toMap
-    val termById: Map[Int, IRTerminal] = ir.grammar.terminals.map(t => terminalId(t) -> t).toMap
+    val termById: Map[Int, IRTerminal] = ir.grammar.terminals.map(t => t.id -> t).toMap
 
     def symText(r: IRRef): String = r match
       case IRRef.IRRefNT(i, _) => ntNameById.getOrElse(i, s"nt?$i")

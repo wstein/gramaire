@@ -10,10 +10,6 @@ package gramark
 // Ported from src/Gramark/IR/Validate.purs.
 object IRValidate:
 
-  private def terminalId(t: IRTerminal): Int = t match
-    case IRTerminal.IRLiteral(i, _) => i
-    case IRTerminal.IRClass(i, _)   => i
-
   private def classId(t: IRTerminal): Option[Int] = t match
     case IRTerminal.IRClass(i, _)   => Some(i)
     case IRTerminal.IRLiteral(_, _) => None
@@ -24,7 +20,7 @@ object IRValidate:
     else Vector(s"$label ids are not contiguous from 0")
 
   def validate(ir: IR): Vector[String] =
-    val termIds = ir.grammar.terminals.map(terminalId)
+    val termIds = ir.grammar.terminals.map(_.id)
     val termSet = termIds.toSet
     val classTermSet = ir.grammar.terminals.flatMap(classId).toSet
     val ntIds = ir.grammar.nonterminals.map(_.id)

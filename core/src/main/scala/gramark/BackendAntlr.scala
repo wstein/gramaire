@@ -37,10 +37,6 @@ object BackendAntlr:
     val lc = n.take(1).toLowerCase + n.drop(1)
     if reserved.contains(lc) then lc + "_" else lc
 
-  private def terminalId(t: IRTerminal): Int = t match
-    case IRTerminal.IRLiteral(i, _) => i
-    case IRTerminal.IRClass(i, _)   => i
-
   private def esc1(c: Char): String = c match
     case '\'' => "\\'"
     case '\\' => "\\\\"
@@ -112,7 +108,7 @@ object BackendAntlr:
   /** Render the IR as an ANTLR4 combined grammar. */
   def emit(ir: IR): String =
     val ntNameById: Map[Int, String] = ir.grammar.nonterminals.map(n => n.id -> n.name).toMap
-    val termById: Map[Int, IRTerminal] = ir.grammar.terminals.map(t => terminalId(t) -> t).toMap
+    val termById: Map[Int, IRTerminal] = ir.grammar.terminals.map(t => t.id -> t).toMap
 
     def symText(r: IRRef): String = r match
       case IRRef.IRRefNT(i, _) => ruleName(ntNameById.getOrElse(i, s"nt$i"))
