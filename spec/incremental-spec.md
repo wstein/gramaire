@@ -312,7 +312,10 @@ absence is meaningful.
   REQUIRED by R22/R23 for a predicate-using `ll-star` backend to claim the
   `incremental` capability; absence means the rule's action is an ordinary
   value-building action (or the front end does not yet emit predicates —
-  today's state).
+  today's state). When present, `IRValidate` additionally requires at least
+  one non-blank `actions` entry — a predicate with no real body is rejected.
+  This is a Scala-side invariant only: it isn't expressible as a JSON Schema
+  cross-field constraint, so `ir-schema.json` doesn't encode it.
 - Stable `rules[].id` and symbol `id`s — REQUIRED so reused subtrees keep
   identity across IR revisions within a major (R3). The IR's canonical hash
   (the `*.gram.lock` digest, `[S12]`) covers these.
