@@ -25,6 +25,24 @@ class ConvertAntlrSuite extends munit.FunSuite:
       |ID : [a-z]+ ;
       |""".stripMargin
 
+  // A grammar exercising two "lossy is loud" gaps: a non-greedy suffix and a bare
+  // character set in a parser rule — both silently normalized before this warning was added.
+  private val lossyG4: String =
+    """grammar Lossy;
+      |r : ID*? | [a-c] ;
+      |ID : [a-z]+ ;
+      |""".stripMargin
+
+  // Two different rules hitting the same lossy pattern — each must warn independently;
+  // a rule-unaware message would collide under collectWarnings' final `.distinct`.
+  private val lossyTwoRulesG4: String =
+    """grammar LossyTwo;
+      |r1 : ID*? ;
+      |r2 : NAME*? ;
+      |ID : [a-z]+ ;
+      |NAME : [A-Z]+ ;
+      |""".stripMargin
+
   private def defsOf(md: String): Vector[TokenDef] =
     ConformanceLexers
       .tokensBlock(md)
@@ -61,4 +79,41 @@ class ConvertAntlrSuite extends munit.FunSuite:
       case Right(imp) =>
         assert(imp.warnings.nonEmpty, "the action/predicate produces a warning")
         assert(!imp.markdown.contains("{"), "no action braces leak into the output")
+  }
+
+  test("convert: non-greedy suffixes and parser-rule charsets are normalized with a warning") {
+    ConvertAntlr.importAntlr(lossyG4) match
+      case Left(e) => fail(s"lossy.g4 should import: $e")
+      case Right(imp) =>
+        assert(
+          imp.warnings.exists(_.contains("non-greedy")),
+          s"expected a non-greedy warning, got: ${imp.warnings}"
+        )
+        assert(
+          imp.warnings.exists(w => w.contains("character set") && w.contains("`r`")),
+          s"expected a character-set warning naming rule `r`, got: ${imp.warnings}"
+        )
+        assert(imp.markdown.contains("ID*"), "the non-greedy suffix renders greedy")
+        assert(!imp.markdown.contains("ID*?"), "no non-greedy marker leaks into the output")
+        assert(imp.markdown.contains("| ."), "the bare charset in a parser rule widens to `.`")
+  }
+
+  test("convert: an identical lossy pattern in two different rules warns twice, not once") {
+    ConvertAntlr.importAntlr(lossyTwoRulesG4) match
+      case Left(e) => fail(s"lossyTwo.g4 should import: $e")
+      case Right(imp) =>
+        val nonGreedyWarnings = imp.warnings.filter(_.contains("non-greedy"))
+        assertEquals(
+          nonGreedyWarnings.size,
+          2,
+          s"expected one non-greedy warning per rule, got: $nonGreedyWarnings"
+        )
+        assert(
+          nonGreedyWarnings.exists(_.contains("`r1`")),
+          s"missing r1's warning: ${imp.warnings}"
+        )
+        assert(
+          nonGreedyWarnings.exists(_.contains("`r2`")),
+          s"missing r2's warning: ${imp.warnings}"
+        )
   }
