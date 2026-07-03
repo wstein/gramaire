@@ -53,9 +53,14 @@ COMMA         : ","
 
 ## File
 
+![Railroad diagram for the File rule](diagrams-Gramark/file.svg)
+
 The fence-free file order is canonical: settings, token definitions,
 productions, then precedence. The only explicit `NL` before productions is the
 layout boundary that separates a preamble from the first rule head.
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 File
@@ -67,7 +72,14 @@ File
   | NL RuleList PrecList            {% (c) => ({ tag: "File", preamble: null, rules: c[1], precedence: c[2] }) %}
 ```
 
+</details>
+
 ## Preamble
+
+![Railroad diagram for the Preamble rule](diagrams-Gramark/preamble.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Preamble
@@ -76,7 +88,14 @@ Preamble
   | SettingList TokenDeclList   {% (c) => ({ tag: "Preamble", settings: c[0], tokens: c[1] }) %}
 ```
 
+</details>
+
 ## SettingList
+
+![Railroad diagram for the SettingList rule](diagrams-Gramark/settinglist.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 SettingList
@@ -84,7 +103,14 @@ SettingList
   | SettingList SettingDecl   {% (c) => [...c[0], c[1]] %}
 ```
 
+</details>
+
 ## SettingDecl
+
+![Railroad diagram for the SettingDecl rule](diagrams-Gramark/settingdecl.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 SettingDecl
@@ -92,7 +118,14 @@ SettingDecl
   | '%lang' IDENT   {% (c) => ({ tag: "Lang", value: c[1] }) %}
 ```
 
+</details>
+
 ## TokenDeclList
+
+![Railroad diagram for the TokenDeclList rule](diagrams-Gramark/tokendecllist.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 TokenDeclList
@@ -100,7 +133,14 @@ TokenDeclList
   | TokenDeclList TokenDecl   {% (c) => [...c[0], c[1]] %}
 ```
 
+</details>
+
 ## TokenDecl
+
+![Railroad diagram for the TokenDecl rule](diagrams-Gramark/tokendecl.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 TokenDecl
@@ -108,7 +148,14 @@ TokenDecl
   | IDENT ':' TokenPattern ModList   {% (c) => ({ tag: "TokenDecl", name: c[0], pattern: c[2], modifiers: c[3] }) %}
 ```
 
+</details>
+
 ## TokenPattern
+
+![Railroad diagram for the TokenPattern rule](diagrams-Gramark/tokenpattern.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 TokenPattern
@@ -116,7 +163,14 @@ TokenPattern
   | TERM_LIT    {% (c) => ({ tag: "ExactPat", source: c[0] }) %}
 ```
 
+</details>
+
 ## ModList
+
+![Railroad diagram for the ModList rule](diagrams-Gramark/modlist.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 ModList
@@ -124,7 +178,14 @@ ModList
   | ModList Modifier       {% (c) => [...c[0], c[1]] %}
 ```
 
+</details>
+
 ## Modifier
+
+![Railroad diagram for the Modifier rule](diagrams-Gramark/modifier.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Modifier
@@ -134,7 +195,14 @@ Modifier
   | EXTERNAL      {% (c) => ({ tag: "External", value: c[0] }) %}
 ```
 
+</details>
+
 ## PrecList
+
+![Railroad diagram for the PrecList rule](diagrams-Gramark/preclist.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 PrecList
@@ -142,7 +210,14 @@ PrecList
   | PrecList PrecDecl    {% (c) => [...c[0], c[1]] %}
 ```
 
+</details>
+
 ## PrecDecl
+
+![Railroad diagram for the PrecDecl rule](diagrams-Gramark/precdecl.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 PrecDecl
@@ -151,7 +226,14 @@ PrecDecl
   | '%nonassoc' PrecTermList  {% (c) => ({ tag: "PrecDecl", assoc: "nonassoc", terms: c[1] }) %}
 ```
 
+</details>
+
 ## PrecTermList
+
+![Railroad diagram for the PrecTermList rule](diagrams-Gramark/prectermlist.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 PrecTermList
@@ -159,7 +241,14 @@ PrecTermList
   | PrecTermList PrecTerm   {% (c) => [...c[0], c[1]] %}
 ```
 
+</details>
+
 ## PrecTerm
+
+![Railroad diagram for the PrecTerm rule](diagrams-Gramark/precterm.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 PrecTerm
@@ -167,10 +256,17 @@ PrecTerm
   | IDENT      {% (c) => ({ tag: "Ref", name: c[0] }) %}
 ```
 
+</details>
+
 ## RuleList
 
+![Railroad diagram for the RuleList rule](diagrams-Gramark/rulelist.svg)
+
+<details>
+<summary>Source</summary>
+
 Left recursion accumulates rules in source order. The `NL` between two rules is
-the boundary newline the normalization pass keeps.
+the boundary newline that the normalization pass keeps.
 
 ```gramark
 RuleList
@@ -178,9 +274,16 @@ RuleList
   | RuleList NL Rule   {% (c) => [...c[0], c[2]] %}
 ```
 
+</details>
+
 ## Rule
 
-A rule is its name on its own line, then `:` and its `|`-separated alternatives.
+![Railroad diagram for the Rule rule](diagrams-Gramark/rule.svg)
+
+<details>
+<summary>Source</summary>
+
+A rule is its name on its own line, followed by `:` and its `|`-separated alternatives.
 The `NL` between the name and its `:` distinguishes a rule head from a
 `name:Sym` field.
 
@@ -190,7 +293,14 @@ Rule
   | IDENT NL ':' Body        {% (c) => ({ tag: "Rule", name: c[0], attrs: [], alts: c[3] }) %}
 ```
 
+</details>
+
 ## Body
+
+![Railroad diagram for the Body rule](diagrams-Gramark/body.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Body
@@ -198,7 +308,14 @@ Body
   | Body '|' Alt   {% (c) => [...c[0], c[2]] %}
 ```
 
+</details>
+
 ## Alt
+
+![Railroad diagram for the Alt rule](diagrams-Gramark/alt.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Alt
@@ -208,7 +325,14 @@ Alt
   | SymList                {% (c) => ({ tag: "Alt", syms: c[0], label: null, action: null }) %}
 ```
 
+</details>
+
 ## SymList
+
+![Railroad diagram for the SymList rule](diagrams-Gramark/symlist.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 SymList
@@ -216,7 +340,14 @@ SymList
   | SymList Sym   {% (c) => [...c[0], c[1]] %}
 ```
 
+</details>
+
 ## Sym
+
+![Railroad diagram for the Sym rule](diagrams-Gramark/sym.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Sym
@@ -240,7 +371,14 @@ Sym
   | Atom QUESTION   {% (c) => ({ tag: "Opt", sym: c[0] }) %}
 ```
 
+</details>
+
 ## Args
+
+![Railroad diagram for the Args rule](diagrams-Gramark/args.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Args
@@ -248,21 +386,42 @@ Args
   | Args COMMA Sym   {% (c) => [...c[0], c[2]] %}
 ```
 
+</details>
+
 ## Action
+
+![Railroad diagram for the Action rule](diagrams-Gramark/action.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Action
   : ACTION   {% (c) => c[0] %}
 ```
 
+</details>
+
 ## Label
+
+![Railroad diagram for the Label rule](diagrams-Gramark/label.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Label
   : LABEL   {% (c) => c[0] %}
 ```
 
+</details>
+
 ## GroupBody
+
+![Railroad diagram for the GroupBody rule](diagrams-Gramark/groupbody.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 GroupBody
@@ -270,7 +429,14 @@ GroupBody
   | GroupBody '|' SymList   {% (c) => [...c[0], c[2]] %}
 ```
 
+</details>
+
 ## Atom
+
+![Railroad diagram for the Atom rule](diagrams-Gramark/atom.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Atom
@@ -278,7 +444,14 @@ Atom
   | '~' NotArg   {% (c) => ({ tag: "Not", set: c[1] }) %}
 ```
 
+</details>
+
 ## NotArg
+
+![Railroad diagram for the NotArg rule](diagrams-Gramark/notarg.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 NotArg
@@ -286,7 +459,14 @@ NotArg
   | '(' SetBody ')'   {% (c) => c[1] %}
 ```
 
+</details>
+
 ## SetBody
+
+![Railroad diagram for the SetBody rule](diagrams-Gramark/setbody.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 SetBody
@@ -294,13 +474,22 @@ SetBody
   | SetBody '|' SetItem  {% (c) => [...c[0], c[2]] %}
 ```
 
+</details>
+
 ## SetItem
+
+![Railroad diagram for the SetItem rule](diagrams-Gramark/setitem.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 SetItem
   : IDENT      {% (c) => ({ tag: "Ref", name: c[0] }) %}
   | TERM_LIT   {% (c) => ({ tag: "Lit", text: c[0] }) %}
 ```
+
+</details>
 
 ## Error messages
 
