@@ -43,6 +43,16 @@ class ConvertAntlrSuite extends munit.FunSuite:
       |NAME : [A-Z]+ ;
       |""".stripMargin
 
+  // A negated character set in a PARSER rule: `~[a-c]` would widen to `~.`, but `~.`
+  // isn't valid Gramaire syntax (`NotArg` only accepts an IDENT/literal, never `.`).
+  // The first alt is the negated set *alone*, so it also exercises the empty-alt
+  // fallback (every element in the alt renders to "").
+  private val negatedSetG4: String =
+    """grammar NegSet;
+      |r : ~[a-c] | ID ;
+      |ID : [a-z]+ ;
+      |""".stripMargin
+
   private def defsOf(md: String): Vector[TokenDef] =
     ConformanceLexers
       .tokensBlock(md)
@@ -116,4 +126,64 @@ class ConvertAntlrSuite extends munit.FunSuite:
           nonGreedyWarnings.exists(_.contains("`r2`")),
           s"missing r2's warning: ${imp.warnings}"
         )
+  }
+
+  test(
+    "convert: a negated character set in a parser rule is dropped with a warning, never emitted as invalid `~.`"
+  ) {
+    ConvertAntlr.importAntlr(negatedSetG4) match
+      case Left(e) => fail(s"negatedSet.g4 should import: $e")
+      case Right(imp) =>
+        assert(
+          imp.warnings.exists(w => w.contains("negated character set") && w.contains("`r`")),
+          s"expected a negated-character-set warning naming rule `r`, got: ${imp.warnings}"
+        )
+        assert(
+          imp.warnings.exists(w => w.contains("dropped an alternative") && w.contains("`r`")),
+          s"expected an alternative-dropped warning naming rule `r`, got: ${imp.warnings}"
+        )
+        assert(
+          !imp.markdown.contains("~."),
+          "`~.` is not valid Gramaire syntax and must never leak out"
+        )
+        assert(imp.markdown.contains("ID"), "the surviving alternative is still rendered")
+        Lr.parse(imp.markdown) match
+          case Left(e)  => fail(s"the imported grammar must still be valid, parseable Gramaire: $e")
+          case Right(_) => () // parses cleanly — the unrepresentable alt was dropped, not corrupted
+  }
+
+  test("convert: a rule whose only alternative is unrepresentable is dropped entirely") {
+    val onlyNegatedSetG4 =
+      """grammar OnlyNegSet;
+        |r : ~[a-c] ;
+        |ID : [a-z]+ ;
+        |""".stripMargin
+    ConvertAntlr.importAntlr(onlyNegatedSetG4) match
+      case Left(e) => fail(s"onlyNegatedSet.g4 should import: $e")
+      case Right(imp) =>
+        assert(
+          imp.warnings.exists(w => w.contains("dropped rule") && w.contains("`r`")),
+          s"expected a whole-rule-dropped warning naming `r`, got: ${imp.warnings}"
+        )
+        assert(!imp.markdown.contains("## r\n"), "rule `r` itself must not appear once it is empty")
+  }
+
+  test("convert: a negated character set in a LEXER rule is preserved, not dropped") {
+    val lexerNegSetG4 =
+      """grammar LexerNegSet;
+        |r : TOK ;
+        |TOK : ~[a-c] ;
+        |""".stripMargin
+    ConvertAntlr.importAntlr(lexerNegSetG4) match
+      case Left(e) => fail(s"lexerNegSet.g4 should import: $e")
+      case Right(imp) =>
+        assert(
+          !imp.warnings.exists(_.contains("`TOK`")),
+          s"a lexer rule's `~[set]` is valid regex, it must not warn: ${imp.warnings}"
+        )
+        assert(
+          imp.markdown.contains("TOK : /[^a-c]/"),
+          "the lexer rule keeps its negated-set regex"
+        )
+        assert(imp.markdown.contains("## r\n"), "the referencing parser rule survives")
   }
