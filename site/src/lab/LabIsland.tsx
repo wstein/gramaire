@@ -83,6 +83,9 @@ const GRAMMAR_PANE_MAX_PERCENT = 72;
 const drawerPanePercent = signal(40);
 const DRAWER_PANE_MIN_PERCENT = 20;
 const DRAWER_PANE_MAX_PERCENT = 72;
+const lrWalkTreePercent = signal(40);
+const LR_WALK_TREE_MIN_PERCENT = 28;
+const LR_WALK_TREE_MAX_PERCENT = 72;
 
 // The two source textareas' live DOM nodes, set via callback refs where they render (inside the
 // main component) — plain module-level mutables, same convention as `worker`/`requestId` below,
@@ -434,6 +437,26 @@ function startDrawerPaneDrag(labEl: HTMLDivElement) {
       drawerPanePercent.value = Math.min(
         DRAWER_PANE_MAX_PERCENT,
         Math.max(DRAWER_PANE_MIN_PERCENT, pct),
+      );
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+}
+
+function startLrWalkPaneDrag(walkEl: HTMLDivElement) {
+  return (e: MouseEvent) => {
+    e.preventDefault();
+    const onMove = (moveEvent: MouseEvent) => {
+      const rect = walkEl.getBoundingClientRect();
+      const pct = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+      lrWalkTreePercent.value = Math.min(
+        LR_WALK_TREE_MAX_PERCENT,
+        Math.max(LR_WALK_TREE_MIN_PERCENT, pct),
       );
     };
     const onUp = () => {
@@ -1499,6 +1522,7 @@ function ParseTracePanel() {
 function LrWalkPanel() {
   const trace = getTrace();
   const cst = response.value?.parse?.cst;
+  const walkRef = useRef<HTMLDivElement>(null);
   if (!trace || trace.length === 0)
     return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
   // Clamped, not reset-on-response: if a new response's trace is shorter than the step the user
@@ -1507,8 +1531,11 @@ function LrWalkPanel() {
   const step = trace[current];
 
   return (
-    <div class="lab__walk">
-      <div class="lab__walk-tree">
+    <div class="lab__walk" ref={walkRef}>
+      <div
+        class="lab__walk-tree"
+        style={{ flex: `0 0 ${lrWalkTreePercent.value}%` }}
+      >
         <div class="lab__analysis-heading">parse tree</div>
         {cst ? (
           <pre class="lab__tree">
@@ -1518,6 +1545,17 @@ function LrWalkPanel() {
           <p class="lab__empty">No parse tree — the input wasn't accepted.</p>
         )}
       </div>
+      <div
+        class="lab__walk-splitter"
+        role="separator"
+        aria-orientation="vertical"
+        aria-valuemin={LR_WALK_TREE_MIN_PERCENT}
+        aria-valuemax={LR_WALK_TREE_MAX_PERCENT}
+        aria-valuenow={Math.round(lrWalkTreePercent.value)}
+        onMouseDown={(e) => {
+          if (walkRef.current) startLrWalkPaneDrag(walkRef.current)(e);
+        }}
+      />
 
       <div class="lab__walk-state">
         <div class="lab__walk-controls">

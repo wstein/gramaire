@@ -823,12 +823,34 @@ test("the LR walk tab splits parse tree from controls, stack, and remaining inpu
   await expect(page.locator(".lab__walk-state")).toContainText(
     "remaining input",
   );
+  await expect(page.locator(".lab__walk-splitter")).toHaveAttribute(
+    "aria-valuenow",
+    "40",
+  );
   await expect(page.locator(".lab__walk-action")).toHaveCount(0);
   await expect(page.locator(".lab__walk-history")).toHaveCount(0);
 
   const controls = page.locator(".lab__walk-controls");
   const panes = page.locator(".lab__walk-panes");
   const controlsTopBefore = (await controls.boundingBox())?.y;
+  const treeWidthBefore = (await page.locator(".lab__walk-tree").boundingBox())
+    ?.width;
+  const splitterBox = await page.locator(".lab__walk-splitter").boundingBox();
+  if (!splitterBox) throw new Error("expected LR walk splitter to be visible");
+
+  await page.mouse.move(
+    splitterBox.x + splitterBox.width / 2,
+    splitterBox.y + splitterBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    splitterBox.x + splitterBox.width / 2 + 80,
+    splitterBox.y + splitterBox.height / 2,
+  );
+  await page.mouse.up();
+  const treeWidthAfter = (await page.locator(".lab__walk-tree").boundingBox())
+    ?.width;
+  expect(treeWidthAfter).toBeGreaterThan(treeWidthBefore ?? 0);
 
   await page.locator(".lab__walk-tree").evaluate((el) => {
     el.scrollTop = el.scrollHeight;
