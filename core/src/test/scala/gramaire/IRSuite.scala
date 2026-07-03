@@ -106,6 +106,61 @@ class IRSuite extends munit.FunSuite:
         )
   }
 
+  test("`{%? p %}` populates predicate and strips the flag from the action body") {
+    val g = Grammar(
+      Vector(
+        Rule("S", Vector.empty, Vector(Alt(Vector(Ref("NUM")), None, Some("? isKeyword"))))
+      )
+    )
+    IR.buildIR(Method.Canonical, "Pred", g) match
+      case Left(e) => fail(s"predicate grammar should build: $e")
+      case Right(ir) =>
+        ir.grammar.rules.headOption match
+          case None => fail("a rule should be present")
+          case Some(r) =>
+            assertEquals(r.predicate, Some(IRPredicateEffect(Vector.empty, Vector.empty)))
+            assertEquals(
+              r.actions,
+              Map("default" -> "isKeyword"),
+              "the `?` flag is not part of the body"
+            )
+        assertEquals(
+          IRValidate.validate(ir),
+          Vector.empty,
+          "a real {%? %} predicate validates clean"
+        )
+  }
+
+  test("`{%? p %}` round-trips end to end through Lr.parse, not just the IR builder directly") {
+    val md = "```gramaire\nS\n  : NUM {%? isKeyword %}\n```\n"
+    Lr.parse(md) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        IR.buildIR(Method.Canonical, "Pred", g) match
+          case Left(e) => fail(s"predicate grammar should build: $e")
+          case Right(ir) =>
+            ir.grammar.rules.headOption match
+              case None => fail("a rule should be present")
+              case Some(r) =>
+                assertEquals(r.predicate, Some(IRPredicateEffect(Vector.empty, Vector.empty)))
+                assertEquals(
+                  r.actions,
+                  Map("default" -> "\\_ -> isKeyword"),
+                  "Desugar's field-binding wrap applies to predicate bodies too"
+                )
+  }
+
+  test("an ordinary `{% p %}` action never sets predicate") {
+    val g = Grammar(
+      Vector(Rule("S", Vector.empty, Vector(Alt(Vector(Ref("NUM")), None, Some("(c) => c[0]")))))
+    )
+    IR.buildIR(Method.Canonical, "NotPred", g) match
+      case Left(e) => fail(s"grammar should build: $e")
+      case Right(ir) =>
+        assertEquals(ir.grammar.rules.head.predicate, None)
+        assertEquals(ir.grammar.rules.head.actions, Map("default" -> "(c) => c[0]"))
+  }
+
   test("a named field on a rhs symbol reaches the IR ref") {
     IR.buildIR(
       Method.Canonical,

@@ -141,7 +141,13 @@ object ConvertAntlr:
     case AGroup(alts: Vector[Vector[Elem]])
     case ADot
     case ANot(inner: Atom)
-    case AInline(s: String) // an action/predicate carried as opaque text (flagged, dropped)
+    case AInline(
+        s: String
+    ) // an action `{ … }` carried as opaque text (no Core equivalent, dropped)
+    // a semantic predicate `{ … }?`; unlike AInline this has a Core home — `promotablePredicate`
+    // lifts a lone one to a trailing `{%? … %}` action (D-predicates) — but only when the alt
+    // has other real content and no competing action, otherwise it too is dropped.
+    case APred(s: String)
 
   // `nonGreedy` marks a `*?`/`+?`/`??` suffix that was normalized to its greedy form on
   // import (flagged, §warnings) — carried on the suffix itself, not a separate field on
@@ -221,7 +227,7 @@ object ConvertAntlr:
     case TSet(s)    => Some((ASet(s), tail))
     case TDot       => Some((ADot, tail))
     case TAction(a) => Some((AInline(a), tail))
-    case TPred(a)   => Some((AInline(a), tail))
+    case TPred(a)   => Some((APred(a), tail))
     case TTilde =>
       tail match
         case h2 :: t2 => atomFrom(h2, t2).map { case (inner, rest) => (ANot(inner), rest) }
@@ -339,7 +345,11 @@ object ConvertAntlr:
       val atomWarn: Vector[String] = e.atom match
         case AInline(a) =>
           Vector(
-            s"dropped an inline action/predicate `{${shorten(a)}}` in rule `$ruleName` (no Core equivalent)"
+            s"dropped an inline action `{${shorten(a)}}` in rule `$ruleName` (no Core equivalent)"
+          )
+        case APred(a) =>
+          Vector(
+            s"dropped a semantic predicate `{${shorten(a)}}?` in rule `$ruleName` (no Core equivalent)"
           )
         case AGroup(alts) => alts.flatMap(_.flatMap(elemWarn(inLexer, ruleName, _)))
         case ANot(ASet(s)) if !inLexer =>
@@ -360,10 +370,17 @@ object ConvertAntlr:
           )
         else Vector.empty
       atomWarn ++ nonGreedyWarn
+    // A promoted predicate (kept as a trailing `{%? %}`) must not also report itself as
+    // dropped — drop that one element from the pass so `elemWarn` never sees it.
+    def altWarn(r: G4Rule, alt: Vector[Elem]): Vector[String] =
+      val elems = promotablePredicate(r.lexer, alt) match
+        case Some(p) => alt.filterNot(_.atom == APred(p))
+        case None    => alt
+      elems.flatMap(e => elemWarn(r.lexer, r.name, e))
     // `.distinct` dedupes only truly identical warnings (e.g. the same dropped action
     // repeated within one rule); every message above is rule-scoped so it can't collapse
     // warnings from two different rules into one.
-    rules.flatMap(r => r.alts.flatMap(_.flatMap(e => elemWarn(r.lexer, r.name, e)))).distinct
+    rules.flatMap(r => r.alts.flatMap(alt => altWarn(r, alt))).distinct
 
   // Every `ARef` an alt's elements reach, recursively through `AGroup`/`ANot` — what
   // dropUnrepresentableRules needs to know an alt is dangling once some other rule it
@@ -475,6 +492,11 @@ object ConvertAntlr:
       val kept = alts.map(renderAlt).filter(_.nonEmpty)
       if kept.isEmpty then "" else "( " + kept.mkString(" | ") + " )"
     case AInline(_) => "" // dropped (warned)
+    // dropped by default here too — a lone top-level predicate is promoted separately by
+    // `renderTopAlt`, since Gramaire's action slot is trailing-only and one-per-alt, not a
+    // property of an arbitrary element position (and never inside a nested group: `( … {%? %}
+    // … )` has no Core equivalent, so a nested predicate always stays dropped).
+    case APred(_) => ""
 
   private def renderElem(e: Elem): String = renderAtom(e.atom) + renderSuffix(e.suffix)
 
@@ -485,6 +507,31 @@ object ConvertAntlr:
   // must not emit an alt this returns "" for — `dropUnrepresentableRules` drops it instead.
   private def renderAlt(els: Vector[Elem]): String =
     els.map(renderElem).filter(_ != "").mkString(" ")
+
+  // A `{ p }?` predicate can be kept — as a trailing `{%? p %}` action (D-predicates ADR) —
+  // only when it is the alt's ONE inline action/predicate and the alt has other real content:
+  // Gramaire's action slot is one-per-alt and trailing-only, and an action-only alt would be an
+  // epsilon production (the Core is epsilon-free, see Desugar.scala). A lexer rule's predicate
+  // is never representable at all (tokens are pure regex), so this always returns `None` there.
+  // Repositioning a leading/mid-sequence `{ p }?` to trailing is safe without a warning: ALL(*)
+  // evaluates a rule's predicate at prediction time, not at its textual position in the alt.
+  private def promotablePredicate(lexer: Boolean, alt: Vector[Elem]): Option[String] =
+    if lexer then None
+    else
+      val preds = alt.collect { case Elem(APred(s), _) => s }
+      val actions = alt.collect { case Elem(AInline(s), _) => s }
+      if preds.length == 1 && actions.isEmpty && renderAlt(alt).nonEmpty then Some(preds.head)
+      else None
+
+  // Top-level-only wrapper around `renderAlt`: appends a promoted predicate's `{%? %}` action
+  // after the alt's real symbols. Never called for a nested `AGroup` alt (those keep calling
+  // `renderAlt` directly via `renderAtom`'s `AGroup` case), matching the "not inside a group"
+  // restriction `promotablePredicate` documents.
+  private def renderTopAlt(els: Vector[Elem]): String =
+    val base = renderAlt(els)
+    promotablePredicate(lexer = false, els) match
+      case Some(p) => s"$base {%? ${p.trim} %}"
+      case None    => base
 
   private def regexOfAtom(a: Atom): String = a match
     case ARef(n)       => n // a fragment reference; left as-is
@@ -500,6 +547,7 @@ object ConvertAntlr:
       val kept = alts.map(els => els.map(regexOfElem).mkString).filter(_.nonEmpty)
       if kept.isEmpty then "" else "(?:" + kept.mkString("|") + ")"
     case AInline(_) => ""
+    case APred(_)   => "" // no regex home — predicates are never representable in a lexer rule
 
   private def regexOfElem(e: Elem): String = regexOfAtom(e.atom) + renderSuffix(e.suffix)
 
@@ -534,7 +582,7 @@ object ConvertAntlr:
 
     def ruleSection(r: G4Rule): String =
       s"## ${r.name}\n\n```gramaire\n${r.name}\n  : " + r.alts
-        .map(renderAlt)
+        .map(renderTopAlt)
         .mkString("\n  | ") + "\n```\n"
 
     val markdown =
