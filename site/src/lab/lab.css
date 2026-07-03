@@ -332,6 +332,14 @@
   color: var(--fg-faint);
   font-style: italic;
 }
+/* AllParsesPanel/GrammarAnalysisPanel's ProvenanceNote — shown only under Engine=ALL(*), a small
+   disclosure that this specific tab is still LR/GLR-built regardless. */
+.lab__provenance {
+  color: var(--fg-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin: 0 0 10px;
+}
 
 .lab__result {
   display: flex;

@@ -157,7 +157,7 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await expect(traceRows).toHaveCount(14); // "1+2*3" under calc.grmk.md's shape: 14 shift/reduce/accept steps
   await expect(traceRows.last()).toContainText("accept");
 
-  await page.click('button[role="tab"]:has-text("LR walk")');
+  await page.click('button[role="tab"]:has-text("Walk")');
   await expect(page.locator(".lab__walk-counter")).toHaveText("step 1 / 14");
   await expect(page.locator(".lab__walk-trace")).toContainText(
     "shift `NUMBER`",
@@ -171,16 +171,16 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await expect(page.locator(".lab__walk-counter")).toHaveText("step 14 / 14");
   await expect(page.locator(".lab__walk-panes")).toContainText("Expr");
 
-  // ATN diagnostics is additive: Strategy defaults to LR, so the tab starts disabled, with a
+  // ATN diagnostics is additive: Engine defaults to LR/GLR, so the tab starts disabled, with a
   // title tooltip explaining why — no dead-end click into an empty panel.
   const atnTab = page.locator('button[role="tab"]:has-text("ATN")');
   await expect(atnTab).toBeDisabled();
-  await expect(atnTab).toHaveAttribute("title", /Switch Strategy/);
+  await expect(atnTab).toHaveAttribute("title", /Switch Engine/);
 
-  await page.getByLabel("Strategy").selectOption("ll-star");
+  await page.getByLabel("Engine").selectOption("ll-star");
   await expect(atnTab).toBeEnabled();
   await atnTab.click();
-  await expect(page.locator(".lab__panel")).toContainText("Ll.recognize", {
+  await expect(page.locator(".lab__panel")).toContainText("Ll.parseTraced", {
     timeout: 5000,
   });
   // Scoped to .lab__panel: StatusBar's own always-visible badge reuses the same
@@ -207,7 +207,7 @@ test("tabs with nothing to show are disabled, with a tooltip explaining why", as
     "Tokens",
     "Parse tree",
     "Parse trace",
-    "LR walk",
+    "Walk",
     "All parses",
     "Lowered Core",
     "Grammar analysis",
@@ -225,7 +225,7 @@ test("tabs with nothing to show are disabled, with a tooltip explaining why", as
   await expect(page.locator(".lab__statusbar")).toContainText("ok", {
     timeout: 5000,
   });
-  for (const label of ["Tokens", "Parse tree", "Parse trace", "LR walk"]) {
+  for (const label of ["Tokens", "Parse tree", "Parse trace", "Walk"]) {
     const tab = page.locator(`button[role="tab"]:has-text("${label}")`);
     await expect(tab).toBeDisabled();
     await expect(tab).toHaveAttribute("title", /Enter (target )?input/);
@@ -671,8 +671,8 @@ test("the Lab shows a persistent status bar with live automaton stats, visible a
     /Canonical\(1\) · \d+ states? · 0 conflicts?/,
   );
 
-  // Reacts live to the Method picker.
-  await page.getByLabel("Method").selectOption("LALR");
+  // Reacts live to the Engine picker's LR/GLR method options.
+  await page.getByLabel("Engine").selectOption("LALR");
   await expect(bar).toContainText(/LALR\(1\) · \d+ states? · 0 conflicts?/);
 });
 
@@ -803,7 +803,7 @@ test("hovering/clicking a nonterminal box in the railroad diagram cross-links th
   );
 });
 
-test("the LR walk tab splits parse trace from controls, stack, and remaining input", async ({
+test("the Walk tab splits parse trace from controls, stack, and remaining input", async ({
   page,
 }) => {
   await page.goto("/lab/");
@@ -814,7 +814,7 @@ test("the LR walk tab splits parse trace from controls, stack, and remaining inp
   await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
     timeout: 5000,
   });
-  await page.click('button[role="tab"]:has-text("LR walk")');
+  await page.click('button[role="tab"]:has-text("Walk")');
   await page.waitForSelector(".lab__walk-trace .lab__table");
 
   await expect(page.locator(".lab__walk")).toBeVisible();
@@ -867,4 +867,96 @@ test("the LR walk tab splits parse trace from controls, stack, and remaining inp
     .locator(".lab__walk-trace")
     .evaluate((el) => el.scrollTop);
   expect(scrollTop).toBeGreaterThan(0);
+});
+
+test("Engine=ALL(*) drives Parse trace/Walk from Ll.parseTraced, and badges the still-LR/GLR tabs", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  await page.getByLabel("Engine").selectOption("ll-star");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  // Parse trace: predict/match/accept steps, not shift/reduce — this is the ll-star engine, not
+  // an LR walk relabeled.
+  await page.click('button[role="tab"]:has-text("Parse trace")');
+  await expect(page.locator(".lab__panel")).toContainText("predict Expr");
+  await expect(page.locator(".lab__panel")).toContainText("match NUMBER");
+  const traceRows = page.locator(".lab__panel .lab__table tbody tr");
+  await expect(traceRows.last()).toContainText("accept");
+
+  // Walk: the same trace, plus a rule-stack pane (not "parse stack") and a remaining-input pane
+  // derived from the token list, not LrStepInfo.remainingSymbols (ll-star has no such field).
+  await page.click('button[role="tab"]:has-text("Walk")');
+  await expect(page.locator(".lab__walk-trace")).toContainText("predict Expr");
+  await expect(page.locator(".lab__walk-panes")).toContainText("rule stack");
+  await expect(page.locator(".lab__walk-panes")).toContainText("Expr");
+  await page.click('button[aria-label="last step"]');
+  await expect(
+    page.locator(".lab__walk-trace .lab__walk-row--current"),
+  ).toContainText("accept");
+
+  // All parses/Grammar analysis stay GLR/LR-built under ll-star — the provenance note discloses
+  // that instead of silently showing data with no indication of which engine produced it.
+  await page.click('button[role="tab"]:has-text("All parses")');
+  await expect(page.locator(".lab__provenance")).toContainText("via GLR");
+
+  await page.click('button[role="tab"]:has-text("Grammar analysis")');
+  await expect(page.locator(".lab__provenance")).toContainText("via LR tables");
+
+  // Switching back to LR/GLR, the provenance note disappears (both tabs are what they claim to
+  // be again) and the badge doesn't leak into strategy "lr" output.
+  await page.getByLabel("Engine").selectOption("Canonical");
+  await expect(page.locator(".lab__provenance")).toHaveCount(0);
+});
+
+test("Engine=ALL(*) still builds an LR-conflicted grammar, with the conflict as a warning", async ({
+  page,
+}) => {
+  await page.goto("/lab/");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  await page
+    .locator(".lab__pane--grammar .lab__editor")
+    .fill(
+      [
+        "# Ambiguous",
+        "",
+        "## E",
+        "",
+        "```gramark",
+        "E",
+        ": E E",
+        "| 'x'",
+        "```",
+        "",
+      ].join("\n"),
+    );
+  await page.locator(".lab__pane--fill .lab__editor").fill("xxx");
+  await page.getByLabel("Engine").selectOption("ll-star");
+
+  await expect(page.locator(".lab__status")).toHaveText("ok", {
+    timeout: 5000,
+  });
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted");
+  await expect(page.locator(".lab__statusbar-warnings")).toContainText(
+    "1 warning",
+  );
+
+  await page.click('button[role="tab"]:has-text("ATN")');
+  await expect(page.locator(".lab__panel")).toContainText("accepted");
+  await expect(page.locator(".lab__panel .lab__table tbody tr")).toHaveCount(1);
+
+  // evaluatorJs needs no LR table build, so Evaluate stays enabled despite the conflict —
+  // it would be disabled (tabDisabledReason) if evaluatorJs were absent.
+  await expect(
+    page.locator('button[role="tab"]:has-text("Evaluate")'),
+  ).toBeEnabled();
 });
