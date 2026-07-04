@@ -447,6 +447,38 @@ object AtnDiagnostics:
       )
     )
 
+/** One ```gramark fence's role and line span in `LabRequest.source`'s own raw text — the Live
+  * Document notebook's cell boundaries and role badge (Settings/Tokens/Precedence/Rule), computed
+  * by `Lr.classifyFenceContent`'s "case is law" content-shape rule (the SAME oracle the CLI's
+  * structure gate uses, D29/D43) rather than re-inferred in TypeScript. Present whenever the source
+  * has at least one ```gramark fence, independent of whether the grammar notation parses — a broken
+  * grammar still shows correct cell boundaries to fix it by. Empty for a fence-free native `.grmk`
+  * source (there is simply no ```gramark marker to find there); the notebook view only applies to
+  * `.grmk.md` sources. `startLine`/`endLine` are 1-based and inclusive, spanning the opening
+  * \```gramark marker line through the closing ``` marker line, in `source`'s own line numbering
+  * (never a `Lr.toFenced` projection's), matching what the Lab frontend's textarea — which only
+  * ever holds the raw source — can navigate/highlight directly.
+  */
+final case class FenceInfo(
+    index: Int,
+    kind: String,
+    nonterminal: Option[String],
+    startLine: Int,
+    endLine: Int
+)
+
+object FenceInfo:
+  def toJson(f: FenceInfo): Json =
+    Json.JObject(
+      Vector(
+        "index" -> Json.JInt(f.index),
+        "kind" -> Json.JString(f.kind),
+        "nonterminal" -> f.nonterminal.map(Json.JString.apply).getOrElse(Json.JNull),
+        "startLine" -> Json.JInt(f.startLine),
+        "endLine" -> Json.JInt(f.endLine)
+      )
+    )
+
 /** The Lab's full response: whether the grammar itself built, any diagnostics, and — if input was
   * given and the grammar built — the parse result. `evaluatorJs` (the Evaluate tab's data, M5+) is
   * `BackendJs.emitTraced`'s generated ES module SOURCE TEXT, not a computed value — the Worker
@@ -464,7 +496,8 @@ final case class LabResponse(
     analysis: Option[GrammarAnalysis] = None,
     evaluatorJs: Option[String] = None,
     atn: Option[AtnDiagnostics] = None,
-    allStarLowering: Option[AllStarLowering] = None
+    allStarLowering: Option[AllStarLowering] = None,
+    fences: Vector[FenceInfo] = Vector.empty
 )
 
 object LabResponse:
@@ -492,7 +525,8 @@ object LabResponse:
         "atn" -> r.atn.map(AtnDiagnostics.toJson).getOrElse(Json.JNull),
         "allStarLowering" -> r.allStarLowering
           .map(AllStarLowering.toJson)
-          .getOrElse(Json.JNull)
+          .getOrElse(Json.JNull),
+        "fences" -> Json.JArray(r.fences.map(FenceInfo.toJson))
       )
     )
 

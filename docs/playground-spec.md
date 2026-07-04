@@ -661,6 +661,22 @@ M5 log closed (see the top callout for the same summary):
   `@tailrec` accumulator loop. Both are covered by the existing `ParserSuite`/
   `LlSuite` regression suites (unchanged externally-observable behavior).
 
+**Live Document notebook, phase 1 (protocol only).** `LabResponse` grows
+`fences: Vector[FenceInfo]` — every ```gramark fence's "case is law" role
+(`Lr.classifyFenceContent`'s Rule/Tokens/Settings/Precedence, the same oracle
+the CLI's structure gate uses, ADR D29/D43) and 1-based line span in
+`LabRequest.source`'s own raw text, in document order. Computed unconditionally
+by `LabApi.fenceInfosOf` (independent of whether the grammar notation parses,
+so a broken grammar still reports correct cell boundaries), and empty for a
+fence-free native `.grmk` source. This lands ahead of any UI: it's the data
+foundation for a planned notebook-style editor (prose rendered inline with
+per-fence editable cells and their outputs, replacing the flat grammar
+textarea) — no drawer tab consumes it yet. `spec/lab-protocol-schema.json`
+gained a matching `fenceInfo` definition; the JVM↔JS parity gate (§8) covers
+it via the existing fixture list, with no new fixture needed since every
+existing fixture's grammar source already has `## Tokens`/rule/`##
+Precedence` fences to classify.
+
 ---
 
 ## 6. UX & layout

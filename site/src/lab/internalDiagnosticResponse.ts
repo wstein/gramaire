@@ -32,5 +32,7 @@ export function internalErrorResponse(
     analysis: null,
     evaluatorJs: null,
     atn: null,
+    allStarLowering: null,
+    fences: [],
   };
 }

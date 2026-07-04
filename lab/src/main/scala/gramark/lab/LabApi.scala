@@ -127,12 +127,55 @@ object LabApi:
       Diagnostic.render(d, sourceName, src)
     )
 
+  // The Live Document notebook's per-fence role + line span (D29/D43: classification is Scala's
+  // job, never re-inferred in TypeScript — `Lr.classifyFenceContent` is the same "case is law"
+  // oracle the CLI's structure gate (`GramarkCheck.scala`) uses). Mirrors
+  // `Lr.fenceOrigins`'s own bare-```gramark-marker matching, tracking 1-based line numbers instead
+  // of character offsets since that's what a browser textarea navigates by; deliberately NOT
+  // reusing `Lr.fenceOrigins` itself, since that private helper's offsets are relative to
+  // `Lr.toFenced`'s projection (right for `lrBlocks`' purpose, wrong for a Lab frontend that only
+  // ever has `request.source`'s own raw text — the same mismatch `toDiagnosticInfo`'s `spanSafe`
+  // guards against above). Computed unconditionally, independent of whether the grammar notation
+  // parses below, so a broken grammar still shows correct cell boundaries/role badges to fix it
+  // by. Empty for a fence-free native `.grmk` source — there's simply no ```gramark marker to find
+  // there, a correct "no fences" answer; the notebook view only applies to `.grmk.md` sources.
+  private def fenceInfosOf(source: String): Vector[FenceInfo] =
+    final case class Acc(openLine: Int, content: Vector[String], out: Vector[FenceInfo])
+    val lines = source.split("\n", -1).toVector
+    // `openLine == 0` means "not currently inside a fence" (1-based line numbers are always >= 1).
+    val acc = lines.zipWithIndex.foldLeft(Acc(0, Vector.empty, Vector.empty)) {
+      case (a, (line, i)) =>
+        val lineNo = i + 1
+        if a.openLine > 0 then
+          if line.trim == "```" then
+            val contentStr = a.content.mkString("\n")
+            val kind = Lr.classifyFenceContent(contentStr)
+            val nonterminal =
+              if kind == Lr.FenceKind.Rule then
+                a.content
+                  .find(_.trim.nonEmpty)
+                  .flatMap(_.trim.split("\\s+", -1).headOption.filter(_.nonEmpty))
+              else None
+            val kindWord = kind match
+              case Lr.FenceKind.Rule       => "rule"
+              case Lr.FenceKind.Tokens     => "tokens"
+              case Lr.FenceKind.Settings   => "settings"
+              case Lr.FenceKind.Precedence => "precedence"
+            val info = FenceInfo(a.out.length, kindWord, nonterminal, a.openLine, lineNo)
+            Acc(0, Vector.empty, a.out :+ info)
+          else a.copy(content = a.content :+ line)
+        else if line.trim == "```gramark" then Acc(lineNo, Vector.empty, a.out)
+        else a
+    }
+    acc.out
+
   /** Compile `request.source` and, if `request.input` is given, parse it. Plain Scala — no
     * Scala.js-specific API — so it compiles and is directly testable on both `labJVM` and `labJS`;
     * the `@JSExportTopLevel` wrapper around this lives in the JS-only entry point, not here (this
     * cross-compiled module has one shared source tree for both platforms).
     */
   def evaluate(request: LabRequest): LabResponse =
+    val fences = fenceInfosOf(request.source)
     val (src, projected) = Lr.toFencedTagged(request.source)
     // Whether `src` is actually `request.source` verbatim — false whenever the grammar notation is
     // fence-free (`toFenced` reorders/strips it into a synthetic projection), the one case where a
@@ -148,7 +191,8 @@ object LabApi:
           LabResponse.version,
           buildOk = false,
           diagnostics = diags.map(toDiagnosticInfo(_, grammarSourceName, src, spanSafe)),
-          parse = None
+          parse = None,
+          fences = fences
         )
       case Right(parsedGrammar) =>
         val grammar = withStartRule(parsedGrammar, request.startRule)
@@ -243,7 +287,8 @@ object LabApi:
             analysis = analysis,
             evaluatorJs = evaluatorJs,
             atn = atn,
-            allStarLowering = allStarLowering
+            allStarLowering = allStarLowering,
+            fences = fences
           )
         else
           tableResult match
@@ -260,7 +305,8 @@ object LabApi:
                 productions = productions,
                 forest = forest,
                 analysis = analysis,
-                allStarLowering = allStarLowering
+                allStarLowering = allStarLowering,
+                fences = fences
               )
             case Right(table) =>
               val parse = request.input.zip(spanned).map { case (input, sp) =>
@@ -276,7 +322,8 @@ object LabApi:
                 forest = forest,
                 analysis = analysis,
                 evaluatorJs = evaluatorJs,
-                allStarLowering = allStarLowering
+                allStarLowering = allStarLowering,
+                fences = fences
               )
 
   // The Lab's start-rule picker (M5+): core has no separate "start rule" concept anywhere —
