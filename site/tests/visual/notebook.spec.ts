@@ -300,12 +300,18 @@ test("a rejected Try-it input underlines the offending character with the messag
   );
 });
 
-// Regression: `![alt](src)` markdown image links had no inline case in parseMarkdownLite, so they
-// fell through to plain text and rendered as the literal
+// Regression (round 1): `![alt](src)` markdown image links had no inline case in
+// parseMarkdownLite, so they fell through to plain text and rendered as the literal
 // "![Railroad diagram for the Term rule](diagrams-calc-js/term.svg)" — reported directly from the
-// notebook (calc-js.grmk.md's own sidecar railroad-diagram links). They now resolve to the actual
-// bundled SVG, rendered inline.
-test("a prose image link renders the actual sidecar SVG, not literal markdown text", async ({
+// notebook (calc-js.grmk.md's own sidecar railroad-diagram links).
+//
+// Regression (round 2): once images resolved to real SVGs, each rule's diagram rendered TWICE —
+// once live in the rule cell (from the real engine) and once more from this same static sidecar
+// image, since `gramark fmt --diagrams=sidecar` always writes that placeholder image directly
+// after a rule's fence for plain-markdown readers (GitHub, docs) that have no live engine to
+// render it themselves. The Notebook does have one, so it now suppresses this specific
+// placeholder (isRailroadPlaceholder) rather than show the same diagram twice.
+test("a rule's railroad-placeholder image is suppressed, not duplicated or shown as literal text", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
@@ -313,8 +319,9 @@ test("a prose image link renders the actual sidecar SVG, not literal markdown te
   const docText = await page.locator(".grimoire__doc").textContent();
   expect(docText).not.toContain("![");
 
-  await expect(page.locator(".grimoire-prose-image svg")).toHaveCount(3);
-  await expect(page.locator(".grimoire-prose-image-missing")).toHaveCount(0);
+  await expect(page.locator(".grimoire-prose-image")).toHaveCount(0);
+  // One live diagram per rule cell — never a second, static copy in the prose below it.
+  await expect(page.locator(".grimoire__output-railroad svg")).toHaveCount(3);
 });
 
 // Regression: parseMarkdownLite had no table detection at all, so the "## Generated tables"

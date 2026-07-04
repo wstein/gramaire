@@ -1,4 +1,5 @@
 import type { MdBlock, MdInline } from "./markdown";
+import { isRailroadPlaceholder } from "./markdown";
 import { resolveExampleSvg } from "./exampleAssets";
 
 // A resolved sidecar SVG renders inline (dangerouslySetInnerHTML) rather than an <img src> — see
@@ -70,6 +71,9 @@ export function MarkdownBlocks({ blocks }: { blocks: MdBlock[] }) {
   return (
     <>
       {blocks.map((b, i) => {
+        // The rule cell right above already renders this same diagram live from the real engine —
+        // showing gramark fmt's static sidecar-image placeholder too would just duplicate it.
+        if (isRailroadPlaceholder(b)) return null;
         if (b.tag === "table") {
           return <MdTable key={i} header={b.header} rows={b.rows} />;
         }
