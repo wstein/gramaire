@@ -632,6 +632,22 @@ Principles kept:
   converter's flag-and-drop into a real `{%? %}` node that sets this field is
   the next concrete step — still **not done**, and still not to be landed
   opportunistically alongside unrelated prediction work.
+- **No backtracking on a committed decision — declaration order can cause
+  outright false rejections, not just a parse-preference choice.** Surfaced
+  while building the Lab's `examples/dangling-else.gram.md` fixture
+  (`docs/playground-spec.md` §9): `AtnSim.predict` commits once per decision
+  and never re-simulates with full context if that commitment turns out to
+  be wrong later in the walk. For most grammars this only affects which of
+  several valid parses the declaration-order tie-break returns (the
+  documented, intended behavior). For a self-embedding ambiguous
+  construction like dangling-else, it can instead make ALL(\*) reject a
+  string a GLR forest proves is genuinely derivable, purely because of
+  which alternative was declared first — the classic `if c then Stmt` vs.
+  `if c then Stmt else Stmt` ordering flips the fixture between accept and
+  reject for the same input. Not yet addressed: a full-context fallback
+  (ANTLR's own ALL(\*) re-simulates with full context when SLL prediction's
+  result can't be trusted) would close this, but is a materially bigger
+  change than anything in this phase's scope.
 
 ## 7. Scala realization notes
 

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mode": "sidecar",
+  "sourceLayout": "collapsed",
+  "grammarSha256": "c3ac6704bc7ae0a3ea544be8c5bd5a391c442841a0f0fce67de4722c985f9590",
+  "artifacts": [
+    {
+      "kind": "railroad",
+      "nonterminal": "S",
+      "path": "diagrams-lalr-artifact/s.svg",
+      "sourceSha256": "7d071147e356b77944cdb64ccf66422b92f1df719e3187b8dfacbc4d83562727"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "A",
+      "path": "diagrams-lalr-artifact/a.svg",
+      "sourceSha256": "6584421e6bc24aabd36552c64e25682103d0b09d8f3b678507a85b70a6848b70"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "B",
+      "path": "diagrams-lalr-artifact/b.svg",
+      "sourceSha256": "1f336dfd2e3809f69b3db19fbcab673cf6bc87e4219034971268fe0fc57a5470"
+    },
+    {
+      "kind": "tables",
+      "section": "Generated tables",
+      "sourceSha256": "c3ac6704bc7ae0a3ea544be8c5bd5a391c442841a0f0fce67de4722c985f9590"
+    }
+  ]
+}

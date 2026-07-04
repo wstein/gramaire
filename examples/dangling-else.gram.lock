@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "mode": "sidecar",
+  "sourceLayout": "collapsed",
+  "grammarSha256": "ea30dc53cda1273f9fd632a7abe465ca4d68b31f8a261a4950b6d3b7ecf70bb4",
+  "artifacts": [
+    {
+      "kind": "railroad",
+      "nonterminal": "Stmt",
+      "path": "diagrams-dangling-else/stmt.svg",
+      "sourceSha256": "e32a2f62b21426237bd7c9468bdf5d1913d9d101b63a3996d6b1ec0b4251799d"
+    },
+    {
+      "kind": "tables",
+      "section": "Generated tables",
+      "sourceSha256": "ea30dc53cda1273f9fd632a7abe465ca4d68b31f8a261a4950b6d3b7ecf70bb4"
+    }
+  ]
+}

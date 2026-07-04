@@ -5,6 +5,8 @@
 // never a hand-copied approximation that can silently drift out of sync.
 import calcJsSource from "../../../examples/calc-js.gram.md?raw";
 import jsonSource from "../../../examples/json.gram.md?raw";
+import danglingElseSource from "../../../examples/dangling-else.gram.md?raw";
+import lalrArtifactSource from "../../../examples/lalr-artifact.gram.md?raw";
 
 export interface LabExample {
   name: string;
@@ -61,5 +63,18 @@ export const EXAMPLES: LabExample[] = [
     name: "JSON",
     source: jsonSource,
     input: '{"a": 1, "b": [true, false, null]}',
+  },
+  // The two below are real-world-limitations examples (docs/playground-spec.md §9): each needs a
+  // SPECIFIC Engine, not just "any of them happen to work" — switching away from the one it needs
+  // demonstrates the actual constraint, not just a stylistic preference.
+  {
+    name: "Dangling else (needs ALL(*))",
+    source: danglingElseSource,
+    input: "if c then if c then s else s",
+  },
+  {
+    name: "LALR artifact (needs Canonical/IELR)",
+    source: lalrArtifactSource,
+    input: "acd",
   },
 ];
