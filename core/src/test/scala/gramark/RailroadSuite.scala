@@ -102,7 +102,9 @@ class RailroadSuite extends munit.FunSuite:
       Vector(
         Alt(
           Vector(DiaSym("Term", term = false)),
-          action = Some("c.a !== c.b && c.c === c.d && c.e <= c.f && c.g >= c.h && c.i != c.j")
+          action = Some(
+            "c.a !== c.b && c.c === c.d && c.e <= c.f && c.g >= c.h && c.i != c.j && c.k == c.l"
+          )
         )
       )
     )
@@ -112,9 +114,11 @@ class RailroadSuite extends munit.FunSuite:
     assert(svg.contains("≤"))
     assert(svg.contains("≥"))
     assert(svg.contains("≠"))
+    assert(svg.contains("c.k = c.l"), "loose == becomes a plain =")
     // Not mangled by a shorter operator's replacement eating into a longer one first.
     assert(!svg.contains("≠="), "!== must not become a mangled ≠=")
     assert(!svg.contains("≠=="), "!== must not become a mangled ≠==")
+    assert(!svg.contains("≡="), "=== must not become a mangled ≡=")
   }
 
   test(

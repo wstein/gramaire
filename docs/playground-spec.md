@@ -737,10 +737,17 @@ predicate — a genuinely different, already-shipped action kind (its leading
 rather than a different box color, so the distinction stays legible
 regardless of color vision. `Railroad.prettifyOperators` swaps common JS
 comparison digraphs/trigraphs for their single-glyph math equivalents
-(`=>`→⇒, `!==`→≢, `===`→≡, `!=`→≠, `<=`→≤, `>=`→≥ — longest-first so `!==`/
-`===` never get half-consumed by `!=`/`<=`'s own shorter match) in both the
-visible (truncated) text and the full `<title>` — a diagram-readability
-nicety, not a copy-paste source view. (`Railroad.Alt.action`, rendered by
+(`=>`→⇒, `!==`→≢, `===`→≡, `!=`→≠, `==`→=, `<=`→≤, `>=`→≥ — `==`/`===`
+mirroring math's own equal-vs-identical convention; longest-first so
+`!==`/`===` never get half-consumed by `!=`/`==`'s own shorter match) in
+both the visible (truncated) text and the full `<title>` — a
+diagram-readability nicety, not a copy-paste source view. Deliberately a
+curated substitution, not a ligature font (Fira Code/JetBrains Mono/etc.):
+the site's own monospace typeface (IBM Plex Mono, `docs/BRANDING.md`) has
+no ligatures, a second webfont just for this is disproportionate, and a
+font's ligature set is automatic — it reshapes whatever patterns _it_
+recognizes, not exactly these operators and nothing else.
+(`Railroad.Alt.action`, rendered by
 `Railroad.renderSvg` — a native SVG `<title>` on the same element still
 carries the full, untruncated source as a hover tooltip, so no frontend JS is
 needed.) The CLI's `gramark fmt --diagrams=sidecar` output is unaffected
