@@ -697,6 +697,67 @@ spec.ts` (a new `npm run test:unit` / `playwright.unit.config.ts` — no
 browser, no dev server, just pure-logic assertions against real fixture data
 mirrored from `LabApiSuite`'s own fence-span test). No UI consumes this yet.
 
+**Gramaire Notebook (shipped).** A standalone page at `/notebook`
+(`site/src/pages/notebook.astro` + `site/src/lab/liveDoc/
+GramaireNotebookIsland.tsx`) — deliberately its own page with its own state
+(`site/src/lab/liveDoc/useLabWorker.ts`, a Web Worker + debounce lifecycle
+independent of `LabIsland.tsx`'s own copy), not a mode bolted onto the
+existing Lab: an earlier prototype integrated as a toggle inside
+`LabIsland.tsx`, reusing its module-level signals directly, was reverted
+mid-review in favor of this standalone shape (see this session's feedback
+memory). Named "Gramaire Notebook" per `docs/rebrand-gramaire-plan.md` — the
+feature-level name ships now, ahead of any project-wide rebrand.
+
+Renders the whole document as prose interleaved with per-fence
+`CodeMirrorEditor` cells (`site/src/lab/liveDoc/CodeMirrorEditor.tsx`, plain
+text — no `.gram` language mode yet), each showing its `fences`-reported role
+badge and, for a rule cell, its railroad diagram/FIRST-FOLLOW rendered
+straight from `LabResponse.analysis` beneath it. Prose blocks render via a
+small markdown-lite parser (`site/src/lab/liveDoc/markdown.ts`, unit-tested —
+headings/paragraphs/`code`/`**bold**`, not full CommonMark) with click-to-
+edit-as-raw-text. A "Try it" section reuses the real engine's `parse.tokens`/
+`parse.cst` (not a toy evaluator) for a plain input field. Falls back to a
+full-document plain textarea whenever `LabResponse.fences` is empty — the
+very first paint before any response has arrived, and a genuine engine
+failure alike (`internalErrorResponse` always carries `fences: []`) — so
+there's no blank-screen state.
+
+Two real bugs surfaced and fixed during manual + Playwright verification,
+both regression-tested in `site/tests/visual/notebook.spec.ts`:
+
+- **Stale-closure infinite dispatch** (`CodeMirrorEditor.tsx`): the
+  EditorView is mounted once (recreating it on every prop change would reset
+  cursor/undo history), but `onChange` is a fresh closure every render —
+  Preact gives no stable-identity guarantee for an inline prop, so the
+  mount-once effect was calling only the FIRST render's `onChange`, closing
+  over stale `blocks`/`index`. Every edit after the first produced a document
+  that didn't match what CodeMirror already held, which got "corrected" by a
+  second dispatch, which re-fired the same stale closure — an infinite
+  synchronous loop that froze the tab on the second keystroke. Fixed with a
+  ref updated every render, dereferenced inside the listener.
+- **Whole-document recompute on every keystroke** desyncing block boundaries
+  (`GramaireNotebookIsland.tsx`): originally `blocks` was a `computed`
+  re-derived from `source` + `LabResponse.fences` on every edit — but
+  `fences` describes the PRE-edit line layout, so an edit changing a block's
+  line count (even a one-line prose rewrite) desynced every block after it
+  until a fresh response landed, leaking a neighboring fence's marker text
+  into the prose block as literal text. Separately, recomputing +
+  re-rendering every cell on every same-tick keystroke (with no settling
+  time) compounded into unbounded memory growth and crashed Chromium via
+  OOM — paced keystrokes (300ms apart) stayed flat. Fixed by making `blocks`
+  itself the primary signal (a local edit calls `replaceBlockText` directly,
+  no `buildDocument` involved), re-deriving from `buildDocument` only inside
+  an `effect` keyed on `response` changing (using `blocks.peek()`, not
+  `.value`, so the effect doesn't retrigger itself), plus a short (120ms)
+  debounce on committing a cell edit into the shared `blocks` signal —
+  separate from, and much shorter than, `scheduleEvaluate`'s own 200ms
+  worker-request debounce.
+
+Deliberately deferred from this first cut: a method picker (always builds
+Canonical), a "Format document" action (`gramaire fmt` isn't exposed to the JS
+engine yet — omitted rather than shipped as a non-functional button), and a
+real `.gram` CodeMirror language mode (plain text for now).
+
 ---
 
 ## 6. UX & layout
