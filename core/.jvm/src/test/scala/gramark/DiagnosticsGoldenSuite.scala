@@ -31,6 +31,46 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
         )
   }
 
+  test(
+    "lexical error: an unterminated string literal is one located diagnostic, not a cascade"
+  ) {
+    // The exact shape reported from the Grimoire Notebook: a missing closing quote on `'+`. The
+    // old multi-line TERM_LIT regex greedily matched `'+ Term\n  | Expr '` across the line break,
+    // misaligning every downstream quote into a cascade of misleading "unexpected character" errors
+    // (on `-`, then `/`, then `'` in later rules). It must now be ONE error, at the opening quote.
+    val md = """# Calc
+      |
+      |## Expr
+      |
+      |```gramark
+      |Expr
+      |  : Expr '+ Term
+      |  | Expr '-' Term
+      |  | Term
+      |```
+      |
+      |## Term
+      |
+      |```gramark
+      |Term
+      |  : Term '*' Factor
+      |  | Factor
+      |```
+      |""".stripMargin
+    Lr.parseWith(Method.Canonical, md) match
+      case Right(_) => fail("expected a lexical error")
+      case Left(diags) =>
+        assertEquals(diags.length, 1, s"expected exactly one diagnostic, got: $diags")
+        assertEquals(
+          Diagnostic.render(diags.head, "calc.grmk.md", Lr.toFenced(md)),
+          """error: unterminated string literal
+            |  --> calc.grmk.md:7:10
+            |      : Expr '+ Term
+            |             ^
+            |  note: expected a closing `'` to end the literal on the same line""".stripMargin
+        )
+  }
+
   test("parse error: a missing rule-head newline is located, with an expected-token note") {
     val md = """# Broken
       |

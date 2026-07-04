@@ -29,7 +29,12 @@ object Bootstrap:
     "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/      %external(layout)",
     "ATTR     : /#\\[([A-Za-z_][A-Za-z0-9_]*)\\]/",
     "IDENT    : /[A-Za-z_][A-Za-z0-9_]*/",
-    "TERM_LIT : /'(?:[^'\\\\]|\\\\.)*'|\"(?:[^\"\\\\]|\\\\.)*\"/",
+    // A literal never spans a newline: excluding `\n` from the class means an unclosed `'…`
+    // fails to match here (rather than greedily swallowing across lines into the next rule/cell,
+    // which misaligned every downstream quote and produced a cascade of misleading "unexpected
+    // character" errors). `Lr.tokenizeDocument` then reports the lone unmatched quote as a
+    // located "unterminated string literal".
+    "TERM_LIT : /'(?:[^'\\\\\\n]|\\\\.)*'|\"(?:[^\"\\\\\\n]|\\\\.)*\"/",
     "ACTION   : /\\{%((?:[^%]|%[^}])*)%\\}/",
     "LABEL    : /#[ \\t]*([A-Za-z_][A-Za-z0-9_]*)/",
     "PLUS     : \"+\"",

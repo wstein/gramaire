@@ -460,16 +460,30 @@ object Lr:
         val docSpanned = Scanner.scanSpanned(lrScanItems, virtualSrc).map(mapSpanned(segs, _))
         val errorRuns = Scanner.mergeErrorRuns(docSpanned)
         if errorRuns.nonEmpty then
-          Left(
-            errorRuns.map(s =>
-              Diagnostic.error(
-                Stage.Lex,
-                s"""unexpected character `${s.text}`""",
-                Some(SrcSpan(s.start, s.end))
-              )
-            )
-          )
+          Left(errorRuns.map(unmatchedRunDiagnostic))
         else Right(Lexer.normalizeNewlinesSpanned(docSpanned))
+
+  // A run of unmatched characters, rendered as a lexical diagnostic. A run that STARTS with a
+  // quote is almost always an unterminated string literal — since `TERM_LIT` no longer spans
+  // newlines (Bootstrap.lrTokensSource), an unclosed `'…` leaves its opening quote unmatched
+  // right where the mistake is, instead of the old cascade of "unexpected character" errors on
+  // whatever downstream text a greedy multi-line literal happened to swallow. Naming the specific
+  // cause (with the expected closing quote) is far more actionable than "unexpected character `'`".
+  private def unmatchedRunDiagnostic(s: Spanned): Diagnostic =
+    s.text.headOption match
+      case Some(q) if q == '\'' || q == '"' =>
+        Diagnostic.error(
+          Stage.Lex,
+          "unterminated string literal",
+          Some(SrcSpan(s.start, s.end)),
+          Vector(s"note: expected a closing `$q` to end the literal on the same line")
+        )
+      case _ =>
+        Diagnostic.error(
+          Stage.Lex,
+          s"""unexpected character `${s.text}`""",
+          Some(SrcSpan(s.start, s.end))
+        )
 
   /** The `SpanIndex` for a `.grmk.md`/`.grmk` document's own `lr` blocks — for locating a name
     * (e.g. a table conflict's competing production) by re-scanning a grammar already known to
