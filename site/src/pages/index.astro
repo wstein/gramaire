@@ -116,12 +116,12 @@ const base = import.meta.env.BASE_URL;
 
     <div class="tiles">
       <FeatureTile
-        big="3×"
-        small="parse-table methods — canonical LR(1), LALR(1), IELR(1)"
-      />
-      <FeatureTile
         big="1 file"
         small="grammar and docs are the same .gram.md"
+      />
+      <FeatureTile
+        big="round-trip"
+        small="ANTLR and Bison/yacc import↔export, byte-for-byte — an interchange format proven, not just claimed"
       />
       <FeatureTile
         big="closed"
@@ -129,13 +129,14 @@ const base = import.meta.env.BASE_URL;
       />
       <FeatureTile
         big="Notebook"
-        small="prose, grammar cells, and live outputs in one scrolling document — the Gramaire Notebook"
+        small="prose, grammar cells, and live outputs in one scrolling document — a place to learn and debug a grammar, not just generate one"
       />
     </div>
 
     <footer class="footer">
       <span>Gramaire · Apache-2.0</span>
       <a href={`${base}docs/overview/`}>Docs</a>
+      <a href={`${base}docs/why-gramaire/`}>Where we're headed</a>
       <a href={`${base}tutorials/intro/`}>Tutorial</a>
       <a href={`${base}lab/`}>Lab</a>
       <a href={`${base}notebook/`}>Notebook</a>
