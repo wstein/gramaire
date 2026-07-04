@@ -453,11 +453,28 @@ surface is reached by **conversion**, not syntax expansion (§4).
   `examples/calc.grmk.md`/`examples/json.grmk.md` files.
 - **Gated:** nothing wires it into the production path (still the regex scanner);
   it carries the machinery a future lexer-mode / lexer-predicate feature needs.
-- ⏳ **Deferred:** emitted-text **captures** (`( … )`) — capture groups are
-  compiled into the NFA but `runLexerAtn` always takes the whole lexeme as the
-  token text, so a capture has no effect on the emitted token — and actual
-  modes/channels (which need grammar syntax Gramark has deliberately not
-  grown; `Accept` carries only `terminal`/`skip`/`priority`, no channel/mode).
+- ✅ **Emitted-text captures** (`( … )`). `Rx.Capture(inner)` now compiles to
+  a pair of marker states (`LexerAtn.captureStarts`/`captureEnds` — plain
+  `Eps` edges in `trans`, so anything that only cares about state
+  reachability needs no special case for them) bracketing `inner`'s own
+  fragment. `runLexerAtn`'s simulation tracks a `Cap` (a captured span, or
+  `None`) alongside each active state — `Map[Int, Cap]`, not a bare
+  `Set[Int]` — crossing a start/end marker opens/closes the span, porting
+  `Regex.matchCap`'s own position-indexed technique to this NFA-state-indexed
+  simulation. Returns `CapturedToken(terminal, text, captured)` instead of
+  the shared `Token` (a `.toToken` conversion exists for callers that don't
+  care) — `Token` is also the production `Scanner`'s wire-format type, so
+  this keeps the change entirely local to the still-gated `LexerAtn` module.
+  Matches `Regex.scala`'s own "at most one capture group per pattern"
+  constraint; no new multi-capture algorithm needed. **Test
+  (`LexerAtnSuite.scala`):** a `STRING : /"([a-z]*)"/`-shaped token class
+  reports the quoted content (not the quotes) as `captured`, cross-checked
+  directly against `Regex.longestMatchSpan` — the production Scanner's own
+  capture extraction — proving the two independently-implemented matchers
+  agree; a capture-free pattern reports `captured = None`.
+- ⏳ **Still deferred:** actual lexer modes/channels (need grammar syntax
+  Gramark has deliberately not grown; `Accept` carries only
+  `terminal`/`skip`/`priority`, no channel/mode).
 
 ### Phase 5 — IR + codegen ✅ IR + SPI
 

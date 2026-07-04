@@ -23,7 +23,7 @@ class LexerAtnSuite extends munit.FunSuite:
     val atn = LexerAtn.buildLexerAtn(defs, literals)
     inputs.foreach { input =>
       val viaScanner = Scanner.scan(items, input)
-      val viaAtn = LexerAtn.runLexerAtn(atn, input)
+      val viaAtn = LexerAtn.runLexerAtn(atn, input).map(_.toToken)
       assertEquals(
         showToks(viaAtn),
         showToks(viaScanner),
@@ -43,6 +43,45 @@ class LexerAtnSuite extends munit.FunSuite:
       Vector("+", "*", "-", "(", ")", "/"),
       Vector("1+2*3", "(1 + 2) - 3", "42", "1  *  20", "10/5", "")
     )
+  }
+
+  test("ATN simulation reports a capture group's own substring, matching the regex scanner's") {
+    val defs = Tokens
+      .parseTokens(
+        List(
+          "WS     : /[ \\t]+/   %skip",
+          "STRING : /\"([a-z]*)\"/"
+        ).mkString("\n")
+      )
+      .getOrElse(fail("tokens should parse"))
+    val atn = LexerAtn.buildLexerAtn(defs, Vector.empty)
+    val input = "\"abc\" \"\" \"xyz\""
+    val strings = LexerAtn.runLexerAtn(atn, input).filter(_.terminal == "STRING")
+    assertEquals(strings.map(_.text), Vector("\"abc\"", "\"\"", "\"xyz\""))
+    assertEquals(strings.map(_.captured), Vector(Some("abc"), Some(""), Some("xyz")))
+
+    // Cross-check against Regex.longestMatchSpan (the production Scanner's own capture
+    // extraction) directly, proving the two independently-implemented matchers agree — the same
+    // differential-oracle spirit as `checkAgreement` above, but for the captured span rather than
+    // the token shape.
+    val stringRx = defs
+      .collectFirst { case TokenDef("STRING", TokenPattern.Regex(_, rx), _, _, _, _) => rx }
+      .getOrElse(fail("expected STRING's regex pattern"))
+    strings.foreach { tok =>
+      Regex.longestMatchSpan(caseless = false, stringRx, tok.text, 0) match
+        case Some(span) =>
+          assertEquals(Some(tok.text.substring(span.textStart, span.textEnd)), tok.captured)
+        case None => fail(s"expected ${tok.text} to match its own pattern")
+    }
+  }
+
+  test("ATN simulation reports no capture for a pattern with no capture group at all") {
+    val defs = Tokens
+      .parseTokens("NUMBER : /[0-9]+/")
+      .getOrElse(fail("tokens should parse"))
+    val atn = LexerAtn.buildLexerAtn(defs, Vector.empty)
+    val toks = LexerAtn.runLexerAtn(atn, "42")
+    assertEquals(toks.map(t => (t.terminal, t.text, t.captured)), Vector(("NUMBER", "42", None)))
   }
 
   test("ATN simulation tokenizes identically to the regex scanner (json-shaped tokens)") {
