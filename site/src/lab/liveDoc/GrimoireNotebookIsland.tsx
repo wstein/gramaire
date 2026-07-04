@@ -1,8 +1,18 @@
 import { signal, computed, effect } from "@preact/signals";
 import { useEffect, useMemo } from "preact/hooks";
-import type { CstNode, ProductionInfo } from "../protocol";
+import type {
+  CstNode,
+  DiagnosticInfo,
+  GrammarAnalysis,
+  ProductionInfo,
+} from "../protocol";
 import { DEFAULT_SOURCE } from "../examples";
-import { buildDocument, replaceBlockText, serializeDocument } from "./document";
+import {
+  buildDocument,
+  replaceBlockText,
+  serializeDocument,
+  blockIndexAtOffset,
+} from "./document";
 import type { DocBlock, DocBlockKind } from "./document";
 import { parseMarkdownLite } from "./markdown";
 import { MarkdownBlocks } from "./MarkdownBlock";
@@ -51,6 +61,16 @@ const proseDraft = signal("");
 // only changes once, on blur/commit.
 const editingCell = signal<number | null>(null);
 const cellDraft = signal("");
+// The document diagnostics panel (Layer 1) collapse toggle — clicking the status bar flips it.
+// Errors/warnings still show as a count in the status bar when collapsed, so this only hides the
+// detail, never the fact that something is wrong.
+const diagPanelCollapsed = signal(false);
+// The last response whose grammar notation actually parsed (so `analysis` was non-null). When a
+// later edit breaks the notation, `LabResponse.analysis` comes back null and EVERY rule cell would
+// otherwise collapse to raw source — one typo blanking the whole notebook. Retaining the last-good
+// analysis lets untouched cells keep showing their (now stale) railroad/FIRST-FOLLOW, dimmed and
+// labelled, so only the actually-broken cell loses its rendered view (Layer 2).
+const lastAnalysis = signal<GrammarAnalysis | null>(null);
 
 function scheduleEvaluate() {
   labWorker.evaluate(
@@ -59,6 +79,38 @@ function scheduleEvaluate() {
     "ll-star",
   );
 }
+
+// Retain the most recent NON-null analysis (see `lastAnalysis`). Reacts only to `response`.
+effect(() => {
+  const a = response.value?.analysis;
+  if (a) lastAnalysis.value = a;
+});
+
+// Each diagnostic paired with the block index its span falls in (or null — an unlocated
+// diagnostic, or one whose offset is out of range, shows in the document panel but attributes to
+// no cell). Reads `response` (for the diagnostics) and `blocks` (for the char-span layout to map
+// against) — both settle together after a commit, so attribution is stable in the resting state.
+const attributedDiagnostics = computed<
+  { diag: DiagnosticInfo; blockIndex: number | null }[]
+>(() => {
+  const diags = response.value?.diagnostics ?? [];
+  const bs = blocks.value;
+  return diags.map((diag) => ({
+    diag,
+    blockIndex: diag.span ? blockIndexAtOffset(bs, diag.span.start) : null,
+  }));
+});
+
+const errorCount = computed(
+  () =>
+    (response.value?.diagnostics ?? []).filter((d) => d.severity === "error")
+      .length,
+);
+const warningCount = computed(
+  () =>
+    (response.value?.diagnostics ?? []).filter((d) => d.severity === "warning")
+      .length,
+);
 
 // Re-derive block structure from the CURRENT document text whenever a fresh response arrives —
 // `blocks.peek()` (not `.value`) so this effect reacts only to `response` changing, never to
@@ -84,6 +136,26 @@ const BADGE_LABEL: Record<DocBlockKind, string> = {
   settings: "Settings",
   precedence: "Precedence",
 };
+
+function cellLabel(block: DocBlock): string {
+  return block.nonterminal ?? BADGE_LABEL[block.kind];
+}
+
+// Scroll a diagnostic's owning cell into view and open its editor — the "click the error, land on
+// the offending source" affordance from the diagnostics panel.
+function jumpToCell(index: number) {
+  try {
+    document
+      .getElementById(`grimoire-cell-${index}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  } catch {
+    /* jsdom / no-DOM contexts: scrolling is a nice-to-have, not load-bearing */
+  }
+  const block = blocks.value[index];
+  if (!block) return;
+  if (block.kind === "prose") beginEditProse(index, block.text);
+  else beginEditCell(index, block.text);
+}
 
 function beginEditCell(index: number, text: string) {
   editingCell.value = index;
@@ -137,9 +209,41 @@ function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
   );
 }
 
+function CellDiagnostics({ diags }: { diags: DiagnosticInfo[] }) {
+  if (diags.length === 0) return null;
+  return (
+    <div class="grimoire__cell-diags">
+      {diags.map((d, i) => (
+        <div
+          key={i}
+          class={`grimoire__cell-diag grimoire__cell-diag--${d.severity}`}
+        >
+          <div class="grimoire__cell-diag-message">{d.message}</div>
+          {d.notes.map((n, j) => (
+            <div key={j} class="grimoire__cell-diag-note">
+              {n}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
   const isEditing = editingCell.value === index;
-  const analysis = response.value?.analysis;
+  const cellDiags = attributedDiagnostics.value
+    .filter((a) => a.blockIndex === index)
+    .map((a) => a.diag);
+  const hasError = cellDiags.some((d) => d.severity === "error");
+
+  // Prefer this response's own analysis; fall back to the last-good one (dimmed) when the current
+  // grammar notation failed to parse (`analysis` null) so this untouched cell doesn't blank out
+  // just because some OTHER cell has the error. A cell that owns the error shows its raw source
+  // instead — a stale diagram there would be actively misleading.
+  const freshAnalysis = response.value?.analysis;
+  const analysis = freshAnalysis ?? lastAnalysis.value;
+  const isStale = !freshAnalysis && !!analysis;
   const svg =
     block.nonterminal && analysis
       ? (analysis.railroad[block.nonterminal] ?? "")
@@ -148,10 +252,13 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
     block.nonterminal && analysis
       ? analysis.firstFollow.find((r) => r.name === block.nonterminal)
       : undefined;
-  const hasRendered = Boolean(svg || ff);
+  const hasRendered = !hasError && Boolean(svg || ff);
 
   return (
-    <div class="grimoire__cell">
+    <div
+      class={`grimoire__cell${hasError ? " grimoire__cell--error" : ""}`}
+      id={`grimoire-cell-${index}`}
+    >
       <div
         class="grimoire__cell-header"
         onClick={() => {
@@ -164,6 +271,7 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
         {block.nonterminal && (
           <span class="grimoire__cell-name">{block.nonterminal}</span>
         )}
+        {hasError && <span class="grimoire__cell-error-tag">error</span>}
       </div>
       {isEditing ? (
         <CodeMirrorEditor
@@ -187,7 +295,9 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
           onClick={() => beginEditCell(index, block.text)}
         >
           {hasRendered ? (
-            <div class="grimoire__output">
+            <div
+              class={`grimoire__output${isStale ? " grimoire__output--stale" : ""}`}
+            >
               {svg && (
                 <div
                   class="grimoire__output-railroad"
@@ -210,12 +320,62 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
                   </span>
                 </div>
               )}
+              {isStale && (
+                <div class="grimoire__stale-hint">
+                  stale — fix the error above to refresh
+                </div>
+              )}
             </div>
           ) : (
             <pre class="grimoire__cell-source">{block.text}</pre>
           )}
         </div>
       )}
+      <CellDiagnostics diags={cellDiags} />
+    </div>
+  );
+}
+
+// Layer 1: the document-level diagnostics panel — every diagnostic the engine returned, rendered
+// with its message + note lines (and, when its span maps to a cell, that cell's name as a
+// clickable "jump to it" location). Sticky under the topbar so it stays in view while scrolling
+// the document to fix things. Collapsible via the status bar.
+function DiagnosticsPanel() {
+  const items = attributedDiagnostics.value;
+  if (items.length === 0 || diagPanelCollapsed.value) return null;
+  const bs = blocks.value;
+  return (
+    <div class="grimoire__diagnostics">
+      {items.map(({ diag, blockIndex }, i) => {
+        const loc =
+          blockIndex !== null && bs[blockIndex]
+            ? cellLabel(bs[blockIndex])
+            : null;
+        return (
+          <div
+            key={i}
+            class={`grimoire__diag grimoire__diag--${diag.severity}${
+              blockIndex !== null ? " grimoire__diag--linked" : ""
+            }`}
+            onClick={
+              blockIndex !== null ? () => jumpToCell(blockIndex) : undefined
+            }
+          >
+            <span class="grimoire__diag-sev">{diag.severity}</span>
+            <div class="grimoire__diag-body">
+              <div class="grimoire__diag-message">
+                {diag.message}
+                {loc && <span class="grimoire__diag-loc">in {loc}</span>}
+              </div>
+              {diag.notes.map((n, j) => (
+                <div key={j} class="grimoire__diag-note">
+                  {n}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -288,24 +448,48 @@ export function GrimoireNotebookIsland() {
     return () => labWorker.dispose();
   }, []);
 
-  const diagCount = response.value?.diagnostics.length ?? 0;
-  const buildOk = response.value?.buildOk ?? false;
+  const errors = errorCount.value;
+  const warnings = warningCount.value;
+  const hasDiags = errors + warnings > 0;
+  const dotClass = errors
+    ? " grimoire__status-dot--error"
+    : warnings
+      ? " grimoire__status-dot--warning"
+      : "";
+  const statusText = pending.value
+    ? "building…"
+    : errors
+      ? `${errors} error${errors === 1 ? "" : "s"}` +
+        (warnings ? ` · ${warnings} warning${warnings === 1 ? "" : "s"}` : "")
+      : warnings
+        ? `${warnings} warning${warnings === 1 ? "" : "s"}`
+        : "clean";
 
   return (
     <div class="grimoire">
       <div class="grimoire__topbar">
         <span class="grimoire__title">Grimoire Notebook</span>
-        <span class="grimoire__status">
-          <span
-            class={`grimoire__status-dot${buildOk ? "" : " grimoire__status-dot--error"}`}
-          />
-          {pending.value
-            ? "building…"
-            : buildOk
-              ? `clean · ${diagCount} warning${diagCount === 1 ? "" : "s"}`
-              : `${diagCount} issue${diagCount === 1 ? "" : "s"}`}
+        <span
+          class={`grimoire__status${hasDiags ? " grimoire__status--clickable" : ""}`}
+          title={hasDiags ? "Show / hide the diagnostics panel" : undefined}
+          onClick={
+            hasDiags
+              ? () => {
+                  diagPanelCollapsed.value = !diagPanelCollapsed.value;
+                }
+              : undefined
+          }
+        >
+          <span class={`grimoire__status-dot${dotClass}`} />
+          {statusText}
+          {hasDiags && (
+            <span class="grimoire__status-caret">
+              {diagPanelCollapsed.value ? "▸" : "▾"}
+            </span>
+          )}
         </span>
       </div>
+      <DiagnosticsPanel />
       <div class="grimoire__body">
         <div class="grimoire__doc">
           {showNotebook.value ? (

@@ -279,3 +279,91 @@ test("clicking a prose block reveals a raw-markdown editor; blurring commits and
     "Edited",
   );
 });
+
+// Helper: break the first rule cell's content, committing on blur.
+async function breakFirstRule(
+  page: import("@playwright/test").Page,
+  content: string,
+) {
+  const ruleCell = ruleCellLocator(page);
+  await ruleCell.locator(".grimoire__cell-rendered").click();
+  await ruleCell.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.press("Delete");
+  await page.keyboard.insertText(content);
+  await page.locator(".grimoire__topbar").click(); // blur, commits
+  await page.waitForTimeout(1000); // settle worker round-trip
+}
+
+// Layer 1: an invalid grammar surfaces its real diagnostic message + note + location in a
+// document-level panel, and splits the status count into errors vs warnings — not the old
+// meaningless "1 issue".
+test("an invalid grammar shows its diagnostic (message, note, location) in the document panel", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await breakFirstRule(page, "Foo Bar"); // no newline before ':' → parse error on `Foo`
+
+  await expect(page.locator(".grimoire__status")).toContainText("1 error");
+  await expect(page.locator(".grimoire__diagnostics")).toBeVisible();
+  await expect(page.locator(".grimoire__diag-message").first()).toContainText(
+    "unexpected",
+  );
+  await expect(page.locator(".grimoire__diag-loc").first()).toHaveText(
+    "in Expr",
+  );
+  await expect(page.locator(".grimoire__diag-note").first()).toContainText(
+    "note:",
+  );
+});
+
+// Layer 2: the error attributes to the offending cell (red border + tag + inline message), and
+// clicking the panel row jumps to and opens that cell.
+test("the offending cell is flagged with an inline error; clicking the panel row opens it", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await breakFirstRule(page, "Foo Bar");
+
+  const erroredCell = page.locator(".grimoire__cell--error");
+  await expect(erroredCell).toHaveCount(1);
+  await expect(erroredCell.locator(".grimoire__cell-error-tag")).toBeVisible();
+  await expect(
+    erroredCell.locator(".grimoire__cell-diag-message"),
+  ).toContainText("unexpected");
+
+  await page.locator(".grimoire__diag--linked").first().click();
+  await expect(
+    page.locator(".grimoire__cell--error .cm-content"),
+  ).toBeVisible();
+});
+
+// Layer 2: one broken cell no longer blanks the whole notebook — the untouched Term/Factor cells
+// keep their (now stale, dimmed) railroad diagrams instead of collapsing to raw source.
+test("a single broken cell does not blank sibling cells — their diagrams persist, dimmed", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await expect(page.locator(".grimoire__output-railroad svg")).toHaveCount(3);
+
+  await breakFirstRule(page, "Foo Bar");
+
+  // The two untouched rule cells keep their diagrams, marked stale.
+  await expect(page.locator(".grimoire__output--stale svg")).toHaveCount(2);
+  await expect(page.locator(".grimoire__stale-hint").first()).toBeVisible();
+});
+
+// The status bar toggles the panel; collapsing hides detail but keeps the count.
+test("clicking the status bar collapses and re-opens the diagnostics panel", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await breakFirstRule(page, "Foo Bar");
+
+  await expect(page.locator(".grimoire__diagnostics")).toBeVisible();
+  await page.locator(".grimoire__status").click();
+  await expect(page.locator(".grimoire__diagnostics")).toHaveCount(0);
+  await expect(page.locator(".grimoire__status")).toContainText("1 error");
+  await page.locator(".grimoire__status").click();
+  await expect(page.locator(".grimoire__diagnostics")).toBeVisible();
+});

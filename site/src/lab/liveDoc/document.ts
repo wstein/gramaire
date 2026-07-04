@@ -136,3 +136,65 @@ export function withLineNumbers(
     return { ...b, startLine, endLine };
   });
 }
+
+/** A block's character range in `serializeDocument(blocks)`. `start`/`end` bound the block's whole
+ * serialized form (a fence block's markers included); `contentStart`/`contentEnd` bound only its
+ * editable `text` (the inner content of a fence block, excluding the ```gramark/``` marker lines;
+ * identical to `start`/`end` for a prose block). */
+export interface BlockCharSpan {
+  start: number;
+  end: number;
+  contentStart: number;
+  contentEnd: number;
+}
+
+/**
+ * Character ranges for each block in `serializeDocument(blocks)` — the inverse view of
+ * `serializeDocument`'s own layout, so a diagnostic whose span is an offset into that serialized
+ * text (`LabResponse.diagnostics[].span`, which `LabApi` computes relative to the exact source it
+ * was handed) can be mapped back to the cell it belongs to. Kept in exact lockstep with
+ * `serializeDocument` (same FENCE_OPEN/CLOSE markers, same "\n" join) so the two never drift.
+ */
+export function blockCharSpans(blocks: readonly DocBlock[]): BlockCharSpan[] {
+  const spans: BlockCharSpan[] = [];
+  let pos = 0;
+  blocks.forEach((b, i) => {
+    if (i > 0) pos += 1; // the "\n" `serializeDocument` joins blocks with
+    const start = pos;
+    if (b.kind === "prose") {
+      const end = start + b.text.length;
+      spans.push({ start, end, contentStart: start, contentEnd: end });
+      pos = end;
+    } else {
+      // `${FENCE_OPEN}\n${text}\n${FENCE_CLOSE}` — content begins after the opening marker + its
+      // newline, and ends before the closing newline + marker.
+      const contentStart = start + FENCE_OPEN.length + 1;
+      const contentEnd = contentStart + b.text.length;
+      const end = contentEnd + 1 + FENCE_CLOSE.length;
+      spans.push({ start, end, contentStart, contentEnd });
+      pos = end;
+    }
+  });
+  return spans;
+}
+
+/**
+ * The index of the block whose serialized range contains `offset` (a character offset into
+ * `serializeDocument(blocks)`), or `null` if the offset is out of range. Used to attribute a
+ * located diagnostic to the cell that owns the offending text — a diagnostic on grammar content
+ * always lands within a fence block's `[contentStart, contentEnd]`, but matching the whole
+ * `[start, end)` range too means an offset that somehow falls on a marker line still attributes
+ * to a real block rather than nowhere.
+ */
+export function blockIndexAtOffset(
+  blocks: readonly DocBlock[],
+  offset: number,
+): number | null {
+  const spans = blockCharSpans(blocks);
+  for (let i = 0; i < spans.length; i++) {
+    // `<=` on the end so an offset at the very end of a block's content (an error pointing just
+    // past the last character, e.g. "expected more input here") still attributes to it.
+    if (offset >= spans[i].start && offset <= spans[i].end) return i;
+  }
+  return null;
+}

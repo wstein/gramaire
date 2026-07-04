@@ -49,6 +49,13 @@
   gap: 7px;
 }
 
+.grimoire__status--clickable {
+  cursor: pointer;
+}
+.grimoire__status--clickable:hover {
+  color: var(--fg-muted);
+}
+
 .grimoire__status-dot {
   width: 7px;
   height: 7px;
@@ -59,6 +66,83 @@
 
 .grimoire__status-dot--error {
   background: #e05a4b;
+}
+
+.grimoire__status-dot--warning {
+  background: #d9930a;
+}
+
+.grimoire__status-caret {
+  font-size: 9px;
+}
+
+/* Layer 1 — the document diagnostics panel. */
+.grimoire__diagnostics {
+  flex: none;
+  position: sticky;
+  top: 43px; /* below the sticky topbar */
+  z-index: 4;
+  max-height: 40vh;
+  overflow-y: auto;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.grimoire__diag {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 9px 18px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.grimoire__diag:first-child {
+  border-top: none;
+}
+.grimoire__diag--linked {
+  cursor: pointer;
+}
+.grimoire__diag--linked:hover {
+  background: var(--bg-2);
+}
+
+.grimoire__diag-sev {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-top: 1px;
+}
+.grimoire__diag--error .grimoire__diag-sev {
+  color: #e05a4b;
+  background: color-mix(in srgb, #e05a4b 14%, var(--bg));
+}
+.grimoire__diag--warning .grimoire__diag-sev {
+  color: #d9930a;
+  background: color-mix(in srgb, #d9930a 16%, var(--bg));
+}
+
+.grimoire__diag-body {
+  min-width: 0;
+}
+.grimoire__diag-message {
+  color: var(--fg);
+  font-weight: 500;
+}
+.grimoire__diag-loc {
+  margin-left: 8px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--accent);
+}
+.grimoire__diag-note {
+  margin-top: 3px;
+  color: var(--fg-muted);
+  font-size: 12.5px;
 }
 
 .grimoire__body {
@@ -131,6 +215,11 @@
   overflow: hidden;
 }
 
+/* Layer 2 — a cell that owns an error diagnostic. */
+.grimoire__cell--error {
+  border-color: #e05a4b;
+}
+
 .grimoire__cell-header {
   display: flex;
   align-items: center;
@@ -139,6 +228,59 @@
   border-bottom: 1px solid var(--border);
   background: var(--bg-1);
   cursor: pointer;
+}
+
+.grimoire__cell-error-tag {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e05a4b;
+  background: color-mix(in srgb, #e05a4b 14%, var(--bg));
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.grimoire__cell-diags {
+  border-top: 1px solid var(--border);
+}
+.grimoire__cell-diag {
+  padding: 10px 16px;
+  border-left: 3px solid transparent;
+  font-size: 13px;
+}
+.grimoire__cell-diag--error {
+  border-left-color: #e05a4b;
+  background: color-mix(in srgb, #e05a4b 6%, var(--bg));
+}
+.grimoire__cell-diag--warning {
+  border-left-color: #d9930a;
+  background: color-mix(in srgb, #d9930a 7%, var(--bg));
+}
+.grimoire__cell-diag-message {
+  color: var(--fg);
+  font-weight: 500;
+}
+.grimoire__cell-diag-note {
+  margin-top: 3px;
+  color: var(--fg-muted);
+  font-size: 12.5px;
+}
+
+/* A last-good diagram kept visible (dimmed) while a different cell's error blocks a fresh build. */
+.grimoire__output--stale {
+  opacity: 0.45;
+  position: relative;
+}
+.grimoire__stale-hint {
+  opacity: 1;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-faint);
+  font-style: italic;
 }
 
 .grimoire__cell-rendered {
