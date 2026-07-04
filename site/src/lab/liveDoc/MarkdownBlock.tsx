@@ -35,12 +35,44 @@ function renderInline(parts: MdInline[]) {
   });
 }
 
+function MdTable({
+  header,
+  rows,
+}: {
+  header: MdInline[][];
+  rows: MdInline[][][];
+}) {
+  return (
+    <table class="grimoire-prose-table">
+      <thead>
+        <tr>
+          {header.map((cell, j) => (
+            <th key={j}>{renderInline(cell)}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row, r) => (
+          <tr key={r}>
+            {row.map((cell, c) => (
+              <td key={c}>{renderInline(cell)}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 /** Renders `parseMarkdownLite`'s output as actual markup — kept separate from that pure parser so
  * the parsing logic stays cheaply unit-testable without a DOM. */
 export function MarkdownBlocks({ blocks }: { blocks: MdBlock[] }) {
   return (
     <>
       {blocks.map((b, i) => {
+        if (b.tag === "table") {
+          return <MdTable key={i} header={b.header} rows={b.rows} />;
+        }
         const Tag = b.tag;
         return <Tag key={i}>{renderInline(b.parts)}</Tag>;
       })}
