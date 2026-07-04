@@ -1,0 +1,174 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { test, expect } from "@playwright/test";
+import {
+  buildDocument,
+  serializeDocument,
+  replaceBlockText,
+  withLineNumbers,
+} from "../../src/lab/liveDoc/document";
+import type { FenceInfo } from "../../src/lab/protocol";
+
+// This file lives at site/tests/unit/, one level deeper than site/scripts/ — three dirname()
+// calls to site/, a fourth to the repo root.
+const siteDir = path.dirname(
+  path.dirname(path.dirname(fileURLToPath(import.meta.url))),
+);
+const repoRoot = path.join(siteDir, "..");
+
+function fence(
+  index: number,
+  kind: FenceInfo["kind"],
+  nonterminal: string | null,
+  startLine: number,
+  endLine: number,
+): FenceInfo {
+  return { index, kind, nonterminal, startLine, endLine };
+}
+
+// examples/calc.grmk.md's own ```gramark fences, in document order — the exact values
+// lab/.jvm/src/test/scala/gramark/lab/LabApiSuite.scala's "evaluate: fences reports every
+// ```gramark fence's role and 1-based line span" test asserts LabApi.evaluate computes for this
+// same file. Hand-authored here (not computed via the engine) so this suite stays a fast, pure
+// unit test with no Scala.js build dependency; a drift between the two would mean calc.grmk.md's
+// structure changed and only one of the two suites was updated.
+const calcFences: FenceInfo[] = [
+  fence(0, "settings", null, 6, 9),
+  fence(1, "tokens", null, 13, 16),
+  fence(2, "rule", "Expr", 22, 27),
+  fence(3, "rule", "Term", 35, 40),
+  fence(4, "rule", "Factor", 48, 52),
+  fence(5, "precedence", null, 60, 63),
+];
+
+function readCalcMd(): string {
+  return readFileSync(path.join(repoRoot, "examples/calc.grmk.md"), "utf8");
+}
+
+test("buildDocument: every fence block carries its kind/nonterminal/fenceIndex", () => {
+  const source = readCalcMd();
+  const blocks = buildDocument(source, calcFences);
+  const fenceBlocks = blocks.filter((b) => b.fenceIndex !== null);
+  expect(fenceBlocks.map((b) => [b.kind, b.nonterminal, b.fenceIndex])).toEqual(
+    [
+      ["settings", null, 0],
+      ["tokens", null, 1],
+      ["rule", "Expr", 2],
+      ["rule", "Term", 3],
+      ["rule", "Factor", 4],
+      ["precedence", null, 5],
+    ],
+  );
+});
+
+test("buildDocument + serializeDocument round-trips to the exact original source", () => {
+  const source = readCalcMd();
+  const blocks = buildDocument(source, calcFences);
+  expect(serializeDocument(blocks)).toBe(source);
+});
+
+test("buildDocument produces prose blocks for the gaps between/around fences", () => {
+  const source = readCalcMd();
+  const blocks = buildDocument(source, calcFences);
+  // Prose before the first fence (the "# Calc" heading + intro paragraph), between every
+  // adjacent pair of fences (headings + explanatory text), and after the last fence (the
+  // "## Error messages"/"## Generated tables" sections, whose own fences are ```text/plain, never
+  // ```gramark, so they never appear in `calcFences` and stay folded into trailing prose here).
+  expect(blocks[0].kind).toBe("prose");
+  expect(
+    blocks.filter((b) => b.kind === "prose").length,
+  ).toBeGreaterThanOrEqual(6);
+});
+
+test("buildDocument: no fences (native .grmk) yields one prose block, still round-trips", () => {
+  const source = "%name Foo\n%lang javascript\n\nFoo\n: 'x'\n";
+  const blocks = buildDocument(source, []);
+  expect(blocks).toEqual([
+    { kind: "prose", text: source, nonterminal: null, fenceIndex: null },
+  ]);
+  expect(serializeDocument(blocks)).toBe(source);
+});
+
+test("buildDocument: adjacent fences with no gap produce no spurious empty prose block", () => {
+  const source = [
+    "```gramark",
+    "%name A",
+    "```",
+    "```gramark",
+    "TOK : /x/",
+    "```",
+  ].join("\n");
+  const fences: FenceInfo[] = [
+    fence(0, "settings", null, 1, 3),
+    fence(1, "tokens", null, 4, 6),
+  ];
+  const blocks = buildDocument(source, fences);
+  expect(blocks.map((b) => b.kind)).toEqual(["settings", "tokens"]);
+  expect(serializeDocument(blocks)).toBe(source);
+});
+
+test("replaceBlockText: editing one block changes only that block's own line range", () => {
+  const source = readCalcMd();
+  const blocks = buildDocument(source, calcFences);
+  const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
+  const original = blocks[exprIndex].text;
+  const edited = replaceBlockText(
+    blocks,
+    exprIndex,
+    original.replace("Expr : Expr `+` Term", "Expr : Expr `+` Term  // edited"),
+  );
+  const edited2 = replaceBlockText(
+    edited,
+    exprIndex,
+    `${blocks[exprIndex].text}\nEXTRA LINE`,
+  );
+  const result = serializeDocument(edited2);
+
+  const originalLines = source.split("\n");
+  const resultLines = result.split("\n");
+  const before = blocks.slice(0, exprIndex);
+  const after = blocks.slice(exprIndex + 1);
+  const beforeLineCount = before.reduce(
+    (n, b) => n + b.text.split("\n").length,
+    0,
+  );
+
+  // Every line before the edited block is untouched, byte-for-byte.
+  expect(resultLines.slice(0, beforeLineCount)).toEqual(
+    originalLines.slice(0, beforeLineCount),
+  );
+  // Everything after the edited block (shifted by the one extra line) is untouched too.
+  const afterText = after.map((b) => b.text).join("\n");
+  expect(result.endsWith(afterText)).toBe(true);
+});
+
+test("withLineNumbers: matches the original FenceInfo spans before any edit", () => {
+  const source = readCalcMd();
+  const blocks = buildDocument(source, calcFences);
+  const numbered = withLineNumbers(blocks);
+  const fenceSpans = numbered
+    .filter((b) => b.fenceIndex !== null)
+    .map((b) => [b.startLine, b.endLine]);
+  expect(fenceSpans).toEqual(calcFences.map((f) => [f.startLine, f.endLine]));
+});
+
+test("withLineNumbers: a shorter/longer edit shifts every later block's line numbers", () => {
+  const source = readCalcMd();
+  const blocks = buildDocument(source, calcFences);
+  const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
+  const termIndexBefore = withLineNumbers(blocks).find(
+    (b) => b.nonterminal === "Term",
+  )!.startLine;
+
+  const edited = replaceBlockText(
+    blocks,
+    exprIndex,
+    `${blocks[exprIndex].text}\nEXTRA\nEXTRA2`,
+  );
+  const termIndexAfter = withLineNumbers(edited).find(
+    (b) => b.nonterminal === "Term",
+  )!.startLine;
+
+  expect(termIndexAfter).toBe(termIndexBefore + 2);
+});
