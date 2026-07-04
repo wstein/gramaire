@@ -350,6 +350,18 @@
   color: var(--fg-faint);
   font-style: italic;
 }
+/* A short explanatory line above a data table/section (e.g. Lowered Core's ALL(*)-only rewrite
+   sections) — prose, not code, so no mono font unlike most of this tab's own content. */
+.lab__hint {
+  color: var(--fg-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+.lab__hint code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
 /* ParseTracePanel/WalkPanel's TruncatedNote — shown when LabApi's traceCap cut the walk short, so
    a trace ending mid-parse reads as "capped here" instead of "the parse only took this many steps". */
 .lab__truncated-note {
@@ -645,6 +657,35 @@
   text-transform: uppercase;
   color: var(--fg-faint);
   margin-bottom: 10px;
+}
+
+/* The same conflict classification `gramark explain-conflict` prints as CLI prose (Glr.explainP),
+   surfaced live. Plain colored text, matching .lab__status/.lab__parsestatus's "no boxed chip"
+   convention — this sits alone in its own analysis section, not fighting other inline indicators. */
+.lab__verdict {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+.lab__verdict--conflict-free,
+.lab__verdict--lalr-artifact,
+.lab__verdict--resolved-by-declaration {
+  color: var(--accent);
+}
+.lab__verdict--genuine {
+  color: var(--danger, #b91c1c);
+}
+.lab__verdict-conflicts {
+  margin: 10px 0 0;
+  padding: 11px 13px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 6px);
+  overflow-x: auto;
+  white-space: pre-wrap;
 }
 .lab__railroad-svg {
   margin-top: 10px;

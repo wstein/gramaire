@@ -3,6 +3,7 @@ import type { Signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import type { RefObject } from "preact";
 import type {
+  ConflictVerdictInfo,
   CstNode,
   CstToken,
   DiagnosticInfo,
@@ -47,6 +48,18 @@ type Tab =
   | "atn";
 
 const METHODS = ["Canonical", "LALR", "IELR"] as const;
+
+// Same four buckets `gramark explain-conflict` prints as CLI prose (Glr.explainP) — a short label
+// for the same classification, shown live as the grammar is edited instead of only on demand.
+const VERDICT_LABELS: Record<ConflictVerdictInfo["verdict"], string> = {
+  "conflict-free": "conflict-free — the grammar is LALR(1).",
+  "lalr-artifact":
+    "LALR artifact — LALR(1) reports conflicts canonical LR(1) resolves; build with IELR(1) for a compact conflict-free table.",
+  "resolved-by-declaration":
+    "resolved by declaration — canonical LR(1) conflicts, all resolved by %left/%right/%nonassoc.",
+  genuine:
+    "genuine — conflicts persist under canonical LR(1); the grammar is not LR(1).",
+};
 
 const grammarSource = signal(DEFAULT_SOURCE);
 const targetInput = signal(DEFAULT_INPUT);
@@ -1287,14 +1300,7 @@ function AllParsesPanel() {
   );
 }
 
-function LoweredCorePanel() {
-  const productions = response.value?.productions;
-  if (!productions || productions.length === 0)
-    return (
-      <p class="lab__empty">
-        No productions — the grammar notation didn't parse.
-      </p>
-    );
+function ProductionsTable({ productions }: { productions: ProductionInfo[] }) {
   return (
     <table class="lab__table">
       <thead>
@@ -1318,6 +1324,78 @@ function LoweredCorePanel() {
         ))}
       </tbody>
     </table>
+  );
+}
+
+// Whether two production lists are the grammar-structurally same (same lhs/rhs/action in the same
+// order) — used to decide whether a rewrite stage actually changed anything worth showing, not to
+// deep-diff row by row for display.
+function sameProductions(a: ProductionInfo[], b: ProductionInfo[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every(
+    (p, i) =>
+      p.lhs === b[i].lhs &&
+      p.action === b[i].action &&
+      p.rhs.length === b[i].rhs.length &&
+      p.rhs.every((s, j) => s === b[i].rhs[j]),
+  );
+}
+
+function LoweredCorePanel() {
+  const productions = response.value?.productions;
+  if (!productions || productions.length === 0)
+    return (
+      <p class="lab__empty">
+        No productions — the grammar notation didn't parse.
+      </p>
+    );
+
+  const lowering = response.value?.allStarLowering;
+  // Each section renders only when it actually differs from the stage before it — a grammar with
+  // no `## Precedence` block and no direct left recursion needs neither, and showing them anyway
+  // (byte-identical to the productions already above) would just be noise.
+  const showPrecedence =
+    lowering && !sameProductions(productions, lowering.afterPrecedence);
+  const showLeftRec =
+    lowering &&
+    !sameProductions(lowering.afterPrecedence, lowering.afterLeftRecursion);
+
+  return (
+    <div>
+      <div class="lab__analysis-section">
+        <div class="lab__analysis-heading">desugared productions</div>
+        <ProductionsTable productions={productions} />
+      </div>
+
+      {showPrecedence && (
+        <div class="lab__analysis-section">
+          <div class="lab__analysis-heading">
+            after precedence stratification (ALL(*) only)
+          </div>
+          <p class="lab__hint">
+            The <code>## Precedence</code> cascade PrecClimb.stratify builds for
+            the ALL(*) engine — LR/GLR resolve the same ambiguity directly in
+            their tables instead, without this rewrite.
+          </p>
+          <ProductionsTable productions={lowering.afterPrecedence} />
+        </div>
+      )}
+
+      {showLeftRec && (
+        <div class="lab__analysis-section">
+          <div class="lab__analysis-heading">
+            after left-recursion elimination (ALL(*) only)
+          </div>
+          <p class="lab__hint">
+            The right-recursive rewrite LeftRec.eliminate builds so the top-down
+            ALL(*) engine can descend a rule that calls itself first — LR/GLR
+            parse the rule above directly, bottom-up, and never need this
+            rewrite.
+          </p>
+          <ProductionsTable productions={lowering.afterLeftRecursion} />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1358,6 +1436,19 @@ function GrammarAnalysisPanel() {
           <RailroadSvg svg={a.railroad[current] ?? ""} />
         </div>
       )}
+
+      <div class="lab__analysis-section">
+        <div class="lab__analysis-heading">conflict verdict</div>
+        <div class={`lab__verdict lab__verdict--${a.verdict.verdict}`}>
+          {VERDICT_LABELS[a.verdict.verdict]}
+        </div>
+        {a.verdict.verdict === "genuine" &&
+          a.verdict.genuineConflicts.length > 0 && (
+            <pre class="lab__verdict-conflicts">
+              {a.verdict.genuineConflicts.join("\n\n")}
+            </pre>
+          )}
+      </div>
 
       <div class="lab__analysis-section">
         <div class="lab__analysis-heading">method comparison</div>

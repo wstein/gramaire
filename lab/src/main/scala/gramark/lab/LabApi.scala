@@ -24,6 +24,7 @@ import gramark.{
   Glr,
   Grammar,
   IR,
+  LeftRec,
   Ll,
   LlAction,
   LlError,
@@ -35,6 +36,7 @@ import gramark.{
   ParseTable,
   Parser,
   Precedence,
+  PrecClimb,
   Railroad,
   Scanner,
   Severity,
@@ -175,6 +177,7 @@ object LabApi:
         // `LabApi` needs to compute separately. A grammar that reaches this `Right(grammar)` branch
         // is guaranteed already free of them.
         val productions = Some(productionsOf(grammar))
+        val allStarLowering = Some(allStarLoweringOf(prec, grammar))
         // Lexed once per call, not once per tab: forest/parse below all read the same target-input
         // scan against the same token definitions instead of each re-lexing it.
         val spanned = request.input.map(lexInput(request.source, grammar, _))
@@ -239,7 +242,8 @@ object LabApi:
             forest = forest,
             analysis = analysis,
             evaluatorJs = evaluatorJs,
-            atn = atn
+            atn = atn,
+            allStarLowering = allStarLowering
           )
         else
           tableResult match
@@ -255,7 +259,8 @@ object LabApi:
                 parse = None,
                 productions = productions,
                 forest = forest,
-                analysis = analysis
+                analysis = analysis,
+                allStarLowering = allStarLowering
               )
             case Right(table) =>
               val parse = request.input.zip(spanned).map { case (input, sp) =>
@@ -270,7 +275,8 @@ object LabApi:
                 productions = productions,
                 forest = forest,
                 analysis = analysis,
-                evaluatorJs = evaluatorJs
+                evaluatorJs = evaluatorJs,
+                allStarLowering = allStarLowering
               )
 
   // The Lab's start-rule picker (M5+): core has no separate "start rule" concept anywhere —
@@ -311,6 +317,16 @@ object LabApi:
       ProductionInfo(p.lhs, p.rhs.map(renderSym), alt.action.map(BackendJs.unwrapBinder))
     }
 
+  // The Lowered Core tab's ALL(*)-only section: the same two rewrites `Ll.parse`/`Ll.parseTraced`
+  // run, in the same order, before lowering to an `Atn` — `PrecClimb.stratify` (a no-op unless the
+  // grammar declares `## Precedence`), then `LeftRec.eliminate` (a no-op unless the grammar has
+  // direct left recursion) — rendered via the same `productionsOf` every other production list uses,
+  // so the Lab can show these transforms' actual output instead of asserting they happen invisibly.
+  private def allStarLoweringOf(prec: Precedence, grammar: Grammar): AllStarLowering =
+    val (stratified, _) = PrecClimb.stratify(grammar, prec)
+    val (rewritten, _) = LeftRec.eliminate(stratified)
+    AllStarLowering(productionsOf(stratified), productionsOf(rewritten))
+
   // The Grammar analysis tab's data: every method's state/conflict count (not just
   // `request.method` — the comparison table needs all three), FIRST/FOLLOW per rule, and a
   // railroad SVG per rule. Independent of `request.input`/`request.method`, like `productions`.
@@ -343,7 +359,19 @@ object LabApi:
       r.name -> Railroad.renderSvg(prod, themed = true)
     }.toMap
 
-    GrammarAnalysis(perMethod, firstFollow, railroad)
+    // The same classification `gramark explain-conflict` prints as CLI prose (`Glr.explainP`),
+    // computed once here and rendered live instead of only on demand — `reportOf` shares its
+    // conflict counts with `Glr.explainP`'s own prose rendering, so the two never drift.
+    val report = Glr.reportOf(prec, grammar)
+    val verdictTag = report.verdict match
+      case Glr.ConflictVerdict.ConflictFree          => "conflict-free"
+      case Glr.ConflictVerdict.LalrArtifact          => "lalr-artifact"
+      case Glr.ConflictVerdict.ResolvedByDeclaration => "resolved-by-declaration"
+      case Glr.ConflictVerdict.Genuine               => "genuine"
+    val verdict =
+      ConflictVerdictInfo(verdictTag, report.withPrecedenceConflicts, report.genuineConflicts)
+
+    GrammarAnalysis(perMethod, firstFollow, railroad, verdict)
 
   // The Evaluate tab's data (M5+): BackendJs.emitTraced's generated ES module source text — the
   // Worker dynamically imports and runs it, never this module (Scala never executes the grammar

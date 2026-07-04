@@ -53,8 +53,17 @@ a thin skin over real machinery, never a mock.
 > isn't in that table yet either). The previous implementation (Astro +
 > Starlight, with a Scala.js Tier 1 keystone) was deleted in `4133cab` after
 > the PureScript→Scala core migration made it stale, which is why this
-> rebuild started from the mock, not from that code. Keep this callout
-> current as further work lands.
+> rebuild started from the mock, not from that code. Since then: Grammar
+> analysis grew a live conflict-verdict classification (the same
+> conflict-free/LALR-artifact/resolved-by-declaration/genuine verdict
+> `gramark explain-conflict` prints, computed by the shared `Glr.reportOf`);
+> Lowered Core grew two ALL(\*)-only sections showing `PrecClimb.stratify`/
+> `LeftRec.eliminate`'s actual rewritten output (shown only when a section
+> differs from the stage before it); and two engine costs this doc used to
+> list as unaddressed latent risks — `Parser.walk`'s O(n²) trace cost and
+> `Ll.walkSyms`'s non-tail-recursive stack-overflow risk — are now fixed
+> (§5.1's post-M5 note has the detail). Keep this callout current as further
+> work lands.
 
 ---
 
@@ -241,7 +250,9 @@ Comma<X> / #[inline]` expand to epsilon-free productions (`Gramark.Desugar`) —
   the stack, the current item set, and the action taken — an interactive
   teaching view of the parse.
 - **T3.3 Recovery preview.** With panic-mode recovery, show how an erroneous
-  input resynchronizes (depends on `tables.recovery`; partial in the Core today).
+  input resynchronizes (depends on `tables.recovery`; partial in the Core
+  today — see `docs/lab-hardening-investigation.md` §B for a scoped
+  minimal-recovery design, not yet implemented).
 - **T3.4 Gallery + examples.** One-click load of `calc`, `json`, and the
   self-describing `gramark` grammar; a "fork this" flow.
 - **T3.5 Embeddable lab.** An `<iframe>` / web-component build so a grammar can be
@@ -619,6 +630,37 @@ needs a second check: the tab→core-symbol provenance table below, extended
 to grep component source for the field name, not just prose (still
 deferred — see that table's own guardrail-sequencing note).
 
+**Lab hardening pass (post-M5).** Three changes, landed after this section's
+M5 log closed (see the top callout for the same summary):
+
+- `Glr.explainP`'s conflict classification (conflict-free / LALR artifact /
+  resolved by declaration / genuine — what `gramark explain-conflict` prints
+  as CLI prose) was factored into a structured `Glr.reportOf`/
+  `Glr.ConflictVerdict`, so the exact same classification the CLI computes
+  is now also surfaced live in the Grammar analysis tab, not just on demand
+  from the command line. `LabResponse.analysis` grows a `verdict:
+  ConflictVerdictInfo` field (verdict tag, the conflict count that survives
+  declared precedence, and the genuine conflicts rendered in grammar terms);
+  `explainP`'s own rendered-string output is unchanged (verified byte-for-
+  byte against the existing `GlrSuite` cases).
+- The Lowered Core tab grows two ALL(\*)-only sections, `LabResponse.
+  allStarLowering: AllStarLowering { afterPrecedence, afterLeftRecursion }`:
+  the actual before/after grammar rewrite `PrecClimb.stratify` and
+  `LeftRec.eliminate` perform before `Ll.parse`/`Ll.parseTraced` lower the
+  grammar to an `Atn` — previously invisible, computed only to drive parsing,
+  never shown. Each section renders only when it actually differs from the
+  stage before it, so a grammar needing neither rewrite (no declared
+  `## Precedence`, no direct left recursion) shows only the plain desugared
+  productions, unchanged from before this pass.
+- Two pre-existing engine costs `docs/all-star-port-plan.md` had documented
+  as latent risks — `Parser.walk`'s O(n²) trace-recompute cost and `Ll.
+  walkSyms`'s non-tail-recursive stack-overflow risk on a very long
+  production body — are fixed, not just documented: `Parser.walk` now keeps
+  its symbol stack as an already bottom-to-top `Vector` and precomputes the
+  input's terminal symbols once, and `Ll.walkSyms` is now an explicit
+  `@tailrec` accumulator loop. Both are covered by the existing `ParserSuite`/
+  `LlSuite` regression suites (unchanged externally-observable behavior).
+
 ---
 
 ## 6. UX & layout
@@ -642,13 +684,13 @@ always reads "valid / green"), matching the gold-standard mock's spec exactly
 | 1   | Result           | `Lexer.tokenizeSpanned` + `Parser.run`/`ParseError`                                                                                                                                                                   | ✅       |
 | 2   | Evaluate         | `BackendJs.emitTraced`-generated JS, run by the Worker via a `Blob` URL dynamic import — **not** a core interpreter (honors `8d93997`)                                                                              | ✅ (M5)  |
 | 3   | Tokens           | `Lexer.tokenizeSpanned` (spans)                                                                                                                                                                                       | ✅       |
-| 4   | Grammar analysis | method comparison via `Table.statsForAll` (states + conflicts, one shared canonical-automaton build) + `Table.firstSets`/`followSets` + `Railroad.renderSvg` built from the compiled `Grammar` directly (not `parseProduction` — see §5.1) | ✅ (M5)  |
+| 4   | Grammar analysis | method comparison via `Table.statsForAll` (states + conflicts, one shared canonical-automaton build) + `Table.firstSets`/`followSets` + `Railroad.renderSvg` built from the compiled `Grammar` directly (not `parseProduction` — see §5.1) + `Glr.reportOf`'s conflict-verdict classification (same as `gramark explain-conflict`, live) | ✅ (M5)  |
 | 5   | Parse tree       | `Cst.toJson`                                                                                                                                                                                                          | ✅       |
 | 6   | Parse trace      | `Parser.walk` (a new, separate step-recording driver — not a `run` trace hook), rendered as a flat numbered table                                                                                                     | ✅ (M5)  |
 | 7   | LR walk          | stepper over the same `Parser.walk` trace data as Parse trace                                                                                                                                                         | ✅ (M5)  |
 | 8   | All parses       | `Glr.forest`, populated even when `buildOk` is false — a genuinely ambiguous grammar has real conflicts under every method, so this is exactly the case the tab exists for (real; **do not** relabel to "Conflicts" — see `design/README.md`'s override of the stale `IMPLEMENTATION_astro.md` guidance) | ✅ (M5)  |
 | 9   | Diagnostics      | `Diagnostics.undefinedNonterminals` + `Diagnostics.renderConflicts`                                                                                                                                                   | ✅       |
-| 10  | Lowered Core     | `Table.productions(grammar)` zipped with `grammar.rules.flatMap(_.alts)` for each production's raw `{% %}` action text (confirmed: `Desugar.desugar` returns the same `Grammar` type, not a distinct "lowered" type — desugaring is a value-level guarantee, not a type-level one) | ✅ (M5)  |
+| 10  | Lowered Core     | `Table.productions(grammar)` zipped with `grammar.rules.flatMap(_.alts)` for each production's raw `{% %}` action text (confirmed: `Desugar.desugar` returns the same `Grammar` type, not a distinct "lowered" type — desugaring is a value-level guarantee, not a type-level one), plus two ALL(\*)-only sections from `PrecClimb.stratify`/`LeftRec.eliminate`'s own rewritten output, shown only when each actually differs from the stage before it | ✅ (M5)  |
 
 This table **is** the provenance mapping the round-2 review guardrails called
 for (`docs-lint`-checked once the M5+ tabs land); it's the single source that

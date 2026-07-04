@@ -291,6 +291,31 @@ object ProductionInfo:
       )
     )
 
+/** The ALL(*) engine's own internal rewrite of the Lowered Core tab's productions — the same two
+  * grammar transforms `Ll.parse`/`Ll.parseTraced` run before lowering to an `Atn`
+  * (`PrecClimb.stratify`, then `LeftRec.eliminate`), rendered the same production-list way as
+  * `productions` instead of staying invisible. Present whenever `productions` is (independent of
+  * Engine/strategy — this describes the grammar's structure, not which engine the request happened
+  * to ask for), so the Lab can show the actual before/after rewrite rather than asserting it
+  * happens. `afterPrecedence` is `productions` unchanged whenever the grammar declares no `##
+  * Precedence` (`PrecClimb.stratify` is then a no-op); `afterLeftRecursion` is `afterPrecedence`
+  * unchanged whenever the grammar has no direct left recursion (`LeftRec.eliminate` is then a
+  * no-op) — the Lab only renders a section when it actually differs from the stage before it.
+  */
+final case class AllStarLowering(
+    afterPrecedence: Vector[ProductionInfo],
+    afterLeftRecursion: Vector[ProductionInfo]
+)
+
+object AllStarLowering:
+  def toJson(a: AllStarLowering): Json =
+    Json.JObject(
+      Vector(
+        "afterPrecedence" -> Json.JArray(a.afterPrecedence.map(ProductionInfo.toJson)),
+        "afterLeftRecursion" -> Json.JArray(a.afterLeftRecursion.map(ProductionInfo.toJson))
+      )
+    )
+
 /** The All-parses tab's data: every distinct parse of `LabRequest.input` under the GLR multi-action
   * table (`Glr.forest`), capped so a wildly ambiguous grammar can't blow up the response —
   * `truncated` is true when more parses existed than `parses` holds.
@@ -326,19 +351,44 @@ object RuleFirstFollow:
       )
     )
 
+/** `Glr.ConflictVerdict`, wire-rendered as its tag name (`"conflict-free"` | `"lalr-artifact"` |
+  * `"resolved-by-declaration"` | `"genuine"`), alongside the conflict count that survives with the
+  * grammar's own declared precedence applied and, for a genuine conflict, its
+  * `Diagnostics`-rendered description — the same classification `gramark explain-conflict` prints
+  * as CLI prose (`Glr.explainP`), surfaced live in the Lab as the grammar is edited instead of only
+  * on demand from the CLI.
+  */
+final case class ConflictVerdictInfo(
+    verdict: String,
+    withPrecedenceConflicts: Int,
+    genuineConflicts: Vector[String]
+)
+
+object ConflictVerdictInfo:
+  def toJson(v: ConflictVerdictInfo): Json =
+    Json.JObject(
+      Vector(
+        "verdict" -> Json.JString(v.verdict),
+        "withPrecedenceConflicts" -> Json.JInt(v.withPrecedenceConflicts),
+        "genuineConflicts" -> Json.JArray(v.genuineConflicts.map(Json.JString.apply))
+      )
+    )
+
 /** The Grammar analysis tab's data (M5+, `docs/playground-spec.md` T2.1/T2.3): every method's
   * state/conflict count (not just the requested `LabRequest.method`, so the tab can render the
-  * three-method comparison without a re-request), FIRST/FOLLOW per rule, and a railroad SVG per
-  * rule. `railroad` is built from the compiled (already-desugared) `Grammar` directly rather than
-  * re-parsing each rule's raw `.grmk.md` fenced block the way `gramark fmt`'s sidecar SVGs do — a
-  * deliberate divergence: a desugared `X+` renders as a reference to its synthesized list rule
-  * instead of `gramark fmt`'s native loop shape. Acceptable for a live in-browser view; not meant
-  * to replace the committed sidecar SVGs `.grmk.md` documents embed.
+  * three-method comparison without a re-request), FIRST/FOLLOW per rule, a railroad SVG per rule,
+  * and the conflict-classification verdict. `railroad` is built from the compiled
+  * (already-desugared) `Grammar` directly rather than re-parsing each rule's raw `.grmk.md` fenced
+  * block the way `gramark fmt`'s sidecar SVGs do — a deliberate divergence: a desugared `X+`
+  * renders as a reference to its synthesized list rule instead of `gramark fmt`'s native loop
+  * shape. Acceptable for a live in-browser view; not meant to replace the committed sidecar SVGs
+  * `.grmk.md` documents embed.
   */
 final case class GrammarAnalysis(
     perMethod: Map[String, MethodStatsInfo],
     firstFollow: Vector[RuleFirstFollow],
-    railroad: Map[String, String]
+    railroad: Map[String, String],
+    verdict: ConflictVerdictInfo
 )
 
 object GrammarAnalysis:
@@ -349,7 +399,8 @@ object GrammarAnalysis:
           k -> MethodStatsInfo.toJson(v)
         }),
         "firstFollow" -> Json.JArray(a.firstFollow.map(RuleFirstFollow.toJson)),
-        "railroad" -> Json.JObject(a.railroad.toVector.map { case (k, v) => k -> Json.JString(v) })
+        "railroad" -> Json.JObject(a.railroad.toVector.map { case (k, v) => k -> Json.JString(v) }),
+        "verdict" -> ConflictVerdictInfo.toJson(a.verdict)
       )
     )
 
@@ -412,7 +463,8 @@ final case class LabResponse(
     forest: Option[ForestResult] = None,
     analysis: Option[GrammarAnalysis] = None,
     evaluatorJs: Option[String] = None,
-    atn: Option[AtnDiagnostics] = None
+    atn: Option[AtnDiagnostics] = None,
+    allStarLowering: Option[AllStarLowering] = None
 )
 
 object LabResponse:
@@ -437,7 +489,10 @@ object LabResponse:
         "forest" -> r.forest.map(ForestResult.toJson).getOrElse(Json.JNull),
         "analysis" -> r.analysis.map(GrammarAnalysis.toJson).getOrElse(Json.JNull),
         "evaluatorJs" -> r.evaluatorJs.map(Json.JString.apply).getOrElse(Json.JNull),
-        "atn" -> r.atn.map(AtnDiagnostics.toJson).getOrElse(Json.JNull)
+        "atn" -> r.atn.map(AtnDiagnostics.toJson).getOrElse(Json.JNull),
+        "allStarLowering" -> r.allStarLowering
+          .map(AllStarLowering.toJson)
+          .getOrElse(Json.JNull)
       )
     )
 
