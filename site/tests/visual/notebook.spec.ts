@@ -367,6 +367,53 @@ test("clicking a prose block reveals a raw-markdown editor; blurring commits and
   );
 });
 
+test("the prose editor opens tall enough for its content and grows as more lines are typed", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  const editor = page.locator(".grimoire__prose-editor");
+  await page.locator(".grimoire__prose").first().click();
+  const initialHeight = await editor.evaluate(
+    (el) => el.getBoundingClientRect().height,
+  );
+  // Taller than the old fixed 70px floor, even for a short block.
+  expect(initialHeight).toBeGreaterThan(100);
+
+  await editor.fill(
+    "Line one.\nLine two.\nLine three.\nLine four.\nLine five.\nLine six.",
+  );
+  const grownHeight = await editor.evaluate(
+    (el) => el.getBoundingClientRect().height,
+  );
+  expect(grownHeight).toBeGreaterThan(initialHeight);
+  // No internal scrollbar once grown — the textarea's own height, not overflow, holds all 6 lines.
+  const overflowing = await editor.evaluate(
+    (el) => el.scrollHeight > el.clientHeight,
+  );
+  expect(overflowing).toBe(false);
+});
+
+// Regression: a rule's action badge used to be an abstract "ƒ" icon inside the diagram; it now
+// shows the actual (truncated) action source as text to the right of the railroad, aligned with
+// the alternative's own row.
+test("a rule's action renders as real text beside its railroad, not an abstract ƒ icon", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  const exprCell = ruleCellLocator(page);
+  const actionLabels = exprCell.locator("svg text.rr-action-text");
+  await expect(actionLabels).toHaveCount(2);
+  // toContainText, not toHaveText: the <text> also nests a <title> (the hover tooltip) whose own
+  // text is part of the same element's textContent, alongside the visible label.
+  await expect(actionLabels.first()).toContainText("(c) => c.expr + c.term");
+  await expect(actionLabels.nth(1)).toContainText("(c) => c.expr - c.term");
+
+  const docText = await page.locator(".grimoire__doc").textContent();
+  expect(docText).not.toContain("ƒ");
+});
+
 // Helper: break the first rule cell's content, committing on blur.
 async function breakFirstRule(
   page: import("@playwright/test").Page,

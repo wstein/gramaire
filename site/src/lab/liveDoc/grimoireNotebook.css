@@ -29,9 +29,8 @@
   --rr-term-fill: var(--bg);
   --rr-term-stroke: var(--accent);
   --rr-nonterm-fill: var(--bg-1);
-  /* The railroad's `{% %}` action badge — reuses the Precedence badge's own "this is an action"
+  /* The railroad's `{% %}` action label — reuses the Precedence badge's own "this is an action"
      color (.grimoire__badge--precedence below) rather than inventing a new hue. */
-  --rr-action-fill: var(--bg);
   --rr-action-stroke: var(--t-action);
 }
 
@@ -258,7 +257,12 @@
 
 .grimoire__prose-editor {
   width: 100%;
-  min-height: 70px;
+  /* A floor for a short/empty block, not a cap — GrimoireNotebookIsland.tsx's autosizeTextarea
+     grows (or shrinks) this to the content's actual height on mount and every keystroke, so a
+     multi-line block opens at its real height instead of a cramped fixed box. */
+  min-height: 120px;
+  overflow-y: hidden;
+  resize: none;
   border: 1px dashed var(--border-strong);
   border-radius: 8px;
   padding: 10px 12px;

@@ -318,12 +318,10 @@ class LabApiSuite extends munit.FunSuite:
           s"expected an SVG, got: ${a.railroad("Expr")}"
         )
         // Expr's first two alts each have a `{% %}` action (see calc.grmk.md); the railroad
-        // marks each with a hoverable badge rather than staying action-blind. (".rr-action" alone
-        // would trivially match the SVG's own always-present <style> rule, so check for the
-        // actual badge element.)
+        // shows each as real (truncated) text rather than staying action-blind.
         assert(
-          a.railroad("Expr").contains("""<circle class="rr-action""""),
-          "expected an action badge for Expr's actioned alternatives"
+          a.railroad("Expr").contains("""<text class="rr-action-text""""),
+          "expected an action label for Expr's actioned alternatives"
         )
   }
 
