@@ -52,6 +52,64 @@ final case class IRTokenClass(
 // order, and a per-class definition.
 final case class IRLexer(mode: String, order: Vector[Int], classes: Vector[IRTokenClass])
 
+// A rewritten alt's symbol — only ever Terminal/NonTerminal post-Desugar (no EBNF sugar survives
+// this far); named by string, the same convention `IRAtnTrans.IRAtnAtom`'s own `label`/
+// `IRAtnTrans.IRAtnRule`'s own `name` already use.
+enum IRRewrittenSym derives CanEqual:
+  case Terminal(label: String)
+  case NonTerminal(rule: String)
+
+// Where one node's matched result is tagged when reconstructing a `Cst` — the pre-resolved answer
+// to what `Ll.parse`'s `tagCst` computes on the fly by consulting `PrecClimb.Tag`
+// (`Transparent`/`Original`) and otherwise falling back to a rule+altIdx's own production id. A
+// consumer never needs either mechanism, just this one tag per node.
+enum IRAltOrigin derives CanEqual:
+  case Unwrap
+  case Original(productionId: Int)
+
+// An alt's CST-reconstruction provenance — mirrors `LeftRec.Prov` exactly, fully resolved (every
+// leaf already carries its `IRAltOrigin`, so a consumer never runs `PrecClimb`/`stratumTags`/
+// `Ll.indexProductions` itself). `Leaf` is the common case: the alt's own kids, tagged once.
+// `OpLeaf` is a `Leaf` reached as a fold's OWN operator provenance (`LeftRec.Fold.opAlt`, entered
+// via `LeftRec.buildOp`): the fold's running accumulator (supplied externally — see
+// `IRRuleBody.Folded`) is its own FIRST kid, ahead of the alt's own matched kids. `Wrap` is a
+// `Prov.Spliced` layer: Paull substitution spliced an earlier rule's own derivation in place of
+// this alt's head symbol — split this alt's own (already-parsed) kids at `innerSpan`, resolve
+// `inner` against the leading `innerSpan`-many of them (an `OpLeaf` inside `inner`, if any, still
+// receives the SAME externally-supplied accumulator — `innerIsOp`-ness was decided once, when
+// this IR was built, exactly mirroring `LeftRec.build`'s own `fromIsOp`-threading), then tag this
+// layer's own origin with [inner's result, plus this alt's own trailing kids].
+enum IRProv derives CanEqual:
+  case Leaf(origin: IRAltOrigin)
+  case OpLeaf(origin: IRAltOrigin)
+  case Wrap(origin: IRAltOrigin, innerSpan: Int, inner: IRProv)
+
+final case class IRRewrittenAlt(syms: Vector[IRRewrittenSym], prov: IRProv)
+
+// A rule's body. `Plain` is ordinary ordered choice — ordered so an `Unwrap` alt (a pure
+// pass-through with nothing of its own to narrow on, e.g. a `PrecClimb`-stratified level's
+// "fall through to the next tighter level" alt) always sorts last, since it can never be more
+// specific than a sibling and trying it first would shadow every sibling that also matches its
+// own prefix (the classic PEG "hiding problem", Ford 2004). `Folded` is a `LeftRec`-eliminated
+// rule's own `.rep`-then-`foldLeft` shape: match one of `bases`, then greedily repeat any
+// matching `operators` alt zero or more times, left-folding each repetition's own tagged branch
+// onto the accumulator (exactly `Ll.parse`'s `parseFoldedRule`/`parseTailChain`, done statically
+// instead of via ALL(*) prediction) — encoded as an explicit repetition, not as the flat
+// "base-alone | base-with-one-more-operator" ordered alt pairs `LeftRec.eliminate` itself builds,
+// because that flat shape has the exact same hiding problem: the shorter "base-alone" alt,
+// tried first, would silently truncate every multi-operator input to its first operand.
+enum IRRuleBody derives CanEqual:
+  case Plain(alts: Vector[IRRewrittenAlt])
+  case Folded(bases: Vector[IRRewrittenAlt], operators: Vector[IRRewrittenAlt])
+
+final case class IRRewrittenRule(name: String, body: IRRuleBody)
+
+// The `ll-star`-strategy CST-fold-back section (D-rewritten-ir): the same left-recursion-
+// eliminated, precedence-stratified grammar `Ll.parse` walks, with every alt pre-tagged so a
+// codegen backend (a Scala PEG/combinator emitter, say) can reconstruct the identical `Cst`
+// without any awareness of `LeftRec`/`PrecClimb`'s own machinery. See `IR.rewrittenGrammarOf`.
+final case class IRRewrittenGrammar(start: String, rules: Vector[IRRewrittenRule])
+
 // A terminal carries a stable id and either a literal spelling or a
 // token-class name. `id` is promoted onto the enum itself (both cases
 // otherwise dedicated an identical `terminalId`-style match to it in every
@@ -149,7 +207,9 @@ final case class IR(
     tables: IRTables,
     conflicts: Vector[IRConflict],
     lexer: Option[IRLexer],
-    atn: Option[IRAtn] // the serialized ATN, present under `ll-star`
+    atn: Option[IRAtn], // the serialized ATN, present under `ll-star`
+    rewritten: Option[IRRewrittenGrammar] =
+      None // the CST-fold-back section, see `rewrittenGrammarOf`
 )
 
 object IR:
@@ -606,10 +666,72 @@ object IR:
         )
       )
 
+    def rewrittenSymJson(s: IRRewrittenSym): Json = s match
+      case IRRewrittenSym.Terminal(label) =>
+        Json.JObject(Vector("kind" -> Json.JString("terminal"), "label" -> Json.JString(label)))
+      case IRRewrittenSym.NonTerminal(rule) =>
+        Json.JObject(Vector("kind" -> Json.JString("nonterminal"), "rule" -> Json.JString(rule)))
+
+    def altOriginJson(o: IRAltOrigin): Json = o match
+      case IRAltOrigin.Unwrap => Json.JObject(Vector("kind" -> Json.JString("unwrap")))
+      case IRAltOrigin.Original(productionId) =>
+        Json.JObject(
+          Vector("kind" -> Json.JString("original"), "productionId" -> Json.JInt(productionId))
+        )
+
+    def provJson(p: IRProv): Json = p match
+      case IRProv.Leaf(origin) =>
+        Json.JObject(Vector("kind" -> Json.JString("leaf"), "origin" -> altOriginJson(origin)))
+      case IRProv.OpLeaf(origin) =>
+        Json.JObject(Vector("kind" -> Json.JString("opLeaf"), "origin" -> altOriginJson(origin)))
+      case IRProv.Wrap(origin, innerSpan, inner) =>
+        Json.JObject(
+          Vector(
+            "kind" -> Json.JString("wrap"),
+            "origin" -> altOriginJson(origin),
+            "innerSpan" -> Json.JInt(innerSpan),
+            "inner" -> provJson(inner)
+          )
+        )
+
+    def rewrittenAltJson(a: IRRewrittenAlt): Json =
+      Json.JObject(
+        Vector(
+          "syms" -> Json.JArray(a.syms.map(rewrittenSymJson)),
+          "prov" -> provJson(a.prov)
+        )
+      )
+
+    def ruleBodyJson(b: IRRuleBody): Json = b match
+      case IRRuleBody.Plain(alts) =>
+        Json.JObject(
+          Vector("kind" -> Json.JString("plain"), "alts" -> Json.JArray(alts.map(rewrittenAltJson)))
+        )
+      case IRRuleBody.Folded(bases, operators) =>
+        Json.JObject(
+          Vector(
+            "kind" -> Json.JString("folded"),
+            "bases" -> Json.JArray(bases.map(rewrittenAltJson)),
+            "operators" -> Json.JArray(operators.map(rewrittenAltJson))
+          )
+        )
+
+    def rewrittenRuleJson(r: IRRewrittenRule): Json =
+      Json.JObject(Vector("name" -> Json.JString(r.name), "body" -> ruleBodyJson(r.body)))
+
+    def rewrittenGrammarJson(rg: IRRewrittenGrammar): Json =
+      Json.JObject(
+        Vector(
+          "start" -> Json.JString(rg.start),
+          "rules" -> Json.JArray(rg.rules.map(rewrittenRuleJson))
+        )
+      )
+
     val strategyEntry =
       if ir.strategy == "lr" then Vector.empty else Vector("strategy" -> Json.JString(ir.strategy))
     val lexerEntry = ir.lexer.map(lx => "lexer" -> lexerJson(lx)).toVector
     val atnEntry = ir.atn.map(a => "atn" -> atnJson(a)).toVector
+    val rewrittenEntry = ir.rewritten.map(rg => "rewritten" -> rewrittenGrammarJson(rg)).toVector
 
     Json.JObject(
       Vector("irVersion" -> Json.JInt(ir.irVersion)) ++ strategyEntry ++
@@ -617,7 +739,7 @@ object IR:
           "grammar" -> grammarJson(ir.grammar),
           "tables" -> tablesJson(ir.tables),
           "conflicts" -> Json.JArray(ir.conflicts.map(conflictJson))
-        ) ++ lexerEntry ++ atnEntry
+        ) ++ lexerEntry ++ atnEntry ++ rewrittenEntry
     )
 
   /** Build the IR and attach the grammar's lexis (lexer-spec §7). */
@@ -629,18 +751,131 @@ object IR:
   ): Either[Vector[Conflict], IR] =
     buildIR(method, name, g).map(ir => if defs.isEmpty then ir else attachLexer(defs, ir))
 
-  /** Set the IR's parse strategy (D-strategy). */
-  def withStrategy(strat: String, g: Grammar, ir: IR): IR = strat match
-    case "lr" => ir
-    case "ll-star" =>
-      Desugar.desugar(g) match
-        case Right(dg) =>
-          ir.copy(
-            strategy = "ll-star",
-            atn = Some(irAtnOf(AtnBuild.buildAtn(LeftRec.eliminate(dg)._1)))
-          )
-        case Left(_) => ir.copy(strategy = "ll-star")
-    case other => ir.copy(strategy = other)
+  /** Set the IR's parse strategy (D-strategy). `prec` is the grammar's declared precedence
+    * (`Lr.precedenceOf`) — needed only for the `rewritten` section (`PrecClimb.stratify` affects
+    * its shape, unlike `atn`, whose build deliberately does not stratify — see
+    * `rewrittenGrammarOf`'s own doc). Defaults to `Table.emptyPrec`, matching every existing
+    * caller's assumption that `atn`'s own build is unaffected by precedence.
+    */
+  def withStrategy(strat: String, g: Grammar, ir: IR, prec: Precedence = Table.emptyPrec): IR =
+    strat match
+      case "lr" => ir
+      case "ll-star" =>
+        Desugar.desugar(g) match
+          case Right(dg) =>
+            ir.copy(
+              strategy = "ll-star",
+              atn = Some(irAtnOf(AtnBuild.buildAtn(LeftRec.eliminate(dg)._1))),
+              rewritten = rewrittenGrammarOf(g, prec)
+            )
+          case Left(_) => ir.copy(strategy = "ll-star")
+      case other => ir.copy(strategy = other)
+
+  // An `IRProv` tree's own top-level origin — used only to decide `Plain` alt ordering (see
+  // `IRRuleBody`'s doc); a nested `Wrap`'s own origin is irrelevant there, only the outermost one.
+  private def topOrigin(p: IRProv): IRAltOrigin = p match
+    case IRProv.Leaf(o)       => o
+    case IRProv.OpLeaf(o)     => o
+    case IRProv.Wrap(o, _, _) => o
+
+  /** Build the `ll-star`-strategy CST-fold-back IR section (`IRRewrittenGrammar`): the same
+    * left-recursion-eliminated, precedence-stratified grammar `Ll.parse` walks — `Desugar.desugar`
+    * -> `PrecClimb.stratify` -> `LeftRec.eliminateIndirect`, `Ll.parse`'s own three lines — with
+    * every alt pre-tagged with the `IRProv` `tagCst`/`LeftRec.build`/`buildOp` together compute on
+    * the fly, so a codegen backend never needs to run, or even know about, `LeftRec`/`PrecClimb`
+    * themselves — including when Paull substitution splices one rule's own derivation into
+    * another's alt without introducing left recursion (e.g. `Elements : Value | Elements ','
+    * Value`, common in hand-written grammars and unrelated to indirect/mutual left recursion):
+    * `LeftRec.eliminateIndirectFull`'s `Map[String, Vector[Prov]]` exposes that splice's provenance
+    * even for a rule that never earns a `Fold`.
+    *
+    * Not yet verified for a genuinely indirectly (mutually) left-recursive grammar — `Ll.parse`'s
+    * own CST is not asserted correct for one either (`LlSuite`'s `supportsCst = false`), so there
+    * is no reference behavior to reproduce yet; every grammar in the conformance corpus (including
+    * `json`/`ECMA-404`'s benign forward substitutions above) is covered.
+    */
+  def rewrittenGrammarOf(g: Grammar, prec: Precedence): Option[IRRewrittenGrammar] =
+    Desugar.desugar(g) match
+      case Left(_) => None
+      case Right(dg) =>
+        val (stratified, stratumTags) = PrecClimb.stratify(dg, prec)
+        val (rewritten, folds, provByRule) = LeftRec.eliminateIndirectFull(stratified)
+        val prodIndex = Ll.indexProductions(dg)
+        val ruleByName: Map[String, Rule] = stratified.rules.map(r => r.name -> r).toMap
+
+        def resolve(ruleName: String, altIdx: Int): IRAltOrigin =
+          stratumTags.get((ruleName, altIdx)) match
+            case Some(PrecClimb.Tag.Transparent) => IRAltOrigin.Unwrap
+            case Some(PrecClimb.Tag.Original(origRule, origIdx)) =>
+              IRAltOrigin.Original(prodIndex((origRule, origIdx)))
+            case None => IRAltOrigin.Original(prodIndex((ruleName, altIdx)))
+
+        // Mirrors `LeftRec.build`/`buildOp`'s own recursive dispatch exactly, but pre-resolved:
+        // `isOp` is this NODE's own build-vs-buildOp mode (`true` only at a `Fold.opAlt` root, or
+        // wherever a `Spliced` layer's own `fromIsOp` says the next layer inherits it).
+        def provIR(p: LeftRec.Prov, isOp: Boolean): IRProv = p match
+          case LeftRec.Prov.Direct(rule, idx) =>
+            val origin = resolve(rule, idx)
+            if isOp then IRProv.OpLeaf(origin) else IRProv.Leaf(origin)
+          case LeftRec.Prov.Spliced(rule, idx, from, fromIsOp) =>
+            val origin = resolve(rule, idx)
+            val innerSpan =
+              if fromIsOp then LeftRec.opSpan(ruleByName)(from) else LeftRec.span(ruleByName)(from)
+            IRProv.Wrap(origin, innerSpan, provIR(from, fromIsOp))
+
+        val ntNames: Set[String] = stratified.rules.map(_.name).toSet
+        def toSym(s: Sym): IRRewrittenSym = s match
+          case Ref(n) if ntNames.contains(n) => IRRewrittenSym.NonTerminal(n)
+          case Ref(n)                        => IRRewrittenSym.Terminal(n)
+          case Lit(t)                        => IRRewrittenSym.Terminal(t)
+          case Field(_, inner)               => toSym(inner)
+          case Rep(inner)                    => toSym(inner) // unreachable post-Desugar
+          case Star(inner)                   => toSym(inner) // unreachable
+          case Opt(inner)                    => toSym(inner) // unreachable
+          case Macro(nm, _)                  => IRRewrittenSym.NonTerminal(nm) // unreachable
+          case Group(_)                      => IRRewrittenSym.Terminal("(group)") // unreachable
+          case Any                           => IRRewrittenSym.Terminal("(any)") // unreachable
+          case Not(_)                        => IRRewrittenSym.Terminal("(not)") // unreachable
+
+        def toAlt(a: Alt, prov: IRProv): IRRewrittenAlt = IRRewrittenAlt(a.syms.map(toSym), prov)
+
+        // A fold's synthetic tail rule is inlined into its main rule's `Folded.operators` below
+        // and never referenced by anything else once inlined, so it never surfaces as its own
+        // top-level `IRRewrittenRule`.
+        val tailRuleNames: Set[String] = folds.values.map(_.tailRule).toSet
+        val irRules = rewritten.rules
+          .filterNot(r => tailRuleNames.contains(r.name))
+          .map { r =>
+            folds.get(r.name) match
+              case Some(fold) =>
+                val tailRule = rewritten.rules
+                  .find(_.name == fold.tailRule)
+                  .getOrElse(
+                    throw new IllegalStateException(
+                      s"rewrittenGrammarOf: fold tail rule ${fold.tailRule} missing"
+                    )
+                  )
+                val bases = fold.baseAlt.zipWithIndex.map { case (p, k) =>
+                  toAlt(r.alts(2 * k), provIR(p, isOp = false))
+                }
+                val operators = fold.opAlt.zipWithIndex.map { case (p, j) =>
+                  toAlt(tailRule.alts(2 * j), provIR(p, isOp = true))
+                }
+                IRRewrittenRule(r.name, IRRuleBody.Folded(bases, operators))
+              case None =>
+                val provs = provByRule.getOrElse(
+                  r.name,
+                  throw new IllegalStateException(
+                    s"rewrittenGrammarOf: no provenance for rule ${r.name}"
+                  )
+                )
+                val alts =
+                  r.alts.zip(provs).map { case (a, p) => toAlt(a, provIR(p, isOp = false)) }
+                // See `IRRuleBody`'s own doc: an `Unwrap` alt sorts last, stable otherwise.
+                val (unwrap, rest) = alts.partition(a => topOrigin(a.prov) == IRAltOrigin.Unwrap)
+                IRRewrittenRule(r.name, IRRuleBody.Plain(rest ++ unwrap))
+          }
+        Some(IRRewrittenGrammar(g.rules.headOption.map(_.name).getOrElse(""), irRules))
 
   /** Re-tag an `IRGrammar`'s productions' inline-action profile with the document's declared host
     * language — the part of `withActionLang` below that doesn't need a full `IR` (just

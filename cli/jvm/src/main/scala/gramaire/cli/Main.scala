@@ -155,7 +155,8 @@ object Main:
                               val ir = IR.withStrategy(
                                 opts.strategy,
                                 g,
-                                IR.withActionLang(Lr.actionLangOf(md), withLexis)
+                                IR.withActionLang(Lr.actionLangOf(md), withLexis),
+                                Lr.precedenceOf(md)
                               )
                               deliver(opts.out, b.emit(ir))
 

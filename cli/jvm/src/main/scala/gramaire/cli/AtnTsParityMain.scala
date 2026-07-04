@@ -41,7 +41,7 @@ object AtnTsParityMain:
       case Left(_) =>
         System.err.println(s"$language: skipped — LR(1) conflicts, no table to derive atn from")
       case Right(ir0) =>
-        val ir = IR.withStrategy("ll-star", g, ir0)
+        val ir = IR.withStrategy("ll-star", g, ir0, prec)
         BackendAtnTs.backend.emit(ir).foreach { out =>
           Files.writeString(Path.of(s"$outDir/${out.path}"), out.contents)
         }
