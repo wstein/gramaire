@@ -329,7 +329,7 @@ are the parsing core; 3–6 are the language and product surface.
   fixes), same-level left-associativity (`1-2-3`), mixed levels, and
   parenthesized precedence resets. All pass. `examples/calc-prec` parses under
   `ll-star` with the same tree LR produces — done.
-- ✅ **Indirect (mutual) left recursion — recognition only.**
+- ✅ **Indirect (mutual) left recursion — recognition and CST.**
   `LeftRec.eliminateIndirect` (`LeftRec.scala`) implements Paull's algorithm:
   in the grammar's own declaration order `A₁, …, Aₙ`, for each `Aᵢ` substitute
   any alternative headed by an earlier `Aⱼ` (`j < i`) with `Aⱼ`'s own current
@@ -337,18 +337,28 @@ are the parsing core; 3–6 are the language and product surface.
   `eliminate`'s rewrite, extracted into a shared `rewriteDirect` helper) —
   correct for any fixed total order over all rules, not just ones already
   known to participate in a cycle, so no separate cycle detection is needed.
-  `Ll.recognize` calls it in place of the direct-only `eliminate`.
-  **Recognition only, deliberately:** `Fold` only carries fold-back
-  provenance for a rule's own final direct-elimination step, not for
-  alternatives Paull's substitution moved in from a _different_ rule, so
-  `Ll.parse`/`parseTraced` keep calling `eliminate` (direct-only) and do not
-  gain CST support for the indirect case — the same "recognizer first"
-  staging this port already used for Phase 1 → Phase 2. **Test
-  (`LlSuite.scala`):** a hand-built mutual `A`/`B` grammar (`A : B`; `B : A
-  'z' | 'w'`), differentially checked against the LR oracle via
-  `Ll.recognize` only (a new `Case.supportsCst = false` flag excludes it from
-  the suite's `Ll.parse`/`parseTraced` tests, which would otherwise walk a
-  grammar those functions were never meant to handle).
+  Both `Ll.recognize` and `Ll.parse`/`parseTraced` call it (in place of the
+  direct-only `eliminate`).
+  **CST support:** `LeftRec.Fold`'s provenance is now a recursive tree
+  (`LeftRec.Prov` — `Direct`/`Spliced`) instead of a bare alt index, so a
+  splice through one or more intermediate rules folds back into the same
+  nested `Cst` shape the LR path would build (`B(A(B(w)), 'z')` for `"wz"`
+  under `A : B`, `B : A 'z' | 'w'`, one more `B`/`A` layer per `'z'`) — see
+  `LeftRec.scala`'s own doc comments for `Prov`/`span`/`opSpan`/`build`/
+  `buildOp`/`graftLeaf`. A splice that also composes with the spliced rule's
+  _own_ tail-chain (`Aⱼ` independently left-recursive, substituted into
+  `Aᵢ`) unifies `Aⱼ`'s continuation into `Aᵢ`'s own new tail rule
+  (`rewriteDirect`'s `extraOps` parameter), rather than leaving a separate,
+  un-fold-aware `RuleCall` into `Aⱼ`'s tail rule — this is _not_
+  re-substituted against a still-later rule in the same round, a narrow,
+  documented gap for a rule that both independently recurses and is reached
+  only through another earlier rule's own recursion.
+  **Test (`LlSuite.scala`):** hand-built mutual/cyclic grammars (`A : B`;
+  `B : A 'z' | 'w'`, and a three-rule `A : B`; `B : C`; `C : A 'z' | 'w'`
+  cycle), differentially checked against the LR oracle for both accept/reject
+  (`Ll.recognize`) and Cst shape (`Ll.parse`/`parseTraced` — `Case.supportsCst`
+  stays available for a future grammar shape that can't yet go through the
+  Cst-building path).
   **A real, separate engine limitation surfaced along the way, not fixed:**
   a decision embedded inside another rule with its own trailing symbol, where
   the callee's "keep going" alternative happens to start with the same token

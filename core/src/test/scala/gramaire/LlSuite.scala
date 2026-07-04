@@ -10,12 +10,10 @@ import ConformanceLexers.Lexer
 class LlSuite extends munit.FunSuite:
 
   private final case class Vec(input: String, expect: Boolean)
-  // `supportsCst` is false only for the indirect-left-recursion case below: `Ll.parse`/
-  // `parseTraced` call the direct-only `LeftRec.eliminate` (see their own doc comments), so a
-  // grammar whose recursion `Ll.recognize`'s `eliminateIndirect` alone resolves still has genuine,
-  // unresolved indirect recursion in the ATN they build — walking or predicting over it isn't
-  // merely "unsupported," it can recurse without bound (a JVM StackOverflow, or worse on Scala.js,
-  // whose native call stack is far shallower — this is how the gap was actually caught).
+  // `supportsCst` gates the four Cst-building assertions below (`Ll.parse`/`parseTraced` vs. the
+  // LR oracle) for a case whose grammar `Ll.recognize` accepts/rejects correctly but that isn't yet
+  // (or can't be) exercised through the Cst-building path — every case in this corpus currently
+  // supports it, but the field stays available for the next grammar shape that doesn't.
   private final case class Case(
       name: String,
       grammar: String,
@@ -89,12 +87,14 @@ class LlSuite extends munit.FunSuite:
       )
     ),
     // Indirect (mutual) left recursion: A's head reference is B, not A itself, and vice versa —
-    // `LeftRec.isLeftRec` alone would see neither rule as left-recursive; `Ll.recognize`'s
-    // `LeftRec.eliminateIndirect` (Paull's algorithm) is what makes this parseable top-down at all.
-    // A is a bare pass-through to B (no trailing symbol of its own — `A : B`, not `A : B 'x'`),
-    // deliberately: substituting A's own alt into B's `A 'z'` alt collapses to direct recursion in
-    // B exactly the way Paull's algorithm is supposed to (B ends up `w (z)+`), while sidestepping a
-    // real, separately-tracked engine limitation (see `AtnSim.scala`'s own note on `move`) where a
+    // `LeftRec.isLeftRec` alone would see neither rule as left-recursive; `LeftRec.eliminateIndirect`
+    // (Paull's algorithm) is what makes this parseable top-down at all, and (since `Ll.parse` builds
+    // full `LeftRec.Prov` provenance for it) what lets `Ll.parse` reconstruct the exact same nested
+    // Cst the LR path would (B(A(B(w)), 'z') for "wz", one more B/A layer per 'z').
+    // A is a bare pass-through to B (no trailing symbol of its own — `A : B`, not `A : B 'x'`):
+    // substituting A's own alt into B's `A 'z'` alt collapses to direct recursion in B exactly the
+    // way Paull's algorithm is supposed to (B ends up `w (z)+`), while sidestepping a real,
+    // separately-tracked engine limitation (see `AtnSim.scala`'s own note on `move`) where a
     // caller's OWN trailing symbol, if it happens to share the callee's tail-continuation's first
     // token, can be wrongly pruned by SLL prediction before the tie-break logic ever runs — not
     // something this port's simplified full-LL fallback (a single real context stack, not ANTLR's
@@ -110,8 +110,21 @@ class LlSuite extends munit.FunSuite:
         Vec("", false),
         Vec("z", false),
         Vec("zz", false)
-      ),
-      supportsCst = false
+      )
+    ),
+    // A three-rule cycle (A -> B -> C -> A), neither A nor B independently recursive — exercises
+    // `LeftRec.Prov.Spliced` nesting two layers deep (C's tail-op wraps a B-layer wrapping an
+    // A-layer) rather than just one.
+    Case(
+      "indirect left recursion — three-rule cycle A/B/C, both intermediates bare pass-throughs",
+      "```gramaire\nA\n  : B\n\nB\n  : C\n\nC\n  : A 'z'\n  | 'w'\n```\n",
+      Vector(
+        Vec("w", true),
+        Vec("wz", true),
+        Vec("wzzz", true),
+        Vec("", false),
+        Vec("z", false)
+      )
     )
   )
 
