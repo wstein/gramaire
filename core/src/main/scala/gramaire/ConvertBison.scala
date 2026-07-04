@@ -31,8 +31,13 @@ object ConvertBison:
     case TDirective(name: String) // %word — a declaration keyword, e.g. token/left/right/prec
     case TPercentBrace(s: String) // %{ … %} — verbatim C, never brace-nested (dropped)
     case TColon, TSemi, TBar, TLess, TGreater
-    case TLineComment(s: String) // // … (inner text, trimmed)
-    case TBlockComment(s: String) // /* … */ (inner text, trimmed)
+    // `blankBefore`: whether a blank line (or start-of-input) precedes this comment — the ADR
+    // D39 doc-comment heuristic (see `leadingDoc`) that a comment is a rule's own LEADING prose
+    // only when set off from whatever came before by a blank line; otherwise it's a TRAILING note
+    // on the previous rule (Bison's `foo : 'x' ; /* note */`), which must not migrate onto the
+    // next rule just because the token stream drops the `;` between them.
+    case TLineComment(s: String, blankBefore: Boolean) // // … (inner text, trimmed)
+    case TBlockComment(s: String, blankBefore: Boolean) // /* … */ (inner text, trimmed)
 
   import Tok.*
 
@@ -64,6 +69,19 @@ object ConvertBison:
       case Some(d) if isIdentPart(d) => identEnd(j + 1)
       case _                         => j
 
+    // Scans BACKWARD from `j` (a comment's own start offset) through pure whitespace, counting
+    // newlines — true if it hits a blank line (2+ newlines) or the start of the input before any
+    // non-whitespace character. See `Tok.TLineComment`/`TBlockComment`'s own doc comment for why.
+    def blankLineBefore(j: Int): Boolean =
+      def back(k: Int, newlines: Int): Boolean =
+        if k < 0 then true
+        else
+          src.charAt(k) match
+            case '\n'              => back(k - 1, newlines + 1)
+            case ' ' | '\t' | '\r' => back(k - 1, newlines)
+            case _                 => newlines >= 2
+      back(j - 1, 0)
+
     def go(i: Int, acc: Vector[Tok]): Either[String, Vector[Tok]] =
       if i >= len then Right(acc)
       else
@@ -82,8 +100,30 @@ object ConvertBison:
           case Some(c) if c == delim => go(j + 1, acc :+ TStr(buf.toString))
           case Some(d)               => str(j + 1, delim, buf.append(d))
           case None                  => Left("unterminated quoted literal")
+        // Scans past a `'...'`/`"..."` string/char literal or a `//`/`/* */` comment nested
+        // inside a `{ }` action WITHOUT interpreting its content — only far enough to find where
+        // it ends — so a `}` inside a C string literal (e.g. `{ printf("%d}", $1); }`) or inside
+        // a comment doesn't get mistaken for the action's own closing brace.
+        def skipQuoted(k: Int, delim: Char): Either[String, Int] = at(k) match
+          case Some('\\') =>
+            at(k + 1) match
+              case Some(_) => skipQuoted(k + 2, delim)
+              case None    => Left("unterminated escape in a string literal inside an action")
+          case Some(c) if c == delim => Right(k + 1)
+          case Some(_)               => skipQuoted(k + 1, delim)
+          case None                  => Left("unterminated string literal inside an action")
         def action(j: Int, depth: Int, buf: StringBuilder): Either[String, Vector[Tok]] =
           at(j) match
+            case Some(q) if q == '\'' || q == '"' =>
+              skipQuoted(j + 1, q) match
+                case Right(e)  => action(e, depth, buf.append(slice(j, e)))
+                case Left(err) => Left(err)
+            case Some('/') if at(j + 1) == Some('/') =>
+              val e = lineEnd(j + 2)
+              action(e, depth, buf.append(slice(j, e)))
+            case Some('/') if at(j + 1) == Some('*') =>
+              val e = math.min(blockCommentEnd(j + 2) + 2, len)
+              action(e, depth, buf.append(slice(j, e)))
             case Some('{') => action(j + 1, depth + 1, buf.append('{'))
             case Some('}') =>
               if depth == 1 then go(j + 1, acc :+ TAction(buf.toString))
@@ -101,10 +141,10 @@ object ConvertBison:
           case Some(c) if isSpace(c) => go(i + 1, acc)
           case Some('/') if at(i + 1) == Some('/') =>
             val e = lineEnd(i + 2)
-            go(e, acc :+ TLineComment(slice(i + 2, e).trim))
+            go(e, acc :+ TLineComment(slice(i + 2, e).trim, blankLineBefore(i)))
           case Some('/') if at(i + 1) == Some('*') =>
             val e = blockCommentEnd(i + 2)
-            go(math.min(e + 2, len), acc :+ TBlockComment(slice(i + 2, e).trim))
+            go(math.min(e + 2, len), acc :+ TBlockComment(slice(i + 2, e).trim, blankLineBefore(i)))
           case Some('%') if at(i + 1) == Some('{') =>
             val e = percentBraceEnd(i + 2)
             go(math.min(e + 2, len), acc :+ TPercentBrace(slice(i + 2, e).trim))
@@ -213,19 +253,51 @@ object ConvertBison:
 
   // ── Declarations ──────────────────────────────────────────────────
 
+  // Skips one `<typeTag>`, tracking bracket DEPTH rather than stopping at the first `>` — a
+  // real-world type tag can itself contain nested angle brackets (a C++ template type like
+  // `<std::vector<int>>`), and a depth-1 `dropThrough(TGreater, ...)` would stop at the FIRST
+  // `>` (the inner one), leaving a dangling `>` in the stream that silently derails whatever
+  // follows. `Right(after)` on success; `Left(remaining)` when the tag never closes — bounded by
+  // the next `%directive` token (a real type tag never legitimately contains one), not by
+  // scanning to end-of-input, so an unterminated tag only loses ITS OWN declaration's remaining
+  // arguments, not every later declaration in the file — `remaining` starts AT that directive
+  // (nothing consumed past it) so the caller can resume parsing from there.
+  private def skipTypeTag(ts: List[Tok]): Either[List[Tok], List[Tok]] =
+    def go(depth: Int, rest: List[Tok]): Either[List[Tok], List[Tok]] = rest match
+      case TGreater :: tail     => if depth == 1 then Right(tail) else go(depth - 1, tail)
+      case TLess :: tail        => go(depth + 1, tail)
+      case (_: TDirective) :: _ => Left(rest)
+      case _ :: tail            => go(depth, tail)
+      case Nil                  => Left(Nil)
+    go(1, ts)
+
   // The plain names/literals up to the next directive/`%%`/EOF — one declaration's own argument
   // list (`%token`/`%left`/`%right`/`%nonassoc`'s own operands). A `<typeTag>` is dropped
   // WHEREVER it appears in the list, not just once at the start — a single `%token` line may
   // carry several typed groups (`%token <ival> NUM <sval> STR`, a common multi-type-tag idiom);
   // Gramaire has no per-nonterminal/token value-type system, so every tag is always irrelevant,
-  // not merely unrepresentable, and must not swallow the names that follow it.
-  private def argsOf(ts: List[Tok]): (Vector[String], List[Tok]) =
-    def go(acc: Vector[String], rest: List[Tok]): (Vector[String], List[Tok]) = rest match
-      case TLess :: tail   => go(acc, dropThrough(TGreater, tail))
-      case TId(n) :: tail  => go(acc :+ n, tail)
-      case TStr(s) :: tail => go(acc :+ s"'$s'", tail)
-      case _               => (acc, rest)
-    go(Vector.empty, ts)
+  // not merely unrepresentable, and must not swallow the names that follow it. An unterminated
+  // tag stops parsing THIS declaration's own remaining arguments (there's no reliable way to know
+  // where the next real token starts) but is warned about, rather than silently discarded.
+  private def argsOf(ts: List[Tok]): (Vector[String], List[Tok], Vector[String]) =
+    def go(
+        acc: Vector[String],
+        rest: List[Tok],
+        warns: Vector[String]
+    ): (Vector[String], List[Tok], Vector[String]) = rest match
+      case TLess :: tail =>
+        skipTypeTag(tail) match
+          case Right(after) => go(acc, after, warns)
+          case Left(rest2) =>
+            (
+              acc,
+              rest2,
+              warns :+ "unterminated `<type>` tag (missing closing `>`) — the rest of this declaration is dropped"
+            )
+      case TId(n) :: tail  => go(acc :+ n, tail, warns)
+      case TStr(s) :: tail => go(acc :+ s"'${gramLit(s)}'", tail, warns)
+      case _               => (acc, rest, warns)
+    go(Vector.empty, ts, Vector.empty)
 
   private def assocOf(name: String): Option[Assoc] = name match
     case "left"                    => Some(Assoc.LeftA)
@@ -254,10 +326,16 @@ object ConvertBison:
           acc.copy(warnings = acc.warnings :+ "dropped a `%{ … %}` code block (no Core equivalent)")
         )
       case TDirective("token") :: tail =>
-        val (args, rest) = argsOf(tail)
-        go(rest, acc.copy(tokenNames = acc.tokenNames ++ args.filterNot(isQuotedArg)))
+        val (args, rest, tagWarn) = argsOf(tail)
+        go(
+          rest,
+          acc.copy(
+            tokenNames = acc.tokenNames ++ args.filterNot(isQuotedArg),
+            warnings = acc.warnings ++ tagWarn
+          )
+        )
       case TDirective(word) :: tail if assocOf(word).isDefined =>
-        val (args, rest) = argsOf(tail)
+        val (args, rest, tagWarn) = argsOf(tail)
         val assoc = assocOf(word).get
         val (quoted, bare) = args.partition(isQuotedArg)
         val bareWarn =
@@ -271,16 +349,16 @@ object ConvertBison:
           rest,
           acc.copy(
             precedence = acc.precedence :+ (assoc -> quoted),
-            warnings = acc.warnings ++ bareWarn
+            warnings = acc.warnings ++ bareWarn ++ tagWarn
           )
         )
       case TDirective("start") :: TId(name) :: tail => go(tail, acc.copy(start = Some(name)))
       case TDirective(word) :: tail =>
-        val (_, rest) = argsOf(tail)
+        val (_, rest, tagWarn) = argsOf(tail)
         go(
           rest,
           acc.copy(warnings =
-            acc.warnings :+ s"dropped unsupported declaration `%$word` (no Core equivalent)"
+            acc.warnings ++ tagWarn :+ s"dropped unsupported declaration `%$word` (no Core equivalent)"
           )
         )
       case (_: TLineComment) :: tail  => go(tail, acc)
@@ -304,23 +382,27 @@ object ConvertBison:
       case _ :: tail                             => go(tail, syms, dAction, dPrec)
     go(ts0, Vector.empty, false, false)
 
-  // A rule's own leading doc-comment (ADR D39): the LAST comment immediately preceding its name,
-  // with nothing but other comments in between (a comment separated from this rule by a real
-  // token — the previous rule's own `;`, say — belongs to that rule's trailing text, not this
-  // one's heading, and is simply not carried anywhere).
-  private def leadingDoc(pending: Vector[String]): Option[String] =
-    if pending.isEmpty then None else Some(pending.mkString("\n").trim).filter(_.nonEmpty)
+  // A rule's own leading doc-comment (ADR D39): comments immediately preceding its name, back to
+  // (and including) the last one set off from whatever came before by a blank line. A comment
+  // with NO blank line before it — right after the previous rule's own `;`, with the `;` itself
+  // already dropped by `spanThrough` before this run of comments is even seen — is that PREVIOUS
+  // rule's trailing note, not this rule's heading, and every comment before the last
+  // blank-line-set-off one is discarded rather than misattributed to this rule.
+  private def leadingDoc(pending: Vector[(String, Boolean)]): Option[String] =
+    pending.lastIndexWhere(_._2) match
+      case -1 => None
+      case i  => Some(pending.drop(i).map(_._1).mkString("\n").trim).filter(_.nonEmpty)
 
   private def parseRules(ts0: List[Tok]): (Vector[YRule], Vector[String]) =
     def go(
         ts: List[Tok],
-        pendingDoc: Vector[String],
+        pendingDoc: Vector[(String, Boolean)],
         rules: Vector[YRule],
         warnings: Vector[String]
     ): (Vector[YRule], Vector[String]) = ts match
-      case Nil                      => (rules, warnings)
-      case TLineComment(s) :: tail  => go(tail, pendingDoc :+ s, rules, warnings)
-      case TBlockComment(s) :: tail => go(tail, pendingDoc :+ s, rules, warnings)
+      case Nil                             => (rules, warnings)
+      case TLineComment(s, blank) :: tail  => go(tail, pendingDoc :+ (s, blank), rules, warnings)
+      case TBlockComment(s, blank) :: tail => go(tail, pendingDoc :+ (s, blank), rules, warnings)
       case TId(name) :: TColon :: tail =>
         val (body, rest) = spanThrough(TSemi, tail)
         val alts = splitTop(TBar, body).map(parseAlt)
@@ -384,13 +466,27 @@ object ConvertBison:
   // any rule, not necessarily the one declared first, so a bare declaration-order carry-over
   // would silently change which language the imported grammar accepts whenever the two differ —
   // reorder so the declared start rule leads, preserving every other rule's relative order.
-  private def reorderForStart(rules: Vector[YRule], start: Option[String]): Vector[YRule] =
+  private def reorderForStart(
+      rules: Vector[YRule],
+      start: Option[String]
+  ): (Vector[YRule], Vector[String]) =
     start match
       case Some(name) if rules.headOption.exists(_.name != name) =>
         rules.find(_.name == name) match
-          case Some(startRule) => startRule +: rules.filterNot(_.name == name)
-          case None            => rules // %start names a rule that doesn't exist (or was dropped)
-      case _ => rules
+          case Some(startRule) => (startRule +: rules.filterNot(_.name == name), Vector.empty)
+          case None            =>
+            // %start names a rule that doesn't exist (a typo) or was dropped (dropUnrepresentable
+            // cascaded it away) — falling back to declaration order silently changes which
+            // language the grammar accepts, so this is flagged like every other unresolved
+            // construct, not silently swallowed.
+            (
+              rules,
+              Vector(
+                s"`%start $name` names a rule that isn't in the imported grammar (typo, or the " +
+                  "rule was dropped as unrepresentable) — falling back to declaration order"
+              )
+            )
+      case _ => (rules, Vector.empty)
 
   private def parseBison(src: String): Either[String, Parsed] =
     for
@@ -401,16 +497,17 @@ object ConvertBison:
       val decls = parseDecls(declToks.toList)
       val (rawRules, ruleWarnings) = parseRules(ruleToks.toList)
       val (rules, dropWarnings) = dropUnrepresentable(rawRules)
+      val (orderedRules, startWarn) = reorderForStart(rules, decls.start)
       val epilogueWarn =
         if epilogueText.exists(_.trim.nonEmpty) then
           Vector("dropped the epilogue (verbatim code after the final `%%`, no Core equivalent)")
         else Vector.empty
       Parsed(
-        reorderForStart(rules, decls.start),
+        orderedRules,
         decls.tokenNames.distinct,
         decls.precedence,
         decls.start,
-        (decls.warnings ++ ruleWarnings ++ dropWarnings ++ epilogueWarn).distinct
+        (decls.warnings ++ ruleWarnings ++ dropWarnings ++ startWarn ++ epilogueWarn).distinct
       )
 
   // ── Render to `.gram.md` ─────────────────────────────────────────────

@@ -322,13 +322,17 @@ object Lr:
   // A rule fence's own first non-blank line always starts with that rule's own name (`RuleName`
   // then `:`, same or next line) — enough to associate a section's leading prose with the ONE
   // rule it documents, without re-invoking the full lr-notation parser for this purely cosmetic,
-  // best-effort feature.
+  // best-effort feature. Any leading `#[attr]` tag(s) (ADR D28, e.g. `#[inline] Inner`) come
+  // BEFORE the name on that same line and are stripped first — otherwise the name-scan would stop
+  // at the tag's own leading `#` and find nothing, silently losing that rule's doc comment.
+  private val leadingAttrsRe = "^(#\\[[^\\]]*\\]\\s*)*".r
   private def firstIdent(content: String): Option[String] =
     content
       .split("\n", -1)
       .toVector
       .map(_.trim)
       .find(_.nonEmpty)
+      .map(l => leadingAttrsRe.replaceFirstIn(l, ""))
       .map(_.takeWhile(c => c.isLetterOrDigit || c == '_'))
       .filter(_.nonEmpty)
 
@@ -390,6 +394,16 @@ object Lr:
   def withDocComments(g: Grammar, md: String): Grammar =
     val docs = docCommentsOf(md)
     g.copy(rules = g.rules.map(r => if r.doc.isDefined then r else r.copy(doc = docs.get(r.name))))
+
+  /** Parses `md` and attaches its own rules' leading doc comments (ADR D39) in one step — every
+    * real IR-building caller that wants `IRNonterminal.comment` populated (the CLI's `gramaire
+    * emit`, and any future `lab`/browser consumer) should build from this, not the bare
+    * `parseWith`, so a rule's own leading prose survives end to end. Lives in `core` (not the
+    * `cli`-only `Main.scala`, where this was first added) so `lab` — which depends on `core` but
+    * not on `cli` — can reach it too, without a second, drifting copy of this same composition.
+    */
+  def parseWithDocs(method: Method, md: String): Either[Vector[Diagnostic], Grammar] =
+    parseWith(method, md).map(g => withDocComments(g, md))
 
   // A token-class definition line: an ALL-CAPS name then `:` on one
   // unindented line. A production head is a Mixed-case name on its OWN
