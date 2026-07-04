@@ -10,14 +10,25 @@ import type { FenceInfo } from "../protocol";
 // not grammar semantics, which is exactly what stays client-side per D43
 // ("TypeScript is web-glue only").
 
+const FENCE_OPEN = "```gramark";
+const FENCE_CLOSE = "```";
+
 /** A block's role: `"prose"` for the markdown between/around fences, or a fence's own
  * `FenceInfo.kind`. */
 export type DocBlockKind = "prose" | FenceInfo["kind"];
 
-/** One block of a `.grmk.md` document, in document order. Blocks partition `source`'s lines
- * contiguously with no gaps or overlaps, so `serializeDocument(buildDocument(source, fences))
- * === source` always holds, and replacing one block's `text` and re-serializing changes only
- * that block's own line range — never reflows a prose paragraph or another cell.
+/** One block of a `.grmk.md` document, in document order. For a fence block, `text` is ONLY the
+ * content strictly between the ```gramark/``` marker lines — never the markers themselves, so
+ * editing a cell can never destroy the fence structure by touching its first/last line (the
+ * original design let a cell's CodeMirror buffer include the marker lines as ordinary editable
+ * text; deleting or mangling one there silently corrupted `LabResponse.fences` detection for the
+ * whole rest of the document — caught from a real report: "no fences" after an unremarkable
+ * edit). `serializeDocument` re-wraps fence blocks with fresh markers on the way back out, so
+ * markers are always well-formed by construction. Blocks partition `source`'s lines contiguously
+ * with no gaps or overlaps (accounting for the 2 marker lines every fence block owns but doesn't
+ * carry in `text`), so `serializeDocument(buildDocument(source, fences)) === source` always
+ * holds, and replacing one block's `text` and re-serializing changes only that block's own line
+ * range — never reflows a prose paragraph or another cell.
  */
 export interface DocBlock {
   kind: DocBlockKind;
@@ -55,9 +66,11 @@ export function buildDocument(
 
   for (const f of fences) {
     pushProse(cursor, f.startLine - 1);
+    // f.startLine/f.endLine are the ```gramark/``` marker lines themselves (1-based) — the inner
+    // content is strictly between them.
     blocks.push({
       kind: f.kind,
-      text: lines.slice(f.startLine - 1, f.endLine).join("\n"),
+      text: lines.slice(f.startLine, f.endLine - 1).join("\n"),
       nonterminal: f.nonterminal,
       fenceIndex: f.index,
     });
@@ -70,16 +83,23 @@ export function buildDocument(
 
 /**
  * Reconstruct the document text from `blocks` — the identity function on `buildDocument`'s own
- * output, since blocks partition the source's lines contiguously with no gaps or overlaps.
+ * output. A fence block's `text` is re-wrapped with fresh ```gramark/``` markers; a prose block's
+ * `text` is emitted as-is. Blocks partition the source's lines contiguously with no gaps or
+ * overlaps, so this always round-trips exactly.
  */
 export function serializeDocument(blocks: readonly DocBlock[]): string {
-  return blocks.map((b) => b.text).join("\n");
+  return blocks
+    .map((b) =>
+      b.kind === "prose" ? b.text : `${FENCE_OPEN}\n${b.text}\n${FENCE_CLOSE}`,
+    )
+    .join("\n");
 }
 
 /**
  * Replace one block's text in place, leaving every other block's `text` untouched — an edit to
  * `index` produces a diff scoped to that block's own line range once re-serialized, never a
- * reflow of a prose paragraph or another cell.
+ * reflow of a prose paragraph or another cell. For a fence block, `newText` is the INNER content
+ * only (no markers) — exactly what a cell's editor holds.
  */
 export function replaceBlockText(
   blocks: readonly DocBlock[],
@@ -89,24 +109,27 @@ export function replaceBlockText(
   return blocks.map((b, i) => (i === index ? { ...b, text: newText } : b));
 }
 
-/** A `DocBlock` with its current 1-based, inclusive line span. */
+/** A `DocBlock` with its current 1-based, inclusive line span (in the FULL document — including
+ * a fence block's own marker lines, which its `text` doesn't carry). */
 export interface NumberedDocBlock extends DocBlock {
   startLine: number;
   endLine: number;
 }
 
 /**
- * 1-based start/end line numbers for each block, recomputed from the blocks' current `text` —
- * always consistent with a just-edited block (unlike `FenceInfo.startLine`/`endLine`, which are
- * only as fresh as the last `LabResponse`), for gutter numbering and cross-block navigation (e.g.
- * scrolling to the cell that defines a rule clicked in a railroad diagram).
+ * 1-based start/end line numbers for each block, recomputed from the blocks' current `text` (plus
+ * the 2 marker lines a fence block owns but doesn't carry in `text`) — always consistent with a
+ * just-edited block (unlike `FenceInfo.startLine`/`endLine`, which are only as fresh as the last
+ * `LabResponse`), for cross-block navigation (e.g. scrolling to the cell that defines a rule
+ * clicked in a railroad diagram).
  */
 export function withLineNumbers(
   blocks: readonly DocBlock[],
 ): NumberedDocBlock[] {
   let line = 1;
   return blocks.map((b) => {
-    const lineCount = b.text.split("\n").length;
+    const contentLines = b.text.split("\n").length;
+    const lineCount = b.kind === "prose" ? contentLines : contentLines + 2;
     const startLine = line;
     const endLine = line + lineCount - 1;
     line = endLine + 1;

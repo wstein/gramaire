@@ -43,6 +43,28 @@ test("every rule cell renders a role badge, its name, and a railroad diagram", a
   await expect(page.locator(".grimoire__output-railroad svg")).toHaveCount(3);
 });
 
+// Regression: .grimoire had `min-height: 100vh`, which grew it to its own full content height
+// (2000px+) regardless of the fixed-shell .content it lives inside — the excess was silently
+// clipped by .shell's `overflow: hidden` instead of ever scrolling, so anything past the first
+// viewport (like "Try it") was permanently unreachable. Fixed to `height: 100%; min-height: 0`
+// so .grimoire__body (flex: 1; min-height: 0; overflow: auto) is the one true scroll region.
+test("the notebook body scrolls to reach content below the first viewport", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  const body = page.locator(".grimoire__body");
+  const { clientHeight, scrollHeight } = await body.evaluate((el) => ({
+    clientHeight: el.clientHeight,
+    scrollHeight: el.scrollHeight,
+  }));
+  expect(scrollHeight).toBeGreaterThan(clientHeight);
+
+  await expect(page.locator(".grimoire__tryit")).not.toBeInViewport();
+  await body.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+  await expect(page.locator(".grimoire__tryit")).toBeInViewport();
+});
+
 test("editing a rule cell updates its railroad diagram live", async ({
   page,
 }) => {
@@ -86,6 +108,41 @@ test("editing a prose block to a different line count never corrupts sibling cel
   );
   // ...nor after it settles.
   await page.waitForTimeout(1000);
+  await expect(page.locator(".grimoire__badge")).toHaveCount(5);
+  await expect(page.locator(".grimoire__cell-name")).toHaveText([
+    "Expr",
+    "Term",
+    "Factor",
+  ]);
+  await expect(page.locator(".grimoire__output-railroad svg")).toHaveCount(3);
+});
+
+// Regression: a cell's editable text used to include the ```gramark/``` marker lines themselves
+// (block.text sliced the FULL fence span, markers included), so editing the first or last line
+// of a cell — trivially easy, they're right at the edges of the editable region — could delete a
+// marker and desync fence detection for the WHOLE REST of the document, reported as "no fences
+// after editing". Fixed: a fence block's text is now ONLY the inner content; serializeDocument
+// always re-wraps it with fresh markers, so no edit can ever touch marker lines at all.
+test("editing a cell's first line never exposes or corrupts its ```gramark markers", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  const ruleCell = page
+    .locator(".grimoire__cell")
+    .filter({ has: page.locator(".grimoire__badge--rule") })
+    .first();
+  const cellContent = ruleCell.locator(".cm-content");
+
+  await expect(cellContent).not.toContainText("```");
+
+  await cellContent.click();
+  await page.keyboard.press("Control+Home");
+  await page.keyboard.press("End");
+  await page.keyboard.type("   "); // touch the first line, still syntactically valid
+  await page.waitForTimeout(1000);
+
+  await expect(cellContent).not.toContainText("```");
   await expect(page.locator(".grimoire__badge")).toHaveCount(5);
   await expect(page.locator(".grimoire__cell-name")).toHaveText([
     "Expr",

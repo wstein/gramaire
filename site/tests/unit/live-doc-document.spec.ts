@@ -108,6 +108,44 @@ test("buildDocument: adjacent fences with no gap produce no spurious empty prose
   expect(serializeDocument(blocks)).toBe(source);
 });
 
+test("replaceBlockText: a fence block's text is inner content only, no markers", () => {
+  const source = readCalcMd();
+  const blocks = buildDocument(source, calcFences);
+  const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
+  expect(blocks[exprIndex].text).not.toContain("```gramark");
+  expect(blocks[exprIndex].text).not.toContain("```");
+  expect(blocks[exprIndex].text).toContain("Expr '+' Term");
+});
+
+// Regression: a cell's editable text used to include the ```gramark/``` marker lines themselves,
+// so touching the first or last line of a cell (very easy to do — they're right at the edges of
+// the editable region) could delete a marker and desync fence detection for the rest of the
+// document ("no fences" after an unremarkable edit). Since a fence block's `text` is now ONLY the
+// inner content, no edit — however drastic, including replacing the entire content with garbage —
+// can ever touch a marker line; `serializeDocument` always re-wraps with fresh, well-formed ones.
+test("replaceBlockText: no edit to a fence block's content can ever corrupt its markers", () => {
+  const source = readCalcMd();
+  const blocks = buildDocument(source, calcFences);
+  const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
+
+  const edited = replaceBlockText(
+    blocks,
+    exprIndex,
+    "not even valid grammar content at all",
+  );
+  const result = serializeDocument(edited);
+
+  // Still exactly as many ```gramark opens as there are fences — none dropped, none duplicated —
+  // regardless of what the edited cell's content looks like (calc.grmk.md also has an unrelated
+  // ```text fence for its "Error messages" section, so this checks the gramark-specific marker,
+  // not a bare ``` count, which that other fence's own closing line would inflate).
+  const openCount = (result.match(/```gramark/g) ?? []).length;
+  expect(openCount).toBe(calcFences.length);
+  expect(result).toContain(
+    "```gramark\nnot even valid grammar content at all\n```",
+  );
+});
+
 test("replaceBlockText: editing one block changes only that block's own line range", () => {
   const source = readCalcMd();
   const blocks = buildDocument(source, calcFences);
@@ -116,12 +154,12 @@ test("replaceBlockText: editing one block changes only that block's own line ran
   const edited = replaceBlockText(
     blocks,
     exprIndex,
-    original.replace("Expr : Expr `+` Term", "Expr : Expr `+` Term  // edited"),
+    original.replace("Expr '+' Term", "Expr '+' Term  {%? edited %}"),
   );
   const edited2 = replaceBlockText(
     edited,
     exprIndex,
-    `${blocks[exprIndex].text}\nEXTRA LINE`,
+    `${edited[exprIndex].text}\nEXTRA LINE`,
   );
   const result = serializeDocument(edited2);
 
@@ -130,7 +168,7 @@ test("replaceBlockText: editing one block changes only that block's own line ran
   const before = blocks.slice(0, exprIndex);
   const after = blocks.slice(exprIndex + 1);
   const beforeLineCount = before.reduce(
-    (n, b) => n + b.text.split("\n").length,
+    (n, b) => n + (b.kind === "prose" ? 0 : 2) + b.text.split("\n").length,
     0,
   );
 
@@ -139,8 +177,7 @@ test("replaceBlockText: editing one block changes only that block's own line ran
     originalLines.slice(0, beforeLineCount),
   );
   // Everything after the edited block (shifted by the one extra line) is untouched too.
-  const afterText = after.map((b) => b.text).join("\n");
-  expect(result.endsWith(afterText)).toBe(true);
+  expect(result.endsWith(serializeDocument(after))).toBe(true);
 });
 
 test("withLineNumbers: matches the original FenceInfo spans before any edit", () => {
