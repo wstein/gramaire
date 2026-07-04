@@ -70,9 +70,8 @@ class RailroadSuite extends munit.FunSuite:
     val svg = renderSvg(prod)
     assert(svg.contains("""<rect class="rr-action-box""""))
     assert(svg.contains("""<text class="rr-action-text""""))
-    // "=>" prettified to "⇒" — see prettifyOperators; "&&" has no mapping, left as-is.
-    assert(svg.contains("<title>(c) ⇒ c.term &lt; 1 &amp;&amp; c.term</title>"))
-    assert(svg.contains(">(c) ⇒ c.term &lt; 1 &amp;&amp; c.term</text>"))
+    assert(svg.contains("<title>(c) =&gt; c.term &lt; 1 &amp;&amp; c.term</title>"))
+    assert(svg.contains(">(c) =&gt; c.term &lt; 1 &amp;&amp; c.term</text>"))
   }
 
   test(
@@ -84,41 +83,13 @@ class RailroadSuite extends munit.FunSuite:
       Vector(Alt(Vector(DiaSym("Term", term = false)), action = Some(long)))
     )
     val svg = renderSvg(prod)
-    val prettyLong = long.replace("=>", "⇒")
-    assert(svg.contains(s"<title>$prettyLong</title>"))
-    // One char shorter after "=>" -> "⇒", so one more real character fits before the ellipsis.
-    assert(svg.contains(">(c) ⇒ { const total = c.term + c.expr; retu…</text>"))
+    val escapedLong = long.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    assert(svg.contains(s"<title>$escapedLong</title>"))
+    assert(svg.contains(">(c) =&gt; { const total = c.term + c.expr; ret…</text>"))
     assert(
-      !svg.contains(s">$prettyLong</text>"),
+      !svg.contains(s">$escapedLong</text>"),
       "the visible text must be truncated, unlike the title"
     )
-  }
-
-  test(
-    "renderSvg: prettifyOperators swaps common JS comparison operators for single-glyph equivalents"
-  ) {
-    val prod = Production(
-      "Expr",
-      Vector(
-        Alt(
-          Vector(DiaSym("Term", term = false)),
-          action = Some(
-            "c.a !== c.b && c.c === c.d && c.e <= c.f && c.g >= c.h && c.i != c.j && c.k == c.l"
-          )
-        )
-      )
-    )
-    val svg = renderSvg(prod)
-    assert(svg.contains("≢"))
-    assert(svg.contains("≡"))
-    assert(svg.contains("≤"))
-    assert(svg.contains("≥"))
-    assert(svg.contains("≠"))
-    assert(svg.contains("c.k = c.l"), "loose == becomes a plain =")
-    // Not mangled by a shorter operator's replacement eating into a longer one first.
-    assert(!svg.contains("≠="), "!== must not become a mangled ≠=")
-    assert(!svg.contains("≠=="), "!== must not become a mangled ≠==")
-    assert(!svg.contains("≡="), "=== must not become a mangled ≡=")
   }
 
   test(

@@ -115,32 +115,11 @@ object Railroad:
 
   private def normalizeWhitespace(s: String): String = s.replaceAll("\\s+", " ").trim
 
-  // Swaps common JS operator DIGRAPHS/TRIGRAPHS for their single-glyph math/logic equivalents —
-  // purely a diagram-readability nicety (the `<title>` tooltip shows this same prettified form,
-  // not the literal source; this is a diagram, not a copy-paste source viewer). A curated
-  // substitution, deliberately NOT a ligature font (Fira Code/JetBrains Mono/etc.): the site's own
-  // monospace typeface (IBM Plex Mono, `docs/BRANDING.md`) has no ligatures, a second webfont just
-  // for this is disproportionate, and a font's ligature set is automatic/imprecise — it reshapes
-  // whatever patterns IT recognizes (Fira Code also ligates `!!`, `www`, `::`, `->`, …), not
-  // exactly the operators below and nothing else. `===`/`!==` (strict) map to a visually
-  // "stronger" glyph than `==` (loose) — the same equal-vs-identical convention math already
-  // uses. Longest-first and non-overlapping: `===`/`!==` must replace before `==`/`!=` would
-  // otherwise consume part of them and leave a mangled remnant (e.g. `"===".replace("==","=")`
-  // alone would wrongly produce `"=="`, not `"="`).
-  private def prettifyOperators(s: String): String =
-    s.replace("!==", "≢")
-      .replace("===", "≡")
-      .replace("!=", "≠")
-      .replace("==", "=")
-      .replace("<=", "≤")
-      .replace(">=", "≥")
-      .replace("=>", "⇒")
-
   // Collapse to one line (an action is always logically one expression; embedded newlines would
   // just render as literal spaces in SVG anyway) and cap the length so one long action can't blow
   // out the diagram's width — the full, untruncated text still reaches the reader via `<title>`.
   private def truncateAction(action: String): String =
-    val oneLine = prettifyOperators(normalizeWhitespace(action))
+    val oneLine = normalizeWhitespace(action)
     if oneLine.length <= ACTION_MAX_CHARS then oneLine
     else oneLine.take(ACTION_MAX_CHARS - 1) + "…"
 
@@ -156,10 +135,7 @@ object Railroad:
     val isPredicate = rawAction.startsWith("?")
     val body = if isPredicate then rawAction.stripPrefix("?") else rawAction
     val prefix = if isPredicate then "? " else ""
-    ActionDisplay(
-      prefix + truncateAction(body),
-      prefix + prettifyOperators(normalizeWhitespace(body))
-    )
+    ActionDisplay(prefix + truncateAction(body), prefix + normalizeWhitespace(body))
 
   private def boxWidth(label: String): Int =
     math.max(MINW, math.round(label.length * CHARW + 2 * PADX).toInt)
