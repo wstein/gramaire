@@ -24,8 +24,10 @@ export interface CodeMirrorEditorProps {
   value: string;
   onChange: (text: string) => void;
   /** Fires when the editor loses focus — the notebook's cells commit-and-collapse-to-rendered-
-   * view on blur, the same interaction prose blocks already use. */
-  onBlur?: () => void;
+   * view on blur, the same interaction prose blocks already use. Takes the native FocusEvent so
+   * the caller can inspect `relatedTarget` (e.g. to recognize "focus moved to this cell's own
+   * Save/Cancel toolbar" and skip the auto-commit, letting the button's own click decide). */
+  onBlur?: (event: FocusEvent) => void;
   /** Grabs focus once, on mount — for a cell that just switched into edit mode. */
   autoFocus?: boolean;
   /** Squiggle underlines for located diagnostics, in cell-local coordinates. */
@@ -81,7 +83,7 @@ export function CodeMirrorEditor({
             onChangeRef.current(text);
           }),
           EditorView.domEventHandlers({
-            blur: () => onBlurRef.current?.(),
+            blur: (event) => onBlurRef.current?.(event),
           }),
         ],
       }),

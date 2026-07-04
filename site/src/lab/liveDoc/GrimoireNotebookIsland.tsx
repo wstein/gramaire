@@ -1,5 +1,6 @@
 import { signal, computed, effect } from "@preact/signals";
-import { useEffect, useMemo } from "preact/hooks";
+import { useEffect, useMemo, useRef } from "preact/hooks";
+import type { ComponentChildren } from "preact";
 import type {
   CstNode,
   DiagnosticInfo,
@@ -173,6 +174,15 @@ function endEditCell(index: number) {
   scheduleEvaluate();
 }
 
+// Closes the editor WITHOUT committing `cellDraft`/`proseDraft` — the toolbar's "Cancel". Safe
+// even though blur unconditionally commits (see endEditCell/endEditProse): the editor's own onBlur
+// handler recognizes "focus moved to my own toolbar" (via relatedTarget, see isOwnToolbar below)
+// and skips the auto-commit, leaving Save/Cancel's own click handler as the only thing that
+// decides — this also means Tab-then-Enter to Cancel works, not just a mouse click.
+function cancelEditCell() {
+  editingCell.value = null;
+}
+
 function beginEditProse(index: number, text: string) {
   editingProse.value = index;
   proseDraft.value = text;
@@ -182,6 +192,10 @@ function endEditProse(index: number) {
   blocks.value = replaceBlockText(blocks.value, index, proseDraft.value);
   editingProse.value = null;
   scheduleEvaluate();
+}
+
+function cancelEditProse() {
+  editingProse.value = null;
 }
 
 // Grows a textarea to fit its content — collapsing to `auto` first so a paste that REMOVES lines
@@ -199,24 +213,190 @@ function autosizeTextarea(el: HTMLTextAreaElement) {
   el.style.height = `${el.scrollHeight + borderY}px`;
 }
 
+// Wraps the textarea's current selection in `before`/`after` (or inserts `placeholder` between
+// them when nothing's selected), then re-selects the wrapped text so typing overwrites it —
+// applied to the live DOM node directly (not `proseDraft`) so the new selection can be restored
+// synchronously in the same tick, rather than racing a re-render.
+function wrapSelection(
+  el: HTMLTextAreaElement,
+  before: string,
+  after: string,
+  placeholder: string,
+) {
+  const s = el.selectionStart ?? 0;
+  const e = el.selectionEnd ?? 0;
+  const value = el.value;
+  const selected = value.slice(s, e) || placeholder;
+  const next = value.slice(0, s) + before + selected + after + value.slice(e);
+  el.value = next;
+  el.focus();
+  el.setSelectionRange(s + before.length, s + before.length + selected.length);
+  proseDraft.value = next;
+  autosizeTextarea(el);
+}
+
+// Headings are line-level, not a wrap around a selection: always prepends "## " to the start of
+// the cursor's own line (matching D29's H2-per-nonterminal convention — see markdown.ts's own
+// heading-level comment). Deliberately not a toggle (no "remove if already a heading" case) —
+// this is a minimal formatting affordance, not a full markdown editor.
+function formatHeading(el: HTMLTextAreaElement) {
+  const s = el.selectionStart ?? 0;
+  const value = el.value;
+  const lineStart = value.lastIndexOf("\n", s - 1) + 1;
+  const next = `${value.slice(0, lineStart)}## ${value.slice(lineStart)}`;
+  el.value = next;
+  const pos = s + 3;
+  el.focus();
+  el.setSelectionRange(pos, pos);
+  proseDraft.value = next;
+  autosizeTextarea(el);
+}
+
+// A link wraps the selection as the link text and appends a "(url)" placeholder, selected so
+// typing a real URL overwrites it directly (the common pattern: link text is often already
+// selected/typed, the URL is the part that still needs filling in).
+function formatLink(el: HTMLTextAreaElement) {
+  const s = el.selectionStart ?? 0;
+  const e = el.selectionEnd ?? 0;
+  const value = el.value;
+  const selected = value.slice(s, e) || "link text";
+  const next = `${value.slice(0, s)}[${selected}](url)${value.slice(e)}`;
+  el.value = next;
+  el.focus();
+  const urlStart = s + 1 + selected.length + 2;
+  el.setSelectionRange(urlStart, urlStart + 3);
+  proseDraft.value = next;
+  autosizeTextarea(el);
+}
+
+// True when `el` is inside one of this notebook's own editor toolbars — the editors' own onBlur
+// handlers check this against `relatedTarget` (the element ABOUT to gain focus) to recognize
+// "the user clicked/tabbed to my own Save/Cancel/formatting toolbar," and skip the auto-commit a
+// genuine blur-elsewhere still triggers, leaving the toolbar button's own click to decide. Works
+// for keyboard (Tab to a button, then Enter) exactly the same as a mouse click, since both end up
+// moving focus to an element inside `.grimoire__toolbar`.
+function isOwnToolbar(el: EventTarget | null): boolean {
+  return el instanceof Element && el.closest(".grimoire__toolbar") !== null;
+}
+
+// Shared by both inline editors' toolbars: Save/Cancel, plus whatever formatting controls the
+// caller passes (the prose editor's Bold/Italic/Heading/Code/Link; the grammar cell gets none —
+// source code isn't "formatted" the same way prose is).
+function EditorToolbar({
+  onSave,
+  onCancel,
+  flush,
+  children,
+}: {
+  onSave: () => void;
+  onCancel: () => void;
+  flush?: boolean;
+  children?: ComponentChildren;
+}) {
+  return (
+    <div class={`grimoire__toolbar${flush ? " grimoire__toolbar--flush" : ""}`}>
+      <div class="grimoire__toolbar-group">{children}</div>
+      <div class="grimoire__toolbar-actions">
+        <button
+          type="button"
+          class="grimoire__toolbar-btn grimoire__toolbar-btn--cancel"
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="grimoire__toolbar-btn grimoire__toolbar-btn--save"
+          onClick={onSave}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
+  // Read by the toolbar's formatting buttons (Bold/Italic/Heading/Code/Link) to reach the live DOM
+  // node directly — they operate on `selectionStart`/`selectionEnd`, which only the real element
+  // has, not `proseDraft`.
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
   if (editingProse.value === index) {
+    const withTextarea = (fn: (el: HTMLTextAreaElement) => void) => () => {
+      if (textareaRef.current) fn(textareaRef.current);
+    };
     return (
-      <textarea
-        class="grimoire__prose-editor"
-        autoFocus
-        spellcheck={false}
-        value={proseDraft.value}
-        ref={(el) => {
-          if (el) autosizeTextarea(el);
-        }}
-        onInput={(e) => {
-          const el = e.target as HTMLTextAreaElement;
-          proseDraft.value = el.value;
-          autosizeTextarea(el);
-        }}
-        onBlur={() => endEditProse(index)}
-      />
+      <>
+        <EditorToolbar
+          onSave={() => endEditProse(index)}
+          onCancel={() => cancelEditProse()}
+        >
+          <button
+            type="button"
+            class="grimoire__toolbar-btn grimoire__toolbar-btn--bold"
+            title="Bold"
+            onClick={withTextarea((el) =>
+              wrapSelection(el, "**", "**", "bold text"),
+            )}
+          >
+            B
+          </button>
+          <button
+            type="button"
+            class="grimoire__toolbar-btn grimoire__toolbar-btn--italic"
+            title="Italic"
+            onClick={withTextarea((el) =>
+              wrapSelection(el, "*", "*", "italic text"),
+            )}
+          >
+            I
+          </button>
+          <button
+            type="button"
+            class="grimoire__toolbar-btn grimoire__toolbar-btn--heading"
+            title="Heading"
+            onClick={withTextarea(formatHeading)}
+          >
+            H
+          </button>
+          <button
+            type="button"
+            class="grimoire__toolbar-btn grimoire__toolbar-btn--code"
+            title="Code"
+            onClick={withTextarea((el) => wrapSelection(el, "`", "`", "code"))}
+          >
+            {"`"}
+          </button>
+          <button
+            type="button"
+            class="grimoire__toolbar-btn grimoire__toolbar-btn--link"
+            title="Link"
+            onClick={withTextarea(formatLink)}
+          >
+            Link
+          </button>
+        </EditorToolbar>
+        <textarea
+          class="grimoire__prose-editor"
+          autoFocus
+          spellcheck={false}
+          value={proseDraft.value}
+          ref={(el) => {
+            textareaRef.current = el;
+            if (el) autosizeTextarea(el);
+          }}
+          onInput={(e) => {
+            const el = e.target as HTMLTextAreaElement;
+            proseDraft.value = el.value;
+            autosizeTextarea(el);
+          }}
+          onBlur={(e) => {
+            if (isOwnToolbar(e.relatedTarget)) return;
+            endEditProse(index);
+          }}
+        />
+      </>
     );
   }
   // Memoized on the block's own text: without this, every keystroke in ANY cell recomputes
@@ -315,21 +495,31 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
         {hasError && <span class="grimoire__cell-error-tag">error</span>}
       </div>
       {isEditing ? (
-        <CodeMirrorEditor
-          className="grimoire__editor"
-          // The STABLE, pre-edit text — never cellDraft.value here (see CodeMirrorEditor's own
-          // [value]-effect comment for why round-tripping onChange's own output back into value
-          // is a real, empirically-confirmed race under rapid typing). CodeMirror owns the live
-          // typing state on its own; cellDraft only needs to hold the latest text for
-          // endEditCell's blur-time commit.
-          value={block.text}
-          autoFocus
-          diagnostics={editorDiags}
-          onChange={(text) => {
-            cellDraft.value = text;
-          }}
-          onBlur={() => endEditCell(index)}
-        />
+        <>
+          <EditorToolbar
+            flush
+            onSave={() => endEditCell(index)}
+            onCancel={() => cancelEditCell()}
+          />
+          <CodeMirrorEditor
+            className="grimoire__editor"
+            // The STABLE, pre-edit text — never cellDraft.value here (see CodeMirrorEditor's own
+            // [value]-effect comment for why round-tripping onChange's own output back into value
+            // is a real, empirically-confirmed race under rapid typing). CodeMirror owns the live
+            // typing state on its own; cellDraft only needs to hold the latest text for
+            // endEditCell's blur-time commit.
+            value={block.text}
+            autoFocus
+            diagnostics={editorDiags}
+            onChange={(text) => {
+              cellDraft.value = text;
+            }}
+            onBlur={(e) => {
+              if (isOwnToolbar(e.relatedTarget)) return;
+              endEditCell(index);
+            }}
+          />
+        </>
       ) : (
         <div
           class="grimoire__cell-rendered"
