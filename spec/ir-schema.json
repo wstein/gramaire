@@ -248,6 +248,10 @@
         },
         "name": {
           "type": "string"
+        },
+        "comment": {
+          "type": "string",
+          "description": "Cross-format doc-comment round-trip (ADR D39); omitted when absent."
         }
       }
     },
