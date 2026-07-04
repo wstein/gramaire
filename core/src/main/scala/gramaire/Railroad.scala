@@ -25,7 +25,8 @@ object Railroad:
   // when the caller has one to show — `None` for every CLI/sidecar-parsed Production (see
   // `parseProduction`, which strips actions before tokenizing and never repopulates this), so
   // committed sidecar SVGs stay byte-identical. Only the live-engine path (`LabApi.analysisOf`)
-  // ever sets it, rendered as a small hoverable badge by `renderSvg`.
+  // ever sets it, rendered by `renderSvg` as truncated italic text annexed to the alt's own row
+  // (`truncateAction`), with the full source as a native hover tooltip.
   final case class Alt(syms: Vector[DiaSym], action: Option[String] = None)
 
   final case class Production(name: String, alts: Vector[Alt])
@@ -105,13 +106,19 @@ object Railroad:
   private val BRANCH = 22
   private val MINW = 26
   private val CAPR = 3
-  private val ACTIONR = 9
-  private val ACTIONGAP = GAP / 2
-  private val ACTIONGLYPH =
-    "ƒ" // ƒ, reads as "function" — same single-glyph convention as a `+`/`-` terminal circle
+  private val ACTIONGAP = GAP
+  private val ACTION_MAX_CHARS = 44
 
   private def fmtNum(d: Double): String =
     if d == d.toLong.toDouble then d.toLong.toString else d.toString
+
+  // Collapse to one line (an action is always logically one expression; embedded newlines would
+  // just render as literal spaces in SVG anyway) and cap the length so one long action can't blow
+  // out the diagram's width — the full, untruncated text still reaches the reader via `<title>`.
+  private def truncateAction(action: String): String =
+    val oneLine = action.replaceAll("\\s+", " ").trim
+    if oneLine.length <= ACTION_MAX_CHARS then oneLine
+    else oneLine.take(ACTION_MAX_CHARS - 1) + "…"
 
   private def boxWidth(label: String): Int =
     math.max(MINW, math.round(label.length * CHARW + 2 * PADX).toInt)
@@ -129,17 +136,15 @@ object Railroad:
     ".rr-track{fill:none;stroke:#6B7280;stroke-width:2}" +
       ".rr-term{fill:#fff;stroke:#15B879;stroke-width:2}" +
       ".rr-nonterm{fill:#F5F6F3;stroke:#16181D;stroke-width:2}" +
-      ".rr-action{fill:#fff;stroke:#8B5CF6;stroke-width:2}" +
       s".rr-text{fill:#16181D;font:$font}" +
-      s".rr-action-text{fill:#8B5CF6;font:$font}" +
+      s".rr-action-text{fill:#8B5CF6;font:$font;font-style:italic}" +
       ".rr-cap{fill:#16181D}"
   private val styleThemed =
     ".rr-track{fill:none;stroke:var(--rr-track,#6B7280);stroke-width:2}" +
       ".rr-term{fill:var(--rr-term-fill,#fff);stroke:var(--rr-term-stroke,#15B879);stroke-width:2}" +
       ".rr-nonterm{fill:var(--rr-nonterm-fill,#F5F6F3);stroke:var(--rr-ink,#16181D);stroke-width:2}" +
-      ".rr-action{fill:var(--rr-action-fill,#fff);stroke:var(--rr-action-stroke,#8B5CF6);stroke-width:2}" +
       s".rr-text{fill:var(--rr-ink,#16181D);font:$font}" +
-      s".rr-action-text{fill:var(--rr-action-stroke,#8B5CF6);font:$font}" +
+      s".rr-action-text{fill:var(--rr-action-stroke,#8B5CF6);font:$font;font-style:italic}" +
       ".rr-cap{fill:var(--rr-ink,#16181D)}"
 
   // ---- SVG renderer -------------------------------------------------------
@@ -147,17 +152,23 @@ object Railroad:
   def renderSvg(prod: Production, themed: Boolean = false): String =
     val alts = if prod.alts.nonEmpty then prod.alts else Vector(Alt(Vector.empty))
     def altWidth(a: Alt): Int =
-      val symsW = a.syms.zipWithIndex.foldLeft(0) { case (w, (s, idx)) =>
+      a.syms.zipWithIndex.foldLeft(0) { case (w, (s, idx)) =>
         w + boxWidth(s.label) + (if idx > 0 then GAP else 0)
       }
-      symsW + (if a.action.isDefined then ACTIONGAP + 2 * ACTIONR else 0)
     val contentW = math.max(MINW, alts.map(altWidth).max)
 
     val startX = MARGIN + STUB + BRANCH
     val joinStartX = startX + contentW
     val endX = joinStartX + BRANCH
     val exitX = endX + STUB
-    val width = exitX + MARGIN
+    // An action never widens the railroad's own fork/join geometry — it's an annotation, not part
+    // of the grammar's shape — so it's laid out entirely past `exitX`, on its own row's arm, sized
+    // off the diagram's width only when at least one alt actually has one.
+    val actionWidths =
+      alts.flatMap(_.action).map(a => math.round(truncateAction(a).length * CHARW).toInt)
+    val width =
+      if actionWidths.isEmpty then exitX + MARGIN
+      else exitX + ACTIONGAP + actionWidths.max + MARGIN
     val forkX = MARGIN + STUB
     val n = alts.length
     def rowTop(i: Int): Int = MARGIN + i * (BOXH + VGAP)
@@ -206,21 +217,6 @@ object Railroad:
         cx += bw
       }
 
-      // A small "ƒ" badge annexed to the end of the alternative's own row when it carries a
-      // `{% %}` action — a `<title>` gives a native hover tooltip with the action source (no
-      // frontend JS needed: the caller injects this SVG string as raw markup).
-      alt.action.foreach { action =>
-        cx += ACTIONGAP
-        val acx = cx + ACTIONR
-        p += s"""<circle class="rr-action" cx="${fmtNum(acx)}" cy="${fmtNum(
-            yi
-          )}" r="$ACTIONR"><title>${escXml(action)}</title></circle>"""
-        p += s"""<text class="rr-action-text" x="${fmtNum(acx)}" y="${fmtNum(
-            yi
-          )}" text-anchor="middle" dominant-baseline="central">$ACTIONGLYPH</text>"""
-        cx += 2 * ACTIONR
-      }
-
       if cx < joinStartX then
         p += s"""<path class="rr-track" d="M$cx ${fmtNum(yi)} H$joinStartX"/>"""
 
@@ -234,6 +230,20 @@ object Railroad:
           )} $endX ${fmtNum(yi - R)} V${fmtNum(mainY + R)} Q$endX ${fmtNum(
             mainY
           )} ${endX + R} ${fmtNum(mainY)}"/>"""
+
+      // The alternative's own `{% %}` action, past the diagram's own track entirely (never part
+      // of the fork/join geometry) but aligned with this arm's own row — a `<title>` still carries
+      // the full, untruncated source as a native hover tooltip (no frontend JS needed: the caller
+      // injects this SVG string as raw markup).
+      alt.action.foreach { action =>
+        val shown = truncateAction(action)
+        val ax = exitX + ACTIONGAP
+        p += s"""<text class="rr-action-text" x="$ax" y="${fmtNum(
+            yi
+          )}" text-anchor="start" dominant-baseline="central"><title>${escXml(
+            action
+          )}</title>${escXml(shown)}</text>"""
+      }
     }
 
     s"""<svg xmlns="http://www.w3.org/2000/svg" width="$width" height="$height" """ +

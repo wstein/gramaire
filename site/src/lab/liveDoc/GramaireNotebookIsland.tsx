@@ -184,6 +184,21 @@ function endEditProse(index: number) {
   scheduleEvaluate();
 }
 
+// Grows a textarea to fit its content — collapsing to `auto` first so a paste that REMOVES lines
+// shrinks it back down too, not just a one-way grow. Called both on mount (a multi-line block
+// opened straight into its full height, not a cramped fixed box that then jumps) and on every
+// keystroke.
+function autosizeTextarea(el: HTMLTextAreaElement) {
+  el.style.height = "auto";
+  // tokens.css's global `box-sizing: border-box` means a specified `height` already INCLUDES
+  // border — but `scrollHeight` never does, border-box or not — so setting height to scrollHeight
+  // alone comes up short by exactly the border width, clipping the last line by a couple of
+  // pixels. `offsetHeight - clientHeight` (no scrollbar, thanks to `overflow-y: hidden`) is that
+  // border width, measured directly rather than assumed from the current CSS.
+  const borderY = el.offsetHeight - el.clientHeight;
+  el.style.height = `${el.scrollHeight + borderY}px`;
+}
+
 function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
   if (editingProse.value === index) {
     return (
@@ -192,8 +207,13 @@ function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
         autoFocus
         spellcheck={false}
         value={proseDraft.value}
+        ref={(el) => {
+          if (el) autosizeTextarea(el);
+        }}
         onInput={(e) => {
-          proseDraft.value = (e.target as HTMLTextAreaElement).value;
+          const el = e.target as HTMLTextAreaElement;
+          proseDraft.value = el.value;
+          autosizeTextarea(el);
         }}
         onBlur={() => endEditProse(index)}
       />

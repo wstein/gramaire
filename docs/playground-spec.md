@@ -721,20 +721,26 @@ alike — uses the same click-to-edit interaction**: by default it shows a
 rendered, read-only view (a rule cell: its railroad diagram/FIRST-FOLLOW from
 `LabResponse.analysis`; a Tokens/Settings/Precedence cell, which has no
 railroad equivalent: its source in a plain read-only `<pre>`; a prose block:
-rendered markdown). An alternative with a `{% %}` action gets a small violet
-"ƒ" badge annexed to the end of its own row in the railroad diagram
-(`Railroad.Alt.action`, rendered by `Railroad.renderSvg` — a native SVG
-`<title>` gives a hover tooltip with the action source, so no frontend JS is
-needed); the CLI's `gramaire fmt --diagrams=sidecar` output is unaffected
+rendered markdown). An alternative with a `{% %}` action gets its real,
+truncated (44-char max, `Railroad.truncateAction`) source rendered in violet
+italic to the right of the whole diagram, aligned with that alternative's
+own row/arm rather than squeezed into the fork/join geometry — actions never
+widen the railroad's own tracks, only the overall `<svg>` if the longest one
+needs the extra column width. (`Railroad.Alt.action`, rendered by
+`Railroad.renderSvg` — a native SVG `<title>` on the same element still
+carries the full, untruncated source as a hover tooltip, so no frontend JS is
+needed.) The CLI's `gramaire fmt --diagrams=sidecar` output is unaffected
 (`parseProduction` never populates `action`, so committed sidecar SVGs stay
-byte-identical — the badge is a live-engine-only enhancement, and the Lab's
-own Grammar tab gets it too, since both share the same `analysisOf` call
-path). Clicking a rendered cell reveals a `CodeMirrorEditor`
+byte-identical — this is a live-engine-only enhancement, and the Lab's own
+Grammar tab gets it too, since both share the same `analysisOf` call path).
+Clicking a rendered cell reveals a `CodeMirrorEditor`
 (`site/src/lab/liveDoc/CodeMirrorEditor.tsx`, plain text — no `.gram` language
-mode yet) or, for prose, a raw-markdown `<textarea>`; blurring commits the
-edit into the shared `blocks` signal (once, not per keystroke) and collapses
-back to the rendered view — source and rendered output are never shown
-together. Prose renders via a small markdown-lite parser
+mode yet) or, for prose, a raw-markdown `<textarea>` that grows to fit its
+own content (`autosizeTextarea`, re-measured on mount and every keystroke —
+so a multi-line block opens at its real height instead of a cramped fixed
+box); blurring commits the edit into the shared `blocks` signal (once, not
+per keystroke) and collapses back to the rendered view — source and rendered
+output are never shown together. Prose renders via a small markdown-lite parser
 (`site/src/lab/liveDoc/markdown.ts`, unit-tested — headings/paragraphs/
 `code`/`**bold**`/`![alt](src)` image links/GFM pipe tables, not full
 CommonMark). An image link resolves to its actual sidecar SVG

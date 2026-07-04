@@ -56,7 +56,7 @@ class RailroadSuite extends munit.FunSuite:
   }
 
   test(
-    "renderSvg: an alt with an action renders a hoverable ƒ badge with the escaped action as its title"
+    "renderSvg: an alt with an action renders it as real text, with the full source as a hover title"
   ) {
     val prod = Production(
       "Expr",
@@ -68,11 +68,27 @@ class RailroadSuite extends munit.FunSuite:
       )
     )
     val svg = renderSvg(prod)
-    // `.rr-action`/`.rr-action-text` also name the (always-present) <style> rules, so assert the
-    // actual badge ELEMENT is present, not just the class name as a substring.
-    assert(svg.contains("""<circle class="rr-action""""))
-    assert(svg.contains(">ƒ<"))
+    assert(svg.contains("""<text class="rr-action-text""""))
     assert(svg.contains("<title>(c) =&gt; c.term &lt; 1 &amp;&amp; c.term</title>"))
+    assert(svg.contains(">(c) =&gt; c.term &lt; 1 &amp;&amp; c.term</text>"))
+  }
+
+  test(
+    "renderSvg: an action longer than 44 chars is truncated with an ellipsis, but the title keeps the full text"
+  ) {
+    val long = "(c) => { const total = c.term + c.expr; return total * 2 }"
+    val prod = Production(
+      "Expr",
+      Vector(Alt(Vector(DiaSym("Term", term = false)), action = Some(long)))
+    )
+    val svg = renderSvg(prod)
+    val escapedLong = long.replace("=>", "=&gt;")
+    assert(svg.contains(s"<title>$escapedLong</title>"))
+    assert(svg.contains(">(c) =&gt; { const total = c.term + c.expr; ret…</text>"))
+    assert(
+      !svg.contains(s">$escapedLong</text>"),
+      "the visible text must be truncated, unlike the title"
+    )
   }
 
   test(
@@ -82,5 +98,46 @@ class RailroadSuite extends munit.FunSuite:
       Production("Expr", Vector(Alt(Vector(DiaSym("Term", term = false)), action = None)))
     val bare = Production("Expr", Vector(Alt(Vector(DiaSym("Term", term = false)))))
     assertEquals(renderSvg(withNone), renderSvg(bare))
-    assert(!renderSvg(withNone).contains("""<circle class="rr-action""""))
+    // ".rr-action-text" alone would trivially match the SVG's own always-present <style> rule, so
+    // check for the actual element.
+    assert(!renderSvg(withNone).contains("""<text class="rr-action-text""""))
+  }
+
+  test(
+    "renderSvg: an action never widens its own row's fork/join geometry — it's laid out past the diagram, not squeezed in before the merge"
+  ) {
+    val short =
+      Production("Expr", Vector(Alt(Vector(DiaSym("Term", term = false)), action = Some("f"))))
+    val long = Production(
+      "Expr",
+      Vector(Alt(Vector(DiaSym("Term", term = false)), action = Some("a much longer action")))
+    )
+    def actionX(svg: String) =
+      """<text class="rr-action-text" x="(\d+)"""".r.findFirstMatchIn(svg).map(_.group(1))
+    // Both alts have the exact same symbol row ("Term"), so the fork/join geometry — and thus
+    // where the action column starts — must be identical regardless of the action text's own
+    // length (only the overall <svg> width grows to fit a longer one).
+    assertEquals(actionX(renderSvg(short)), actionX(renderSvg(long)))
+  }
+
+  test(
+    "renderSvg: each alt's action is aligned with its own arm — same x, each at its own row's y"
+  ) {
+    val prod = Production(
+      "Expr",
+      Vector(
+        Alt(Vector(DiaSym("Term", term = false)), action = Some("first")),
+        Alt(Vector(DiaSym("NUMBER", term = true)), action = Some("second"))
+      )
+    )
+    val svg = renderSvg(prod)
+    val actionTags = """<text class="rr-action-text" x="(\d+)" y="([\d.]+)"""".r
+      .findAllMatchIn(svg)
+      .map(m => (m.group(1), m.group(2)))
+      .toVector
+    assertEquals(actionTags.length, 2)
+    // Same column (both actions start at the same x, regardless of each row's own symbol width)...
+    assertEquals(actionTags.map(_._1).distinct.length, 1)
+    // ...but each at its own row's height, not both crammed onto one line.
+    assertEquals(actionTags.map(_._2).distinct.length, 2)
   }
