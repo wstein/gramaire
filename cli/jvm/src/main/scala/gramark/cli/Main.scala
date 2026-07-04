@@ -62,6 +62,16 @@ object Main:
     */
   def grammarName(md: String): Either[String, String] = Lr.nameOf(md).toRight(missingNameError)
 
+  /** Parses `md` and attaches its own rules' leading doc comments (ADR D39) — every real emit path
+    * builds its IR from this, not the bare parse result, so a rule's own leading prose survives
+    * into `IRNonterminal.comment` for any backend that reads it (`bison`, so far).
+    * `Lr.parseWith`/`Lr.parse` themselves never do this attachment (see `Lr.withDocComments`'s own
+    * doc comment): `SelfHostSuite`'s exact-equality check against `Bootstrap.bootstrapGrammar`
+    * calls `Lr.parseWith` directly and never goes through `Main`, so this stays safe to do here.
+    */
+  def parseWithDocs(method: Method, md: String): Either[Vector[Diagnostic], Grammar] =
+    Lr.parseWith(method, md).map(g => Lr.withDocComments(g, md))
+
   /** Whether `b` declares support for `strategy` — `emit`'s strategy gate, pulled out so it's
     * checkable without going through `die`/`sys.exit`.
     */
@@ -116,7 +126,7 @@ object Main:
                 readFile(file) match
                   case Left(err) => die(s"emit: cannot read $file: $err")
                   case Right(md) =>
-                    Lr.parseWith(Method.Canonical, md) match
+                    parseWithDocs(Method.Canonical, md) match
                       case Left(diags) =>
                         die(s"emit: parse error in $file:\n\n" + renderDiags(diags, file, md))
                       case Right(g) =>
@@ -188,17 +198,27 @@ object Main:
   // Core home (predicates, actions, modes) are dropped and reported on
   // stderr.
   // `import`'s own base name, capitalized — Bison has no `grammar Name;`-equivalent declaration
-  // (unlike ANTLR), so `ConvertBison.importBison` needs the caller to supply one.
+  // (unlike ANTLR), so `ConvertBison.importBison` needs the caller to supply one. Strips `.yy`
+  // before `.y` (a `.yy`'s last two characters are `yy`, not `.y`, so checking `.y` first would
+  // never match it) and compares case-insensitively so a `.Y`/`.YY` file's extension doesn't leak
+  // into the emitted name.
   private def baseNameOf(file: String): String =
-    val base = file.split("[/\\\\]").last.stripSuffix(".y")
+    val stripped = file.split("[/\\\\]").last
+    val lower = stripped.toLowerCase
+    val base =
+      if lower.endsWith(".yy") then stripped.dropRight(3)
+      else if lower.endsWith(".y") then stripped.dropRight(2)
+      else stripped
     if base.isEmpty then base else base.take(1).toUpperCase + base.drop(1)
 
   // Dispatches on the input file's own extension — `.g4` (ANTLR4) or `.y`/`.yy` (Bison/yacc,
   // ADR D38) — mirroring how `emit --backend <name>` itself is backend-name-driven, just keyed
-  // by the INPUT format here instead of the output one.
+  // by the INPUT format here instead of the output one. Compared case-insensitively, matching a
+  // filesystem convention CLI users expect (`.G4`/`.Y` work the same as `.g4`/`.y`).
   def importResult(file: String, src: String): Either[String, Imported] =
-    if file.endsWith(".g4") then ConvertAntlr.importAntlr(src)
-    else if file.endsWith(".y") || file.endsWith(".yy") then
+    val lower = file.toLowerCase
+    if lower.endsWith(".g4") then ConvertAntlr.importAntlr(src)
+    else if lower.endsWith(".y") || lower.endsWith(".yy") then
       ConvertBison.importBison(src, baseNameOf(file))
     else Left(s"unrecognized import format (expected a .g4 or .y/.yy file): $file")
 

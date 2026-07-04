@@ -77,6 +77,4 @@ object BackendBison:
     val declSection = (tokenSection ++ precSection).mkString("\n")
     val rulesSection = ir.grammar.nonterminals.map(parserRule).mkString("\n")
 
-    Vector(if declSection.isEmpty then "" else declSection, "%%", "", rulesSection, "%%")
-      .filter(_.nonEmpty)
-      .mkString("\n")
+    Vector(declSection, "%%", rulesSection, "%%").filter(_.nonEmpty).mkString("\n")

@@ -1,5 +1,7 @@
 package gramark
 
+import Sym.*
+
 // Covers the Bison/yacc import half (ADR D38, mirroring ConvertAntlrSuite's own coverage): a
 // `.y` grammar lowers to a Gramark `.grmk.md` that parses and re-exports, the round trip
 // `import -> parse -> IR -> emit bison -> import` reaches a fixed point (including precedence
@@ -222,4 +224,62 @@ class ConvertBisonSuite extends munit.FunSuite:
           case Right(g) =>
             assertEquals(g.rules.headOption.map(_.name), Some("expr"))
             assertEquals(g.rules.map(_.name), Vector("expr", "helper"))
+  }
+
+  test(
+    "convert: an escaped-quote literal (`'\\''`) decodes to one apostrophe char, not a raw " +
+      "backslash-quote pair, and re-renders as a valid Gramark literal"
+  ) {
+    val y =
+      """%%
+        |expr : '\'' | 'x' ;
+        |%%
+        |""".stripMargin
+    ConvertBison.importBison(y, "P") match
+      case Left(e) => fail(s"should import: $e")
+      case Right(imp) =>
+        assert(
+          imp.markdown.contains("'\\''"),
+          s"the rendered literal should be the correctly-escaped `'\\''`, got:\n${imp.markdown}"
+        )
+        Lr.parse(imp.markdown) match
+          case Left(e) => fail(s"the rendered literal should re-parse as valid Gramark: $e")
+          case Right(g) =>
+            val syms = g.rules.head.alts.map(_.syms)
+            assert(
+              syms.exists(_.contains(Lit("'"))),
+              "the escaped literal should decode to a single apostrophe character"
+            )
+  }
+
+  test("convert: a `%token` line with more than one `<type>` tag keeps every token name") {
+    val y =
+      """%token <ival> NUM <sval> STR
+        |%%
+        |expr : NUM | STR ;
+        |%%
+        |""".stripMargin
+    ConvertBison.importBison(y, "P") match
+      case Left(e) => fail(s"should import: $e")
+      case Right(imp) =>
+        assert(imp.markdown.contains("NUM"), "the first type-tagged token name survives")
+        assert(
+          imp.markdown.contains("STR"),
+          "the SECOND type-tagged token name must also survive, not be silently dropped"
+        )
+  }
+
+  test("convert: a double-quoted Bison string-literal token imports like a single-quoted one") {
+    val y =
+      """%%
+        |expr : expr "++" | 'x' ;
+        |%%
+        |""".stripMargin
+    ConvertBison.importBison(y, "P") match
+      case Left(e) => fail(s"a double-quoted literal token should import, not fail outright: $e")
+      case Right(imp) =>
+        assert(
+          imp.markdown.contains("'++'"),
+          "the double-quoted literal survives as a Gramark literal"
+        )
   }
