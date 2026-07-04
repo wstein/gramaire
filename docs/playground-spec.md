@@ -708,6 +708,13 @@ mid-review in favor of this standalone shape (see this session's feedback
 memory). Named "Gramaire Notebook" per `docs/rebrand-gramaire-plan.md` — the
 feature-level name ships now, ahead of any project-wide rebrand.
 
+Linked from the shared site nav (`gramaire-topbar.mjs`'s `SECTIONS`/`LABELS`,
+`AppShell.astro`'s `detectActive` — before this it was an orphaned page,
+resolving to no active nav section at all) and from the homepage (a
+`FeatureTile` and a footer link, alongside the existing Lab mentions). Like
+the Lab, it hides the Starlight search box (`AppShell.astro`'s `showSearch`):
+both are interactive tools with no indexable Pagefind content of their own.
+
 Renders the whole document as prose interleaved with per-fence cells, each
 showing its `fences`-reported role badge. **Every cell — grammar and prose
 alike — uses the same click-to-edit interaction**: by default it shows a

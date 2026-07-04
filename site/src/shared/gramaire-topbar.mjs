@@ -15,7 +15,8 @@
 // non-Astro Lab surface (docs/playground-spec.md M4+) can mount it too.
 //
 // Attributes (all optional; `data-*` aliases accepted):
-//   active   "home" | "tutorial" | "docs" | "lab" — which section is current
+//   active   "home" | "tutorial" | "docs" | "lab" | "notebook" — which section
+//            is current
 //   base     the deploy base path (import.meta.env.BASE_URL, e.g. "/gramaire/"
 //            in CI, "/" locally) — every link is resolved from it, so a
 //            hand-written `href="/tutorials/intro/"` string (which Astro does
@@ -40,12 +41,13 @@
 // same key, so both surfaces agree on one source of truth.
 
 export const THEME_KEY = "starlight-theme";
-export const SECTIONS = ["home", "tutorial", "docs", "lab"];
+export const SECTIONS = ["home", "tutorial", "docs", "lab", "notebook"];
 export const LABELS = {
   home: "Home",
   tutorial: "Tutorial",
   docs: "Docs",
   lab: "Lab",
+  notebook: "Notebook",
 };
 
 // Pure link resolver — exported so it can be unit-tested without a DOM.
@@ -54,6 +56,7 @@ export function resolveHref(section, base = "/") {
   if (section === "tutorial") return `${b}tutorials/intro/`;
   if (section === "docs") return `${b}docs/overview/`;
   if (section === "lab") return `${b}lab/`;
+  if (section === "notebook") return `${b}notebook/`;
   return b; // home
 }
 
