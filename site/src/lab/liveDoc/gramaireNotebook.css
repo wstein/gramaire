@@ -273,6 +273,68 @@
   color: var(--fg-secondary);
 }
 
+/* Save/Cancel (+ the prose editor's own Bold/Italic/Heading/Code/Link) — a standalone rounded
+   bar above the prose textarea (the default shape) or, with the `--flush` modifier, a borderless
+   strip that reads as part of the grammar cell's own chrome (between its header and its
+   CodeMirror editor, matching .gramaire__cell-header's own bottom-border convention) rather than
+   a second floating box inside an already-bordered cell. */
+.gramaire__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.gramaire__toolbar--flush {
+  margin-bottom: 0;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+}
+.gramaire__toolbar-group,
+.gramaire__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.gramaire__toolbar-btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg-secondary);
+  cursor: pointer;
+}
+.gramaire__toolbar-btn:hover {
+  background: var(--bg-2);
+  color: var(--fg);
+}
+.gramaire__toolbar-btn--bold {
+  font-weight: 700;
+}
+.gramaire__toolbar-btn--italic {
+  font-style: italic;
+}
+.gramaire__toolbar-btn--cancel {
+  color: var(--fg-muted);
+}
+.gramaire__toolbar-btn--save {
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.gramaire__toolbar-btn--save:hover {
+  filter: brightness(1.08);
+}
+
 .gramaire__cell {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg, 10px);

@@ -367,6 +367,125 @@ test("clicking a prose block reveals a raw-markdown editor; blurring commits and
   );
 });
 
+test("the prose toolbar's Save button commits, same as blurring", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  await page.locator(".gramaire__prose").first().click();
+  await page.locator(".gramaire__prose-editor").fill("## Saved via button");
+  await page.locator(".gramaire__toolbar-btn--save").click();
+
+  await expect(page.locator(".gramaire__prose-editor")).not.toBeVisible();
+  await expect(page.locator(".gramaire__prose h3").first()).toHaveText(
+    "Saved via button",
+  );
+});
+
+test("the prose toolbar's Cancel button discards the edit, reverting to the original text", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  const firstProse = page.locator(".gramaire__prose").first();
+  const originalText = await firstProse.textContent();
+  await firstProse.click();
+  await page
+    .locator(".gramaire__prose-editor")
+    .fill("this should be thrown away");
+  await page.locator(".gramaire__toolbar-btn--cancel").click();
+
+  await expect(page.locator(".gramaire__prose-editor")).not.toBeVisible();
+  await expect(page.locator(".gramaire__prose").first()).toHaveText(
+    originalText ?? "",
+  );
+});
+
+test("the prose toolbar's formatting buttons wrap the current selection", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  await page.locator(".gramaire__prose").first().click();
+  const editor = page.locator(".gramaire__prose-editor");
+  await editor.click();
+  await editor.evaluate((el: HTMLTextAreaElement) =>
+    el.setSelectionRange(0, el.value.length),
+  );
+  await page.locator(".gramaire__toolbar-btn--bold").click();
+
+  const value = await editor.inputValue();
+  expect(value.startsWith("**")).toBe(true);
+  expect(value.endsWith("**")).toBe(true);
+});
+
+test("the prose toolbar's Heading button prepends \"## \" to the cursor's own line", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  await page.locator(".gramaire__prose").first().click();
+  const editor = page.locator(".gramaire__prose-editor");
+  await editor.fill("Plain text");
+  await editor.click();
+  await editor.evaluate((el: HTMLTextAreaElement) =>
+    el.setSelectionRange(0, 0),
+  );
+  await page.locator(".gramaire__toolbar-btn--heading").click();
+
+  await expect(editor).toHaveValue("## Plain text");
+});
+
+// Regression: clicking a toolbar button used to blur the editor first, which unconditionally
+// committed the draft — making "Cancel" impossible and, for a mouse click, losing the selection
+// formatting buttons need to operate on. The editor's own onBlur now recognizes "focus moved to
+// my own toolbar" (via relatedTarget) and skips the auto-commit, leaving the button's own click
+// to decide — verified here by confirming a genuine blur elsewhere still commits as before, while
+// the toolbar buttons above proved Cancel/formatting both work.
+test("blurring to somewhere outside the toolbar still commits the prose edit", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  await page.locator(".gramaire__prose").first().click();
+  await page.locator(".gramaire__prose-editor").fill("## Committed by blur");
+  await page.locator(".gramaire__statusbar").click();
+
+  await expect(page.locator(".gramaire__prose-editor")).not.toBeVisible();
+  await expect(page.locator(".gramaire__prose h3").first()).toHaveText(
+    "Committed by blur",
+  );
+});
+
+test("the grammar cell's toolbar Save/Cancel work the same as the prose editor's", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const ruleCell = ruleCellLocator(page);
+
+  // Cancel: an edit is discarded, the cell's original railroad diagram survives untouched.
+  const svgBefore = await ruleCell.locator("svg").innerHTML();
+  await ruleCell.locator(".gramaire__cell-rendered").click();
+  await expect(ruleCell.locator(".gramaire__toolbar--flush")).toBeVisible();
+  await ruleCell.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type("garbage that should never be saved");
+  await ruleCell.locator(".gramaire__toolbar-btn--cancel").click();
+  await expect(ruleCell.locator(".cm-content")).toHaveCount(0);
+  await expect(ruleCell.locator("svg").innerHTML()).resolves.toBe(svgBefore);
+
+  // Save: an edit IS committed, same as blur.
+  await ruleCell.locator(".gramaire__cell-rendered").click();
+  await ruleCell.locator(".cm-content").click();
+  await page.keyboard.press("End");
+  await page.keyboard.type("\n  | 'qqq'");
+  await ruleCell.locator(".gramaire__toolbar-btn--save").click();
+  await expect(async () => {
+    const svgAfter = await ruleCell.locator("svg").innerHTML();
+    expect(svgAfter).not.toBe(svgBefore);
+  }).toPass({ timeout: 5000 });
+});
+
 test("the prose editor opens tall enough for its content and grows as more lines are typed", async ({
   page,
 }) => {

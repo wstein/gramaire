@@ -747,9 +747,24 @@ Clicking a rendered cell reveals a `CodeMirrorEditor`
 mode yet) or, for prose, a raw-markdown `<textarea>` that grows to fit its
 own content (`autosizeTextarea`, re-measured on mount and every keystroke —
 so a multi-line block opens at its real height instead of a cramped fixed
-box); blurring commits the edit into the shared `blocks` signal (once, not
-per keystroke) and collapses back to the rendered view — source and rendered
-output are never shown together. Prose renders via a small markdown-lite parser
+box); either way, an `EditorToolbar` (`GramaireNotebookIsland.tsx`) appears
+above it — a flush strip between the grammar cell's own header and its
+editor, or a standalone rounded bar above the prose textarea — with explicit
+**Save**/**Cancel** buttons (Cancel discards the draft outright, never
+touching `blocks`), plus Bold/Italic/Heading/Code/Link buttons on the prose
+editor specifically (wrapping the textarea's current selection, or a
+placeholder when nothing's selected — headings instead prepend `##` (with a
+trailing space) to the cursor's own line, matching D29's H2-per-nonterminal
+convention). Blurring
+elsewhere still commits too (unchanged): the editor's own `onBlur` checks
+`relatedTarget` against `isOwnToolbar` so a click that merely moves focus to
+this cell's own toolbar is not treated as "blurred away" — only a genuine
+blur outside it triggers the same auto-commit as before, and only the
+toolbar's own Save/Cancel decide when focus stays inside it (this also
+means Tab-then-Enter to a toolbar button works, not just a mouse click).
+Either way — Save, Cancel, or a genuine outside blur — the editor collapses
+back to the rendered view; source and rendered output are never shown
+together. Prose renders via a small markdown-lite parser
 (`site/src/lab/liveDoc/markdown.ts`, unit-tested — headings/paragraphs/
 `code`/`**bold**`/`![alt](src)` image links/GFM pipe tables, not full
 CommonMark). An image link resolves to its actual sidecar SVG
