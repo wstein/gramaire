@@ -339,11 +339,21 @@ object Lr:
     val t = l.trim
     Vector("%left ", "%right ", "%nonassoc ").exists(t.startsWith)
 
-  // A document-level settings directive (the `## General settings`
-  // block): `%name <Ident>` (required) or `%lang <host>` (optional).
+  // A document-level settings directive (the `## General settings` block): `%name <Ident>`
+  // (required) or `%lang <host>` (optional) — broadened to any `%word ` shape (excluding
+  // Precedence's own `%left`/`%right`/`%nonassoc`, or this fence-shape check would misfire ahead
+  // of `isPrecDecl` in `classifyFenceContent`'s if-chain) rather than JUST those two known names.
+  // A typo'd directive (`%naqme Calc-js`) still keeps this SHAPE, so the whole fence stays
+  // classified `Settings` and reaches `unknownSettingWarnings` (which already knows how to name
+  // an unrecognized directive) — narrowing to only `%lang `/`%name ` meant one typo'd line failed
+  // `forall`, so the ENTIRE fence fell through to `Rule` and got lexed as grammar-rule text
+  // instead, cascading into a run of misleading "unexpected character" diagnostics naming
+  // unrelated characters from later in the very same fence (reported directly: `%naqme Calc-js`
+  // produced three separate "unexpected character" errors, one of them the `-` inside `Calc-js`).
+  private val settingDeclShapeRe = "^%[A-Za-z][A-Za-z0-9]*\\s".r
   private def isSettingDecl(l: String): Boolean =
     val t = l.trim
-    t.startsWith("%lang ") || t.startsWith("%name ")
+    settingDeclShapeRe.findPrefixOf(t).isDefined && !isPrecDecl(l)
 
   // Drop `//` line comments and `/* … */` block comments (the prose
   // `strip` writes into a `.gram`), so the grammar lexer never sees them.

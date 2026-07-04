@@ -900,6 +900,24 @@ count:
   (`InputCaret`), above the message and its notes — instead of a flat
   "rejected".
 
+Also fixed: a typo'd `%directive` (e.g. `%naqme` for `%name`) used to
+misclassify its ENTIRE fence — `Lr.isSettingDecl` only recognized the two
+literal prefixes `%lang` and `%name` (each followed by a space), so one bad
+line failed the Settings fence's own `forall` shape check and the whole
+fence fell through to `Rule`, lexed as grammar-rule text with the `lr`
+notation's own token set (no `%` token exists there) — cascading into a run
+of unrelated "unexpected character" diagnostics naming characters from
+elsewhere in the very same fence (reported directly: `%naqme Calc-js`
+produced three separate "unexpected character" errors, one of them the `-`
+inside `Calc-js` itself). `isSettingDecl` now recognizes any `%word` shape
+(excluding Precedence's own `%left`/`%right`/`%nonassoc`, still classified
+first via `isPrecDecl`), so a typo'd directive keeps the whole fence
+classified `Settings` and reaches the already-existing
+`unknownSettingWarnings` — one clean, located "unknown setting `%naqme`
+(ignored)" warning, and the grammar still builds (a bad/missing `%name` was
+always cosmetic, never fatal, in the live-engine path — only the CLI's own
+file-naming requires one).
+
 Deliberately deferred: a method picker
 (always builds Canonical), a "Format document" action (`gramaire fmt` isn't
 exposed to the JS engine yet — omitted rather than shipped as a non-functional

@@ -251,6 +251,69 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
     assert(rendered.contains(s"\n    $src\n    ${" " * 4}${"^" * 3}"), rendered)
   }
 
+  test(
+    "unknown setting warning: a typo'd %directive is ONE clean warning, not a cascade of unrelated lex errors"
+  ) {
+    // The exact shape reported from the Gramaire Notebook: `%naqme` (a typo of `%name`). The old
+    // isSettingDecl only recognized the literal `%lang `/`%name ` prefixes, so this one bad line
+    // failed the Settings fence's own `forall` check — misclassifying the WHOLE two-line fence as
+    // Rule content, lexed with the `lr` grammar's own token set (no `%` or `-` token exists there),
+    // cascading into three unrelated "unexpected character" errors: `%`, then the `-` INSIDE
+    // `Calc-js` itself, then the second `%`. It must instead build cleanly, with one located
+    // warning naming the bad directive.
+    val md = """# Calc-js
+      |
+      |```gramaire
+      |%naqme Calc-js
+      |%lang javascript
+      |```
+      |
+      |## Expr
+      |
+      |```gramaire
+      |Expr
+      |: NUMBER
+      |```
+      |""".stripMargin
+    Lr.parseWith(Method.Canonical, md) match
+      case Left(diags) => fail(s"expected the grammar to build cleanly, got: $diags")
+      case Right(_) => () // buildOk — a bad/missing %name is cosmetic, never fatal (LabApi.scala)
+    val warnings = Lr.warningsFor(md)
+    assertEquals(warnings.length, 1, s"expected exactly one warning, got: $warnings")
+    assertEquals(warnings.head.message, "unknown setting `%naqme` (ignored)")
+  }
+
+  test(
+    "unknown setting warning: broadening isSettingDecl's shape doesn't swallow a genuine Precedence fence"
+  ) {
+    // Regression guard: isSettingDecl now recognizes any `%word ` shape, not just `%lang `/
+    // `%name ` literally — `%left`/`%right`/`%nonassoc` share that same shape, so isSettingDecl
+    // must keep excluding them (via isPrecDecl), or a real Precedence fence would misclassify as
+    // Settings instead (checked first in classifyFenceContent's if-chain) and its declarations
+    // would silently vanish rather than resolving shift/reduce conflicts.
+    val md = """# Calc
+      |
+      |## Expr
+      |
+      |```gramaire
+      |Expr
+      |: Expr '+' Expr
+      || NUMBER
+      |```
+      |
+      |## Precedence
+      |
+      |```gramaire
+      |%left '+'
+      |```
+      |""".stripMargin
+    val prec = Lr.precedenceOf(md)
+    assert(
+      prec.terms.contains("+"),
+      s"expected the Precedence fence's own '+' declaration to survive, got: $prec"
+    )
+  }
+
   test("unknown attribute warning: names the rule, suggests the one known attribute") {
     val md = """# Warn
       |
