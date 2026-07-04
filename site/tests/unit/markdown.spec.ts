@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { parseMarkdownLite } from "../../src/lab/liveDoc/markdown";
+import {
+  parseMarkdownLite,
+  isRailroadPlaceholder,
+} from "../../src/lab/liveDoc/markdown";
 
 test("parseMarkdownLite: a heading line becomes its own block, one level down", () => {
   expect(parseMarkdownLite("# Title")).toEqual([
@@ -192,4 +195,31 @@ test("parseMarkdownLite: a lone pipe with no separator row stays a plain paragra
       ],
     },
   ]);
+});
+
+// Regression: the Notebook rendered a rule's railroad diagram twice — once live in the rule cell,
+// once more from this exact `gramaire fmt --diagrams=sidecar` placeholder image, which exists so a
+// plain-markdown reader without a live engine has something to show. isRailroadPlaceholder lets
+// the Notebook's renderer recognize and skip its own copy.
+test("isRailroadPlaceholder: true only for a lone gramaire-fmt railroad-diagram image", () => {
+  const [placeholder] = parseMarkdownLite(
+    "![Railroad diagram for the Expr rule](diagrams-calc-js/expr.svg)",
+  );
+  expect(isRailroadPlaceholder(placeholder)).toBe(true);
+});
+
+test("isRailroadPlaceholder: false for an ordinary image, mixed content, or non-image block", () => {
+  const [ordinaryImage] = parseMarkdownLite("![a photo](photo.png)");
+  expect(isRailroadPlaceholder(ordinaryImage)).toBe(false);
+
+  const [mixed] = parseMarkdownLite(
+    "See ![Railroad diagram for the Expr rule](e.svg) above.",
+  );
+  expect(isRailroadPlaceholder(mixed)).toBe(false);
+
+  const [heading] = parseMarkdownLite("## Expr");
+  expect(isRailroadPlaceholder(heading)).toBe(false);
+
+  const [table] = parseMarkdownLite("| A |\n| - |\n| 1 |");
+  expect(isRailroadPlaceholder(table)).toBe(false);
 });

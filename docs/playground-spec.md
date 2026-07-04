@@ -729,7 +729,14 @@ eagerly bundled as raw strings at build time) and renders inline — there's no
 server route serving `examples/` as static assets, and every example's source
 is itself a Vite `?raw` import, so a plain `<img src>` would 404. Falls back
 to a placeholder naming the missing path rather than a silently blank
-paragraph. A header row immediately followed by a dashes-only separator row
+paragraph — **except** for one specific image: `gramaire fmt`'s own
+`![Railroad diagram for the X rule](diagrams-*/x.svg)`, which it writes
+directly after every rule's fence so a plain-markdown reader (GitHub, a docs
+site) with no live engine still sees the diagram. The notebook already
+renders that same rule's diagram live in the cell right above, so
+`isRailroadPlaceholder` recognizes this exact convention and skips it there
+— never a second, static copy of a diagram the cell already draws. A header
+row immediately followed by a dashes-only separator row
 (the `gramaire fmt`-generated "Generated tables" FIRST/FOLLOW section) starts a
 real `<table>`, styled to match the Lab's own `.lab__table` (mono uppercase
 header, striped rows) — rather than the literal pipe-delimited text it fell

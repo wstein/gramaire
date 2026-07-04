@@ -18,6 +18,24 @@ export type MdBlock =
   | { tag: "h2" | "h3" | "h4" | "p"; parts: MdInline[] }
   | { tag: "table"; header: MdTableRow; rows: MdTableRow[] };
 
+// Mirrors GramaireCheck.scala's own `imageRe`: `gramaire fmt --diagrams=sidecar` writes a lone
+// `![Railroad diagram for the X rule](...)` paragraph directly after each rule's own fence, so a
+// plain-markdown reader (GitHub, a docs site) has something to show without a live engine. The
+// Gramaire Notebook already renders that same rule's diagram live in the cell right above it, so
+// it's the one consumer that should skip re-drawing this placeholder rather than show it twice.
+const RAILROAD_PLACEHOLDER_ALT = /^Railroad diagram for the \S+ rule$/;
+
+/** True if a block is nothing but one of `gramaire fmt`'s own railroad-diagram placeholder images
+ * (matched by the same alt-text convention `GramaireCheck.scala`'s `imageRe` generates/recognizes). */
+export function isRailroadPlaceholder(block: MdBlock): boolean {
+  return (
+    block.tag === "p" &&
+    block.parts.length === 1 &&
+    block.parts[0].kind === "image" &&
+    RAILROAD_PLACEHOLDER_ALT.test(block.parts[0].alt)
+  );
+}
+
 function parseInline(text: string): MdInline[] {
   const parts: MdInline[] = [];
   // Image checked first: `![alt](src)` shares no syntax with the other two, but must be tried
