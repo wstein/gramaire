@@ -283,3 +283,128 @@ class ConvertBisonSuite extends munit.FunSuite:
           "the double-quoted literal survives as a Gramark literal"
         )
   }
+
+  test(
+    "convert: a `}` inside a string literal or comment within a `{ }` action doesn't end the " +
+      "action early"
+  ) {
+    val y =
+      """%%
+        |expr : NUMBER { printf("%d}", $1); } | 'x' ;
+        |%%
+        |""".stripMargin
+    ConvertBison.importBison(y, "P") match
+      case Left(e) =>
+        fail(s"a `}` inside the action's own string literal must not end the action early: $e")
+      case Right(imp) =>
+        assert(
+          imp.warnings.exists(_.contains("semantic action")),
+          "the whole action (including its embedded string) is still flagged and dropped"
+        )
+        assert(imp.markdown.contains("NUMBER"), "the rule itself still imports")
+  }
+
+  test(
+    "convert: a nested-angle-bracket `<type>` tag (e.g. a C++ template type) doesn't truncate " +
+      "at the first `>`"
+  ) {
+    val y =
+      """%token <std::vector<int>> LIST
+        |%%
+        |expr : LIST ;
+        |%%
+        |""".stripMargin
+    ConvertBison.importBison(y, "P") match
+      case Left(e) => fail(s"should import: $e")
+      case Right(imp) =>
+        assert(
+          imp.markdown.contains("LIST"),
+          "the token name after a nested-angle-bracket type tag must survive, not vanish silently"
+        )
+  }
+
+  test(
+    "convert: an unterminated `<type` tag is flagged, not left to silently swallow every " +
+      "later declaration"
+  ) {
+    val y =
+      """%token <ival NUM
+        |%left '+' '-'
+        |%%
+        |expr : expr '+' expr | NUM ;
+        |%%
+        |""".stripMargin
+    ConvertBison.importBison(y, "P") match
+      case Left(e) => fail(s"should import: $e")
+      case Right(imp) =>
+        assert(
+          imp.warnings.exists(_.contains("unterminated")),
+          "the malformed type tag itself is flagged"
+        )
+        assert(
+          imp.markdown.contains("## Precedence"),
+          "a later declaration (`%left`) must survive, not be silently swallowed by the " +
+            "unterminated tag before it"
+        )
+  }
+
+  test("convert: a `%start` naming a rule that doesn't exist (a typo) is flagged, not silent") {
+    val y =
+      """%start nope
+        |%%
+        |expr : 'x' ;
+        |%%
+        |""".stripMargin
+    ConvertBison.importBison(y, "P") match
+      case Left(e) => fail(s"should import: $e")
+      case Right(imp) =>
+        assert(
+          imp.warnings.exists(w => w.contains("%start") && w.contains("nope")),
+          "a typo'd/missing %start target is flagged, not silently ignored"
+        )
+  }
+
+  test(
+    "convert: a quoted literal with an embedded quote in a %left/%right/%nonassoc line is " +
+      "escaped consistently with the same literal in a rule body"
+  ) {
+    val y =
+      """%left '\''
+        |%%
+        |expr : '\'' | 'x' ;
+        |%%
+        |""".stripMargin
+    ConvertBison.importBison(y, "P") match
+      case Left(e) => fail(s"should import: $e")
+      case Right(imp) =>
+        val precLine = imp.markdown.linesIterator.find(_.startsWith("%left")).getOrElse("")
+        assertEquals(precLine, "%left '\\''", "the precedence line must escape the quote too")
+        Lr.parse(imp.markdown) match
+          case Left(e)  => fail(s"the rendered markdown should still parse: $e")
+          case Right(_) => ()
+  }
+
+  test(
+    "convert: a trailing comment right after a rule's `;` stays with that rule, not the next one"
+  ) {
+    val y =
+      """%%
+        |foo : 'x' ;  /* trailing note about foo, not about bar */
+        |
+        |/* bar's own real leading doc */
+        |bar : 'y' ;
+        |%%
+        |""".stripMargin
+    ConvertBison.importBison(y, "P") match
+      case Left(e) => fail(s"should import: $e")
+      case Right(imp) =>
+        assert(
+          !imp.markdown.contains("trailing note about foo"),
+          "a same-line trailing comment on the previous rule must not be carried anywhere, " +
+            "and specifically must not migrate onto the next rule as its own leading doc"
+        )
+        assert(
+          imp.markdown.contains("bar's own real leading doc"),
+          "the genuinely blank-line-separated leading comment for `bar` still survives"
+        )
+  }

@@ -38,6 +38,15 @@ class DocCommentsSuite extends munit.FunSuite:
     assertEquals(Lr.docCommentsOf(bare), Map.empty[String, String])
   }
 
+  test(
+    "docCommentsOf still finds a rule's own name past a leading `#[attr]` tag (ADR D28), " +
+      "not just a bare rule name"
+  ) {
+    val withAttr =
+      "## Inner\n\nAn inlined helper rule.\n\n```gramark\n#[inline] Inner\n  : 'x'\n```\n"
+    assertEquals(Lr.docCommentsOf(withAttr), Map("Inner" -> "An inlined helper rule."))
+  }
+
   test("withDocComments attaches the extracted prose to the matching rule only") {
     Lr.parse(md) match
       case Left(e) => fail(s"should parse: $e")

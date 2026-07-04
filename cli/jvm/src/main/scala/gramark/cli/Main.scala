@@ -62,15 +62,12 @@ object Main:
     */
   def grammarName(md: String): Either[String, String] = Lr.nameOf(md).toRight(missingNameError)
 
-  /** Parses `md` and attaches its own rules' leading doc comments (ADR D39) — every real emit path
-    * builds its IR from this, not the bare parse result, so a rule's own leading prose survives
-    * into `IRNonterminal.comment` for any backend that reads it (`bison`, so far).
-    * `Lr.parseWith`/`Lr.parse` themselves never do this attachment (see `Lr.withDocComments`'s own
-    * doc comment): `SelfHostSuite`'s exact-equality check against `Bootstrap.bootstrapGrammar`
-    * calls `Lr.parseWith` directly and never goes through `Main`, so this stays safe to do here.
+  /** `runEmit`'s own parse-then-attach-docs step (ADR D39) — a thin re-export of `Lr.parseWithDocs`
+    * kept here so existing callers/tests referencing `Main.parseWithDocs` don't need to change; the
+    * real implementation lives in `core` (not `cli`-only) so `lab` can reach it too.
     */
   def parseWithDocs(method: Method, md: String): Either[Vector[Diagnostic], Grammar] =
-    Lr.parseWith(method, md).map(g => Lr.withDocComments(g, md))
+    Lr.parseWithDocs(method, md)
 
   /** Whether `b` declares support for `strategy` — `emit`'s strategy gate, pulled out so it's
     * checkable without going through `die`/`sys.exit`.

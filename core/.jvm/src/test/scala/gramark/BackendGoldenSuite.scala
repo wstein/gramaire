@@ -24,9 +24,14 @@ class BackendGoldenSuite extends munit.FunSuite:
           case Right(ir) => assertEquals(BackendAntlr.emit(ir), readFile("test/golden/json.g4"))
   }
 
+  // Builds the IR the same way the real `gramark emit --backend bison` CLI path does
+  // (`Lr.parseWithDocs`, not a bare `Lr.parse`) — otherwise this golden test would validate a
+  // doc-comment-free code path nobody actually invokes, and the committed golden would silently
+  // drift from real CLI output the moment a source grammar carries rule-leading prose (which
+  // examples/calc.grmk.md does).
   test("bison: examples/calc.grmk.md -> IR -> .y matches the committed golden") {
     val md = readFile("examples/calc.grmk.md")
-    Lr.parse(md) match
+    Lr.parseWithDocs(Method.Canonical, md) match
       case Left(e) => fail(s"could not parse examples/calc.grmk.md: $e")
       case Right(g) =>
         IR.buildIRP(Lr.precedenceOf(md), Method.Canonical, "Calc", g) match
