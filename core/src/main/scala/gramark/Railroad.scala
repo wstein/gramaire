@@ -115,11 +115,24 @@ object Railroad:
 
   private def normalizeWhitespace(s: String): String = s.replaceAll("\\s+", " ").trim
 
+  // Swaps common JS operator DIGRAPHS/TRIGRAPHS for their single-glyph math/logic equivalents —
+  // purely a diagram-readability nicety (the `<title>` tooltip shows this same prettified form,
+  // not the literal source; this is a diagram, not a copy-paste source viewer). Longest-first and
+  // non-overlapping: `!==`/`===` must replace before `!=` would otherwise consume half of them
+  // and leave a mangled `≠=`/`≠==`-shaped remnant.
+  private def prettifyOperators(s: String): String =
+    s.replace("!==", "≢")
+      .replace("===", "≡")
+      .replace("!=", "≠")
+      .replace("<=", "≤")
+      .replace(">=", "≥")
+      .replace("=>", "⇒")
+
   // Collapse to one line (an action is always logically one expression; embedded newlines would
   // just render as literal spaces in SVG anyway) and cap the length so one long action can't blow
   // out the diagram's width — the full, untruncated text still reaches the reader via `<title>`.
   private def truncateAction(action: String): String =
-    val oneLine = normalizeWhitespace(action)
+    val oneLine = prettifyOperators(normalizeWhitespace(action))
     if oneLine.length <= ACTION_MAX_CHARS then oneLine
     else oneLine.take(ACTION_MAX_CHARS - 1) + "…"
 
@@ -135,7 +148,10 @@ object Railroad:
     val isPredicate = rawAction.startsWith("?")
     val body = if isPredicate then rawAction.stripPrefix("?") else rawAction
     val prefix = if isPredicate then "? " else ""
-    ActionDisplay(prefix + truncateAction(body), prefix + normalizeWhitespace(body))
+    ActionDisplay(
+      prefix + truncateAction(body),
+      prefix + prettifyOperators(normalizeWhitespace(body))
+    )
 
   private def boxWidth(label: String): Int =
     math.max(MINW, math.round(label.length * CHARW + 2 * PADX).toInt)
