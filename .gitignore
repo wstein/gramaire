@@ -47,3 +47,11 @@ bun.lock
 # `!` exception, kept in sync with GramarkCheckSuite.scala's `nativeGatedFiles`.
 *.grmk
 !examples/lua.grmk
+
+# codegen-scratch: a throwaway compile target for the scala-peg backend's parity gate
+# (site/scripts/check-scala-peg-parity.mjs). Generated.scala is (re)written by
+# ScalaPegParityMain before every run; vectors.txt is its own input/output line-protocol file.
+# Neither is ever authoritative — only codegen-scratch/src/main/scala/gramark/scratch/Main.scala
+# (the fixed driver) is committed.
+codegen-scratch/src/main/scala/gramark/scratch/Generated.scala
+codegen-scratch/vectors.txt
