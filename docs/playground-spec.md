@@ -721,7 +721,15 @@ edit into the shared `blocks` signal (once, not per keystroke) and collapses
 back to the rendered view — source and rendered output are never shown
 together. Prose renders via a small markdown-lite parser
 (`site/src/lab/liveDoc/markdown.ts`, unit-tested — headings/paragraphs/
-`code`/`**bold**`, not full CommonMark). A "Try it" section runs the real
+`code`/`**bold**`/`![alt](src)` image links, not full CommonMark). An image
+link resolves to its actual sidecar SVG (`site/src/lab/liveDoc/
+exampleAssets.ts`'s `import.meta.glob` of every `examples/**/diagrams-*/*.svg`
+`gramaire fmt --diagrams=sidecar` writes, eagerly bundled as raw strings at
+build time) and renders inline — there's no server route serving `examples/`
+as static assets, and every example's source is itself a Vite `?raw` import,
+so a plain `<img src>` would 404. Falls back to a placeholder naming the
+missing path rather than a silently blank paragraph. A "Try it" section runs
+the real
 engine over a plain input field: `parse.tokens`, `parse.cst`, AND the
 grammar's own `{% %}` actions — the notebook opens on the calc-js example
 (`NOTEBOOK_DEFAULT_SOURCE`), so `evaluation.tree.value` (the worker's run of

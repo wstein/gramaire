@@ -66,3 +66,37 @@ test("parseMarkdownLite: empty input yields no blocks", () => {
   expect(parseMarkdownLite("")).toEqual([]);
   expect(parseMarkdownLite("\n\n")).toEqual([]);
 });
+
+// Regression: `![alt](src)` used to have no inline case at all, so it fell through to plain text
+// and rendered as the literal "![Railroad diagram for the Term rule](diagrams-calc-js/term.svg)"
+// instead of an image — reported directly from the Gramaire Notebook (calc-js.gram.md's own
+// railroad-diagram links).
+test("parseMarkdownLite: an image link is its own inline part, not literal text", () => {
+  const md = "![Railroad diagram for the Term rule](diagrams-calc-js/term.svg)";
+  expect(parseMarkdownLite(md)).toEqual([
+    {
+      tag: "p",
+      parts: [
+        {
+          kind: "image",
+          alt: "Railroad diagram for the Term rule",
+          src: "diagrams-calc-js/term.svg",
+        },
+      ],
+    },
+  ]);
+});
+
+test("parseMarkdownLite: an image link mixed with surrounding text", () => {
+  const md = "See ![diagram](d.svg) below.";
+  expect(parseMarkdownLite(md)).toEqual([
+    {
+      tag: "p",
+      parts: [
+        { kind: "text", text: "See " },
+        { kind: "image", alt: "diagram", src: "d.svg" },
+        { kind: "text", text: " below." },
+      ],
+    },
+  ]);
+});

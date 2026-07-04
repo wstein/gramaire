@@ -1,9 +1,36 @@
 import type { MdBlock, MdInline } from "./markdown";
+import { resolveExampleSvg } from "./exampleAssets";
+
+// A resolved sidecar SVG renders inline (dangerouslySetInnerHTML) rather than an <img src> — see
+// exampleAssets.ts's own comment for why there's no URL a plain <img> could fetch. Trusted
+// content: these are the repo's own committed sidecar diagrams, the same trust boundary as the
+// live-computed railroad SVGs LabIsland.tsx's RailroadSvg already renders the same way.
+function MdImage({ alt, src }: { alt: string; src: string }) {
+  const svg = resolveExampleSvg(src);
+  if (svg) {
+    return (
+      <span
+        class="gramaire-prose-image"
+        role="img"
+        aria-label={alt}
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+    );
+  }
+  // Not one of the bundled sidecar diagrams (an unrecognized/future path shape) — degrade to a
+  // visible placeholder naming what's missing, never a silently blank paragraph.
+  return (
+    <span class="gramaire-prose-image-missing" title={src}>
+      [image: {alt || src}]
+    </span>
+  );
+}
 
 function renderInline(parts: MdInline[]) {
   return parts.map((p, i) => {
     if (p.kind === "code") return <code key={i}>{p.text}</code>;
     if (p.kind === "bold") return <strong key={i}>{p.text}</strong>;
+    if (p.kind === "image") return <MdImage key={i} alt={p.alt} src={p.src} />;
     return p.text;
   });
 }
