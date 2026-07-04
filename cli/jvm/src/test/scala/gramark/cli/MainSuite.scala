@@ -7,6 +7,7 @@ import gramark.{
   BackendJs,
   BackendRegistry,
   BackendScalaPeg,
+  BackendScalaPegFastparse,
   BackendTs,
   Grammar,
   IR,
@@ -116,6 +117,9 @@ class MainSuite extends munit.FunSuite:
     // scala-peg reads only IR.rewritten (the ll-star-only CST-fold-back section).
     assert(!Main.backendSupportsStrategy(BackendScalaPeg.backend, "lr"))
     assert(Main.backendSupportsStrategy(BackendScalaPeg.backend, "ll-star"))
+    // scala-peg-fastparse reads the same IR.rewritten section, so the same gate applies.
+    assert(!Main.backendSupportsStrategy(BackendScalaPegFastparse.backend, "lr"))
+    assert(Main.backendSupportsStrategy(BackendScalaPegFastparse.backend, "ll-star"))
   }
 
   test("BackendRegistry: atn-ts is registered and reachable by name") {
@@ -124,6 +128,13 @@ class MainSuite extends munit.FunSuite:
 
   test("BackendRegistry: scala-peg is registered and reachable by name") {
     assertEquals(BackendRegistry.findBackend("scala-peg"), Some(BackendScalaPeg.backend))
+  }
+
+  test("BackendRegistry: scala-peg-fastparse is registered and reachable by name") {
+    assertEquals(
+      BackendRegistry.findBackend("scala-peg-fastparse"),
+      Some(BackendScalaPegFastparse.backend)
+    )
   }
 
   test(

@@ -587,8 +587,8 @@ surface is reached by **conversion**, not syntax expansion (§4).
   every accept vector across all four real corpora
   (`calc`/`json`/`ECMA-404`/`calc-prec`) — all pass. This is Phase 1 of a
   follow-on plan to add a dependency-free Scala PEG/combinator backend and an
-  opt-in `fastparse` one from the same `IR.rewritten` input (Phase 2 below is
-  done; Phases 3-4 are not yet built).
+  opt-in `fastparse` one from the same `IR.rewritten` input (Phases 2-4 below
+  are all done).
 - ✅ **Phase 2 of that follow-on plan: `scala-peg`, a dependency-free codegen
   backend reading `IR.rewritten`.** `BackendScalaPeg.scala` emits one
   self-contained `object <Name>:` per grammar — a `Cst`/`Token` type plus one
@@ -630,6 +630,48 @@ surface is reached by **conversion**, not syntax expansion (§4).
   (Paull-substitution) path — the emitted Scala, actually compiled and run,
   agrees with `Ll.parse` on every one. Wired into CI right after the `atn-ts`
   gate (`npm run check:scala-peg-parity`).
+- ✅ **Phase 4: `scala-peg-fastparse`, an opt-in backend targeting the
+  production-grade `fastparse` combinator library, reading the SAME
+  `IR.rewritten` section.** A genuine design fork surfaced here, not just a
+  mechanical codegen swap: `fastparse`'s `ParserInput` is hardcoded to
+  `Char`/`String` (confirmed against its own source —
+  `IndexedParserInput`/`IteratorParserInput` both fix the element type to
+  `Char`, no generic or token-stream `ParserInput` exists), so it cannot
+  consume the same already-lexed `Vector[Token]` `Ll.parse`/`scala-peg`'s
+  generated code reads directly. Emitting a SECOND, `fastparse`-native lexer
+  (translating `IR.lexer`'s token classes/regexes into `fastparse`
+  char-combinators) was deliberately rejected — it would need its own
+  conformance proof that the emitted lexer reproduces the real `Scanner`'s
+  token stream byte-for-byte, the same bar
+  `docs/multi-backend-implementation-plan.md`'s D31 already holds any
+  alternate lexer to, making this a fundamentally different (and much larger)
+  undertaking than "reuse `IR.rewritten`, target a different combinator
+  style." Instead, `BackendScalaPegFastparse.scala` keeps the same
+  already-lexed-tokens contract: each token's terminal maps to one synthetic
+  `Char` (Unicode Private Use Area, built fresh per `parse` call from the
+  actual tokens), producing a same-length synthetic `String` `fastparse`'s
+  ordinary `CharPred`/`Index` combinators match against one terminal-check at
+  a time; a matched position is looked up back against the real token vector
+  so a built `Cst.Token` always carries the real terminal/text, never the
+  synthetic stand-in. A `Folded` rule's operators are matched raw (as
+  `(opIndex, kids)` pairs) via `fastparse`'s own `.rep`, then folded into
+  tagged `Cst`s afterward — `IRProv` resolution needs the fold's running
+  accumulator, not known until fold time. One real `fastparse`-specific
+  compile bug caught by actually compiling the generated code: `fastparse`
+  elides a `Unit`-typed result from a `~` chain, so `Index ~ CharPred(...)` is
+  `P[Int]`, not `P[(Int, Unit)]` — a tuple-destructuring pattern there fails
+  with a confusing "Found: Any, Required: Int" rather than a clear arity
+  mismatch. Registered as `"scala-peg-fastparse"` (`Capability.Cst`,
+  `ll-star`-only); reuses `codegen-scratch` (now depending on the real
+  `fastparse` library, `"com.lihaoyi" %% "fastparse" % "3.1.1"`) and the same
+  `ScalaPegParityMain`/`check-scala-peg-parity.mjs` harness, parameterized by
+  backend name. **All 61 vectors across all four real corpora pass for this
+  backend too** (the same set Phase 3 already proved for `scala-peg`),
+  including the `json`/`ECMA-404` `IRProv.Wrap` path and `calc-prec`'s
+  `LeftRec`+`PrecClimb` combination — genuinely compiled against `fastparse`
+  and run, not golden-diffed. `MainSuite`/`BackendRegistrySuite`/
+  `BackendGoldenSuite` gained the usual strategy-gate, registry-lookup, and
+  golden-text tests (`test/golden/CalcFastparse.scala`).
 
 ### Phase 6 — Diagnostics, profiling, conformance ✅ done (backend + Lab surface)
 

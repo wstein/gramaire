@@ -43,32 +43,42 @@ object ScalaPegParityMain:
     case "calc-prec" => loadEntry("examples/calc-prec.grmk.md", Conformance.calcPrecDescriptor)
     case _           => None
 
+  private def emitFor(backendKey: String): Option[IR => String] = backendKey match
+    case "scala-peg"           => Some(BackendScalaPeg.emit)
+    case "scala-peg-fastparse" => Some(BackendScalaPegFastparse.emit)
+    case _                     => None
+
   // Writes `Generated.scala` under `scratchSrcDir/gramark/scratch/` — always this one fixed path,
   // named "Generated" regardless of the grammar's own name (see the module header) — via
-  // `IR.buildIRP(prec, ..., "Generated", g)`, the same real `BackendScalaPeg.emit` a `gramark
-  // emit --backend scala-peg` invocation would use, just naming the IR differently for this
+  // `IR.buildIRP(prec, ..., "Generated", g)`, the same real `<backend>.emit` a `gramark emit
+  // --backend <backendKey>` invocation would use, just naming the IR differently for this
   // harness's own fixed-name convention. Returns `Left` if the grammar's own LR(1) table build
-  // fails (never expected for the corpus) or its `rewritten` section isn't available.
+  // fails (never expected for the corpus), its `rewritten` section isn't available, or
+  // `backendKey` names neither of the two `IR.rewritten`-reading backends.
   private def emitGenerated(
       g: Grammar,
       prec: Precedence,
-      scratchSrcDir: String
+      scratchSrcDir: String,
+      backendKey: String
   ): Either[String, Unit] =
-    IR.buildIRP(prec, Method.Canonical, "Generated", g) match
-      case Left(conflicts) => Left(s"LR(1) conflicts building the table: $conflicts")
-      case Right(ir0) =>
-        val ir = IR.withStrategy("ll-star", g, ir0, prec)
-        if ir.rewritten.isEmpty then Left("IR.rewrittenGrammarOf declined this grammar's shape")
-        else
-          val dir = Path.of(s"$scratchSrcDir/gramark/scratch")
-          Files.createDirectories(dir)
-          // `BackendScalaPeg.emit` itself never writes a `package` declaration (a real CLI user
-          // drops the file wherever they like and packages it themselves) — prepended here only
-          // because `codegen-scratch/Main.scala` (the fixed driver) expects `Generated` in its
-          // own `gramark.scratch` package, matching the directory this writes into.
-          val text = s"package gramark.scratch\n\n${BackendScalaPeg.emit(ir)}"
-          Files.writeString(dir.resolve("Generated.scala"), text)
-          Right(())
+    emitFor(backendKey) match
+      case None => Left(s"unknown backend '$backendKey' (expected scala-peg | scala-peg-fastparse)")
+      case Some(emit) =>
+        IR.buildIRP(prec, Method.Canonical, "Generated", g) match
+          case Left(conflicts) => Left(s"LR(1) conflicts building the table: $conflicts")
+          case Right(ir0) =>
+            val ir = IR.withStrategy("ll-star", g, ir0, prec)
+            if ir.rewritten.isEmpty then Left("IR.rewrittenGrammarOf declined this grammar's shape")
+            else
+              val dir = Path.of(s"$scratchSrcDir/gramark/scratch")
+              Files.createDirectories(dir)
+              // Neither backend's own `emit` writes a `package` declaration (a real CLI user
+              // drops the file wherever they like and packages it themselves) — prepended here
+              // only because `codegen-scratch/Main.scala` (the fixed driver) expects `Generated`
+              // in its own `gramark.scratch` package, matching the directory this writes into.
+              val text = s"package gramark.scratch\n\n${emit(ir)}"
+              Files.writeString(dir.resolve("Generated.scala"), text)
+              Right(())
 
   private def b64(s: String): String = Base64.getEncoder.encodeToString(s.getBytes("UTF-8"))
 
@@ -103,13 +113,13 @@ object ScalaPegParityMain:
 
   def main(args: Array[String]): Unit =
     args match
-      case Array(scratchSrcDir, vectorsPath, grammarKey) =>
+      case Array(scratchSrcDir, vectorsPath, grammarKey, backendKey) =>
         entryFor(grammarKey) match
           case None =>
             System.err.println(s"$grammarKey: skipped — grammar file missing or unparseable")
             sys.exit(1)
           case Some(Entry(d, prec)) =>
-            emitGenerated(d.grammar, prec, scratchSrcDir) match
+            emitGenerated(d.grammar, prec, scratchSrcDir, backendKey) match
               case Left(reason) =>
                 System.err.println(s"$grammarKey: skipped — $reason")
                 sys.exit(1)
@@ -122,6 +132,7 @@ object ScalaPegParityMain:
                 println(endMarker)
       case _ =>
         System.err.println(
-          "usage: ScalaPegParityMain <scratchSrcDir> <vectorsPath> <calc|json|ecma404|calc-prec>"
+          "usage: ScalaPegParityMain <scratchSrcDir> <vectorsPath> " +
+            "<calc|json|ecma404|calc-prec> <scala-peg|scala-peg-fastparse>"
         )
         sys.exit(1)
