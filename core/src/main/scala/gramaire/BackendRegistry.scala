@@ -12,7 +12,8 @@ object BackendRegistry:
       BackendTs.backend,
       BackendAntlr.backend,
       BackendJs.backend,
-      BackendAtnTs.backend
+      BackendAtnTs.backend,
+      BackendScalaPeg.backend
     )
 
   /** Find a backend by its `--backend` name. */
