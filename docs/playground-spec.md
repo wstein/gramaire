@@ -13,11 +13,17 @@ a thin skin over real machinery, never a mock.
 > drawer tabs (Result, Evaluate, Tokens, Grammar analysis, Parse tree, Parse
 > trace, Walk, All parses, Diagnostics, Lowered Core), plus an eleventh — ATN
 > diagnostics — the JVM↔JS parity gate (§8), and the draggable splitter/drawer
-> are done. The top bar's Strategy and Method pickers merged into one "Engine"
-> selector (ALL(\*) standalone, an "LR / GLR" group with Canonical/LALR/IELR
-> nested) once `ll-star` became a real alternate pipeline, not merely an
-> additive `atn` field bolted onto the LR/GLR one — Parse trace/Walk now
-> render `Ll.parseTraced`'s own step trace under ALL(\*) (a rule-call stack,
+> are done. Parse trace and Walk then merged back into one tab (named "Parse
+> trace"): Walk's own trace pane was always byte-identical to the standalone
+> Parse trace tab's table, so keeping both showed the same data twice, not
+> two different views of it — a "collapse stepper" toggle inside the tab
+> gets back the old standalone tab's full-width, no-stepper reading
+> experience without a second tab for it. The top bar's Strategy and Method
+> pickers merged into one "Engine" selector (ALL(\*) standalone, an "LR / GLR"
+> group with Canonical/LALR/IELR nested) once `ll-star` became a real
+> alternate pipeline, not merely an additive `atn` field bolted onto the
+> LR/GLR one — Parse trace now renders `Ll.parseTraced`'s own step trace
+> under ALL(\*) (a rule-call stack,
 > not an LR state/symbol stack), `buildOk`/`evaluatorJs` no longer require the
 > LR table build to succeed under it (a conflict downgrades to a warning
 > noting ALL(\*) resolves the same tie by declaration order), and ALL(\*) is
@@ -34,7 +40,7 @@ a thin skin over real machinery, never a mock.
 > prior "via GLR"/"via LR tables" disclosure note was tried and then removed
 > as unnecessary UI noise; the underlying pinned-to-Canonical behavior is
 > still verified at the API layer (`LabApiSuite`), just not surfaced as its
-> own UI signal. Parse trace/Walk are capped at a step count (mirroring All parses' own
+> own UI signal. Parse trace is capped at a step count (mirroring All parses' own
 > `forestCap`) so a pathological or LR-conflicted grammar can't blow up the
 > response on every debounced keystroke — a `traceTruncated`/`llTraceTruncated`
 > flag says so in the UI rather than the walk silently ending mid-parse. §5.1's

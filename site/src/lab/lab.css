@@ -312,6 +312,24 @@
   background: var(--bg);
   z-index: 1;
 }
+/* Lives inside the trace pane itself (always rendered, unlike .lab__walk-state) so the checkbox
+   that un-collapses the stepper stays reachable even while the stepper it controls is hidden. */
+.lab__walk-trace-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.lab__walk-collapse-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-faint);
+  cursor: pointer;
+  user-select: none;
+}
 .lab__walk-splitter {
   flex: 0 0 7px;
   cursor: col-resize;

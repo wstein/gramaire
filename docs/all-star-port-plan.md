@@ -511,11 +511,16 @@ surface is reached by **conversion**, not syntax expansion (§4).
   no longer depends on the LR table build succeeding (a conflict downgrades
   to a warning, with a note explaining ALL(\*) resolves the same tie by
   declaration order). The _ATN_ tab surfaces `Ll.parseTraced`'s own
-  tracking-cache hit/miss/ambiguity counts; _Parse trace_/_Walk_ render the
-  LL walk (predict/match/exitRule/accept) with full stepper parity to the LR
+  tracking-cache hit/miss/ambiguity counts; _Parse trace_ renders the LL
+  walk (predict/match/exitRule/accept) with full stepper parity to the LR
   walk, capped at a step-count limit like the All-parses tab's own cap, and
   say so (`traceTruncated`/`llTraceTruncated`) rather than ending mid-parse
-  silently. _All parses_/_Grammar analysis_ stay LR/GLR-built under both
+  silently. (Parse trace and the old, separate Walk tab later merged into
+  one — Walk's own trace pane was always byte-identical to Parse trace's
+  table, so the two were showing the same data twice; a "collapse stepper"
+  toggle inside the merged tab restores the old standalone tab's
+  full-width, no-stepper view.) _All parses_/_Grammar analysis_ stay
+  LR/GLR-built under both
   strategies — All parses is always built from `Method.Canonical` (this
   codebase's own designated oracle; "what parses exist" is a property of the
   grammar, not a code-gen method choice) and Grammar analysis already reports

@@ -29,13 +29,17 @@ import "./lab.css";
 // tree, Diagnostics. M5+ adds tabs one increment at a time, following
 // docs/playground-spec.md's tab->core-symbol table; every M5+ tab is now
 // done: "forest"/"lowered" (All parses / Lowered Core), "analysis" (Grammar
-// analysis), "trace"/"walk" (Parse trace / LR walk), and "evaluate".
+// analysis), "walk" (Parse trace — absorbed the old, separate read-only
+// "Parse trace" tab entirely; its table was always byte-identical to this
+// one's own trace pane, so keeping both was showing the same data twice,
+// not two different views of it — "collapse stepper" gets the old tab's
+// full-width, no-stepper reading experience back without a second tab),
+// and "evaluate".
 type Tab =
   | "result"
   | "evaluate"
   | "tokens"
   | "tree"
-  | "trace"
   | "walk"
   | "forest"
   | "lowered"
@@ -93,6 +97,11 @@ const DRAWER_PANE_MAX_PERCENT = 72;
 const lrWalkTracePercent = signal(40);
 const LR_WALK_TRACE_MIN_PERCENT = 28;
 const LR_WALK_TRACE_MAX_PERCENT = 72;
+// Parse trace absorbed the old, separate "Walk" tab's plain read-only table into this one's own
+// trace pane (byte-identical content — WalkBody's table always was the full trace, the merge just
+// removed a redundant second copy of it). Collapsing the stepper gives back that full-width,
+// no-stepper reading experience without needing a second tab for it.
+const stepperCollapsed = signal(false);
 
 // The two source textareas' live DOM nodes, set via callback refs where they render (inside the
 // main component) — plain module-level mutables, same convention as `worker`/`requestId` below,
@@ -700,7 +709,6 @@ export default function LabIsland() {
               "result",
               "tokens",
               "tree",
-              "trace",
               "walk",
               "forest",
               "lowered",
@@ -737,7 +745,6 @@ export default function LabIsland() {
           {activeTab.value === "evaluate" && <EvaluatePanel />}
           {activeTab.value === "tokens" && <TokensPanel />}
           {activeTab.value === "tree" && <TreePanel />}
-          {activeTab.value === "trace" && <ParseTracePanel />}
           {activeTab.value === "walk" && <WalkPanel />}
           {activeTab.value === "forest" && <AllParsesPanel />}
           {activeTab.value === "lowered" && <LoweredCorePanel />}
@@ -820,10 +827,11 @@ function tabLabel(tab: Tab): string {
       return "Tokens";
     case "tree":
       return "Parse tree";
-    case "trace":
-      return "Parse trace";
     case "walk":
-      return "Walk";
+      // Absorbed the old, separate "Parse trace" tab entirely (its plain table was always
+      // byte-identical to this one's own trace pane) — "collapse stepper" gets that tab's
+      // full-width, no-stepper view back without needing a second tab for it.
+      return "Parse trace";
     case "forest":
       // Always GLR-built, regardless of Engine (LabApi.evaluate's forestFor is pinned to
       // Method.Canonical unconditionally) — visible in the tab name itself, not just a note you
@@ -857,14 +865,10 @@ function tabDisabledReason(
       return r?.parse?.cst
         ? undefined
         : "Enter input the grammar accepts to see its parse tree.";
-    case "trace":
-      return r?.parse?.trace || r?.parse?.llTrace
-        ? undefined
-        : "Enter input the grammar accepts to see its parse trace.";
     case "walk":
       return r?.parse?.trace || r?.parse?.llTrace
         ? undefined
-        : "Enter input the grammar accepts to see the walk.";
+        : "Enter input the grammar accepts to see its parse trace.";
     case "forest":
       return r?.forest ? undefined : "Enter target input to see All parses.";
     case "lowered":
@@ -1564,59 +1568,6 @@ function TruncatedNote({ shownCount }: { shownCount: number }) {
   );
 }
 
-function ParseTracePanel() {
-  const llTrace = getLlTrace();
-  if (llTrace) {
-    if (llTrace.length === 0)
-      return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
-    return (
-      <>
-        {getLlTraceTruncated() && <TruncatedNote shownCount={llTrace.length} />}
-        <table class="lab__table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {llTrace.map((s) => (
-              <tr key={s.index}>
-                <td class="lab__mono">{s.index}</td>
-                <td class="lab__mono">{llActionText(s.action)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </>
-    );
-  }
-  const trace = getTrace();
-  if (!trace || trace.length === 0)
-    return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
-  return (
-    <>
-      {getTraceTruncated() && <TruncatedNote shownCount={trace.length} />}
-      <table class="lab__table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {trace.map((s) => (
-            <tr key={s.index}>
-              <td class="lab__mono">{s.index}</td>
-              <td class="lab__mono">{actionText(s.action)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
-  );
-}
-
 // Shared by WalkPanel's LR and LL branches: the prev/next/first/last/slider controls over
 // `length` steps, driven by the one shared `walkStep` signal.
 function WalkControls({
@@ -1718,13 +1669,33 @@ function WalkBody<S extends { index: number }>({
   secondPaneLabel: string;
   secondPaneItems: string[];
 }) {
+  const collapsed = stepperCollapsed.value;
   return (
     <div class="lab__walk" ref={walkRef}>
       <div
         class="lab__walk-trace"
-        style={{ flex: `0 0 ${lrWalkTracePercent.value}%` }}
+        style={
+          collapsed
+            ? { flex: "1 1 auto" }
+            : { flex: `0 0 ${lrWalkTracePercent.value}%` }
+        }
       >
-        <div class="lab__analysis-heading">parse trace</div>
+        <div class="lab__walk-trace-heading">
+          <div class="lab__analysis-heading">parse trace</div>
+          {/* Un-collapsing needs a control that's visible with the stepper hidden — living in the
+              trace pane's own heading (always rendered) rather than inside .lab__walk-state (which
+              disappears exactly when collapsed) is what makes that possible. */}
+          <label class="lab__walk-collapse-toggle">
+            <input
+              type="checkbox"
+              checked={collapsed}
+              onChange={(e) => {
+                stepperCollapsed.value = (e.target as HTMLInputElement).checked;
+              }}
+            />
+            collapse stepper
+          </label>
+        </div>
         {truncated && <TruncatedNote shownCount={trace.length} />}
         <table class="lab__table">
           <thead>
@@ -1751,39 +1722,43 @@ function WalkBody<S extends { index: number }>({
           </tbody>
         </table>
       </div>
-      <div
-        class="lab__walk-splitter"
-        role="separator"
-        aria-orientation="vertical"
-        aria-valuemin={LR_WALK_TRACE_MIN_PERCENT}
-        aria-valuemax={LR_WALK_TRACE_MAX_PERCENT}
-        aria-valuenow={Math.round(lrWalkTracePercent.value)}
-        onMouseDown={(e) => {
-          if (walkRef.current)
-            createPaneDrag(
-              walkRef.current,
-              "x",
-              lrWalkTracePercent,
-              LR_WALK_TRACE_MIN_PERCENT,
-              LR_WALK_TRACE_MAX_PERCENT,
-            )(e);
-        }}
-      />
+      {!collapsed && (
+        <>
+          <div
+            class="lab__walk-splitter"
+            role="separator"
+            aria-orientation="vertical"
+            aria-valuemin={LR_WALK_TRACE_MIN_PERCENT}
+            aria-valuemax={LR_WALK_TRACE_MAX_PERCENT}
+            aria-valuenow={Math.round(lrWalkTracePercent.value)}
+            onMouseDown={(e) => {
+              if (walkRef.current)
+                createPaneDrag(
+                  walkRef.current,
+                  "x",
+                  lrWalkTracePercent,
+                  LR_WALK_TRACE_MIN_PERCENT,
+                  LR_WALK_TRACE_MAX_PERCENT,
+                )(e);
+            }}
+          />
 
-      <div class="lab__walk-state">
-        <WalkControls current={current} length={trace.length} />
+          <div class="lab__walk-state">
+            <WalkControls current={current} length={trace.length} />
 
-        <div class="lab__walk-panes">
-          <div>
-            <div class="lab__analysis-heading">{firstPaneLabel}</div>
-            <ChipList items={firstPaneItems} />
+            <div class="lab__walk-panes">
+              <div>
+                <div class="lab__analysis-heading">{firstPaneLabel}</div>
+                <ChipList items={firstPaneItems} />
+              </div>
+              <div>
+                <div class="lab__analysis-heading">{secondPaneLabel}</div>
+                <ChipList items={secondPaneItems} />
+              </div>
+            </div>
           </div>
-          <div>
-            <div class="lab__analysis-heading">{secondPaneLabel}</div>
-            <ChipList items={secondPaneItems} />
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
