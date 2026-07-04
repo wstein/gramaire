@@ -79,6 +79,22 @@ class BackendGoldenSuite extends munit.FunSuite:
             assertEquals(dot, readFile("test/golden/calc-atn.dot"))
   }
 
+  // A golden-text pin, same convention as every other backend above — but see
+  // site/scripts/check-atn-ts-parity.mjs for the test that actually matters for this backend: a
+  // golden diff alone can't tell a correct `closure`/`move`/`predict` port from one that merely
+  // still emits stable-looking text, only running the emitted TS can.
+  test("atn-ts: examples/calc.gram.md under --strategy ll-star matches the committed golden") {
+    val md = readFile("examples/calc.gram.md")
+    Lr.parse(md) match
+      case Left(e) => fail(s"could not parse examples/calc.gram.md: $e")
+      case Right(g) =>
+        IR.buildIR(Method.Canonical, "Calc", g) match
+          case Left(_) => fail("could not build IR for calc")
+          case Right(ir) =>
+            val irLl = IR.withStrategy("ll-star", g, ir)
+            assertEquals(BackendAtnTs.emit(irLl), readFile("test/golden/Calc.atn.ts"))
+  }
+
   test(
     "js: calc-js bakes its inline actions into one evaluate(cst), matching the committed golden"
   ) {

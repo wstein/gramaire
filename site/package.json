@@ -11,6 +11,7 @@
     "gen:lab-types": "node scripts/gen-lab-types.mjs",
     "build:engine": "node scripts/build-engine.mjs",
     "check:lab-parity": "node scripts/check-lab-parity.mjs",
+    "check:atn-ts-parity": "node scripts/check-atn-ts-parity.mjs",
     "format": "prettier --write \"src/**/*.{ts,tsx,astro,md,mdx,css}\" \"scripts/**/*.mjs\" \"tests/**/*.ts\" \"*.{json,mjs}\"",
     "lint": "prettier --check \"src/**/*.{ts,tsx,astro,md,mdx,css}\" \"scripts/**/*.mjs\" \"tests/**/*.ts\" \"*.{json,mjs}\""
   },

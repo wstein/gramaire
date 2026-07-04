@@ -11,7 +11,8 @@ object BackendRegistry:
       BackendDot.backend,
       BackendTs.backend,
       BackendAntlr.backend,
-      BackendJs.backend
+      BackendJs.backend,
+      BackendAtnTs.backend
     )
 
   /** Find a backend by its `--backend` name. */

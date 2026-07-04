@@ -1,6 +1,17 @@
 package gramaire.cli
 
-import gramaire.{Alt, BackendIr, BackendJs, BackendTs, Grammar, IR, Method, Rule}
+import gramaire.{
+  Alt,
+  BackendAtnTs,
+  BackendIr,
+  BackendJs,
+  BackendRegistry,
+  BackendTs,
+  Grammar,
+  IR,
+  Method,
+  Rule
+}
 import gramaire.Sym.*
 
 // Covers `Main`'s pure argument-parsing and name-resolution helpers —
@@ -98,6 +109,13 @@ class MainSuite extends munit.FunSuite:
     // A structure-reading backend is agnostic to which table/ATN strategy produced the IR.
     assert(Main.backendSupportsStrategy(BackendIr.backend, "lr"))
     assert(Main.backendSupportsStrategy(BackendIr.backend, "ll-star"))
+    // atn-ts is the mirror image of js/ts: it reads only the ATN, so it's ll-star-only.
+    assert(!Main.backendSupportsStrategy(BackendAtnTs.backend, "lr"))
+    assert(Main.backendSupportsStrategy(BackendAtnTs.backend, "ll-star"))
+  }
+
+  test("BackendRegistry: atn-ts is registered and reachable by name") {
+    assertEquals(BackendRegistry.findBackend("atn-ts"), Some(BackendAtnTs.backend))
   }
 
   test(

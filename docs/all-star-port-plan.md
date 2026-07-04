@@ -514,9 +514,43 @@ surface is reached by **conversion**, not syntax expansion (§4).
 - ✅ **Test (`Test.IRDecode`, JVM `IRGoldenSuite`):** an `ll-star` IR validates,
   its ATN survives the JSON round trip, `lr` leaves the IR byte-identical, and
   a predicate-effect round trip leaves every other rule byte-unchanged.
-- ⏳ **Deferred:** a TS/interpreter backend that actually _emits_ an ATN-driven
-  parser (a port of the `antlr4ng` predictor, or `Gramaire.Ll` shipped as the
-  runtime) — the serialized `atn` is the substrate it will consume.
+- ✅ **A TS/interpreter backend — v1, recognizer-only.** `gramaire emit
+  --backend atn-ts --strategy ll-star` (`BackendAtnTs.scala`) is `IR.atn`'s
+  first _executable_ consumer — every other reader (`BackendDot`'s own
+  `--strategy ll-star` rendering) only ever displays it. The emitted
+  self-contained `<Name>.atn.ts` serializes `IR.atn`'s states/transitions as
+  TS consts (the same "data consts + one embedded runtime" shape
+  `BackendJs.scala`'s `runtime`/`tracedRuntime` already use) plus a straight,
+  SLL-only transliteration of `AtnSim.closure`/`move`/`predict` and
+  `Ll.recognize`'s own `parseRule`/`walk` drive loop.
+  **v1 scope, deliberately recognizer-only** (`Capability.Recognizer`, not
+  `Capability.Cst`): reproducing `Ll.parse`'s exact `Cst` needs IR-level
+  provenance for `LeftRec.Fold`/`PrecClimb.Tag` that doesn't exist yet —
+  `IR.withStrategy` serializes only the already-rewritten `atn`, discarding
+  the fold information `Ll.parse` itself needs for the same job. Also not
+  ported: the two-stage SLL-then-full-LL retry, the DFA cache, and ambiguity
+  reporting — a plain, uncached SLL walk is enough to prove `IR.atn` is a
+  real, executable substrate; no _runtime_ left-recursion handling is needed
+  either, since the ATN it reads is already the `LeftRec`-eliminated one
+  `IR.atn` serializes server-side. Recognizer-then-CST mirrors this port's
+  own Phase 1 → Phase 2 staging for the Scala engine itself, not a scope cut
+  invented for this backend alone.
+  **New test infrastructure**, since no test anywhere in this repo executed
+  _generated_ code before this — a golden-text diff alone can't tell a
+  correctly-ported `closure`/`move`/`predict` from one that merely still
+  emits stable-looking text: `AtnTsParityMain.scala` (JVM-only, mirroring
+  `gramaire.lab.LabParityMain`'s own architecture) emits the `.ts` for every
+  conformance-corpus grammar and prints each vector's already-lexed tokens
+  plus `Ll.recognize`'s own accept/reject; `site/scripts/check-atn-ts-
+  parity.mjs` (mirroring `check-lab-parity.mjs`) shells it, transpiles each
+  `.ts` with `tsc`, runs it under Node, and diffs its `recognize()` answer
+  against what the JVM process printed — wired into CI right after the
+  Lab's own JVM↔JS parity gate. All 62 vectors across all five corpora
+  (`lr`/`calc`/`json`/`ECMA-404`/`calc-prec`) pass: the emitted TypeScript,
+  actually transpiled and run, agrees with `Ll.recognize` on every one. A
+  golden-text pin (`BackendGoldenSuite`, `test/golden/Calc.atn.ts`) exists
+  too, same convention as every other backend, but is explicitly the lesser
+  of the two tests for this backend.
 
 ### Phase 6 — Diagnostics, profiling, conformance ✅ done (backend + Lab surface)
 
