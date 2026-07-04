@@ -293,6 +293,98 @@ class LabApiSuite extends munit.FunSuite:
       case Some(a) => assert(a.perMethod("Canonical").conflicts > 0)
   }
 
+  test(
+    "evaluate: analysis reports a live conflict-verdict classification, the same as gramaire explain-conflict"
+  ) {
+    // calc is conflict-free under every method.
+    LabApi.evaluate(LabRequest(calcMd, None, Method.Canonical)).analysis match
+      case None => fail("expected analysis")
+      case Some(a) =>
+        assertEquals(a.verdict.verdict, "conflict-free")
+        assertEquals(a.verdict.withPrecedenceConflicts, 0)
+        assertEquals(a.verdict.genuineConflicts, Vector.empty)
+
+    // calc-prec's `expr` is ambiguous without `## Precedence`, but its declared `%left`
+    // declarations resolve every conflict — "resolved by declaration", not "genuine".
+    LabApi.evaluate(LabRequest(calcPrecMd, None, Method.Canonical)).analysis match
+      case None => fail("expected analysis")
+      case Some(a) =>
+        assertEquals(a.verdict.verdict, "resolved-by-declaration")
+        assertEquals(a.verdict.withPrecedenceConflicts, 0)
+
+    // E : E E | 'x' has no precedence declaration to resolve its ambiguity — genuinely conflicted
+    // under canonical LR(1), the same verdict `gramaire explain-conflict` would report.
+    LabApi.evaluate(LabRequest(ambiguousMd, None, Method.Canonical)).analysis match
+      case None => fail("expected analysis even though buildOk is false")
+      case Some(a) =>
+        assertEquals(a.verdict.verdict, "genuine")
+        assert(a.verdict.withPrecedenceConflicts > 0)
+        assert(a.verdict.genuineConflicts.nonEmpty)
+        assert(
+          a.verdict.genuineConflicts.head.contains("shift/reduce"),
+          s"expected a rendered shift/reduce conflict, got: ${a.verdict.genuineConflicts.head}"
+        )
+  }
+
+  test(
+    "evaluate: allStarLowering shows the ALL(*) engine's own precedence/left-recursion rewrite, a no-op when neither applies"
+  ) {
+    // calc's Expr/Term are directly left-recursive and calc declares no `## Precedence`:
+    // afterPrecedence is a no-op (equals productions); afterLeftRecursion is not.
+    val calcResp = LabApi.evaluate(LabRequest(calcMd, None, Method.Canonical))
+    (calcResp.productions, calcResp.allStarLowering) match
+      case (Some(productions), Some(lowering)) =>
+        assertEquals(lowering.afterPrecedence, productions)
+        assert(
+          lowering.afterLeftRecursion != lowering.afterPrecedence,
+          "expected LeftRec.eliminate to rewrite calc's directly left-recursive Expr/Term"
+        )
+        assert(
+          lowering.afterLeftRecursion.exists(_.lhs == "Expr_tail"),
+          s"expected a synthesized Expr_tail rule, got: ${lowering.afterLeftRecursion.map(_.lhs)}"
+        )
+      case _ => fail("expected productions and allStarLowering")
+
+    // calc-prec declares `## Precedence`, so afterPrecedence actually rewrites `expr` into a
+    // stratified cascade (a fresh atom rule, among others) — not a no-op like calc's.
+    val calcPrecResp = LabApi.evaluate(LabRequest(calcPrecMd, None, Method.Canonical))
+    (calcPrecResp.productions, calcPrecResp.allStarLowering) match
+      case (Some(productions), Some(lowering)) =>
+        assert(
+          lowering.afterPrecedence != productions,
+          "expected PrecClimb.stratify to rewrite calc-prec's ambiguous expr"
+        )
+        assert(
+          lowering.afterPrecedence.exists(_.lhs == "expr_atom"),
+          s"expected a synthesized expr_atom rule, got: ${lowering.afterPrecedence.map(_.lhs)}"
+        )
+      case _ => fail("expected productions and allStarLowering")
+
+    // A grammar with no left recursion and no declared precedence needs neither rewrite — both
+    // stages equal the plain desugared productions.
+    val plainMd = """# Plain
+      |
+      |## Tokens
+      |
+      |```gramaire
+      |A : /a/
+      |```
+      |
+      |## s
+      |
+      |```gramaire
+      |s
+      |: A
+      |```
+      |""".stripMargin
+    val plainResp = LabApi.evaluate(LabRequest(plainMd, None, Method.Canonical))
+    (plainResp.productions, plainResp.allStarLowering) match
+      case (Some(productions), Some(lowering)) =>
+        assertEquals(lowering.afterPrecedence, productions)
+        assertEquals(lowering.afterLeftRecursion, lowering.afterPrecedence)
+      case _ => fail("expected productions and allStarLowering")
+  }
+
   test("evaluate: an accepted parse carries an LR-walk trace ending in Accept") {
     val resp = LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.Canonical))
     assert(resp.buildOk)

@@ -49,7 +49,8 @@
         "forest",
         "analysis",
         "evaluatorJs",
-        "atn"
+        "atn",
+        "allStarLowering"
       ],
       "additionalProperties": false,
       "properties": {
@@ -94,6 +95,10 @@
         "atn": {
           "oneOf": [{ "$ref": "#/$defs/atnDiagnostics" }, { "type": "null" }],
           "description": "The ATN diagnostics tab's data, under strategy \"ll-star\": whether Ll.parseTraced accepts `input` (mirrors `parse.accepted`), the DFA prediction cache's hit/miss counts, and every declaration-order-resolved ambiguity hit along the way — from the SAME cache run that produced `parse`, not a separate one. Present only when the request's strategy is \"ll-star\" and `input` is given."
+        },
+        "allStarLowering": {
+          "oneOf": [{ "$ref": "#/$defs/allStarLowering" }, { "type": "null" }],
+          "description": "The Lowered Core tab's ALL(*)-only section: the same precedence-stratification and left-recursion-elimination rewrite Ll.parse/Ll.parseTraced run before lowering to an ATN, independent of which Engine/strategy the request selected (same reasoning as `productions`/`analysis`). Present whenever `productions` is; null only when the grammar notation itself failed to parse."
         }
       }
     },
@@ -202,11 +207,26 @@
         "follow": { "type": "array", "items": { "type": "string" } }
       }
     },
+    "conflictVerdictInfo": {
+      "title": "ConflictVerdictInfo",
+      "description": "The same conflict classification `gramaire explain-conflict` prints as CLI prose, surfaced live: which of the four buckets the grammar's conflicts land in, the conflict count that survives with the grammar's own declared precedence applied, and — for a genuine conflict — each one rendered in grammar terms (empty otherwise).",
+      "type": "object",
+      "required": ["verdict", "withPrecedenceConflicts", "genuineConflicts"],
+      "additionalProperties": false,
+      "properties": {
+        "verdict": {
+          "type": "string",
+          "enum": ["conflict-free", "lalr-artifact", "resolved-by-declaration", "genuine"]
+        },
+        "withPrecedenceConflicts": { "type": "integer", "minimum": 0 },
+        "genuineConflicts": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "grammarAnalysis": {
       "title": "GrammarAnalysis",
-      "description": "Every method's state/conflict count (not just the requested method, so the tab can render the three-method comparison without a re-request), FIRST/FOLLOW per rule, and a railroad SVG per rule, built from the compiled grammar directly.",
+      "description": "Every method's state/conflict count (not just the requested method, so the tab can render the three-method comparison without a re-request), FIRST/FOLLOW per rule, a railroad SVG per rule, and the conflict-classification verdict, built from the compiled grammar directly.",
       "type": "object",
-      "required": ["perMethod", "firstFollow", "railroad"],
+      "required": ["perMethod", "firstFollow", "railroad", "verdict"],
       "additionalProperties": false,
       "properties": {
         "perMethod": {
@@ -222,7 +242,8 @@
           "type": "object",
           "description": "Keyed by rule name; each value is a self-contained SVG string.",
           "additionalProperties": { "type": "string" }
-        }
+        },
+        "verdict": { "$ref": "#/$defs/conflictVerdictInfo" }
       }
     },
     "productionInfo": {
@@ -237,6 +258,23 @@
         "action": {
           "type": ["string", "null"],
           "description": "The production's raw `{% … %}` action source text, or null when the alternative has no action."
+        }
+      }
+    },
+    "allStarLowering": {
+      "title": "AllStarLowering",
+      "description": "The ALL(*) engine's own internal rewrite of `productions` — the same two grammar transforms Ll.parse/Ll.parseTraced run before lowering to an ATN (precedence-climbing stratification, then direct-left-recursion elimination), rendered the same production-list way as `productions` instead of staying invisible. `afterPrecedence` equals `productions` when the grammar declares no `## Precedence`; `afterLeftRecursion` equals `afterPrecedence` when the grammar has no direct left recursion.",
+      "type": "object",
+      "required": ["afterPrecedence", "afterLeftRecursion"],
+      "additionalProperties": false,
+      "properties": {
+        "afterPrecedence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/productionInfo" }
+        },
+        "afterLeftRecursion": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/productionInfo" }
         }
       }
     },

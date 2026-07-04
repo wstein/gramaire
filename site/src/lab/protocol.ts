@@ -119,6 +119,10 @@ export interface LabResponse {
    * The ATN diagnostics tab's data, under strategy "ll-star": whether Ll.parseTraced accepts `input` (mirrors `parse.accepted`), the DFA prediction cache's hit/miss counts, and every declaration-order-resolved ambiguity hit along the way — from the SAME cache run that produced `parse`, not a separate one. Present only when the request's strategy is "ll-star" and `input` is given.
    */
   atn: AtnDiagnostics | null;
+  /**
+   * The Lowered Core tab's ALL(*)-only section: the same precedence-stratification and left-recursion-elimination rewrite Ll.parse/Ll.parseTraced run before lowering to an ATN, independent of which Engine/strategy the request selected (same reasoning as `productions`/`analysis`). Present whenever `productions` is; null only when the grammar notation itself failed to parse.
+   */
+  allStarLowering: AllStarLowering | null;
 }
 /**
  * One structured diagnostic: a severity, which pipeline stage raised it, a message, an optional source span, free-form note/help lines, and a plain-text rendering (the same caret-framed text the CLI prints) as a display fallback.
@@ -239,7 +243,7 @@ export interface ForestResult {
   truncated: boolean;
 }
 /**
- * Every method's state/conflict count (not just the requested method, so the tab can render the three-method comparison without a re-request), FIRST/FOLLOW per rule, and a railroad SVG per rule, built from the compiled grammar directly.
+ * Every method's state/conflict count (not just the requested method, so the tab can render the three-method comparison without a re-request), FIRST/FOLLOW per rule, a railroad SVG per rule, and the conflict-classification verdict, built from the compiled grammar directly.
  */
 export interface GrammarAnalysis {
   /**
@@ -255,6 +259,7 @@ export interface GrammarAnalysis {
   railroad: {
     [k: string]: string;
   };
+  verdict: ConflictVerdictInfo;
 }
 /**
  * One table-construction method's automaton size and conflict count.
@@ -270,6 +275,15 @@ export interface RuleFirstFollow {
   name: string;
   first: string[];
   follow: string[];
+}
+/**
+ * The same conflict classification `gramaire explain-conflict` prints as CLI prose, surfaced live: which of the four buckets the grammar's conflicts land in, the conflict count that survives with the grammar's own declared precedence applied, and — for a genuine conflict — each one rendered in grammar terms (empty otherwise).
+ */
+export interface ConflictVerdictInfo {
+  verdict:
+    "conflict-free" | "lalr-artifact" | "resolved-by-declaration" | "genuine";
+  withPrecedenceConflicts: number;
+  genuineConflicts: string[];
 }
 /**
  * Whether Ll.parseTraced accepts the target input, the DFA prediction cache's hit/miss counts, and every declaration-order-resolved ambiguity hit while walking it — from the same AtnSim.Cache(track = true) run that produced `parse`.
@@ -300,6 +314,13 @@ export interface AmbiguityInfo {
    * The tied alternative indices, in first-alt-wins declaration order.
    */
   alts: number[];
+}
+/**
+ * The ALL(*) engine's own internal rewrite of `productions` — the same two grammar transforms Ll.parse/Ll.parseTraced run before lowering to an ATN (precedence-climbing stratification, then direct-left-recursion elimination), rendered the same production-list way as `productions` instead of staying invisible. `afterPrecedence` equals `productions` when the grammar declares no `## Precedence`; `afterLeftRecursion` equals `afterPrecedence` when the grammar has no direct left recursion.
+ */
+export interface AllStarLowering {
+  afterPrecedence: ProductionInfo[];
+  afterLeftRecursion: ProductionInfo[];
 }
 
 export const LAB_PROTOCOL_VERSION = 1;

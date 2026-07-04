@@ -115,7 +115,12 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   await expect(page.locator(".lab__forest-item")).toHaveCount(1);
 
   await page.click('button[role="tab"]:has-text("Lowered Core")');
-  const productionRows = page.locator(".lab__table tbody tr");
+  // Scoped to the first table: calc.gram.md's Expr is directly left-recursive, so the ALL(*)-only
+  // "after left-recursion elimination" section below renders its own (longer) table too.
+  const productionRows = page
+    .locator(".lab__panel .lab__table")
+    .first()
+    .locator("tbody tr");
   await expect(productionRows).toHaveCount(8); // Expr(x3) + Term(x3) + Factor(x2)
   await expect(productionRows.first()).toContainText("Expr");
 
@@ -1077,4 +1082,104 @@ test("the LALR artifact example builds under Canonical/IELR, conflicts only unde
   await expect(page.locator(".lab__status")).toHaveText("errors", {
     timeout: 5000,
   });
+});
+
+test("Lowered Core shows the ALL(*) left-recursion rewrite for a directly left-recursive rule", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  // DEFAULT_SOURCE's Expr (`Expr : Expr '+' Term | Expr '-' Term | Term`) is directly
+  // left-recursive and declares no `## Precedence` — exactly the case that exercises
+  // LeftRec.eliminate alone, with PrecClimb.stratify staying a no-op.
+  await page.click('button[role="tab"]:has-text("Lowered Core")');
+
+  const headings = page.locator(".lab__analysis-heading");
+  await expect(headings).toHaveText([
+    "desugared productions",
+    "after left-recursion elimination (ALL(*) only)",
+  ]);
+
+  const rewritten = page
+    .locator(".lab__analysis-section", {
+      hasText: "after left-recursion elimination",
+    })
+    .locator(".lab__table tbody tr");
+  // LeftRec.eliminate's synthesized right-recursive tail rules for both left-recursive rules
+  // (Expr_tail, Term_tail) — the exact rewrite Ll.parse/Ll.parseTraced walk under the hood.
+  await expect(rewritten.filter({ hasText: "Expr_tail" })).not.toHaveCount(0);
+  await expect(rewritten.filter({ hasText: "Term_tail" })).not.toHaveCount(0);
+});
+
+test("Lowered Core shows the ALL(*) precedence-stratification rewrite, and hides both sections for a grammar needing neither", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+
+  const precMd = [
+    "# PrecTest",
+    "",
+    "```gramaire",
+    "%name PrecTest",
+    "```",
+    "",
+    "## Tokens",
+    "",
+    "```gramaire",
+    "NUMBER : /[0-9]+/",
+    "WS     : /[ \\t\\r\\n]+/   %skip",
+    "```",
+    "",
+    "## expr",
+    "",
+    "```gramaire",
+    "expr",
+    "  : expr '+' expr",
+    "  | expr '*' expr",
+    "  | NUMBER",
+    "```",
+    "",
+    "## Precedence",
+    "",
+    "```gramaire",
+    "%left '+'",
+    "%left '*'",
+    "```",
+    "",
+  ].join("\n");
+  await page.locator(".lab__pane--grammar .lab__editor").fill(precMd);
+  await expect(page.locator(".lab__status")).toHaveText("ok", {
+    timeout: 5000,
+  });
+
+  await page.click('button[role="tab"]:has-text("Lowered Core")');
+  // PrecClimb.stratify's own precedence-level cascade (a fresh atom rule holding the bare NUMBER
+  // alternative) proves the stratification rewrite actually ran, not just that a section rendered.
+  // `expr`'s stratified levels are themselves left-recursive (mirroring how a human would write
+  // the same cascade by hand), so LeftRec.eliminate also fires afterward — all three sections
+  // render together here; the next grammar below covers the "neither rewrite fires" case.
+  await expect(page.locator(".lab__panel")).toContainText("expr_atom");
+  await expect(
+    page.locator(".lab__analysis-heading", {
+      hasText: "after precedence stratification",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".lab__analysis-heading", {
+      hasText: "after left-recursion elimination",
+    }),
+  ).toBeVisible();
+
+  // A grammar with no left recursion and no declared precedence needs neither rewrite — both
+  // ALL(*)-only sections stay hidden, leaving only the plain desugared-productions table.
+  await page
+    .locator(".lab__pane--grammar .lab__editor")
+    .fill(
+      "# NoRewrite\n\n```gramaire\n%name NoRewrite\n```\n\n## Tokens\n\n```gramaire\nA : /a/\n```\n\n## s\n\n```gramaire\ns\n  : A\n```\n",
+    );
+  await expect(page.locator(".lab__status")).toHaveText("ok", {
+    timeout: 5000,
+  });
+  await expect(page.locator(".lab__analysis-heading")).toHaveText(
+    "desugared productions",
+  );
 });

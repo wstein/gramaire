@@ -100,13 +100,30 @@ object Glr:
   def forest(method: Method, g: Grammar, toks: Vector[Token]): Vector[Cst] =
     parseForest(Table.buildGlrTablesFor(method, g), Cst.cstToken, Cst.cstReduce, toks)
 
-  /** Classify a grammar's conflicts by comparing the three construction methods, and render a human
-    * report.
+  /** Which of the four conflict-classification buckets `explainP`'s prose renders — a
+    * machine-readable tag for callers (the Lab's live Grammar analysis panel) that want the verdict
+    * without parsing it back out of the rendered string.
     */
-  def explain(g: Grammar): String = explainP(Table.emptyPrec, g)
+  enum ConflictVerdict derives CanEqual:
+    case ConflictFree, LalrArtifact, ResolvedByDeclaration, Genuine
 
-  /** `explain`, but folding in the grammar's declared precedence. */
-  def explainP(prec: Precedence, g: Grammar): String =
+  /** The classification `explainP` renders to prose, kept structured: conflict counts under each
+    * method, the count that survives with the grammar's own declared precedence applied, the
+    * genuine conflicts (if any) rendered in grammar terms, and which verdict those counts land in.
+    */
+  final case class ConflictReport(
+      canonicalConflicts: Int,
+      lalrConflicts: Int,
+      ielrConflicts: Int,
+      withPrecedenceConflicts: Int,
+      genuineConflicts: Vector[String],
+      verdict: ConflictVerdict
+  )
+
+  /** Classify a grammar's conflicts by comparing the three construction methods — the shared
+    * computation `explainP`'s CLI prose and the Lab's live verdict badge both render from.
+    */
+  def reportOf(prec: Precedence, g: Grammar): ConflictReport =
     // No declared precedence for nc/nl/ni — every shift/reduce ambiguity surfaces, matching the
     // old `Table.buildTablesFor` (== `buildTablesForP(emptyPrec, ...)`) calls this replaces.
     // `statsForAll` builds the canonical automaton once and shares it across all three methods,
@@ -116,32 +133,54 @@ object Glr:
     val nl = allStats(Method.LALR).conflicts.length
     val ni = allStats(Method.IELR).conflicts.length
 
-    val hasPrec = prec.terms.nonEmpty
     // Canonical conflicts that remain after applying the declared precedence.
     val withPrec = Table.statsFor(prec, Method.Canonical, g)
     val ncp = withPrec.conflicts.length
     val genuineConflicts: Vector[String] = Diagnostics.renderConflicts(g, withPrec.conflicts)
 
-    val verdict: Vector[String] =
-      if nc == 0 && nl == 0 then Vector("verdict: conflict-free — the grammar is LALR(1).")
-      else if nc == 0 then
+    val verdict =
+      if nc == 0 && nl == 0 then ConflictVerdict.ConflictFree
+      else if nc == 0 then ConflictVerdict.LalrArtifact
+      else if ncp == 0 then ConflictVerdict.ResolvedByDeclaration
+      else ConflictVerdict.Genuine
+
+    ConflictReport(nc, nl, ni, ncp, genuineConflicts, verdict)
+
+  /** Classify a grammar's conflicts by comparing the three construction methods, and render a human
+    * report.
+    */
+  def explain(g: Grammar): String = explainP(Table.emptyPrec, g)
+
+  /** `explain`, but folding in the grammar's declared precedence. */
+  def explainP(prec: Precedence, g: Grammar): String =
+    val report = reportOf(prec, g)
+    val nc = report.canonicalConflicts
+    val nl = report.lalrConflicts
+    val ni = report.ielrConflicts
+    val ncp = report.withPrecedenceConflicts
+    val hasPrec = prec.terms.nonEmpty
+
+    val verdict: Vector[String] = report.verdict match
+      case ConflictVerdict.ConflictFree =>
+        Vector("verdict: conflict-free — the grammar is LALR(1).")
+      case ConflictVerdict.LalrArtifact =>
         Vector(
           s"verdict: LALR artifact — $nl conflict(s) under LALR(1) that canonical LR(1) resolves" +
             (if ni == 0 then " (and so does IELR(1))." else "."),
           "         the grammar is LR(1); build it with IELR(1) for a compact conflict-free table."
         )
-      else if ncp == 0 then
+      case ConflictVerdict.ResolvedByDeclaration =>
         Vector(
           s"verdict: resolved by declaration — $nc conflict(s) under canonical LR(1), all resolved by the %left/%right precedence" +
             " declarations; the grammar compiles."
         )
-      else
+      case ConflictVerdict.Genuine =>
         Vector(
           s"verdict: genuine — $ncp conflict(s) persist under canonical LR(1)" +
             (if hasPrec then " even with the declared precedence" else "") +
             "; the grammar is not LR(1)",
           "         (ambiguous, or in need of a refactor, more precedence, or the GLR driver). conflicts:"
-        ) ++ genuineConflicts.map(c => s"  $c")
+        ) ++ report.genuineConflicts.map(c => s"  $c")
 
     (Vector(
       s"conflicts by method: canonical LR(1) = $nc, LALR(1) = $nl, IELR(1) = $ni" +
