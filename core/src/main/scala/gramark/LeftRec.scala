@@ -190,6 +190,22 @@ object LeftRec:
     * un-fold-aware `RuleCall` into `Aⱼ`'s tail rule.
     */
   def eliminateIndirect(g: Grammar): (Grammar, Map[String, Fold]) =
+    val (grammar, folds, _) = eliminateIndirectFull(g)
+    (grammar, folds)
+
+  /** Like [[eliminateIndirect]], but additionally returns every rule's own FINAL base alts paired
+    * with the provenance used to build each — not just the rules a [[Fold]] was created for.
+    * `IR.rewrittenGrammarOf` needs this: Paull substitution can splice an earlier rule's content
+    * into an alt without the owning rule ending up left-recursive (and hence without a `Fold`) at
+    * all — e.g. `Elements : Value | Elements ',' Value` substitutes `Value`'s own alts into
+    * `Elements`'s first alt, but only the second (self-referential) alt earns `Elements` a `Fold`;
+    * the first alt's provenance (now a `Prov.Spliced`, not a bare `Prov.Direct`) would otherwise be
+    * invisible outside this module, since `Fold` only ever carries a left-recursive rule's own
+    * base/operator provenance. A rule with a `Fold` still gets an entry here too (identical to
+    * `Fold.baseAlt`, for uniformity — a caller that already special-cases folded rules can ignore
+    * it for those).
+    */
+  def eliminateIndirectFull(g: Grammar): (Grammar, Map[String, Fold], Map[String, Vector[Prov]]) =
     val order: Vector[String] = g.rules.map(_.name)
     val byName: Map[String, Rule] = g.rules.map(r => r.name -> r).toMap
 
@@ -306,4 +322,6 @@ object LeftRec:
 
     val finalRules =
       order.map(name => byName(name).copy(alts = result.state(name).alts)) ++ result.extraRules
-    (Grammar(finalRules), result.folds)
+    val provByRule: Map[String, Vector[Prov]] =
+      order.map(name => name -> result.state(name).baseAlts.map(_._2)).toMap
+    (Grammar(finalRules), result.folds, provByRule)

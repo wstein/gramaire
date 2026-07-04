@@ -284,8 +284,10 @@ object Ll:
         result
 
   // The flat index `Table.productions` assigns each (rule, alt) — rules and alts walked in the
-  // exact same order — so this matches the LR path's production ids by construction.
-  private def indexProductions(dg: Grammar): Map[(String, Int), Int] =
+  // exact same order — so this matches the LR path's production ids by construction. Widened from
+  // `private` (not duplicated) so `IR.rewrittenGrammarOf` can resolve the same ids when building
+  // the `rewritten` IR section's `IRAltOrigin`s the same way `tagCst` resolves them here.
+  private[gramark] def indexProductions(dg: Grammar): Map[(String, Int), Int] =
     val buf = scala.collection.mutable.Map.empty[(String, Int), Int]
     var i = 0
     dg.rules.foreach { r =>

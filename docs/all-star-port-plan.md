@@ -561,6 +561,34 @@ surface is reached by **conversion**, not syntax expansion (§4).
   golden-text pin (`BackendGoldenSuite`, `test/golden/Calc.atn.ts`) exists
   too, same convention as every other backend, but is explicitly the lesser
   of the two tests for this backend.
+- ✅ **The CST-fold-back gap `atn-ts` left open above is now closed**, via a
+  new optional `IR.rewritten: Option[IRRewrittenGrammar]` section (the
+  IR-as-standard-EBNF-format "PEG engine" plan): the same
+  `Desugar`→`PrecClimb.stratify`→`LeftRec.eliminateIndirect`-rewritten grammar
+  `Ll.parse` walks, with every alt pre-tagged with an `IRProv` tree
+  (`Leaf`/`OpLeaf`/`Wrap`, mirroring `LeftRec.Prov`'s own
+  `Direct`/`Spliced` exactly, fully resolved — a consumer never runs
+  `PrecClimb`/`LeftRec`/`Ll.indexProductions` itself). Two real correctness
+  problems surfaced while building and verifying this (not just planned around
+  in the abstract): (1) a flat "no-tail alt before with-tail alt" encoding hits
+  the classic PEG "hiding problem" for any left-recursive or
+  `PrecClimb`-stratified rule, fixed by encoding a fold as an explicit
+  `IRRuleBody.Folded(bases, operators)` repetition instead of competing
+  ordered alts, and by sorting a `Plain` rule's `Unwrap`-origin (pass-through)
+  alt last; (2) Paull substitution (`LeftRec.eliminateIndirect`) is common and
+  entirely benign even for non-recursive grammars (`json`/`ECMA-404`'s
+  `Elements : Value | Elements ',' Value` substitutes `Value`'s own alts into
+  `Elements`'s first alt with no cycle involved at all) — a new
+  `LeftRec.eliminateIndirectFull` exposes every rule's own alt provenance (not
+  just rules a `Fold` was created for) so this case resolves correctly instead
+  of being conservatively rejected. Verified by `IRRewrittenSuite` (JVM-only):
+  a genuinely greedy, no-backtracking reference PEG walker run over
+  `IR.rewrittenGrammarOf`'s own output, diffed against `Ll.parse`'s `Cst` for
+  every accept vector across all four real corpora
+  (`calc`/`json`/`ECMA-404`/`calc-prec`) — all pass. This is Phase 1 of a
+  follow-on plan to add a dependency-free Scala PEG/combinator backend and an
+  opt-in `fastparse` one from the same `IR.rewritten` input (Phases 2-4, not
+  yet built).
 
 ### Phase 6 — Diagnostics, profiling, conformance ✅ done (backend + Lab surface)
 

@@ -45,6 +45,10 @@
     "atn": {
       "$ref": "#/$defs/atn",
       "description": "The serialized ATN; present under the 'll-star' strategy."
+    },
+    "rewritten": {
+      "$ref": "#/$defs/rewrittenGrammar",
+      "description": "The CST-fold-back section: the left-recursion-eliminated, precedence-stratified grammar Ll.parse walks, pre-tagged for a codegen backend. Present under 'll-star' for grammars with no Paull-substitution-eligible rule."
     }
   },
   "$defs": {
@@ -775,6 +779,234 @@
               "minimum": 0
             },
             "follow": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      ]
+    },
+    "rewrittenGrammar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "rules"
+      ],
+      "properties": {
+        "start": {
+          "type": "string"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rewrittenRule"
+          }
+        }
+      }
+    },
+    "rewrittenRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "body"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "body": {
+          "$ref": "#/$defs/ruleBody"
+        }
+      }
+    },
+    "ruleBody": {
+      "type": "object",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "alts"
+          ],
+          "properties": {
+            "kind": {
+              "const": "plain"
+            },
+            "alts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/rewrittenAlt"
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "bases",
+            "operators"
+          ],
+          "properties": {
+            "kind": {
+              "const": "folded"
+            },
+            "bases": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/rewrittenAlt"
+              }
+            },
+            "operators": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/rewrittenAlt"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "rewrittenAlt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "syms",
+        "prov"
+      ],
+      "properties": {
+        "syms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rewrittenSym"
+          }
+        },
+        "prov": {
+          "$ref": "#/$defs/prov"
+        }
+      }
+    },
+    "prov": {
+      "type": "object",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "origin"
+          ],
+          "properties": {
+            "kind": {
+              "const": "leaf"
+            },
+            "origin": {
+              "$ref": "#/$defs/altOrigin"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "origin"
+          ],
+          "properties": {
+            "kind": {
+              "const": "opLeaf"
+            },
+            "origin": {
+              "$ref": "#/$defs/altOrigin"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "origin",
+            "innerSpan",
+            "inner"
+          ],
+          "properties": {
+            "kind": {
+              "const": "wrap"
+            },
+            "origin": {
+              "$ref": "#/$defs/altOrigin"
+            },
+            "innerSpan": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "inner": {
+              "$ref": "#/$defs/prov"
+            }
+          }
+        }
+      ]
+    },
+    "rewrittenSym": {
+      "type": "object",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "label"
+          ],
+          "properties": {
+            "kind": {
+              "const": "terminal"
+            },
+            "label": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "rule"
+          ],
+          "properties": {
+            "kind": {
+              "const": "nonterminal"
+            },
+            "rule": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "altOrigin": {
+      "type": "object",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "unwrap"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "productionId"
+          ],
+          "properties": {
+            "kind": {
+              "const": "original"
+            },
+            "productionId": {
               "type": "integer",
               "minimum": 0
             }

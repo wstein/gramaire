@@ -132,6 +132,44 @@ object IRValidate:
          else Vector(s"atn decisions ${a.decisions} ≠ blockStart count $decisionStates")) ++
         a.states.flatMap(s => s.transitions.flatMap(checkTrans(n, _)))
 
+    def checkRewrittenSym(ruleNames: Set[String], s: IRRewrittenSym): Vector[String] = s match
+      case IRRewrittenSym.Terminal(_) => Vector.empty
+      case IRRewrittenSym.NonTerminal(rule) =>
+        if ruleNames.contains(rule) then Vector.empty
+        else Vector(s"rewritten: unknown rule reference '$rule'")
+
+    def checkAltOrigin(o: IRAltOrigin): Vector[String] = o match
+      case IRAltOrigin.Unwrap => Vector.empty
+      case IRAltOrigin.Original(productionId) =>
+        if productionId >= 0 && productionId < ruleCount then Vector.empty
+        else Vector(s"rewritten: origin production id $productionId >= ruleCount $ruleCount")
+
+    def checkProv(p: IRProv): Vector[String] = p match
+      case IRProv.Leaf(origin)   => checkAltOrigin(origin)
+      case IRProv.OpLeaf(origin) => checkAltOrigin(origin)
+      case IRProv.Wrap(origin, innerSpan, inner) =>
+        checkAltOrigin(origin) ++
+          (if innerSpan >= 0 then Vector.empty
+           else Vector(s"rewritten: wrap innerSpan $innerSpan is negative")) ++
+          checkProv(inner)
+
+    def checkRewrittenAlt(ruleNames: Set[String])(a: IRRewrittenAlt): Vector[String] =
+      a.syms.flatMap(checkRewrittenSym(ruleNames, _)) ++ checkProv(a.prov)
+
+    def checkRewrittenRule(ruleNames: Set[String])(r: IRRewrittenRule): Vector[String] =
+      r.body match
+        case IRRuleBody.Plain(alts) => alts.flatMap(checkRewrittenAlt(ruleNames))
+        case IRRuleBody.Folded(bases, operators) =>
+          bases.flatMap(checkRewrittenAlt(ruleNames)) ++ operators.flatMap(
+            checkRewrittenAlt(ruleNames)
+          )
+
+    def checkRewritten(rg: IRRewrittenGrammar): Vector[String] =
+      val ruleNames = rg.rules.map(_.name).toSet
+      (if ruleNames.contains(rg.start) then Vector.empty
+       else Vector(s"rewritten: start '${rg.start}' is not a declared rule")) ++
+        rg.rules.flatMap(checkRewrittenRule(ruleNames))
+
     contiguous("terminal", termIds) ++
       contiguous("nonterminal", ntIds) ++
       contiguous("rule", ruleIds) ++
@@ -143,4 +181,5 @@ object IRValidate:
       ir.tables.recovery.toVector.flatMap(r => r.syncTokens.flatMap(checkSync)) ++
       ir.tables.glr.toVector.flatMap(gl => gl.conflictStates.flatMap(checkConflictState)) ++
       ir.lexer.toVector.flatMap(checkLexer) ++
-      ir.atn.toVector.flatMap(checkAtn)
+      ir.atn.toVector.flatMap(checkAtn) ++
+      ir.rewritten.toVector.flatMap(checkRewritten)

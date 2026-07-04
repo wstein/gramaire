@@ -91,7 +91,8 @@ object IRDecode:
       lexer <- optAtnLexer(o, "lexer", decodeLexer)
       strategy <- optStr(o, "strategy")
       atn <- optAtnLexer(o, "atn", decodeAtn)
-    yield IR(irVersion, strategy.getOrElse("lr"), grammar, tables, conflicts, lexer, atn)
+      rewritten <- optAtnLexer(o, "rewritten", decodeRewrittenGrammar)
+    yield IR(irVersion, strategy.getOrElse("lr"), grammar, tables, conflicts, lexer, atn, rewritten)
 
   private def optAtnLexer[A](
       kvs: Vector[(String, Json)],
@@ -137,6 +138,84 @@ object IRDecode:
           yield IRAtnTrans.IRAtnRule(name, target, follow)
         case other => Left(s"unknown ATN transition kind: $other")
     yield result
+
+  private def decodeRewrittenSym(j: Json): Either[String, IRRewrittenSym] =
+    for
+      o <- obj(j)
+      kind <- field(o, "kind").flatMap(str)
+      result <- kind match
+        case "terminal"    => field(o, "label").flatMap(str).map(IRRewrittenSym.Terminal(_))
+        case "nonterminal" => field(o, "rule").flatMap(str).map(IRRewrittenSym.NonTerminal(_))
+        case other         => Left(s"unknown rewritten sym kind: $other")
+    yield result
+
+  private def decodeAltOrigin(j: Json): Either[String, IRAltOrigin] =
+    for
+      o <- obj(j)
+      kind <- field(o, "kind").flatMap(str)
+      result <- kind match
+        case "unwrap" => Right(IRAltOrigin.Unwrap)
+        case "original" =>
+          field(o, "productionId").flatMap(int).map(IRAltOrigin.Original(_))
+        case other => Left(s"unknown alt origin kind: $other")
+    yield result
+
+  private def decodeProv(j: Json): Either[String, IRProv] =
+    for
+      o <- obj(j)
+      kind <- field(o, "kind").flatMap(str)
+      origin <- field(o, "origin").flatMap(decodeAltOrigin)
+      result <- kind match
+        case "leaf"   => Right(IRProv.Leaf(origin))
+        case "opLeaf" => Right(IRProv.OpLeaf(origin))
+        case "wrap" =>
+          for
+            innerSpan <- field(o, "innerSpan").flatMap(int)
+            inner <- field(o, "inner").flatMap(decodeProv)
+          yield IRProv.Wrap(origin, innerSpan, inner)
+        case other => Left(s"unknown prov kind: $other")
+    yield result
+
+  private def decodeRewrittenAlt(j: Json): Either[String, IRRewrittenAlt] =
+    for
+      o <- obj(j)
+      syms <- field(o, "syms").flatMap(arr).flatMap(traverseV(_)(decodeRewrittenSym))
+      prov <- field(o, "prov").flatMap(decodeProv)
+    yield IRRewrittenAlt(syms, prov)
+
+  private def decodeRuleBody(j: Json): Either[String, IRRuleBody] =
+    for
+      o <- obj(j)
+      kind <- field(o, "kind").flatMap(str)
+      result <- kind match
+        case "plain" =>
+          field(o, "alts")
+            .flatMap(arr)
+            .flatMap(traverseV(_)(decodeRewrittenAlt))
+            .map(IRRuleBody.Plain(_))
+        case "folded" =>
+          for
+            bases <- field(o, "bases").flatMap(arr).flatMap(traverseV(_)(decodeRewrittenAlt))
+            operators <- field(o, "operators")
+              .flatMap(arr)
+              .flatMap(traverseV(_)(decodeRewrittenAlt))
+          yield IRRuleBody.Folded(bases, operators)
+        case other => Left(s"unknown rule body kind: $other")
+    yield result
+
+  private def decodeRewrittenRule(j: Json): Either[String, IRRewrittenRule] =
+    for
+      o <- obj(j)
+      name <- field(o, "name").flatMap(str)
+      body <- field(o, "body").flatMap(decodeRuleBody)
+    yield IRRewrittenRule(name, body)
+
+  private def decodeRewrittenGrammar(j: Json): Either[String, IRRewrittenGrammar] =
+    for
+      o <- obj(j)
+      start <- field(o, "start").flatMap(str)
+      rules <- field(o, "rules").flatMap(arr).flatMap(traverseV(_)(decodeRewrittenRule))
+    yield IRRewrittenGrammar(start, rules)
 
   private def decodeLexer(j: Json): Either[String, IRLexer] =
     for
