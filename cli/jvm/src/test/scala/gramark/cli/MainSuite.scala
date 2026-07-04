@@ -6,6 +6,7 @@ import gramark.{
   BackendIr,
   BackendJs,
   BackendRegistry,
+  BackendScalaPeg,
   BackendTs,
   Grammar,
   IR,
@@ -112,10 +113,17 @@ class MainSuite extends munit.FunSuite:
     // atn-ts is the mirror image of js/ts: it reads only the ATN, so it's ll-star-only.
     assert(!Main.backendSupportsStrategy(BackendAtnTs.backend, "lr"))
     assert(Main.backendSupportsStrategy(BackendAtnTs.backend, "ll-star"))
+    // scala-peg reads only IR.rewritten (the ll-star-only CST-fold-back section).
+    assert(!Main.backendSupportsStrategy(BackendScalaPeg.backend, "lr"))
+    assert(Main.backendSupportsStrategy(BackendScalaPeg.backend, "ll-star"))
   }
 
   test("BackendRegistry: atn-ts is registered and reachable by name") {
     assertEquals(BackendRegistry.findBackend("atn-ts"), Some(BackendAtnTs.backend))
+  }
+
+  test("BackendRegistry: scala-peg is registered and reachable by name") {
+    assertEquals(BackendRegistry.findBackend("scala-peg"), Some(BackendScalaPeg.backend))
   }
 
   test(
