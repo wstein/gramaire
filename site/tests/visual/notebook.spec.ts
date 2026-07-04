@@ -41,8 +41,9 @@ test("every rule cell renders a role badge, its name, and a railroad diagram by 
 }) => {
   await gotoNotebookReady(page);
 
+  // The notebook opens on the calc-js example: Settings, then Tokens, then the three rules.
   const badges = await page.locator(".grimoire__badge").allTextContents();
-  expect(badges).toEqual(["Settings", "Rule", "Rule", "Rule", "Tokens"]);
+  expect(badges).toEqual(["Settings", "Tokens", "Rule", "Rule", "Rule"]);
 
   const names = await page.locator(".grimoire__cell-name").allTextContents();
   expect(names).toEqual(["Expr", "Term", "Factor"]);
@@ -259,6 +260,24 @@ test("Try it renders real tokens and a CST for the default input", async ({
 
   await expect(page.locator(".grimoire__tryit-token")).toHaveCount(5);
   await expect(page.locator(".grimoire-cst-branch").first()).toBeVisible();
+});
+
+// The notebook opens on a real calculator (calc-js): the grammar's own `{% %}` actions evaluate
+// the arithmetic, and Try-it shows the computed number, updating live as the input changes.
+test("Try it evaluates the grammar's actions into a real arithmetic result", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  // Default input "2 + 3 * 4" with `*` binding tighter than `+` → 14.
+  await expect(page.locator(".grimoire__tryit-result")).toHaveText("= 14");
+
+  const input = page.locator(".grimoire__tryit-input");
+  await input.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Backspace");
+  await page.keyboard.type("(1 + 2) * 5 - 4 / 2");
+  await expect(page.locator(".grimoire__tryit-result")).toHaveText("= 13");
 });
 
 // Layer 4: a rejected Try-it input underlines the exact offending character in a reconstructed

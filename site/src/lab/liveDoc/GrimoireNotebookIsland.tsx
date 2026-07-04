@@ -7,7 +7,7 @@ import type {
   ProductionInfo,
   SrcSpanInfo,
 } from "../protocol";
-import { DEFAULT_SOURCE } from "../examples";
+import { NOTEBOOK_DEFAULT_SOURCE, NOTEBOOK_DEFAULT_INPUT } from "../examples";
 import {
   buildDocument,
   replaceBlockText,
@@ -30,14 +30,16 @@ import "./grimoireNotebook.css";
 // see docs/rebrand-grimoire-plan.md's "status of the notebook feature" note and this session's own
 // feedback memory on why an earlier LabIsland-integrated prototype was reverted.
 //
-// Scope of this first cut (docs/playground-spec.md's "Live Document notebook" notes): no method
-// picker (always builds Canonical), no "Format document" action (gramark fmt isn't exposed to the
-// JS engine yet — omitted rather than shipped as a non-functional button), "Try it" renders the
-// real engine's tokens/CST rather than a toy evaluator. Prose editing is raw-markdown-as-text, not
-// rich text (parseMarkdownLite is read-only rendering + a click-to-edit raw textarea).
+// Scope (docs/playground-spec.md's "Live Document notebook" notes): no method picker (always
+// builds Canonical), no "Format document" action (gramark fmt isn't exposed to the JS engine yet
+// — omitted rather than shipped as a non-functional button). "Try it" runs the real engine: it
+// tokenizes, builds the CST, AND evaluates the grammar's own `{% %}` actions (the notebook opens
+// on the calc-js example, so its result is genuine arithmetic — `evaluation.tree.value`). Prose
+// editing is raw-markdown-as-text (parseMarkdownLite is read-only rendering + a click-to-edit raw
+// textarea).
 
 const labWorker = createLabWorker();
-const { response, pending } = labWorker;
+const { response, pending, evaluation } = labWorker;
 
 // `blocks` — not `source` — is the primary signal. A local edit updates ONE block via
 // `replaceBlockText` directly; `buildDocument` (which needs `LabResponse.fences`, i.e. a
@@ -51,8 +53,8 @@ const { response, pending } = labWorker;
 // as literal text). Editing a block never needs a fresh `fences` — the block being edited is
 // still exactly the block being edited regardless of how many lines it now spans; only a genuine
 // server round-trip can tell us anything new about role/classification.
-const blocks = signal<DocBlock[]>(buildDocument(DEFAULT_SOURCE, []));
-const tryItInput = signal("1+2*3");
+const blocks = signal<DocBlock[]>(buildDocument(NOTEBOOK_DEFAULT_SOURCE, []));
+const tryItInput = signal(NOTEBOOK_DEFAULT_INPUT);
 const editingProse = signal<number | null>(null);
 const proseDraft = signal("");
 // Grammar cells mirror prose cells: click reveals the source editor, blur commits and collapses
@@ -446,10 +448,22 @@ function InputCaret({ input, span }: { input: string; span: SrcSpanInfo }) {
   );
 }
 
+// The root value computed by the grammar's own `{% %}` actions (`evaluation.tree.value`) — for a
+// calculator grammar this is the arithmetic result. Rendered as text; a number/string prints
+// bare, anything else is JSON so a structured result (an AST-building grammar) still shows.
+function evaluatedResult(): string | null {
+  const e = evaluation.value;
+  if (!e || !e.ok) return null;
+  const v = (e.tree as { value?: unknown }).value;
+  if (v === undefined) return null;
+  return typeof v === "object" ? JSON.stringify(v) : String(v);
+}
+
 function TryIt() {
   const resp = response.value;
   const parse = resp?.parse;
   const rejectMsg = parse && !parse.accepted ? parse.message : null;
+  const result = parse?.accepted ? evaluatedResult() : null;
   return (
     <div class="grimoire__tryit">
       <input
@@ -461,6 +475,7 @@ function TryIt() {
           scheduleEvaluate();
         }}
       />
+      {result !== null && <div class="grimoire__tryit-result">= {result}</div>}
       {parse?.accepted && (
         <div class="grimoire__tryit-tokens">
           {parse.tokens.map((t, i) => (
