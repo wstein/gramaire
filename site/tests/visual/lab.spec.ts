@@ -148,12 +148,13 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
     "railroad diagram",
   );
 
+  // Parse trace absorbed the old, separate "Walk" tab — one click, the flat table AND the
+  // stepper are both already there (the table was always Walk's own trace pane, uncollapsed).
   await page.click('button[role="tab"]:has-text("Parse trace")');
   const traceRows = page.locator(".lab__panel .lab__table tbody tr");
   await expect(traceRows).toHaveCount(14); // "1+2*3" under calc.grmk.md's shape: 14 shift/reduce/accept steps
   await expect(traceRows.last()).toContainText("accept");
 
-  await page.click('button[role="tab"]:has-text("Walk")');
   await expect(page.locator(".lab__walk-counter")).toHaveText("step 1 / 14");
   await expect(page.locator(".lab__walk-trace")).toContainText(
     "shift `NUMBER`",
@@ -200,7 +201,6 @@ test("tabs with nothing to show are disabled, with a tooltip explaining why", as
     "Tokens",
     "Parse tree",
     "Parse trace",
-    "Walk",
     "All parses",
     "Lowered Core",
     "Grammar analysis",
@@ -218,7 +218,7 @@ test("tabs with nothing to show are disabled, with a tooltip explaining why", as
   await expect(page.locator(".lab__statusbar")).toContainText("ok", {
     timeout: 5000,
   });
-  for (const label of ["Tokens", "Parse tree", "Parse trace", "Walk"]) {
+  for (const label of ["Tokens", "Parse tree", "Parse trace"]) {
     const tab = page.locator(`button[role="tab"]:has-text("${label}")`);
     await expect(tab).toBeDisabled();
     await expect(tab).toHaveAttribute("title", /Enter (target )?input/);
@@ -750,7 +750,7 @@ test("hovering/clicking a nonterminal box in the railroad diagram cross-links th
   );
 });
 
-test("the Walk tab splits parse trace from controls, stack, and remaining input", async ({
+test("the Parse trace tab splits its trace from controls, stack, and remaining input", async ({
   page,
 }) => {
   await gotoLabReady(page);
@@ -761,7 +761,7 @@ test("the Walk tab splits parse trace from controls, stack, and remaining input"
   await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
     timeout: 5000,
   });
-  await page.click('button[role="tab"]:has-text("Walk")');
+  await page.click('button[role="tab"]:has-text("Parse trace")');
   await page.waitForSelector(".lab__walk-trace .lab__table");
 
   await expect(page.locator(".lab__walk")).toBeVisible();
@@ -814,9 +814,24 @@ test("the Walk tab splits parse trace from controls, stack, and remaining input"
     .locator(".lab__walk-trace")
     .evaluate((el) => el.scrollTop);
   expect(scrollTop).toBeGreaterThan(0);
+
+  // Collapsing the stepper is what gives back the old, separate "Parse trace" tab's full-width,
+  // no-stepper reading experience — the trace table itself never moves or loses content, only the
+  // splitter/stack/remaining-input chrome disappears.
+  await expect(page.locator(".lab__walk-splitter")).toBeVisible();
+  await page.locator(".lab__walk-collapse-toggle input").check();
+  await expect(page.locator(".lab__walk-splitter")).toHaveCount(0);
+  await expect(controls).toHaveCount(0);
+  await expect(panes).toHaveCount(0);
+  await expect(page.locator(".lab__walk-trace")).toContainText("accept");
+
+  await page.locator(".lab__walk-collapse-toggle input").uncheck();
+  await expect(page.locator(".lab__walk-splitter")).toBeVisible();
+  await expect(controls).toBeVisible();
+  await expect(panes).toBeVisible();
 });
 
-test("Engine=ALL(*) drives Parse trace/Walk from Ll.parseTraced, and badges the still-LR/GLR tabs", async ({
+test("Engine=ALL(*) drives Parse trace (table + stepper) from Ll.parseTraced, and badges the still-LR/GLR tabs", async ({
   page,
 }) => {
   await gotoLabReady(page);
@@ -827,16 +842,15 @@ test("Engine=ALL(*) drives Parse trace/Walk from Ll.parseTraced, and badges the 
   });
 
   // Parse trace: predict/match/accept steps, not shift/reduce — this is the ll-star engine, not
-  // an LR walk relabeled.
+  // an LR walk relabeled. One tab now — the flat trace table and the stepper (rule-stack pane, not
+  // "parse stack"; remaining input derived from the token list, not LrStepInfo.remainingSymbols,
+  // which ll-star has no such field for) are both already there, no second click needed.
   await page.click('button[role="tab"]:has-text("Parse trace")');
   await expect(page.locator(".lab__panel")).toContainText("predict Expr");
   await expect(page.locator(".lab__panel")).toContainText("match NUMBER");
   const traceRows = page.locator(".lab__panel .lab__table tbody tr");
   await expect(traceRows.last()).toContainText("accept");
 
-  // Walk: the same trace, plus a rule-stack pane (not "parse stack") and a remaining-input pane
-  // derived from the token list, not LrStepInfo.remainingSymbols (ll-star has no such field).
-  await page.click('button[role="tab"]:has-text("Walk")');
   await expect(page.locator(".lab__walk-trace")).toContainText("predict Expr");
   await expect(page.locator(".lab__walk-panes")).toContainText("rule stack");
   await expect(page.locator(".lab__walk-panes")).toContainText("Expr");
@@ -1002,16 +1016,11 @@ test("a normal-length trace/llTrace never shows the truncated note, LR or ALL(*)
 
   await page.click('button[role="tab"]:has-text("Parse trace")');
   await expect(page.locator(".lab__truncated-note")).toHaveCount(0);
-  await page.click('button[role="tab"]:has-text("Walk")');
-  await expect(page.locator(".lab__truncated-note")).toHaveCount(0);
 
   await page.getByLabel("Engine").selectOption("ll-star");
   await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
     timeout: 5000,
   });
-  await page.click('button[role="tab"]:has-text("Parse trace")');
-  await expect(page.locator(".lab__truncated-note")).toHaveCount(0);
-  await page.click('button[role="tab"]:has-text("Walk")');
   await expect(page.locator(".lab__truncated-note")).toHaveCount(0);
 });
 
