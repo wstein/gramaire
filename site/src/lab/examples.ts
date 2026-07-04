@@ -56,6 +56,14 @@ WS     : /[ \\t\\r\\n]+/   %skip
 
 export const DEFAULT_INPUT = "1+2*3";
 
+// The Gramaire Notebook opens on the calc-js example — a real calculator whose `{% %}` actions
+// evaluate arithmetic to a number — so its "Try it" shows an actual computed result, not just a
+// parse tree. Kept distinct from the Lab's own DEFAULT_SOURCE (a plain, action-free Expr grammar)
+// so changing one never surprises the other. Sourced from the same conformance-tested
+// examples/calc-js.gram.md the EXAMPLES list uses, never a hand-copied duplicate.
+export const NOTEBOOK_DEFAULT_SOURCE = calcJsSource;
+export const NOTEBOOK_DEFAULT_INPUT = "2 + 3 * 4";
+
 export const EXAMPLES: LabExample[] = [
   { name: "Expr", source: DEFAULT_SOURCE, input: DEFAULT_INPUT },
   { name: "Calc (JS actions)", source: calcJsSource, input: "2 + 3 * 4" },

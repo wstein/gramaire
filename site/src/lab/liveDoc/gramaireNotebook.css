@@ -405,6 +405,14 @@
   color: var(--fg-secondary);
   margin-bottom: 12px;
 }
+.gramaire__tryit-result {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
 .gramaire__tryit-tokens {
   display: flex;
   flex-wrap: wrap;

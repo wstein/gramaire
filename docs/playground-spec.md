@@ -721,9 +721,13 @@ edit into the shared `blocks` signal (once, not per keystroke) and collapses
 back to the rendered view — source and rendered output are never shown
 together. Prose renders via a small markdown-lite parser
 (`site/src/lab/liveDoc/markdown.ts`, unit-tested — headings/paragraphs/
-`code`/`**bold**`, not full CommonMark). A "Try it" section reuses the real
-engine's `parse.tokens`/`parse.cst` (not a toy evaluator) for a plain input
-field. Falls back to a full-document plain textarea whenever
+`code`/`**bold**`, not full CommonMark). A "Try it" section runs the real
+engine over a plain input field: `parse.tokens`, `parse.cst`, AND the
+grammar's own `{% %}` actions — the notebook opens on the calc-js example
+(`NOTEBOOK_DEFAULT_SOURCE`), so `evaluation.tree.value` (the worker's run of
+`LabResponse.evaluatorJs`, surfaced through `useLabWorker`'s `evaluation`
+signal) is genuine arithmetic, shown as `= <result>` and recomputed live as
+the input changes. Falls back to a full-document plain textarea whenever
 `LabResponse.fences` is empty — the very first paint before any response has
 arrived, and a genuine engine failure alike (`internalErrorResponse` always
 carries `fences: []`) — so there's no blank-screen state.
