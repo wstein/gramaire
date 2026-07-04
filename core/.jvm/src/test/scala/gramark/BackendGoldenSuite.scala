@@ -24,6 +24,16 @@ class BackendGoldenSuite extends munit.FunSuite:
           case Right(ir) => assertEquals(BackendAntlr.emit(ir), readFile("test/golden/json.g4"))
   }
 
+  test("bison: examples/calc.grmk.md -> IR -> .y matches the committed golden") {
+    val md = readFile("examples/calc.grmk.md")
+    Lr.parse(md) match
+      case Left(e) => fail(s"could not parse examples/calc.grmk.md: $e")
+      case Right(g) =>
+        IR.buildIRP(Lr.precedenceOf(md), Method.Canonical, "Calc", g) match
+          case Left(_)   => fail("could not build IR for calc")
+          case Right(ir) => assertEquals(BackendBison.emit(ir), readFile("test/golden/calc.y"))
+  }
+
   test("ts: grammar/Productions.grmk.md -> IR -> .ts + .d.ts match the committed goldens") {
     val path = "grammar/Productions.grmk.md"
     val md = readFile(path)
