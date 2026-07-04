@@ -41,6 +41,7 @@ object BackendScalaPeg:
       case '\\' => "\\\\"
       case '\n' => "\\n"
       case '\t' => "\\t"
+      case '\r' => "\\r"
       case c    => c.toString
     } + "\""
 
@@ -52,6 +53,62 @@ object BackendScalaPeg:
     if safe.headOption.exists(_.isDigit) then s"_$safe" else safe
 
   private[gramark] def parseFnName(rule: String): String = s"parse_${ident(rule)}"
+
+  private[gramark] val scalaKeywords: Set[String] = Set(
+    "abstract",
+    "case",
+    "catch",
+    "class",
+    "def",
+    "do",
+    "else",
+    "enum",
+    "export",
+    "extends",
+    "false",
+    "final",
+    "finally",
+    "for",
+    "given",
+    "if",
+    "implicit",
+    "import",
+    "lazy",
+    "match",
+    "new",
+    "null",
+    "object",
+    "override",
+    "package",
+    "private",
+    "protected",
+    "return",
+    "sealed",
+    "super",
+    "then",
+    "this",
+    "throw",
+    "trait",
+    "true",
+    "try",
+    "type",
+    "val",
+    "var",
+    "while",
+    "with",
+    "yield"
+  )
+
+  // A grammar's own declared name becomes a top-level `object` declaration — unlike a rule name
+  // (always prefixed `parse_` via `parseFnName`, so a keyword collision is impossible there), this
+  // has no such prefix protection. `ident` only strips non-identifier characters, never checks
+  // for a Scala reserved word, so a grammar literally named `type`/`object`/`match`/etc. would
+  // otherwise emit an uncompilable `object type:`. Backtick-quoting only on an actual collision
+  // (not unconditionally) keeps every existing non-keyword grammar name's generated code —
+  // and its committed goldens — byte-unchanged.
+  private[gramark] def safeObjName(name: String): String =
+    val id = ident(name)
+    if scalaKeywords.contains(id) then s"`$id`" else id
 
   private[gramark] def originExpr(origin: IRAltOrigin, kidsExpr: String): String = origin match
     case IRAltOrigin.Unwrap           => s"$kidsExpr.head"
@@ -182,7 +239,7 @@ ${opDefs.mkString("\n")}
     * e.g. a genuinely mutually left-recursive one).
     */
   def emit(ir: IR): String =
-    val objName = ident(ir.grammar.name)
+    val objName = safeObjName(ir.grammar.name)
     ir.rewritten match
       case None =>
         banner(ir, "PEG parser") +

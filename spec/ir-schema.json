@@ -48,7 +48,7 @@
     },
     "rewritten": {
       "$ref": "#/$defs/rewrittenGrammar",
-      "description": "The CST-fold-back section: the left-recursion-eliminated, precedence-stratified grammar Ll.parse walks, pre-tagged for a codegen backend. Present under 'll-star' for grammars with no Paull-substitution-eligible rule."
+      "description": "The CST-fold-back section: the left-recursion-eliminated, precedence-stratified grammar Ll.parse walks, pre-tagged for a codegen backend. Present under 'll-star' for every grammar that successfully desugars, INCLUDING one with a Paull-substitution-eligible rule (that shape is tested and supported); absent only when Desugar fails, or the grammar's shape is a genuinely indirectly/mutually left-recursive one not yet verified against a reference behavior."
     }
   },
   "$defs": {

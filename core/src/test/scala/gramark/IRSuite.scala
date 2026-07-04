@@ -265,3 +265,50 @@ class IRSuite extends munit.FunSuite:
       Vector(Some("b"), None)
     )
   }
+
+  // Every real backend computes `kidsVar.splitAt(innerSpan)` against exactly the owning alt's own
+  // `syms.length` children (BackendScalaPeg.tagExpr, reused verbatim by the fastparse/combinators
+  // backends) — `Vector.splitAt` silently clamps an out-of-range index instead of throwing, so an
+  // `innerSpan` bounded only by `>= 0` would let a malformed/adversarial IR (e.g. hand-edited JSON,
+  // or a future importer) through validation and build a subtly wrong `Cst` with no error anywhere.
+  test("rewritten: a Wrap innerSpan larger than its owning alt's own syms.length is rejected") {
+    IR.buildIR(Method.Canonical, "Tiny", tiny) match
+      case Left(_) => fail("tiny grammar should build")
+      case Right(ir) =>
+        val alt = IRRewrittenAlt(
+          Vector(IRRewrittenSym.Terminal("NUM")), // syms.length == 1
+          IRProv.Wrap(
+            IRAltOrigin.Original(0),
+            innerSpan = 5,
+            inner = IRProv.Leaf(IRAltOrigin.Unwrap)
+          )
+        )
+        val rewritten =
+          IRRewrittenGrammar("S", Vector(IRRewrittenRule("S", IRRuleBody.Plain(Vector(alt)))))
+        val withRewritten = ir.copy(rewritten = Some(rewritten))
+        assert(
+          IRValidate.validate(withRewritten).exists(_.contains("innerSpan")),
+          "an out-of-range innerSpan must be flagged, not silently accepted"
+        )
+
+        val inRange = ir.copy(rewritten =
+          Some(
+            rewritten.copy(rules =
+              Vector(
+                IRRewrittenRule(
+                  "S",
+                  IRRuleBody.Plain(Vector(alt.copy(prov = alt.prov match
+                    case w: IRProv.Wrap => w.copy(innerSpan = 1)
+                    case other          => other
+                  )))
+                )
+              )
+            )
+          )
+        )
+        assertEquals(
+          IRValidate.validate(inRange).filter(_.contains("innerSpan")),
+          Vector.empty,
+          "an in-range innerSpan (<= syms.length) validates clean"
+        )
+  }

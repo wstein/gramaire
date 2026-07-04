@@ -104,7 +104,7 @@ object BackendScalaPegCombinators:
     * error-commented stub if `ir.rewritten` is absent.
     */
   def emit(ir: IR): String =
-    val objName = BackendScalaPeg.ident(ir.grammar.name)
+    val objName = BackendScalaPeg.safeObjName(ir.grammar.name)
     ir.rewritten match
       case None =>
         banner(ir, "PEG parser (scala-parser-combinators)") +
