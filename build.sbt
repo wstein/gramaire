@@ -76,6 +76,24 @@ lazy val cli = project
     nativeImageGraalHome := file(System.getProperty("java.home")).toPath,
   )
 
+// A throwaway compile target for the `scala-peg` backend's execute-and-verify parity gate
+// (site/scripts/check-scala-peg-parity.mjs) — no standalone Scala tooling (`scala-cli`/`scalac`/
+// `coursier`) exists in this environment to compile+run the emitted code as an external process
+// the way the `atn-ts` backend's own gate runs `tsc`+`node`, so this is the equivalent: a real
+// sbt project the emitted Scala compiles inside. Deliberately has NO dependency on `coreJVM` (or
+// anything else) — the whole point is proving the generated code stands on its own; only its own
+// fixed driver (`src/main/scala/gramaire/scratch/Main.scala`) is committed, `Generated.scala` is
+// rewritten fresh by `ScalaPegParityMain` (cli/jvm) before every run and is gitignored. Not
+// aggregated into `root` — `sbt test`/`sbt compile` never touch it; it's reached only via the
+// parity script's own `sbt "codegenScratch/runMain ..."` invocations, since its source tree is
+// incomplete (no `Generated.scala`) until that main has run once.
+lazy val codegenScratch = project
+  .in(file("codegen-scratch"))
+  .settings(
+    name := "gramaire-codegen-scratch",
+    publish / skip := true,
+  )
+
 lazy val root = project
   .in(file("."))
   .aggregate(coreJS, coreJVM, labJS, labJVM, cli)
