@@ -77,8 +77,12 @@ identity is settled risks a second pass.
 
 ## Status of the notebook feature in the meantime
 
-The new standalone live-editing notebook page ships now, under the current
-`gramark.*` namespace, as **"Grimoire Notebook"** — a feature-level name that
-doesn't require the project-level rebrand to land first (see
-`docs/playground-spec.md`'s "Live Document notebook" notes). If/when the full
-rebrand executes, this page's name needs no further change.
+**Shipped.** The standalone live-editing notebook page is live at
+`/notebook` (`site/src/pages/notebook.astro` +
+`site/src/lab/liveDoc/GrimoireNotebookIsland.tsx`), under the current
+`gramark.*` namespace, named **"Grimoire Notebook"** — a feature-level name
+that didn't require the project-level rebrand to land first (see
+`docs/playground-spec.md`'s "Grimoire Notebook (shipped)" note for the full
+implementation writeup, including two real bugs found and fixed during
+verification). If/when the full rebrand executes, this page's name needs no
+further change.

@@ -1,0 +1,273 @@
+/*
+ * Grimoire Notebook — a standalone live-editing document view (docs/playground-spec.md's "Live
+ * Document notebook" notes; docs/rebrand-grimoire-plan.md). Uses the same tokens.css custom
+ * properties as the rest of the site (lab.css's own convention) so it themes identically under
+ * the shared light/dark toggle with no separate wiring.
+ */
+
+.grimoire {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+}
+
+.grimoire__topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 5;
+}
+
+.grimoire__title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.grimoire__status {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-faint);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.grimoire__status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: inline-block;
+}
+
+.grimoire__status-dot--error {
+  background: #e05a4b;
+}
+
+.grimoire__body {
+  flex: 1;
+  overflow: auto;
+}
+
+.grimoire__doc {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 22px 80px;
+}
+
+.grimoire__prose {
+  cursor: text;
+  border-radius: 8px;
+  padding: 2px 10px;
+  margin: 0 -10px;
+}
+.grimoire__prose:hover {
+  background: var(--bg-1);
+}
+.grimoire__prose h2 {
+  font-size: 21px;
+  margin: 0 0 6px;
+}
+.grimoire__prose h3 {
+  font-size: 16.5px;
+  margin: 24px 0 6px;
+}
+.grimoire__prose h4 {
+  font-size: 14px;
+  margin: 18px 0 6px;
+}
+.grimoire__prose p {
+  margin: 0 0 10px;
+  color: var(--fg-secondary);
+  line-height: 1.65;
+  font-size: 14.5px;
+}
+.grimoire__prose code {
+  background: var(--bg-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+.grimoire__prose-editor {
+  width: 100%;
+  min-height: 70px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  background: var(--bg-1);
+  color: var(--fg-secondary);
+}
+
+.grimoire__cell {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 10px);
+  background: var(--bg);
+  margin: 6px 0 20px;
+  overflow: hidden;
+}
+
+.grimoire__cell-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-1);
+}
+
+.grimoire__badge {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 3px 9px;
+  border: 1px solid var(--border-strong);
+  color: var(--fg-muted);
+  background: var(--bg-2);
+}
+.grimoire__badge--rule {
+  color: var(--accent);
+  background: var(--accent-softer);
+  border-color: var(--accent);
+}
+.grimoire__badge--tokens {
+  color: var(--t-term);
+  background: color-mix(in srgb, var(--t-term) 12%, var(--bg));
+  border-color: var(--t-term);
+}
+.grimoire__badge--precedence {
+  color: var(--t-action);
+  background: color-mix(in srgb, var(--t-action) 12%, var(--bg));
+  border-color: var(--t-action);
+}
+
+.grimoire__cell-name {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--fg-muted);
+}
+
+.grimoire__editor {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.grimoire__editor .cm-editor {
+  outline: none;
+}
+
+.grimoire__output {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+.grimoire__output-railroad {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.grimoire__output-ff {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.grimoire__output-ff-label {
+  color: var(--fg-faint);
+  margin-right: 7px;
+}
+.grimoire__output-ff-value {
+  color: var(--t-term);
+}
+
+.grimoire__fallback {
+  width: 100%;
+  min-height: 60vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.7;
+  background: var(--bg);
+  color: var(--fg-secondary);
+  resize: vertical;
+}
+.grimoire__fallback-note {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-faint);
+  margin-bottom: 10px;
+}
+
+.grimoire__tryit {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 10px);
+  padding: 14px 16px;
+  margin: 6px 0 20px;
+}
+.grimoire__tryit-input {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  background: var(--bg);
+  color: var(--fg-secondary);
+  margin-bottom: 12px;
+}
+.grimoire__tryit-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.grimoire__tryit-token {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--fg-muted);
+}
+.grimoire__tryit-message {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: #e05a4b;
+}
+
+.grimoire-cst-branch {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.grimoire-cst-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+.grimoire-cst-children {
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
+  margin-left: 4px;
+}
+.grimoire-cst-leaf {
+  color: var(--t-term);
+  padding: 1px 0;
+}

@@ -1,0 +1,75 @@
+---
+// Grimoire Notebook — a standalone page, deliberately separate from lab.astro (see
+// docs/rebrand-grimoire-plan.md and site/src/lab/liveDoc/GrimoireNotebookIsland.tsx's own
+// header comment for why this isn't a mode bolted onto the existing Lab). Bare Astro page
+// outside the Starlight shell, same reasoning as lab.astro/index.astro.
+import AppShell from "../components/AppShell.astro";
+import { GrimoireNotebookIsland } from "../lab/liveDoc/GrimoireNotebookIsland";
+import { pageHeadTags } from "../shared/page-head.mjs";
+import "../styles/tokens.css";
+import "../styles/starlight-bridge.css";
+
+const base = import.meta.env.BASE_URL;
+const headTags = pageHeadTags(base);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {
+      /* Same FOUC-prevention seed as lab.astro/index.astro — this page also sits outside
+         Starlight's Page.astro/ThemeProvider. */
+    }
+    <script is:inline>
+      (() => {
+        const stored = localStorage.getItem("starlight-theme");
+        const theme =
+          stored === "light" || stored === "dark"
+            ? stored
+            : matchMedia("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark";
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+    <title>Gramark — Grimoire Notebook</title>
+    <meta
+      name="description"
+      content="Edit a Gramark grammar as a live document — prose and editable grammar cells inline, with railroad diagrams and FIRST/FOLLOW sets updating as you type."
+    />
+    {headTags.map((t) => t.tag === "link" && <link {...t.attrs} />)}
+  </head>
+  <body>
+    <div class="shell">
+      <AppShell />
+      <main class="content">
+        <GrimoireNotebookIsland client:load />
+      </main>
+    </div>
+  </body>
+</html>
+
+<style>
+  :global(html, body) {
+    margin: 0;
+    height: 100%;
+  }
+  :global(body) {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+  }
+  .shell {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .content {
+    flex: 1;
+    min-height: 0;
+  }
+</style>
