@@ -56,7 +56,7 @@ class RailroadSuite extends munit.FunSuite:
   }
 
   test(
-    "renderSvg: an alt with an action renders it as real text, with the full source as a hover title"
+    "renderSvg: an alt with an action renders it boxed, with the full source as a hover title"
   ) {
     val prod = Production(
       "Expr",
@@ -68,6 +68,7 @@ class RailroadSuite extends munit.FunSuite:
       )
     )
     val svg = renderSvg(prod)
+    assert(svg.contains("""<rect class="rr-action-box""""))
     assert(svg.contains("""<text class="rr-action-text""""))
     assert(svg.contains("<title>(c) =&gt; c.term &lt; 1 &amp;&amp; c.term</title>"))
     assert(svg.contains(">(c) =&gt; c.term &lt; 1 &amp;&amp; c.term</text>"))
@@ -98,8 +99,9 @@ class RailroadSuite extends munit.FunSuite:
       Production("Expr", Vector(Alt(Vector(DiaSym("Term", term = false)), action = None)))
     val bare = Production("Expr", Vector(Alt(Vector(DiaSym("Term", term = false)))))
     assertEquals(renderSvg(withNone), renderSvg(bare))
-    // ".rr-action-text" alone would trivially match the SVG's own always-present <style> rule, so
-    // check for the actual element.
+    // ".rr-action-box"/".rr-action-text" alone would trivially match the SVG's own
+    // always-present <style> rules, so check for the actual elements.
+    assert(!renderSvg(withNone).contains("""<rect class="rr-action-box""""))
     assert(!renderSvg(withNone).contains("""<text class="rr-action-text""""))
   }
 
@@ -112,16 +114,16 @@ class RailroadSuite extends munit.FunSuite:
       "Expr",
       Vector(Alt(Vector(DiaSym("Term", term = false)), action = Some("a much longer action")))
     )
-    def actionX(svg: String) =
-      """<text class="rr-action-text" x="(\d+)"""".r.findFirstMatchIn(svg).map(_.group(1))
+    def boxX(svg: String) =
+      """<rect class="rr-action-box" x="(\d+)"""".r.findFirstMatchIn(svg).map(_.group(1))
     // Both alts have the exact same symbol row ("Term"), so the fork/join geometry — and thus
-    // where the action column starts — must be identical regardless of the action text's own
-    // length (only the overall <svg> width grows to fit a longer one).
-    assertEquals(actionX(renderSvg(short)), actionX(renderSvg(long)))
+    // where the action box's own left edge starts — must be identical regardless of the action
+    // text's own length (only the box's own width, and the overall <svg> width, may grow).
+    assertEquals(boxX(renderSvg(short)), boxX(renderSvg(long)))
   }
 
   test(
-    "renderSvg: each alt's action is aligned with its own arm — same x, each at its own row's y"
+    "renderSvg: each alt's action box starts at the same x, each at its own row's y"
   ) {
     val prod = Production(
       "Expr",
@@ -131,13 +133,36 @@ class RailroadSuite extends munit.FunSuite:
       )
     )
     val svg = renderSvg(prod)
-    val actionTags = """<text class="rr-action-text" x="(\d+)" y="([\d.]+)"""".r
+    val boxTags = """<rect class="rr-action-box" x="(\d+)" y="(\d+)"""".r
       .findAllMatchIn(svg)
       .map(m => (m.group(1), m.group(2)))
       .toVector
-    assertEquals(actionTags.length, 2)
-    // Same column (both actions start at the same x, regardless of each row's own symbol width)...
-    assertEquals(actionTags.map(_._1).distinct.length, 1)
+    assertEquals(boxTags.length, 2)
+    // Same column (both boxes start at the same x, regardless of each row's own symbol width)...
+    assertEquals(boxTags.map(_._1).distinct.length, 1)
     // ...but each at its own row's height, not both crammed onto one line.
-    assertEquals(actionTags.map(_._2).distinct.length, 2)
+    assertEquals(boxTags.map(_._2).distinct.length, 2)
+  }
+
+  test(
+    "renderSvg: a {%? %} predicate action is marked with a \"? \" prefix, stripped from both the visible text and the title"
+  ) {
+    val prod = Production(
+      "Expr",
+      Vector(Alt(Vector(DiaSym("Term", term = false)), action = Some("?c.term < 10")))
+    )
+    val svg = renderSvg(prod)
+    assert(svg.contains(">? c.term &lt; 10</text>"))
+    assert(svg.contains("<title>? c.term &lt; 10</title>"))
+    assert(!svg.contains(">?c.term"), "the raw, unspaced '?' + body must not leak through")
+  }
+
+  test("renderSvg: a normal (non-predicate) action never gets the \"? \" prefix") {
+    val prod = Production(
+      "Expr",
+      Vector(Alt(Vector(DiaSym("Term", term = false)), action = Some("c.term")))
+    )
+    val svg = renderSvg(prod)
+    assert(svg.contains(">c.term</text>"))
+    assert(!svg.contains(">? c.term"))
   }
