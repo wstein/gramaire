@@ -677,6 +677,26 @@ it via the existing fixture list, with no new fixture needed since every
 existing fixture's grammar source already has `## Tokens`/rule/`##
 Precedence` fences to classify.
 
+**Live Document notebook, phase 2 (block model).** `site/src/lab/liveDoc/
+document.ts` turns `(source, LabResponse.fences)` into an ordered list of
+`DocBlock`s — prose between/around fences, and one block per fence, carrying
+the `fences`-reported `kind`/`nonterminal` verbatim. No parsing of its own:
+block boundaries are pure line-range slicing off `fences`' own `startLine`/
+`endLine`, so this module never re-implements "case is law" — it only
+reassembles what the Scala core already classified (D43). `serializeDocument`
+is the identity function on `buildDocument`'s own output (blocks partition
+the source's lines with no gaps/overlaps); `replaceBlockText` swaps one
+block's text without touching any other block, so editing one grammar cell
+and re-serializing produces a diff scoped to that cell alone — never a
+reflow of a prose paragraph or a neighboring cell (the notebook UI's
+text-canonical requirement a team debate on this feature settled on).
+`withLineNumbers` recomputes each block's current line span from its own
+`text`, independent of whether `fences` is stale relative to a
+not-yet-re-evaluated edit. Covered by `site/tests/unit/live-doc-document.
+spec.ts` (a new `npm run test:unit` / `playwright.unit.config.ts` — no
+browser, no dev server, just pure-logic assertions against real fixture data
+mirrored from `LabApiSuite`'s own fence-span test). No UI consumes this yet.
+
 ---
 
 ## 6. UX & layout

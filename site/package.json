@@ -8,6 +8,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "test:visual": "playwright test",
+    "test:unit": "playwright test --config=playwright.unit.config.ts",
     "gen:lab-types": "node scripts/gen-lab-types.mjs",
     "build:engine": "node scripts/build-engine.mjs",
     "check:lab-parity": "node scripts/check-lab-parity.mjs",

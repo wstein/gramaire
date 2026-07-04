@@ -164,6 +164,9 @@ jobs:
       - name: Format check (prettier)
         run: npm run lint
 
+      - name: Unit tests (site logic — no browser, no dev server)
+        run: npm run test:unit
+
       - name: design/ is a frozen reference, never imported by site code
         # See design/README.md: the mock is a gold-standard visual reference,
         # not a dependency. This mirrors the guardrail already noted in
