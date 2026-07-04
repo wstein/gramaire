@@ -638,15 +638,32 @@ object Lr:
       .flatMap(_.content.split("\n", -1).toVector)
 
   // Every `%directive` line in a General-settings fence that isn't `%lang`/`%name` (the only
-  // directives `Lr` recognizes) — same silent-typo risk as an unknown `#[attr]`.
+  // directives `Lr` recognizes) — same silent-typo risk as an unknown `#[attr]`. Walks
+  // `fenceOrigins` directly (rather than the plain-string `settingsLinesOf`, which `actionLangOf`/
+  // `nameOf` also share and which would need updating at both call sites for no benefit there) so
+  // each line's own document offset is in hand for a real, located span — the fenced-document
+  // coordinate space `SpanIndex`/every other diagnostic in this file already renders against.
   private def unknownSettingWarnings(md: String): Vector[Diagnostic] =
-    settingsLinesOf(md).flatMap { line =>
-      val t = line.trim
-      if t.isEmpty || t.startsWith("//") then None
-      else
-        val directive = t.split("\\s+", 2).headOption.getOrElse(t)
-        if knownSettingDirectives.contains(directive) then None
-        else Some(Diagnostic.warning(Stage.Desugar, s"unknown setting `$directive` (ignored)"))
+    fenceOrigins(toFenced(md)).filter(_.kind == FenceKind.Settings).flatMap { origin =>
+      val lines = origin.content.split("\n", -1).toVector
+      val lineStarts = lines.scanLeft(origin.docStart)((acc, l) => acc + l.length + 1)
+      lines.zipWithIndex.flatMap { case (line, i) =>
+        val t = line.trim
+        if t.isEmpty || t.startsWith("//") then None
+        else
+          val directive = t.split("\\s+", 2).headOption.getOrElse(t)
+          if knownSettingDirectives.contains(directive) then None
+          else
+            val directiveStart = lineStarts(i) + (line.length - line.stripLeading().length)
+            val span = SrcSpan(directiveStart, directiveStart + directive.length)
+            Some(
+              Diagnostic.warning(
+                Stage.Desugar,
+                s"unknown setting `$directive` (ignored)",
+                Some(span)
+              )
+            )
+      }
     }
 
   // A rule defined but never reachable (by reference) from the start rule — almost always a typo'd

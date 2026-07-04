@@ -347,6 +347,12 @@
 .gramaire__cell--error {
   border-color: #e05a4b;
 }
+/* Same treatment, one severity down: a cell that owns a warning (and no error) still builds and
+   renders fine, so it keeps its railroad/FIRST-FOLLOW — just flagged, instead of looking
+   identical to a clean cell until the diagnostics panel happens to be open. */
+.gramaire__cell--warning {
+  border-color: #d9930a;
+}
 
 .gramaire__cell-header {
   display: flex;
@@ -369,6 +375,11 @@
   background: color-mix(in srgb, #e05a4b 14%, var(--bg));
   border-radius: 999px;
   padding: 2px 8px;
+  cursor: pointer;
+}
+.gramaire__cell-error-tag--warning {
+  color: #d9930a;
+  background: color-mix(in srgb, #d9930a 16%, var(--bg));
 }
 
 .gramaire__cell-diags {

@@ -442,6 +442,11 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
   );
   const cellDiags = myAttributed.map((a) => a.diag);
   const hasError = cellDiags.some((d) => d.severity === "error");
+  // A cell with only a warning still builds fine — it keeps its rendered railroad/FIRST-FOLLOW
+  // (unlike hasError, which forces raw source instead), just flagged the same way an error is:
+  // an amber border and a "warning" tag, rather than nothing at all until the diagnostics panel
+  // happens to be open.
+  const hasWarning = cellDiags.some((d) => d.severity === "warning");
 
   // Layer 3 — convert this cell's located diagnostics to cell-local squiggle ranges for the open
   // editor. The engine's span is a document-wide offset; subtracting the cell's own content-start
@@ -475,9 +480,15 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
       : undefined;
   const hasRendered = !hasError && Boolean(svg || ff);
 
+  const cellStateClass = hasError
+    ? " gramaire__cell--error"
+    : hasWarning
+      ? " gramaire__cell--warning"
+      : "";
+
   return (
     <div
-      class={`gramaire__cell${hasError ? " gramaire__cell--error" : ""}`}
+      class={`gramaire__cell${cellStateClass}`}
       id={`gramaire-cell-${index}`}
     >
       <div
@@ -492,7 +503,20 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
         {block.nonterminal && (
           <span class="gramaire__cell-name">{block.nonterminal}</span>
         )}
-        {hasError && <span class="gramaire__cell-error-tag">error</span>}
+        {(hasError || hasWarning) && (
+          <span
+            class={`gramaire__cell-error-tag${hasError ? "" : " gramaire__cell-error-tag--warning"}`}
+            title="Show the diagnostics panel"
+            onClick={(e) => {
+              // Reveal the panel without ALSO opening this cell's editor — the header's own
+              // onClick (beginEditCell) would otherwise fire too, since this tag is a child of it.
+              e.stopPropagation();
+              diagPanelCollapsed.value = false;
+            }}
+          >
+            {hasError ? "error" : "warning"}
+          </span>
+        )}
       </div>
       {isEditing ? (
         <>
