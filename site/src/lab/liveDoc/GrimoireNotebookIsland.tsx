@@ -5,9 +5,11 @@ import type {
   CstNode,
   DiagnosticInfo,
   GrammarAnalysis,
+  LabResponse,
   ProductionInfo,
   SrcSpanInfo,
 } from "../protocol";
+import type { EvaluationResult } from "../worker";
 import { NOTEBOOK_DEFAULT_SOURCE, NOTEBOOK_DEFAULT_INPUT } from "../examples";
 import {
   buildDocument,
@@ -794,9 +796,36 @@ function StatusBar() {
   );
 }
 
-export function GrimoireNotebookIsland() {
+export interface GrimoireNotebookIslandProps {
+  // A build-time-precomputed response (site/scripts/prerender-notebook.mjs), so a page can embed
+  // this component already showing real cells/badges/diagrams instead of the "Building the first
+  // response…" placeholder — used by the homepage (index.astro), not the standalone /notebook
+  // page (which passes nothing and evaluates live on mount, exactly as before).
+  initial?: { response: LabResponse; evaluation: EvaluationResult | null };
+}
+
+export function GrimoireNotebookIsland(
+  props: GrimoireNotebookIslandProps = {},
+) {
+  // Seeded once, synchronously, on this component's very first call (both Astro's build-time SSR
+  // and the client's first hydration render call this function body identically, so both produce
+  // the same seeded state — no hydration mismatch). Explicit, not left to the module-level
+  // `effect` above reacting to `response` changing: that would depend on this signals library's
+  // own effect-scheduling timing (sync vs microtask), which this doesn't need to care about.
+  if (props.initial && response.peek() === null) {
+    response.value = props.initial.response;
+    evaluation.value = props.initial.evaluation;
+    blocks.value = buildDocument(
+      serializeDocument(blocks.peek()),
+      props.initial.response.fences,
+    );
+  }
+
   useEffect(() => {
-    scheduleEvaluate();
+    // A seeded `initial` response is already correct — re-running evaluate() here would just
+    // reload the engine/worker to reproduce the exact same thing. The engine only actually loads
+    // the first time a visitor commits a real edit (scheduleEvaluate()'s other call sites).
+    if (!props.initial) scheduleEvaluate();
     return () => labWorker.dispose();
   }, []);
 

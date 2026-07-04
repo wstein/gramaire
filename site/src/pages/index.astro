@@ -23,26 +23,41 @@
 // it's backed by its stand-in engine — `design/README.md`'s gold-standard
 // boundary is explicit that stand-in (`support.js`, an Earley parser with
 // eval()-based actions) is reference-only, never ported, never imported
-// from site code. The static code `<pre>` + diagram `<img>` below stay
-// exactly as before — a legitimate zero-JS prerendered preview of the same
-// rule the live Notebook shows — but a "Try the live Notebook" button now
-// sits beneath them: `HomeNotebookEmbed` defers importing the real
-// `GrimoireNotebookIsland` (module-scope Worker, unconditional evaluate-on-
-// mount, no prop to gate it) behind a click, via `preact/compat`'s
-// `lazy()`. divergence: embeds the real Notebook, click-to-reveal, on
-// Landing, closing the increment this file's own comment used to defer.
+// from site code. The showcase below embeds the REAL `GrimoireNotebookIsland`
+// (the same component `/notebook` mounts standalone) directly, no click gate —
+// `initialResponse` (read below) is a build-time-precomputed LabResponse
+// (site/scripts/prerender-notebook.mjs, run against the real engine before
+// `astro build`), so the static HTML already shows real cells/badges/railroad
+// diagrams, not a loading placeholder. divergence: embeds the real Notebook
+// on Landing, closing the increment this file's own comment used to defer.
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
 import Button from "../components/Button.astro";
 import FeatureTile from "../components/FeatureTile.astro";
-import { HomeNotebookEmbed } from "../lab/HomeNotebookEmbed";
+import { GrimoireNotebookIsland } from "../lab/liveDoc/GrimoireNotebookIsland";
+import type { LabResponse } from "../lab/protocol";
 
-// Byte-identical to examples/calc-js.grmk.md's own Expr rule — real, working syntax (the mock's
-// original `{% Add %}`/`{% Sub %}` bare-identifier actions were never valid: BackendJs has no
-// bare-identifier-as-function-call support, and would reference an undefined name at runtime).
-const showcaseSource = `Expr
-  : Expr '+' Term   {% (c) => c.expr + c.term %}
-  | Expr '-' Term   {% (c) => c.expr - c.term %}
-  | Term`;
+// Read by `prerender-notebook.mjs`'s own filesystem path, not a static `import ... from
+// "*.json"` — a static import would fail the whole build if the file is missing (e.g. a dev who
+// skipped `npm run prerender:notebook`), whereas this degrades gracefully: `initialResponse` is
+// `undefined`, and `GrimoireNotebookIsland` just falls back to its normal loading-placeholder +
+// evaluate-on-mount behavior (identical to how `/notebook` already works with no `initial` prop).
+// `process.cwd()`, not `import.meta.url` — verified empirically that during `astro build`,
+// this file's own `import.meta.url` resolves to an Astro-internal scratch path
+// (`dist/.prerender/...`), not this file's real source location, so a relative URL from it
+// doesn't reach the generated JSON. `astro build`/`astro dev` are always run from `site/`
+// (every script and CI workflow `cd`s or sets `working-directory: site` first), so cwd is stable.
+let initialResponse: LabResponse | undefined;
+try {
+  const generatedPath = path.join(
+    process.cwd(),
+    "src/lab/liveDoc/notebookPrerender.generated.json",
+  );
+  initialResponse = JSON.parse(readFileSync(generatedPath, "utf8")).response;
+} catch {
+  initialResponse = undefined;
+}
 
 // Astro does not rewrite hand-written root-absolute href strings under the
 // configured `base` (only its own href/src template attributes get that
@@ -89,18 +104,13 @@ const base = import.meta.env.BASE_URL;
         <Button kind="chip" href={`${base}notebook/`}>Open in Notebook ↗</Button
         >
       </div>
-      <div class="showcase__body">
-        <pre class="showcase__source"><code>{showcaseSource}</code></pre>
-        <div class="showcase__diagram">
-          <div class="showcase__diagram-label">renders to ↓</div>
-          <div class="showcase__diagram-svg">
-            <img
-              src={`${base}diagrams-calc/expr.svg`}
-              alt="Railroad diagram for the Expr rule"
-            />
-          </div>
-          <HomeNotebookEmbed client:visible />
-        </div>
+      <div class="showcase__embed">
+        <GrimoireNotebookIsland
+          client:visible
+          initial={initialResponse
+            ? { response: initialResponse, evaluation: null }
+            : undefined}
+        />
       </div>
     </div>
 
@@ -217,42 +227,9 @@ const base = import.meta.env.BASE_URL;
     text-transform: uppercase;
     color: var(--fg-faint);
   }
-  .showcase__body {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-  .showcase__source {
-    margin: 0;
-    border-right: 1px solid var(--border);
-    padding: 20px 22px;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    line-height: 1.7;
-    background: var(--bg);
-    color: var(--fg-secondary);
-    min-height: 190px;
-    white-space: pre-wrap;
-  }
-  .showcase__diagram {
-    padding: 20px 22px;
-    display: flex;
-    flex-direction: column;
-  }
-  .showcase__diagram-label {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--fg-faint);
-    margin-bottom: 14px;
-  }
-  .showcase__diagram-svg {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .showcase__diagram-svg img {
-    max-width: 100%;
-    height: auto;
+  .showcase__embed {
+    height: 640px;
+    overflow: hidden;
   }
 
   .tiles {

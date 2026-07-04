@@ -65,6 +65,13 @@ jobs:
         working-directory: site
         run: npm run build:engine -- --full
 
+      - name: Prerender the homepage's Notebook preview
+        # Precomputes a real LabResponse for the calc-js example against the engine bundle just
+        # built above (site/scripts/prerender-notebook.mjs) — index.astro bakes it into the
+        # static HTML as GrimoireNotebookIsland's `initial` prop. Must run before `npm run build`.
+        working-directory: site
+        run: npm run prerender:notebook
+
       - name: Build site
         working-directory: site
         run: npm run build
