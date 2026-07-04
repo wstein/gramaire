@@ -290,10 +290,22 @@ object Main:
     // `calc` corpora are verified elsewhere (docs/all-star-port-plan.md) to report zero — a
     // regression that starts reporting any is exactly the kind conformance exists to catch, so
     // it's folded into the returned failures below, not just printed.
+    val ambiguities = renderLlStarReport(d.language, cache)
+    failures ++ ambiguities.map(a =>
+      s"${d.language}: ambiguous decision in rule `${a.rule}` between alts ${a.alts.mkString(", ")} at input position ${a.pos}"
+    )
+
+  // Shared by `runLlStarConformance` (one report per corpus language) and `runExplain`'s
+  // `--strategy ll-star` mode (one report for a single ad hoc grammar+input) — prints every
+  // decision `cache` resolved by declaration order rather than unique disambiguation, then the
+  // DFA cache's hit rate, and returns the (deduped) ambiguities so a caller with its own notion
+  // of pass/fail (like `runLlStarConformance`'s failure list) can fold them in without a second
+  // copy of this rendering.
+  private def renderLlStarReport(label: String, cache: AtnSim.Cache): Vector[AtnSim.Ambiguity] =
     val ambiguities = cache.ambiguities.distinct
     if ambiguities.nonEmpty then
       println(
-        s"ll-star: ${d.language} — ${ambiguities.length} decision(s) resolved by declaration order:"
+        s"ll-star: $label — ${ambiguities.length} decision(s) resolved by declaration order:"
       )
       ambiguities.foreach { a =>
         println(
@@ -302,10 +314,8 @@ object Main:
       }
     val total = cache.hits + cache.misses
     val hitPct = if total == 0 then 0.0 else cache.hits.toDouble / total * 100
-    println(f"ll-star: ${d.language} — ${cache.hits}/$total%d DFA cache hits ($hitPct%.1f%%)")
-    failures ++ ambiguities.map(a =>
-      s"${d.language}: ambiguous decision in rule `${a.rule}` between alts ${a.alts.mkString(", ")} at input position ${a.pos}"
-    )
+    println(f"ll-star: $label — ${cache.hits}/$total%d DFA cache hits ($hitPct%.1f%%)")
+    ambiguities
 
   // Load a corpus descriptor whose grammar lives in a file; absent or
   // unparseable means the language is skipped, not a failure. `mk` gets both the raw document
@@ -317,19 +327,80 @@ object Main:
   ): Option[Descriptor] =
     readFile(path).toOption.flatMap(md => Lr.parse(md).toOption.map(g => mk(md, g)))
 
-  // Classify a grammar's conflicts (LALR artifact vs genuine) by comparing
-  // the three construction methods, via the GLR explainer.
+  /** Options for `explain-conflict`. `strategy` defaults to `"lr"` (the pre-existing, static
+    * LALR-artifact-vs-genuine classifier); `"ll-star"` requires `input`, since ALL(*) has no purely
+    * static conflict table to consult — it can only report what a real example input's decisions
+    * actually resolved to (see `runLlStarConformance`'s identical constraint).
+    */
+  final case class ExplainOpts(file: Option[String], strategy: String, input: Option[String])
+
+  private val defaultExplain: ExplainOpts = ExplainOpts(None, "lr", None)
+
+  /** Parse `explain-conflict`'s arguments: the single positional grammar file, `--strategy`, and
+    * `--input` — same recursive-descent shape as `parseEmit`.
+    */
+  def parseExplain(args: Vector[String]): Either[String, ExplainOpts] =
+    def go(opts: ExplainOpts, rest: Vector[String]): Either[String, ExplainOpts] =
+      rest.headOption match
+        case None => Right(opts)
+        case Some(a) =>
+          val tail = rest.tail
+          a match
+            case "--strategy" => value("--strategy", tail)((v, r) => go(opts.copy(strategy = v), r))
+            case "--input"    => value("--input", tail)((v, r) => go(opts.copy(input = Some(v)), r))
+            case _ if a.startsWith("--") => Left(s"unknown option: $a")
+            case _ =>
+              opts.file match
+                case Some(_) => Left(s"unexpected extra argument: $a")
+                case None    => go(opts.copy(file = Some(a)), tail)
+    def value(name: String, rest: Vector[String])(
+        k: (String, Vector[String]) => Either[String, ExplainOpts]
+    ): Either[String, ExplainOpts] =
+      rest.headOption match
+        case Some(v) => k(v, rest.tail)
+        case None    => Left(s"$name requires a value")
+    go(defaultExplain, args)
+
+  // Classify a grammar's conflicts (LALR artifact vs genuine) by comparing the three construction
+  // methods, via the GLR explainer (`--strategy lr`, the default) — or, under `--strategy
+  // ll-star`, report the same ALL(*)-native diagnostic `conformance` reports per corpus
+  // (`runLlStarConformance`/`renderLlStarReport`), but for one ad hoc grammar+input pair instead
+  // of a fixed vector list, closing the gap docs/all-star-port-plan.md names: ALL(*) has no
+  // purely static conflict table, so it needs real example input to say anything at all.
   private def runExplain(args: Vector[String]): Unit =
-    args.headOption match
-      case None => die("explain-conflict: no grammar file given")
-      case Some(file) =>
-        readFile(file) match
-          case Left(err) => die(s"explain-conflict: cannot read $file: $err")
-          case Right(md) =>
-            Lr.parseWith(Method.Canonical, md) match
-              case Left(diags) =>
-                die(s"explain-conflict: parse error in $file:\n\n" + renderDiags(diags, file, md))
-              case Right(g) => println(Glr.explainP(Lr.precedenceOf(md), g))
+    parseExplain(args) match
+      case Left(e) => die(s"explain-conflict: $e")
+      case Right(opts) =>
+        opts.file match
+          case None => die("explain-conflict: no grammar file given")
+          case Some(file) =>
+            readFile(file) match
+              case Left(err) => die(s"explain-conflict: cannot read $file: $err")
+              case Right(md) =>
+                Lr.parseWith(Method.Canonical, md) match
+                  case Left(diags) =>
+                    die(
+                      s"explain-conflict: parse error in $file:\n\n" + renderDiags(diags, file, md)
+                    )
+                  case Right(g) =>
+                    opts.strategy match
+                      case "lr"      => println(Glr.explainP(Lr.precedenceOf(md), g))
+                      case "ll-star" => runExplainLlStar(file, md, g, opts.input)
+                      case s =>
+                        die(s"explain-conflict: unknown strategy '$s'; use lr or ll-star")
+
+  private def runExplainLlStar(file: String, md: String, g: Grammar, input: Option[String]): Unit =
+    input match
+      case None =>
+        die("explain-conflict: --strategy ll-star requires --input <text>")
+      case Some(text) =>
+        ConformanceLexers.tokensLexerOf(md, g)(text) match
+          case Left(err) => die(s"explain-conflict: cannot lex --input: $err")
+          case Right(toks) =>
+            val cache = new AtnSim.Cache(track = true)
+            val accepted = Ll.recognize(g, toks, cache)
+            println(s"ll-star: ${if accepted then "accepted" else "rejected"}")
+            renderLlStarReport(file, cache)
 
   // `gramark check <file.grmk.md>`: the structure + drift gates (see
   // `GramarkCheck`; the lint gate lives in a separate `docs-lint` CI step).
@@ -448,7 +519,7 @@ object Main:
       "  gramark import <file.g4> [--out <dir>]",
       "  gramark strip <file.grmk.md>",
       "  gramark conformance",
-      "  gramark explain-conflict <file.grmk.md|file.grmk>",
+      "  gramark explain-conflict <file.grmk.md|file.grmk> [--strategy lr|ll-star] [--input <text>]",
       "  gramark check <file.grmk.md|file.grmk>",
       "  gramark fmt [--diagrams=sidecar|mermaid] [--inline-source] <file.grmk.md|file.grmk>",
       "  gramark codegen-regen",
@@ -461,6 +532,9 @@ object Main:
       "  a one-way export; run it against a .grmk.md, not against an already-native .grmk file.",
       "conformance runs the differential oracle over the built-in corpora.",
       "explain-conflict classifies conflicts: LALR artifact, resolved by declaration, or genuine.",
+      "  --strategy ll-star --input <text> instead reports ALL(*)'s own diagnostic for that input:",
+      "  accepted/rejected, DFA cache hit rate, and any decision resolved by declaration order —",
+      "  ALL(*) has no static conflict table, so it needs a real example input to say anything.",
       "check verifies the structure + drift gates (see docs-lint for the markdown-lint gate on",
       "  .grmk.md; a bare .grmk has its own, much lighter native contract — no Markdown to lint).",
       "fmt on a .grmk.md regenerates the FIRST/FOLLOW table, railroad diagrams, and the lock",

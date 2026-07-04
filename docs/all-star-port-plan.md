@@ -536,11 +536,18 @@ surface is reached by **conversion**, not syntax expansion (§4).
   own UI signal (`site/src/lab/LabIsland.tsx`,
   `lab/src/main/scala/gramark/lab/LabApi.scala`,
   `lab/src/main/scala/gramark/lab/LabProtocol.scala`).
-- ⏳ **Still not started:** `gramark explain-conflict` itself is untouched —
-  it remains the pre-existing LR/GLR conflict classifier (`Glr.explainP`); the
-  ALL(\*) diagnostic lives in `conformance`/the Lab instead, since
-  `explain-conflict <file>`'s purely-static, single-grammar-argument shape has
-  no way to supply example input.
+- ✅ **`gramark explain-conflict` gains an ALL(\*) mode.** `--strategy lr`
+  (the default) is exactly the pre-existing LR/GLR conflict classifier
+  (`Glr.explainP`), unchanged. `--strategy ll-star --input <text>` instead
+  runs the same ALL(\*)-native diagnostic `conformance` already reports per
+  corpus (`Ll.recognize` with a tracking `AtnSim.Cache`) — accepted/rejected,
+  DFA cache hit rate, and any decision resolved by declaration order — for
+  one ad hoc grammar+input pair, closing the gap this plan named:
+  `explain-conflict <file>`'s purely-static, single-grammar-argument shape
+  had no way to supply example input, which ALL(\*) genuinely needs (it has
+  no static conflict table to consult). The rendering itself
+  (`renderLlStarReport`, `cli/jvm/src/main/scala/gramark/cli/Main.scala`) is
+  shared with `runLlStarConformance`, not a second copy.
 - ⏳ **Two pre-existing, unaddressed engine costs, surfaced (not caused) by
   this phase:** ll-star's `traceCap`/`capSteps` work (`LabApi.scala`)
   needed a long-input fixture to test its cap, which ran straight into two

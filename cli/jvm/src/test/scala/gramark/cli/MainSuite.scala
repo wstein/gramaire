@@ -39,6 +39,35 @@ class MainSuite extends munit.FunSuite:
     assertEquals(Main.parseEmit(Vector("--backend")), Left("--backend requires a value"))
   }
 
+  test("parseExplain: a bare file is the positional argument, defaults otherwise") {
+    assertEquals(
+      Main.parseExplain(Vector("foo.grmk.md")),
+      Right(Main.ExplainOpts(Some("foo.grmk.md"), "lr", None))
+    )
+  }
+
+  test("parseExplain: --strategy and --input each take a value") {
+    assertEquals(
+      Main.parseExplain(Vector("foo.grmk.md", "--strategy", "ll-star", "--input", "1+2*3")),
+      Right(Main.ExplainOpts(Some("foo.grmk.md"), "ll-star", Some("1+2*3")))
+    )
+  }
+
+  test("parseExplain: an unknown option is rejected") {
+    assertEquals(Main.parseExplain(Vector("--bogus")), Left("unknown option: --bogus"))
+  }
+
+  test("parseExplain: a second positional argument is rejected") {
+    assertEquals(
+      Main.parseExplain(Vector("a.grmk.md", "b.grmk.md")),
+      Left("unexpected extra argument: b.grmk.md")
+    )
+  }
+
+  test("parseExplain: a flag needing a value at the end of argv is rejected") {
+    assertEquals(Main.parseExplain(Vector("--input")), Left("--input requires a value"))
+  }
+
   test("grammarName: reads the required %name directive from a General-settings fence") {
     val md = "# Ignored heading\n\n## General settings\n\n```gramark\n%name Calc\n```\n"
     assertEquals(Main.grammarName(md), Right("Calc"))
