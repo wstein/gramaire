@@ -722,11 +722,20 @@ rendered, read-only view (a rule cell: its railroad diagram/FIRST-FOLLOW from
 `LabResponse.analysis`; a Tokens/Settings/Precedence cell, which has no
 railroad equivalent: its source in a plain read-only `<pre>`; a prose block:
 rendered markdown). An alternative with a `{% %}` action gets its real,
-truncated (44-char max, `Railroad.truncateAction`) source rendered in violet
-italic to the right of the whole diagram, aligned with that alternative's
-own row/arm rather than squeezed into the fork/join geometry — actions never
+truncated (44-char max, `Railroad.truncateAction`) source in a dashed violet
+box to the right of the whole diagram, aligned with that alternative's own
+row/arm rather than squeezed into the fork/join geometry — actions never
 widen the railroad's own tracks, only the overall `<svg>` if the longest one
-needs the extra column width. (`Railroad.Alt.action`, rendered by
+needs the extra column width. The box is sized by the same `boxWidth` helper
+every term/nonterm box already uses (one shape in the diagram's existing
+vocabulary, not a special case), dashed rather than solid to match this
+app's established "annotation, not structural grammar" convention (e.g.
+`.gramaire__prose-editor`'s own dashed border). A `{%? %}` semantic
+predicate — a genuinely different, already-shipped action kind (its leading
+`?` survives every engine transform between the lexer and here, per
+`Railroad.actionDisplay`'s own comment) — gets a plain `"? "` text prefix
+rather than a different box color, so the distinction stays legible
+regardless of color vision. (`Railroad.Alt.action`, rendered by
 `Railroad.renderSvg` — a native SVG `<title>` on the same element still
 carries the full, untruncated source as a hover tooltip, so no frontend JS is
 needed.) The CLI's `gramaire fmt --diagrams=sidecar` output is unaffected

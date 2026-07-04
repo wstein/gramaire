@@ -21,12 +21,13 @@ object Railroad:
   // it is a terminal (rounded "stadium") or a nonterminal (rectangle).
   final case class DiaSym(label: String, term: Boolean)
 
-  // `action` is the alternative's `{% %}` source (already unwrapped of its synthesized binder),
-  // when the caller has one to show — `None` for every CLI/sidecar-parsed Production (see
-  // `parseProduction`, which strips actions before tokenizing and never repopulates this), so
-  // committed sidecar SVGs stay byte-identical. Only the live-engine path (`LabApi.analysisOf`)
-  // ever sets it, rendered by `renderSvg` as truncated italic text annexed to the alt's own row
-  // (`truncateAction`), with the full source as a native hover tooltip.
+  // `action` is the alternative's `{% %}` source (already unwrapped of its synthesized binder,
+  // but still `?`-prefixed if it's a `{%? %}` predicate — see `actionDisplay`), when the caller
+  // has one to show — `None` for every CLI/sidecar-parsed Production (see `parseProduction`,
+  // which strips actions before tokenizing and never repopulates this), so committed sidecar
+  // SVGs stay byte-identical. Only the live-engine path (`LabApi.analysisOf`) ever sets it,
+  // rendered by `renderSvg` as a boxed, truncated text label annexed to the alt's own row
+  // (`actionDisplay`/`truncateAction`), with the full source as a native hover tooltip.
   final case class Alt(syms: Vector[DiaSym], action: Option[String] = None)
 
   final case class Production(name: String, alts: Vector[Alt])
@@ -112,13 +113,29 @@ object Railroad:
   private def fmtNum(d: Double): String =
     if d == d.toLong.toDouble then d.toLong.toString else d.toString
 
+  private def normalizeWhitespace(s: String): String = s.replaceAll("\\s+", " ").trim
+
   // Collapse to one line (an action is always logically one expression; embedded newlines would
   // just render as literal spaces in SVG anyway) and cap the length so one long action can't blow
   // out the diagram's width — the full, untruncated text still reaches the reader via `<title>`.
   private def truncateAction(action: String): String =
-    val oneLine = action.replaceAll("\\s+", " ").trim
+    val oneLine = normalizeWhitespace(action)
     if oneLine.length <= ACTION_MAX_CHARS then oneLine
     else oneLine.take(ACTION_MAX_CHARS - 1) + "…"
+
+  // A `{%? %}` predicate's leading `?` survives every transform between the lexer and here
+  // (Desugar.scala's normalizeAction/wrap both strip-then-re-prepend it; BackendJs.unwrapBinder
+  // never touches a `?`-prefixed string) — so `startsWith("?")` is a stable, cheap detector, and
+  // the ONE place this diagram distinguishes "this alt only fires under a guard" from "this alt
+  // always produces a value." Marked with a plain "? " text prefix, not a different box color —
+  // a color-only distinction would be invisible to color-blind readers; text never is.
+  private final case class ActionDisplay(shown: String, title: String)
+
+  private def actionDisplay(rawAction: String): ActionDisplay =
+    val isPredicate = rawAction.startsWith("?")
+    val body = if isPredicate then rawAction.stripPrefix("?") else rawAction
+    val prefix = if isPredicate then "? " else ""
+    ActionDisplay(prefix + truncateAction(body), prefix + normalizeWhitespace(body))
 
   private def boxWidth(label: String): Int =
     math.max(MINW, math.round(label.length * CHARW + 2 * PADX).toInt)
@@ -136,6 +153,7 @@ object Railroad:
     ".rr-track{fill:none;stroke:#6B7280;stroke-width:2}" +
       ".rr-term{fill:#fff;stroke:#15B879;stroke-width:2}" +
       ".rr-nonterm{fill:#F5F6F3;stroke:#16181D;stroke-width:2}" +
+      ".rr-action-box{fill:none;stroke:#8B5CF6;stroke-width:1.5;stroke-dasharray:3 2}" +
       s".rr-text{fill:#16181D;font:$font}" +
       s".rr-action-text{fill:#8B5CF6;font:$font;font-style:italic}" +
       ".rr-cap{fill:#16181D}"
@@ -143,6 +161,7 @@ object Railroad:
     ".rr-track{fill:none;stroke:var(--rr-track,#6B7280);stroke-width:2}" +
       ".rr-term{fill:var(--rr-term-fill,#fff);stroke:var(--rr-term-stroke,#15B879);stroke-width:2}" +
       ".rr-nonterm{fill:var(--rr-nonterm-fill,#F5F6F3);stroke:var(--rr-ink,#16181D);stroke-width:2}" +
+      ".rr-action-box{fill:none;stroke:var(--rr-action-stroke,#8B5CF6);stroke-width:1.5;stroke-dasharray:3 2}" +
       s".rr-text{fill:var(--rr-ink,#16181D);font:$font}" +
       s".rr-action-text{fill:var(--rr-action-stroke,#8B5CF6);font:$font;font-style:italic}" +
       ".rr-cap{fill:var(--rr-ink,#16181D)}"
@@ -163,9 +182,10 @@ object Railroad:
     val exitX = endX + STUB
     // An action never widens the railroad's own fork/join geometry — it's an annotation, not part
     // of the grammar's shape — so it's laid out entirely past `exitX`, on its own row's arm, sized
-    // off the diagram's width only when at least one alt actually has one.
-    val actionWidths =
-      alts.flatMap(_.action).map(a => math.round(truncateAction(a).length * CHARW).toInt)
+    // off the diagram's width only when at least one alt actually has one. `boxWidth` is the same
+    // helper every term/nonterm box already sizes itself with — the action box is just one more
+    // shape in this diagram's own vocabulary, not a special case with its own width formula.
+    val actionWidths = alts.flatMap(_.action).map(a => boxWidth(actionDisplay(a).shown))
     val width =
       if actionWidths.isEmpty then exitX + MARGIN
       else exitX + ACTIONGAP + actionWidths.max + MARGIN
@@ -231,18 +251,23 @@ object Railroad:
             mainY
           )} ${endX + R} ${fmtNum(mainY)}"/>"""
 
-      // The alternative's own `{% %}` action, past the diagram's own track entirely (never part
-      // of the fork/join geometry) but aligned with this arm's own row — a `<title>` still carries
-      // the full, untruncated source as a native hover tooltip (no frontend JS needed: the caller
-      // injects this SVG string as raw markup).
+      // The alternative's own `{% %}` action, boxed like every other symbol in this diagram's
+      // vocabulary (dashed, not solid — this app's established "annotation, not structural
+      // grammar" convention, e.g. .gramaire__prose-editor) — past the diagram's own track
+      // entirely (never part of the fork/join geometry) but aligned with this arm's own row. A
+      // `<title>` still carries the full, untruncated source as a native hover tooltip (no
+      // frontend JS needed: the caller injects this SVG string as raw markup).
       alt.action.foreach { action =>
-        val shown = truncateAction(action)
+        val ad = actionDisplay(action)
         val ax = exitX + ACTIONGAP
-        p += s"""<text class="rr-action-text" x="$ax" y="${fmtNum(
+        val bw = boxWidth(ad.shown)
+        val top = rowTop(i)
+        p += s"""<rect class="rr-action-box" x="$ax" y="$top" width="$bw" height="$BOXH" rx="4"/>"""
+        p += s"""<text class="rr-action-text" x="${fmtNum(ax + bw / 2.0)}" y="${fmtNum(
             yi
-          )}" text-anchor="start" dominant-baseline="central"><title>${escXml(
-            action
-          )}</title>${escXml(shown)}</text>"""
+          )}" text-anchor="middle" dominant-baseline="central"><title>${escXml(
+            ad.title
+          )}</title>${escXml(ad.shown)}</text>"""
       }
     }
 
