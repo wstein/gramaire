@@ -810,9 +810,13 @@ count:
   `@codemirror/lint`'s `setDiagnostics` (`CodeMirrorEditor`'s `diagnostics`
   prop) — an underline at the exact offending token, with the message + notes
   on hover.
+- **Try-it input errors** (Layer 4): a rejected `parse.message` (a
+  `DiagnosticInfo` whose `span` is an offset into the input itself) reconstructs
+  the input line with the offending `[start, end)` wavy-underlined in place
+  (`InputCaret`), above the message and its notes — instead of a flat
+  "rejected".
 
-Deliberately deferred: underlining the offending character in the "Try it"
-input, a method picker
+Deliberately deferred: a method picker
 (always builds Canonical), a "Format document" action (`gramark fmt` isn't
 exposed to the JS engine yet — omitted rather than shipped as a non-functional
 button), and a real `.grmk` CodeMirror language mode (plain text for now).

@@ -5,6 +5,7 @@ import type {
   DiagnosticInfo,
   GrammarAnalysis,
   ProductionInfo,
+  SrcSpanInfo,
 } from "../protocol";
 import { DEFAULT_SOURCE } from "../examples";
 import {
@@ -426,9 +427,29 @@ function CstView({
   );
 }
 
+// Layer 4 — render the input line with the offending span underlined in place, so a rejected
+// parse points at the exact character (`parse.message.span` is a [start, end) offset into the
+// input itself). A zero-width span (an error "just past the end", e.g. expected more input) still
+// gets a one-column marker so there's always something to see.
+function InputCaret({ input, span }: { input: string; span: SrcSpanInfo }) {
+  const start = Math.max(0, Math.min(span.start, input.length));
+  const end = Math.max(start, Math.min(span.end, input.length));
+  const before = input.slice(0, start);
+  const bad = input.slice(start, end) || " "; // nbsp so a zero-width span is still visible
+  const after = input.slice(end);
+  return (
+    <pre class="grimoire__tryit-caret">
+      <span>{before}</span>
+      <span class="grimoire__tryit-badchar">{bad}</span>
+      <span>{after}</span>
+    </pre>
+  );
+}
+
 function TryIt() {
   const resp = response.value;
   const parse = resp?.parse;
+  const rejectMsg = parse && !parse.accepted ? parse.message : null;
   return (
     <div class="grimoire__tryit">
       <input
@@ -440,7 +461,7 @@ function TryIt() {
           scheduleEvaluate();
         }}
       />
-      {parse && (
+      {parse?.accepted && (
         <div class="grimoire__tryit-tokens">
           {parse.tokens.map((t, i) => (
             <span key={i} class="grimoire__tryit-token">
@@ -453,8 +474,18 @@ function TryIt() {
         <CstView node={parse.cst} productions={resp.productions} />
       )}
       {parse && !parse.accepted && (
-        <div class="grimoire__tryit-message">
-          ✗ {parse.message?.message ?? "rejected"}
+        <div class="grimoire__tryit-error">
+          {rejectMsg?.span && (
+            <InputCaret input={tryItInput.value} span={rejectMsg.span} />
+          )}
+          <div class="grimoire__tryit-message">
+            ✗ {rejectMsg?.message ?? "rejected"}
+          </div>
+          {rejectMsg?.notes.map((n, i) => (
+            <div key={i} class="grimoire__tryit-note">
+              {n}
+            </div>
+          ))}
         </div>
       )}
     </div>
