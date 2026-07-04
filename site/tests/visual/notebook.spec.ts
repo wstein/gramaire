@@ -70,7 +70,7 @@ test("clicking a rule cell reveals its source editor; blurring commits and shows
   await expect(ruleCell.locator(".cm-content")).toBeVisible();
   await expect(ruleCell.locator(".gramaire__output-railroad")).toHaveCount(0);
 
-  await page.locator(".gramaire__topbar").click(); // blur, commits
+  await page.locator(".gramaire__statusbar").click(); // blur, commits
   await expect(ruleCell.locator(".cm-content")).toHaveCount(0);
   await expect(
     ruleCell.locator(".gramaire__output-railroad svg"),
@@ -96,7 +96,7 @@ test("a Tokens cell shows read-only source by default; clicking still reveals it
   await expect(tokensCell.locator(".cm-content")).toBeVisible();
   await expect(tokensCell.locator(".gramaire__cell-source")).toHaveCount(0);
 
-  await page.locator(".gramaire__topbar").click();
+  await page.locator(".gramaire__statusbar").click();
   await expect(tokensCell.locator(".cm-content")).toHaveCount(0);
   await expect(tokensCell.locator(".gramaire__cell-source")).toBeVisible();
 });
@@ -134,7 +134,7 @@ test("editing a rule cell and saving updates its railroad diagram", async ({
   await ruleCell.locator(".cm-content").click();
   await page.keyboard.press("End");
   await page.keyboard.type("\n  | 'zzz'");
-  await page.locator(".gramaire__topbar").click(); // blur, saves
+  await page.locator(".gramaire__statusbar").click(); // blur, saves
 
   await expect(async () => {
     const svgAfter = await ruleCell.locator("svg").innerHTML();
@@ -153,7 +153,7 @@ test("editing a prose block to a different line count never corrupts sibling cel
 
   await page.locator(".gramaire__prose").first().click();
   await page.locator(".gramaire__prose-editor").fill("A rewritten intro.");
-  await page.locator(".gramaire__topbar").click(); // blur, commits the edit
+  await page.locator(".gramaire__statusbar").click(); // blur, commits the edit
 
   await expect(page.locator(".gramaire__prose").first()).toHaveText(
     "A rewritten intro.",
@@ -193,7 +193,7 @@ test("editing a cell's first line never exposes or corrupts its ```gramaire mark
   await page.keyboard.press("Control+Home");
   await page.keyboard.press("End");
   await page.keyboard.type("   "); // touch the first line, still syntactically valid
-  await page.locator(".gramaire__topbar").click(); // blur, saves
+  await page.locator(".gramaire__statusbar").click(); // blur, saves
   await page.waitForTimeout(1000);
 
   await expect(page.locator(".gramaire__badge")).toHaveCount(5);
@@ -248,7 +248,7 @@ test("typing multiple rapid characters (with newlines/quotes) in a cell settles 
   );
   await expect(ruleCell.locator(".cm-content")).toContainText("'yyy'");
 
-  await page.locator(".gramaire__topbar").click(); // blur, saves
+  await page.locator(".gramaire__statusbar").click(); // blur, saves
   await page.waitForTimeout(1000);
   await expect(page.locator(".gramaire__badge")).toHaveCount(5);
 });
@@ -359,7 +359,7 @@ test("clicking a prose block reveals a raw-markdown editor; blurring commits and
   await expect(page.locator(".gramaire__prose-editor")).toBeVisible();
 
   await page.locator(".gramaire__prose-editor").fill("## Edited");
-  await page.locator(".gramaire__topbar").click();
+  await page.locator(".gramaire__statusbar").click();
 
   await expect(page.locator(".gramaire__prose-editor")).not.toBeVisible();
   await expect(page.locator(".gramaire__prose h3").first()).toHaveText(
@@ -378,7 +378,7 @@ async function breakFirstRule(
   await page.keyboard.press("Control+A");
   await page.keyboard.press("Delete");
   await page.keyboard.insertText(content);
-  await page.locator(".gramaire__topbar").click(); // blur, commits
+  await page.locator(".gramaire__statusbar").click(); // blur, commits
   await page.waitForTimeout(1000); // settle worker round-trip
 }
 

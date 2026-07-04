@@ -35,26 +35,28 @@
   --rr-action-stroke: var(--t-action);
 }
 
-.gramaire__topbar {
+/* The bottom status bar — matches .lab__statusbar's visual pattern (a flat, dense strip pinned to
+   the bottom of the flex column) so the Notebook and the Lab read as the same family of tool. No
+   in-page title bar above it: the shared site topbar (gramaire-topbar.mjs) plus the browser tab
+   already say what page this is — a second "Gramaire Notebook" label here was pure duplication. */
+.gramaire__statusbar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 11px 18px;
-  border-bottom: 1px solid var(--border);
+  gap: 16px;
+  padding: 5px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-faint);
   flex: none;
-  position: sticky;
-  top: 0;
-  background: var(--bg);
-  z-index: 5;
 }
 
-.gramaire__title {
-  font-weight: 600;
-  font-size: 14px;
+.gramaire__statusbar-stats {
+  color: var(--fg-faint);
 }
 
 .gramaire__status {
-  margin-left: auto;
   font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--fg-faint);
@@ -94,7 +96,7 @@
 .gramaire__diagnostics {
   flex: none;
   position: sticky;
-  top: 43px; /* below the sticky topbar */
+  top: 0; /* the notebook's own topbar is gone — this is the first child now */
   z-index: 4;
   max-height: 40vh;
   overflow-y: auto;

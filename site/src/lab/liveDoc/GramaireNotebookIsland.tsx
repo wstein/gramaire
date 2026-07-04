@@ -507,12 +507,11 @@ function TryIt() {
   );
 }
 
-export function GramaireNotebookIsland() {
-  useEffect(() => {
-    scheduleEvaluate();
-    return () => labWorker.dispose();
-  }, []);
-
+// Aggregate automaton stats for the bottom status bar — the Notebook has no method picker (it
+// always builds Canonical, see this file's own scope comment above), so unlike the Lab's
+// StatusBar there's no per-method selection to read; just the one method's stats, when analysis
+// has landed.
+function StatusBar() {
   const errors = errorCount.value;
   const warnings = warningCount.value;
   const hasDiags = errors + warnings > 0;
@@ -529,31 +528,46 @@ export function GramaireNotebookIsland() {
       : warnings
         ? `${warnings} warning${warnings === 1 ? "" : "s"}`
         : "clean";
+  const stats = response.value?.analysis?.perMethod["Canonical"];
+
+  return (
+    <div class="gramaire__statusbar">
+      <span
+        class={`gramaire__status${hasDiags ? " gramaire__status--clickable" : ""}`}
+        title={hasDiags ? "Show / hide the diagnostics panel" : undefined}
+        onClick={
+          hasDiags
+            ? () => {
+                diagPanelCollapsed.value = !diagPanelCollapsed.value;
+              }
+            : undefined
+        }
+      >
+        <span class={`gramaire__status-dot${dotClass}`} />
+        {statusText}
+        {hasDiags && (
+          <span class="gramaire__status-caret">
+            {diagPanelCollapsed.value ? "▸" : "▾"}
+          </span>
+        )}
+      </span>
+      <span class="gramaire__statusbar-stats">
+        {stats
+          ? `Canonical(1) · ${stats.states} state${stats.states === 1 ? "" : "s"} · ${stats.conflicts} conflict${stats.conflicts === 1 ? "" : "s"}`
+          : "—"}
+      </span>
+    </div>
+  );
+}
+
+export function GramaireNotebookIsland() {
+  useEffect(() => {
+    scheduleEvaluate();
+    return () => labWorker.dispose();
+  }, []);
 
   return (
     <div class="gramaire">
-      <div class="gramaire__topbar">
-        <span class="gramaire__title">Gramaire Notebook</span>
-        <span
-          class={`gramaire__status${hasDiags ? " gramaire__status--clickable" : ""}`}
-          title={hasDiags ? "Show / hide the diagnostics panel" : undefined}
-          onClick={
-            hasDiags
-              ? () => {
-                  diagPanelCollapsed.value = !diagPanelCollapsed.value;
-                }
-              : undefined
-          }
-        >
-          <span class={`gramaire__status-dot${dotClass}`} />
-          {statusText}
-          {hasDiags && (
-            <span class="gramaire__status-caret">
-              {diagPanelCollapsed.value ? "▸" : "▾"}
-            </span>
-          )}
-        </span>
-      </div>
       <DiagnosticsPanel />
       <div class="gramaire__body">
         <div class="gramaire__doc">
@@ -597,6 +611,7 @@ export function GramaireNotebookIsland() {
           )}
         </div>
       </div>
+      <StatusBar />
     </div>
   );
 }
