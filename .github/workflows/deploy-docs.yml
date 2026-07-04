@@ -1,0 +1,86 @@
+name: Deploy Gramark docs
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Serialize Pages deployments: rapid pushes queue rather than collide.
+# `actions/deploy-pages` rejects a deployment while another is in progress
+# ("cancel … first or wait"), which is what failed earlier; this group makes a
+# later run wait for the in-flight one instead of erroring. Not cancel-in-progress
+# — a production deploy should finish (GitHub's recommended Pages setting).
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: sbt/setup-sbt@v1
+
+      - name: Cache Coursier and sbt
+        # Same cache key as ci.yml's Scala jobs — building the Lab engine
+        # here needs sbt too (npm run build:engine shells out to it).
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/coursier
+            ~/.sbt
+            ~/.ivy2/cache
+          key: sbt-${{ runner.os }}-${{ hashFiles('project/build.properties', 'project/plugins.sbt', 'build.sbt') }}
+          restore-keys: |
+            sbt-${{ runner.os }}-
+
+      - name: Install deps
+        working-directory: site
+        run: npm ci
+
+      - name: Build the Lab engine (Scala.js, optimized)
+        # site/public/lab/engine.mjs is gitignored (docs/playground-spec.md's
+        # "Worker bundle: placeholder locally, CI builds the real one") —
+        # `npm run build` alone never produces it, so the deployed site would
+        # ship without a working Lab if this step were skipped.
+        working-directory: site
+        run: npm run build:engine -- --full
+
+      - name: Build site
+        working-directory: site
+        run: npm run build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
