@@ -3,6 +3,7 @@ package gramaire.cli
 import gramaire.{
   Alt,
   BackendAtnTs,
+  BackendBison,
   BackendIr,
   BackendJs,
   BackendRegistry,
@@ -146,6 +147,19 @@ class MainSuite extends munit.FunSuite:
       BackendRegistry.findBackend("scala-peg-combinators"),
       Some(BackendScalaPegCombinators.backend)
     )
+  }
+
+  test("BackendRegistry: bison is registered and reachable by name") {
+    assertEquals(BackendRegistry.findBackend("bison"), Some(BackendBison.backend))
+  }
+
+  test("isNativeGram-adjacent: import dispatches by the input file's own extension") {
+    // .g4/.y/.yy all resolve to a real importer; anything else is an explicit error, never a
+    // silent fall-through to the wrong converter.
+    assert(Main.importResult("foo.g4", "grammar Foo; r : 'x' ;").isRight)
+    assert(Main.importResult("foo.y", "%%\nr : 'x' ;\n%%\n").isRight)
+    assert(Main.importResult("foo.yy", "%%\nr : 'x' ;\n%%\n").isRight)
+    assert(Main.importResult("foo.txt", "irrelevant").isLeft)
   }
 
   test(

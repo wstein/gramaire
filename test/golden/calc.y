@@ -1,0 +1,22 @@
+%token NUMBER
+%left '+' '-'
+%left '*' '/'
+%%
+Expr
+  : Expr '+' Term
+  | Expr '-' Term
+  | Term
+  ;
+
+Term
+  : Term '*' Factor
+  | Term '/' Factor
+  | Factor
+  ;
+
+Factor
+  : '(' Expr ')'
+  | NUMBER
+  ;
+
+%%

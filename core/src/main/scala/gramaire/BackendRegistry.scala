@@ -11,6 +11,7 @@ object BackendRegistry:
       BackendDot.backend,
       BackendTs.backend,
       BackendAntlr.backend,
+      BackendBison.backend,
       BackendJs.backend,
       BackendAtnTs.backend,
       BackendScalaPeg.backend,

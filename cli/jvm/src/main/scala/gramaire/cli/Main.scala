@@ -187,17 +187,32 @@ object Main:
   // stdout, or to `<dir>/<Name>.gram.md` with `--out`; features with no
   // Core home (predicates, actions, modes) are dropped and reported on
   // stderr.
+  // `import`'s own base name, capitalized — Bison has no `grammar Name;`-equivalent declaration
+  // (unlike ANTLR), so `ConvertBison.importBison` needs the caller to supply one.
+  private def baseNameOf(file: String): String =
+    val base = file.split("[/\\\\]").last.stripSuffix(".y")
+    if base.isEmpty then base else base.take(1).toUpperCase + base.drop(1)
+
+  // Dispatches on the input file's own extension — `.g4` (ANTLR4) or `.y`/`.yy` (Bison/yacc,
+  // ADR D38) — mirroring how `emit --backend <name>` itself is backend-name-driven, just keyed
+  // by the INPUT format here instead of the output one.
+  def importResult(file: String, src: String): Either[String, Imported] =
+    if file.endsWith(".g4") then ConvertAntlr.importAntlr(src)
+    else if file.endsWith(".y") || file.endsWith(".yy") then
+      ConvertBison.importBison(src, baseNameOf(file))
+    else Left(s"unrecognized import format (expected a .g4 or .y/.yy file): $file")
+
   private def runImport(args: Vector[String]): Unit =
     parseEmit(args) match
       case Left(e) => die(e)
       case Right(opts) =>
         opts.file match
-          case None => die("import: no .g4 file given")
+          case None => die("import: no .g4/.y file given")
           case Some(file) =>
             readFile(file) match
               case Left(err) => die(s"import: cannot read $file: $err")
-              case Right(g4) =>
-                ConvertAntlr.importAntlr(g4) match
+              case Right(src) =>
+                importResult(file, src) match
                   case Left(e) => die(s"import: $file: $e")
                   case Right(result) =>
                     result.warnings.foreach(w => Console.err.println(s"  note: $w"))
@@ -517,7 +532,7 @@ object Main:
       "",
       "Usage:",
       "  gramaire emit <file.gram.md|file.gram> [--backend <name>] [--out <dir>] [--strategy <name>]",
-      "  gramaire import <file.g4> [--out <dir>]",
+      "  gramaire import <file.g4|file.y|file.yy> [--out <dir>]",
       "  gramaire strip <file.gram.md>",
       "  gramaire conformance",
       "  gramaire explain-conflict <file.gram.md|file.gram> [--strategy lr|ll-star] [--input <text>]",
@@ -528,7 +543,8 @@ object Main:
       s"Backends: $backendNames",
       "",
       "With no --out, the artifact is written to stdout.",
-      "import converts an ANTLR4 .g4 grammar to a .gram.md.",
+      "import converts an ANTLR4 .g4 or a Bison/yacc .y/.yy grammar to a .gram.md, dispatched",
+      "  by the input file's own extension.",
       "strip writes the raw .gram projection of a .gram.md (grammar + docs as comments) —",
       "  a one-way export; run it against a .gram.md, not against an already-native .gram file.",
       "conformance runs the differential oracle over the built-in corpora.",
