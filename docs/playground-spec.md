@@ -933,30 +933,29 @@ Deliberately deferred: a method picker
 exposed to the JS engine yet — omitted rather than shipped as a non-functional
 button), and a real `.grmk` CodeMirror language mode (plain text for now).
 
-**Homepage live calculator (shipped, `divergence:` — closes an increment
-`index.astro`'s own comment used to defer).** The showcase panel's "renders
-to ↓" diagram used to be the whole story — static code, static SVG, a chip
-linking out to `/lab/`. `HomeCalcTryIt.tsx` (`site/src/lab/HomeCalcTryIt.tsx`)
-adds a real "try it" strip beneath the diagram: an input, and the grammar's
-own `{% %}` actions computing a genuine result — the same `createLabWorker`
-lifecycle the Grimoire Notebook uses, fed `NOTEBOOK_DEFAULT_SOURCE` (calc-js)
-verbatim, never `design/`'s stand-in Earley/`eval()` mock engine (see
+**Homepage Notebook embed (shipped, `divergence:` — closes an increment
+`index.astro`'s own comment used to defer).** The showcase panel's static
+code `<pre>` and pre-generated SVG diagram stay exactly as they were — a
+legitimate, zero-JS prerendered preview of the calc-js `Expr` rule — but a
+"▶ Try the live Notebook" button now sits beneath them
+(`HomeNotebookEmbed.tsx`, `site/src/lab/HomeNotebookEmbed.tsx`). Clicking it
+mounts the REAL `GrimoireNotebookIsland` (the same component
+`src/pages/notebook.astro` mounts standalone), not a scaled-down
+reimplementation: the same click-to-edit cells, railroad diagrams, and
+`createLabWorker` lifecycle, evaluating `NOTEBOOK_DEFAULT_SOURCE` (calc-js)
+verbatim — never `design/`'s stand-in Earley/`eval()` mock engine (see
 `design/README.md`'s gold-standard boundary — that engine is reference-only,
-never ported, never imported from site code). Deliberately minimal: no cell
-editing, no diagnostics panel, no CST view — an input and a result, nothing
-the Lab/Notebook already do better.
+never ported, never imported from site code).
 
-Lazy by construction, not a bolted-on `IntersectionObserver`:
-`createLabWorker`'s `ensureWorker` only constructs the actual `Worker` (which
-dynamically imports the Scala.js engine bundle) on the first `evaluate()`
-call, so simply not calling `evaluate` until the input is focused means a
-visitor who never interacts pays nothing beyond this component's own tiny
-JS — verified in `home.spec.ts` by asserting zero worker/engine network
-requests before interaction. Until then, a precomputed placeholder
-(`8 - 3 + 1` → `= 6`) keeps the demo looking alive rather than showing a
-"click to activate" affordance; focusing the input replaces it with the
-real, computed answer, and further typing re-evaluates live (debounced,
-same as every other engine consumer).
+Lazy by a dynamic `import()`, not a bolted-on `IntersectionObserver`:
+`GrimoireNotebookIsland` builds its `createLabWorker` at module scope and
+calls `evaluate()` unconditionally from a mount effect — no prop exists to
+gate it — so the only lever for "don't cost anything until relevant" is
+deferring the _import_ itself. `HomeNotebookEmbed` does this with
+`preact/compat`'s `lazy()`/`Suspense`, wrapped behind the button's own click
+handler: a visitor who never clicks pays nothing beyond this tiny wrapper's
+own JS, verified in `home.spec.ts` by asserting zero worker/engine network
+requests before the click, and at least one immediately after.
 
 Also fixed in the same change: the showcase's own code sample was never
 real, working syntax — `{% Add %}`/`{% Sub %}`, copied verbatim from the
