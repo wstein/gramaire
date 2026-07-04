@@ -1,0 +1,40 @@
+/*
+ * HomeCalcTryIt's own styling — matches index.astro's showcase panel conventions (font-mono,
+ * --fg-faint labels, --border/--bg for the input, --accent for the result) since Astro's scoped
+ * <style> blocks don't reach into a Preact island's runtime-rendered DOM.
+ */
+
+.home-tryit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.home-tryit__label {
+  color: var(--fg-faint);
+  white-space: nowrap;
+}
+.home-tryit__input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--fg);
+}
+.home-tryit__input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.home-tryit__result {
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+}

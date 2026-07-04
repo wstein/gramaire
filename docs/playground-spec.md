@@ -937,6 +937,40 @@ Deliberately deferred: a method picker
 exposed to the JS engine yet — omitted rather than shipped as a non-functional
 button), and a real `.gram` CodeMirror language mode (plain text for now).
 
+**Homepage live calculator (shipped, `divergence:` — closes an increment
+`index.astro`'s own comment used to defer).** The showcase panel's "renders
+to ↓" diagram used to be the whole story — static code, static SVG, a chip
+linking out to `/lab/`. `HomeCalcTryIt.tsx` (`site/src/lab/HomeCalcTryIt.tsx`)
+adds a real "try it" strip beneath the diagram: an input, and the grammar's
+own `{% %}` actions computing a genuine result — the same `createLabWorker`
+lifecycle the Gramaire Notebook uses, fed `NOTEBOOK_DEFAULT_SOURCE` (calc-js)
+verbatim, never `design/`'s stand-in Earley/`eval()` mock engine (see
+`design/README.md`'s gold-standard boundary — that engine is reference-only,
+never ported, never imported from site code). Deliberately minimal: no cell
+editing, no diagnostics panel, no CST view — an input and a result, nothing
+the Lab/Notebook already do better.
+
+Lazy by construction, not a bolted-on `IntersectionObserver`:
+`createLabWorker`'s `ensureWorker` only constructs the actual `Worker` (which
+dynamically imports the Scala.js engine bundle) on the first `evaluate()`
+call, so simply not calling `evaluate` until the input is focused means a
+visitor who never interacts pays nothing beyond this component's own tiny
+JS — verified in `home.spec.ts` by asserting zero worker/engine network
+requests before interaction. Until then, a precomputed placeholder
+(`8 - 3 + 1` → `= 6`) keeps the demo looking alive rather than showing a
+"click to activate" affordance; focusing the input replaces it with the
+real, computed answer, and further typing re-evaluates live (debounced,
+same as every other engine consumer).
+
+Also fixed in the same change: the showcase's own code sample was never
+real, working syntax — `{% Add %}`/`{% Sub %}`, copied verbatim from the
+gold-standard mock's stand-in engine, are bare-identifier actions `BackendJs`
+has no support for (would reference an undefined name at runtime; see the
+earlier ƒ/λ railroad-action debate this session, rated 2/10 for exactly this
+reason). It now reads `(c) => c.expr + c.term`/`(c) => c.expr - c.term` —
+byte-identical to `examples/calc-js.gram.md`'s own `Expr` rule, and to what
+the new "try it" strip actually runs.
+
 ---
 
 ## 6. UX & layout
