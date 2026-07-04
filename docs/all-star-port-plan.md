@@ -150,11 +150,13 @@ are the parsing core; 3–6 are the language and product surface.
 - **Test (`Test.Atn`) →
   [`AtnSuite.scala`](../core/src/test/scala/gramaire/AtnSuite.scala):** a tiny
   hand-built grammar pinned to exact states / decisions / key transitions
-  (`wellFormed`, one decision per rule, a start+stop per rule). **Open gap:**
-  the suite's own header defers the construction invariants over the real
-  `calc`/`json` grammars to file-backed I/O — that check is not written yet,
-  despite earlier drafts of this plan claiming it ran. No test builds an ATN
-  from `examples/json.gram.md`.
+  (`wellFormed`, one decision per rule, a start+stop per rule). **Closed:**
+  [`AtnInvariantSuite.scala`](../core/.jvm/src/test/scala/gramaire/AtnInvariantSuite.scala)
+  (JVM-only) runs `Atn.wellFormed` plus a per-rule start-reaches-stop check
+  over `calc`/`json`/`ECMA-404`/`calc-prec`'s real, `Lr.parse`d grammars,
+  through the same desugar → fold-left-recursion → `buildAtn` pipeline
+  `IR.withStrategy("ll-star", …)` uses — not just `AtnSuite`'s hand-built
+  two-rule fixture (see §8 item g).
 
 ### Phase 1 — SLL adaptive prediction `Gramaire.Atn.Sim` ✅ partial
 
@@ -681,8 +683,9 @@ Principles kept:
 ## 8. Suggested sequencing
 
 1. **Phase 0 ✅** — the ATN model + `buildAtn` (`Atn.scala`/`AtnBuild.scala`).
-   Proven on a hand-built grammar today; the `calc`/`json` file-backed
-   invariant checks this step originally claimed are still open (Phase 0 gap).
+   Proven on a hand-built grammar (`AtnSuite`) and, since closed via item g
+   below, on the real `calc`/`json`/`ECMA-404`/`calc-prec` grammars too
+   (`AtnInvariantSuite`).
 2. **Phase 1 ✅ (partial)** — SLL prediction behind `--strategy ll-star`;
    accept/reject parity with LR proven on six hand grammars + the `lr`
    bootstrap + `calc` + `json`. **This was the keystone claim, and it now
