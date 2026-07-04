@@ -507,12 +507,11 @@ function TryIt() {
   );
 }
 
-export function GrimoireNotebookIsland() {
-  useEffect(() => {
-    scheduleEvaluate();
-    return () => labWorker.dispose();
-  }, []);
-
+// Aggregate automaton stats for the bottom status bar — the Notebook has no method picker (it
+// always builds Canonical, see this file's own scope comment above), so unlike the Lab's
+// StatusBar there's no per-method selection to read; just the one method's stats, when analysis
+// has landed.
+function StatusBar() {
   const errors = errorCount.value;
   const warnings = warningCount.value;
   const hasDiags = errors + warnings > 0;
@@ -529,31 +528,46 @@ export function GrimoireNotebookIsland() {
       : warnings
         ? `${warnings} warning${warnings === 1 ? "" : "s"}`
         : "clean";
+  const stats = response.value?.analysis?.perMethod["Canonical"];
+
+  return (
+    <div class="grimoire__statusbar">
+      <span
+        class={`grimoire__status${hasDiags ? " grimoire__status--clickable" : ""}`}
+        title={hasDiags ? "Show / hide the diagnostics panel" : undefined}
+        onClick={
+          hasDiags
+            ? () => {
+                diagPanelCollapsed.value = !diagPanelCollapsed.value;
+              }
+            : undefined
+        }
+      >
+        <span class={`grimoire__status-dot${dotClass}`} />
+        {statusText}
+        {hasDiags && (
+          <span class="grimoire__status-caret">
+            {diagPanelCollapsed.value ? "▸" : "▾"}
+          </span>
+        )}
+      </span>
+      <span class="grimoire__statusbar-stats">
+        {stats
+          ? `Canonical(1) · ${stats.states} state${stats.states === 1 ? "" : "s"} · ${stats.conflicts} conflict${stats.conflicts === 1 ? "" : "s"}`
+          : "—"}
+      </span>
+    </div>
+  );
+}
+
+export function GrimoireNotebookIsland() {
+  useEffect(() => {
+    scheduleEvaluate();
+    return () => labWorker.dispose();
+  }, []);
 
   return (
     <div class="grimoire">
-      <div class="grimoire__topbar">
-        <span class="grimoire__title">Grimoire Notebook</span>
-        <span
-          class={`grimoire__status${hasDiags ? " grimoire__status--clickable" : ""}`}
-          title={hasDiags ? "Show / hide the diagnostics panel" : undefined}
-          onClick={
-            hasDiags
-              ? () => {
-                  diagPanelCollapsed.value = !diagPanelCollapsed.value;
-                }
-              : undefined
-          }
-        >
-          <span class={`grimoire__status-dot${dotClass}`} />
-          {statusText}
-          {hasDiags && (
-            <span class="grimoire__status-caret">
-              {diagPanelCollapsed.value ? "▸" : "▾"}
-            </span>
-          )}
-        </span>
-      </div>
       <DiagnosticsPanel />
       <div class="grimoire__body">
         <div class="grimoire__doc">
@@ -597,6 +611,7 @@ export function GrimoireNotebookIsland() {
           )}
         </div>
       </div>
+      <StatusBar />
     </div>
   );
 }

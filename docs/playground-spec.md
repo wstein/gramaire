@@ -816,16 +816,30 @@ unreachable. Fixed to `height: 100%; min-height: 0` so `.grimoire__body`
 (`flex: 1; min-height: 0; overflow: auto`) is the one true scroll region,
 matching `lab.astro`'s own documented fixed-shell pattern.
 
+**Status bar (`StatusBar`, `.grimoire__statusbar`).** A persistent bottom
+strip — matching `LabIsland.tsx`'s own `.lab__statusbar` visual pattern, so
+the Notebook and the Lab read as the same family of tool — replacing the
+notebook's earlier in-page topbar. That topbar's only content was a
+"Grimoire Notebook" title span, pure duplication once the shared site nav
+(`gramark-topbar.mjs`) and the browser tab already say what page this is, so
+it was deleted outright rather than kept empty. The clean/error/warning
+indicator (still clickable, toggling the diagnostics panel) moved down into
+this bar, alongside a new aggregate-stats segment —
+`Canonical(1) · N states · M conflicts` from
+`response.value?.analysis?.perMethod["Canonical"]` — the Notebook has no
+method picker (always builds Canonical), so unlike the Lab's own status bar
+there's no per-method comparison to show, just the one method's numbers.
+
 **Diagnostics (invalid-grammar feedback).** The engine already returns rich,
 located diagnostics (`LabResponse.diagnostics` — severity, stage, message,
 `notes`, and a `span` offset into the exact serialized source it was handed);
 the notebook surfaces them in two layers instead of the old bare "N issues"
 count:
 
-- **Document panel** (`DiagnosticsPanel`): a sticky strip under the topbar
-  listing every diagnostic with its message + note lines, and — when its span
-  maps to a cell — that cell's name as a clickable "jump to and open it"
-  location. The status bar splits the count into errors vs warnings
+- **Document panel** (`DiagnosticsPanel`): a sticky strip at the top of the
+  document listing every diagnostic with its message + note lines, and — when
+  its span maps to a cell — that cell's name as a clickable "jump to and open
+  it" location. The status bar splits the count into errors vs warnings
   (`errorCount`/`warningCount`) and toggles the panel.
 - **Per-cell attribution** (Layer 2): each diagnostic's `span.start` is mapped
   back to its owning cell via `blockIndexAtOffset` (`document.ts` — pure
