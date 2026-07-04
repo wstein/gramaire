@@ -99,6 +99,7 @@
   --t-action: #6f42c1;
   --t-op: #7d8d85;
   --t-comment: #7d8d85;
+  --t-tokens-badge: #1d6fd6;
   --out-bg: #0c130f;
   --out-fg: #e8f1ec;
 
@@ -131,6 +132,7 @@
   --t-action: #c4a8ec;
   --t-op: #73877e;
   --t-comment: #73877e;
+  --t-tokens-badge: #6fa8e8;
   --out-bg: #080d0a;
   --out-fg: #e8f1ec;
   --shadow-card:

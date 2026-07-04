@@ -458,9 +458,9 @@
   border-color: var(--accent);
 }
 .grimoire__badge--tokens {
-  color: var(--t-term);
-  background: color-mix(in srgb, var(--t-term) 12%, var(--bg));
-  border-color: var(--t-term);
+  color: var(--t-tokens-badge);
+  background: color-mix(in srgb, var(--t-tokens-badge) 12%, var(--bg));
+  border-color: var(--t-tokens-badge);
 }
 .grimoire__badge--precedence {
   color: var(--t-action);
