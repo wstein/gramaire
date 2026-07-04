@@ -209,13 +209,14 @@ jobs:
         # Ll.recognize on every vector.
         run: npm run check:atn-ts-parity
 
-      - name: scala-peg / scala-peg-fastparse backend parity gate (PEG-engine plan Phases 3-4)
+      - name: scala-peg backends parity gate (PEG-engine plan Phases 3-4)
         # Runs the conformance corpus through `gramaire.cli.ScalaPegParityMain` (sbt runMain) for
-        # BOTH IR.rewritten-reading backends — the dependency-free `scala-peg` and the opt-in
-        # `scala-peg-fastparse` — which writes each grammar's generated output into the throwaway
-        # `codegen-scratch` sbt subproject and prints Ll.parse's own accept/reject + rendered Cst;
-        # a second sbt command in the same invocation compiles (against the real `fastparse`
-        # library for that backend) and runs the generated Scala for real, proving each emitted
+        # ALL THREE IR.rewritten-reading backends — the dependency-free `scala-peg` and the two
+        # opt-in production-grade alternatives, `scala-peg-fastparse` and `scala-peg-combinators`
+        # — which writes each grammar's generated output into the throwaway `codegen-scratch` sbt
+        # subproject and prints Ll.parse's own accept/reject + rendered Cst; a second sbt command
+        # in the same invocation compiles (against the real `fastparse`/`scala-parser-combinators`
+        # library for those backends) and runs the generated Scala for real, proving each emitted
         # PEG parser — not just its golden text — actually reproduces Ll.parse's exact Cst, the
         # same behavioral proof the atn-ts gate above gives its backend.
         run: npm run check:scala-peg-parity

@@ -92,10 +92,12 @@ lazy val codegenScratch = project
   .settings(
     name := "gramaire-codegen-scratch",
     publish / skip := true,
-    // Only the opt-in `scala-peg-fastparse` backend's generated code uses this — the
-    // dependency-free `scala-peg` backend's own generated code doesn't reference it at all, so
-    // it's simply unused (harmlessly) whenever `codegen-scratch` compiles that backend's output.
+    // Only the opt-in `scala-peg-fastparse`/`scala-peg-combinators` backends' generated code uses
+    // these — the dependency-free `scala-peg` backend's own generated code references neither, so
+    // each is simply unused (harmlessly) whenever `codegen-scratch` compiles a different backend's
+    // output.
     libraryDependencies += "com.lihaoyi" %% "fastparse" % "3.1.1",
+    libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.4.0",
   )
 
 lazy val root = project

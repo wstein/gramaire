@@ -133,6 +133,28 @@ class BackendGoldenSuite extends munit.FunSuite:
             )
   }
 
+  // A golden-text pin, same convention as every other backend above — but see
+  // site/scripts/check-scala-peg-parity.mjs for the test that actually matters for this backend:
+  // a golden diff alone can't tell a correctly-translated IRProv/IRRuleBody from one that merely
+  // still emits stable-looking text, only compiling (against the real
+  // `scala-parser-combinators` library, via `codegen-scratch`) and running the emitted Scala can.
+  test(
+    "scala-peg-combinators: examples/calc.gram.md under --strategy ll-star matches the committed golden"
+  ) {
+    val md = readFile("examples/calc.gram.md")
+    Lr.parse(md) match
+      case Left(e) => fail(s"could not parse examples/calc.gram.md: $e")
+      case Right(g) =>
+        IR.buildIR(Method.Canonical, "Calc", g) match
+          case Left(_) => fail("could not build IR for calc")
+          case Right(ir) =>
+            val irLl = IR.withStrategy("ll-star", g, ir, Lr.precedenceOf(md))
+            assertEquals(
+              BackendScalaPegCombinators.emit(irLl),
+              readFile("test/golden/CalcCombinators.scala")
+            )
+  }
+
   test(
     "js: calc-js bakes its inline actions into one evaluate(cst), matching the committed golden"
   ) {

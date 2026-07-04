@@ -14,7 +14,8 @@ object BackendRegistry:
       BackendJs.backend,
       BackendAtnTs.backend,
       BackendScalaPeg.backend,
-      BackendScalaPegFastparse.backend
+      BackendScalaPegFastparse.backend,
+      BackendScalaPegCombinators.backend
     )
 
   /** Find a backend by its `--backend` name. */

@@ -7,6 +7,7 @@ import gramaire.{
   BackendJs,
   BackendRegistry,
   BackendScalaPeg,
+  BackendScalaPegCombinators,
   BackendScalaPegFastparse,
   BackendTs,
   Grammar,
@@ -117,9 +118,12 @@ class MainSuite extends munit.FunSuite:
     // scala-peg reads only IR.rewritten (the ll-star-only CST-fold-back section).
     assert(!Main.backendSupportsStrategy(BackendScalaPeg.backend, "lr"))
     assert(Main.backendSupportsStrategy(BackendScalaPeg.backend, "ll-star"))
-    // scala-peg-fastparse reads the same IR.rewritten section, so the same gate applies.
+    // scala-peg-fastparse/scala-peg-combinators read the same IR.rewritten section, so the same
+    // gate applies to both.
     assert(!Main.backendSupportsStrategy(BackendScalaPegFastparse.backend, "lr"))
     assert(Main.backendSupportsStrategy(BackendScalaPegFastparse.backend, "ll-star"))
+    assert(!Main.backendSupportsStrategy(BackendScalaPegCombinators.backend, "lr"))
+    assert(Main.backendSupportsStrategy(BackendScalaPegCombinators.backend, "ll-star"))
   }
 
   test("BackendRegistry: atn-ts is registered and reachable by name") {
@@ -134,6 +138,13 @@ class MainSuite extends munit.FunSuite:
     assertEquals(
       BackendRegistry.findBackend("scala-peg-fastparse"),
       Some(BackendScalaPegFastparse.backend)
+    )
+  }
+
+  test("BackendRegistry: scala-peg-combinators is registered and reachable by name") {
+    assertEquals(
+      BackendRegistry.findBackend("scala-peg-combinators"),
+      Some(BackendScalaPegCombinators.backend)
     )
   }
 

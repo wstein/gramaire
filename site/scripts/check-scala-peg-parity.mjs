@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// The `scala-peg`/`scala-peg-fastparse` backends' parity gate: proves each emitted Scala PEG
-// parser, once actually COMPILED AND RUN, accepts/rejects the same conformance-corpus vectors as
-// `Ll.parse` does AND builds the exact same Cst — the behavioral proof a golden-text diff alone
-// can't give (a bug in the emitted alt/fold translation could still emit text that happens to
-// golden-diff clean).
+// The `scala-peg`/`scala-peg-fastparse`/`scala-peg-combinators` backends' parity gate: proves
+// each emitted Scala PEG parser, once actually COMPILED AND RUN, accepts/rejects the same
+// conformance-corpus vectors as `Ll.parse` does AND builds the exact same Cst — the behavioral
+// proof a golden-text diff alone can't give (a bug in the emitted alt/fold translation could
+// still emit text that happens to golden-diff clean).
 //
 // Architecture mirrors check-atn-ts-parity.mjs, with one structural difference: no standalone
 // Scala tooling exists in this environment (no `scala-cli`/`scala`/`scalac`/`coursier`), so the
@@ -17,8 +17,9 @@
 //      EXPECTED answers (Ll.parse's own accept/reject + rendered Cst) to stdout.
 //   2. `codegenScratch/runMain gramaire.scratch.Main <vectorsPath>` — compiles the just-written
 //      `Generated.scala` (a real sbt compile of real, independently-executed code — for
-//      `scala-peg-fastparse` this exercises the real `fastparse` library too, via
-//      `codegen-scratch`'s own dependency) and prints the ACTUAL answers to stdout.
+//      `scala-peg-fastparse`/`scala-peg-combinators` this exercises the real `fastparse`/
+//      `scala-parser-combinators` library too, via `codegen-scratch`'s own dependencies) and
+//      prints the ACTUAL answers to stdout.
 // Both marker-delimited blocks land in the same combined stdout stream; this script pulls them
 // out and diffs by vector name.
 //
@@ -32,7 +33,7 @@ const siteDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const repoRoot = path.join(siteDir, "..");
 
 const GRAMMARS = ["calc", "json", "ecma404", "calc-prec"];
-const BACKENDS = ["scala-peg", "scala-peg-fastparse"];
+const BACKENDS = ["scala-peg", "scala-peg-fastparse", "scala-peg-combinators"];
 
 const EXPECTED_START = "===SCALA-PEG-EXPECTED-START===";
 const EXPECTED_END = "===SCALA-PEG-EXPECTED-END===";

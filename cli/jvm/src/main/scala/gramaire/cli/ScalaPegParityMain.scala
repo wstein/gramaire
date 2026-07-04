@@ -44,9 +44,10 @@ object ScalaPegParityMain:
     case _           => None
 
   private def emitFor(backendKey: String): Option[IR => String] = backendKey match
-    case "scala-peg"           => Some(BackendScalaPeg.emit)
-    case "scala-peg-fastparse" => Some(BackendScalaPegFastparse.emit)
-    case _                     => None
+    case "scala-peg"             => Some(BackendScalaPeg.emit)
+    case "scala-peg-fastparse"   => Some(BackendScalaPegFastparse.emit)
+    case "scala-peg-combinators" => Some(BackendScalaPegCombinators.emit)
+    case _                       => None
 
   // Writes `Generated.scala` under `scratchSrcDir/gramaire/scratch/` — always this one fixed path,
   // named "Generated" regardless of the grammar's own name (see the module header) — via
@@ -62,7 +63,11 @@ object ScalaPegParityMain:
       backendKey: String
   ): Either[String, Unit] =
     emitFor(backendKey) match
-      case None => Left(s"unknown backend '$backendKey' (expected scala-peg | scala-peg-fastparse)")
+      case None =>
+        Left(
+          s"unknown backend '$backendKey' " +
+            "(expected scala-peg | scala-peg-fastparse | scala-peg-combinators)"
+        )
       case Some(emit) =>
         IR.buildIRP(prec, Method.Canonical, "Generated", g) match
           case Left(conflicts) => Left(s"LR(1) conflicts building the table: $conflicts")
@@ -133,6 +138,6 @@ object ScalaPegParityMain:
       case _ =>
         System.err.println(
           "usage: ScalaPegParityMain <scratchSrcDir> <vectorsPath> " +
-            "<calc|json|ecma404|calc-prec> <scala-peg|scala-peg-fastparse>"
+            "<calc|json|ecma404|calc-prec> <scala-peg|scala-peg-fastparse|scala-peg-combinators>"
         )
         sys.exit(1)
