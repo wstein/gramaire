@@ -8,7 +8,8 @@
 export type MdInline =
   | { kind: "text"; text: string }
   | { kind: "code"; text: string }
-  | { kind: "bold"; text: string };
+  | { kind: "bold"; text: string }
+  | { kind: "image"; alt: string; src: string };
 
 export interface MdBlock {
   tag: "h2" | "h3" | "h4" | "p";
@@ -17,14 +18,18 @@ export interface MdBlock {
 
 function parseInline(text: string): MdInline[] {
   const parts: MdInline[] = [];
-  const re = /`([^`]+)`|\*\*([^*]+)\*\*/g;
+  // Image checked first: `![alt](src)` shares no syntax with the other two, but must be tried
+  // before a lone `[`/`(` could ever be reinterpreted — there's no ambiguity today, this is just
+  // the natural reading order (most-specific alternative first).
+  const re = /!\[([^\]]*)\]\(([^)\s]+)\)|`([^`]+)`|\*\*([^*]+)\*\*/g;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
     if (m.index > last)
       parts.push({ kind: "text", text: text.slice(last, m.index) });
-    if (m[1] !== undefined) parts.push({ kind: "code", text: m[1] });
-    else parts.push({ kind: "bold", text: m[2] });
+    if (m[1] !== undefined) parts.push({ kind: "image", alt: m[1], src: m[2] });
+    else if (m[3] !== undefined) parts.push({ kind: "code", text: m[3] });
+    else parts.push({ kind: "bold", text: m[4] });
     last = re.lastIndex;
   }
   if (last < text.length) parts.push({ kind: "text", text: text.slice(last) });

@@ -19,6 +19,16 @@
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font-ui);
+  /* Railroad.renderSvg(themed=true)'s own custom properties (Railroad.scala's styleThemed),
+     aliased to this site's tokens.css palette — same convention lab.css uses for the
+     live-computed Grammar-analysis diagrams. Makes the committed sidecar SVGs a prose image
+     resolves inline (exampleAssets.ts) follow the light/dark toggle too, since they're the exact
+     same themed markup, just pre-rendered to disk by `gramark fmt` instead of computed live. */
+  --rr-ink: var(--fg);
+  --rr-track: var(--fg-faint);
+  --rr-term-fill: var(--bg);
+  --rr-term-stroke: var(--accent);
+  --rr-nonterm-fill: var(--bg-1);
 }
 
 .grimoire__topbar {
@@ -192,6 +202,26 @@
   border-radius: 4px;
   font-family: var(--font-mono);
   font-size: 0.92em;
+}
+
+.grimoire-prose-image {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0;
+}
+.grimoire-prose-image svg {
+  max-width: 100%;
+  height: auto;
+}
+.grimoire-prose-image-missing {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-faint);
+  background: var(--bg-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: 4px;
+  padding: 2px 8px;
 }
 
 .grimoire__prose-editor {

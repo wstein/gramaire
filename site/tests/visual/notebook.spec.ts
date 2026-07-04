@@ -300,6 +300,23 @@ test("a rejected Try-it input underlines the offending character with the messag
   );
 });
 
+// Regression: `![alt](src)` markdown image links had no inline case in parseMarkdownLite, so they
+// fell through to plain text and rendered as the literal
+// "![Railroad diagram for the Term rule](diagrams-calc-js/term.svg)" — reported directly from the
+// notebook (calc-js.grmk.md's own sidecar railroad-diagram links). They now resolve to the actual
+// bundled SVG, rendered inline.
+test("a prose image link renders the actual sidecar SVG, not literal markdown text", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  const docText = await page.locator(".grimoire__doc").textContent();
+  expect(docText).not.toContain("![");
+
+  await expect(page.locator(".grimoire-prose-image svg")).toHaveCount(3);
+  await expect(page.locator(".grimoire-prose-image-missing")).toHaveCount(0);
+});
+
 test("clicking a prose block reveals a raw-markdown editor; blurring commits and re-renders it", async ({
   page,
 }) => {
