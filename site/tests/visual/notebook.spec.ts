@@ -617,6 +617,46 @@ test("the offending cell is flagged with an inline error; clicking the panel row
   ).toBeVisible();
 });
 
+// A warning-only cell (the grammar still builds — a bad/typo'd %directive is cosmetic, never
+// fatal) gets the same treatment as an error one turn down: an amber border and a "warning" tag,
+// and the panel row is clickable — unknownSettingWarnings now carries a real span, where it used
+// to have none at all (so blockIndex was always null, and this diagnostic could never be linked).
+test("a cell with only a warning is flagged the same way an error is, and its panel row is clickable", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  const settingsCell = page
+    .locator(".grimoire__cell")
+    .filter({ has: page.locator(".grimoire__badge--settings") })
+    .first();
+  await settingsCell.locator(".grimoire__cell-rendered").click();
+  await settingsCell.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.press("Delete");
+  await page.keyboard.insertText("%naqme Calc-js\n%lang javascript");
+  await settingsCell.locator(".grimoire__toolbar-btn--save").click();
+  await page.waitForTimeout(1000);
+
+  const warnedCell = page.locator(".grimoire__cell--warning");
+  await expect(warnedCell).toHaveCount(1);
+  await expect(
+    warnedCell.locator(".grimoire__cell-error-tag--warning"),
+  ).toHaveText("warning");
+
+  // Clicking the tag reveals the panel without opening the cell's editor.
+  await warnedCell.locator(".grimoire__cell-error-tag").click();
+  await expect(page.locator(".grimoire__diagnostics")).toBeVisible();
+  await expect(warnedCell.locator(".cm-content")).toHaveCount(0);
+
+  // The panel row itself is linked (blockIndex resolved via the warning's own span) and clicking
+  // it jumps to and opens the owning cell.
+  const diagRow = page.locator(".grimoire__diag--warning");
+  await expect(diagRow).toHaveClass(/grimoire__diag--linked/);
+  await diagRow.click();
+  await expect(warnedCell.locator(".cm-content")).toBeVisible();
+});
+
 // Layer 3: opening the errored cell shows an in-editor squiggle underline at the exact span, with
 // the full message (and note) on hover.
 test("opening an errored cell shows an in-editor squiggle with the message on hover", async ({

@@ -281,6 +281,15 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
     val warnings = Lr.warningsFor(md)
     assertEquals(warnings.length, 1, s"expected exactly one warning, got: $warnings")
     assertEquals(warnings.head.message, "unknown setting `%naqme` (ignored)")
+    // Located — not just a bare message — so the Notebook can attribute it to its owning cell and
+    // make it clickable, the same as any other diagnostic with a span.
+    assertEquals(
+      Diagnostic.render(warnings.head, "calc-js.grmk.md", Lr.toFenced(md)),
+      """warning: unknown setting `%naqme` (ignored)
+        |  --> calc-js.grmk.md:4:1
+        |    %naqme Calc-js
+        |    ^^^^^^""".stripMargin
+    )
   }
 
   test(

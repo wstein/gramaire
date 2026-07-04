@@ -887,12 +887,16 @@ count:
   back to its owning cell via `blockIndexAtOffset` (`document.ts` — pure
   char-range arithmetic that stays in exact lockstep with `serializeDocument`,
   unit-tested). The offending cell gets a red border, an `error` tag, and the
-  message inline beneath it. Crucially, this fixes the "one typo blanks the
-  whole notebook" cliff: when the grammar notation fails to parse (`analysis`
-  null), untouched cells keep showing their **last-good railroad/FIRST-FOLLOW**
-  (`lastAnalysis`), dimmed and labelled "stale", instead of all collapsing to
-  raw source — only the cell that actually owns the error loses its rendered
-  view.
+  message inline beneath it — a cell with only a warning (the grammar still
+  builds) gets the same treatment one severity down (amber border, a
+  `warning` tag), rather than looking identical to a clean cell until the
+  panel happens to be open. Either tag is itself clickable (`stopPropagation`
+  so it reveals the panel without also opening the cell's editor). Crucially,
+  the error treatment fixes the "one typo blanks the whole notebook" cliff:
+  when the grammar notation fails to parse (`analysis` null), untouched cells
+  keep showing their **last-good railroad/FIRST-FOLLOW** (`lastAnalysis`),
+  dimmed and labelled "stale", instead of all collapsing to raw source — only
+  the cell that actually owns the error loses its rendered view.
 - **In-editor squiggles** (Layer 3): when a cell is open, each of its
   diagnostics is converted from the document-wide `span` to a cell-local range
   (`blockCharSpans`' `contentStart` subtracted) and pushed into CodeMirror via
@@ -918,10 +922,15 @@ inside `Calc-js` itself). `isSettingDecl` now recognizes any `%word` shape
 (excluding Precedence's own `%left`/`%right`/`%nonassoc`, still classified
 first via `isPrecDecl`), so a typo'd directive keeps the whole fence
 classified `Settings` and reaches the already-existing
-`unknownSettingWarnings` — one clean, located "unknown setting `%naqme`
-(ignored)" warning, and the grammar still builds (a bad/missing `%name` was
-always cosmetic, never fatal, in the live-engine path — only the CLI's own
-file-naming requires one).
+`unknownSettingWarnings` — one clean "unknown setting `%naqme` (ignored)"
+warning, and the grammar still builds (a bad/missing `%name` was always
+cosmetic, never fatal, in the live-engine path — only the CLI's own
+file-naming requires one). That warning also gained a real span pointing at
+the directive itself (`unknownSettingWarnings` previously built every
+diagnostic with none at all, the one warning generator in `Lr.scala` that
+didn't) — the Notebook attributes and links a diagnostic purely from its
+span, so this alone is what made it clickable in the panel and gave its
+Settings cell the amber border/tag Layer 2 already gave errors.
 
 Deliberately deferred: a method picker
 (always builds Canonical), a "Format document" action (`gramark fmt` isn't
