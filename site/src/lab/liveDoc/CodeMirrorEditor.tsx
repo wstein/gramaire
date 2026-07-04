@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import { EditorView, basicSetup } from "codemirror";
 import { EditorState, type Extension } from "@codemirror/state";
+import { setDiagnostics, type Diagnostic } from "@codemirror/lint";
 
 // A thin Preact wrapper around a single CodeMirror 6 EditorView — the Live Document notebook's
 // per-cell editor (docs/playground-spec.md's "Live Document notebook, phase 3" note). Plain text,
@@ -8,6 +9,17 @@ import { EditorState, type Extension } from "@codemirror/state";
 // separate, much larger undertaking (out of scope for this first cell prototype) — `basicSetup`
 // alone (line numbers, history, bracket matching, fold gutter) is already a large step up from a
 // plain `<textarea>`.
+
+/** A cell-local diagnostic to underline in the editor: `from`/`to` are offsets into THIS cell's
+ * own text (the notebook converts each engine diagnostic's document-wide span to cell-local by
+ * subtracting the cell's start offset before passing it here — Layer 3). */
+export interface EditorDiagnostic {
+  from: number;
+  to: number;
+  severity: "error" | "warning" | "info";
+  message: string;
+}
+
 export interface CodeMirrorEditorProps {
   value: string;
   onChange: (text: string) => void;
@@ -16,6 +28,8 @@ export interface CodeMirrorEditorProps {
   onBlur?: () => void;
   /** Grabs focus once, on mount — for a cell that just switched into edit mode. */
   autoFocus?: boolean;
+  /** Squiggle underlines for located diagnostics, in cell-local coordinates. */
+  diagnostics?: readonly EditorDiagnostic[];
   /** Extra CodeMirror extensions (e.g. a custom theme) layered on top of `basicSetup`. */
   extensions?: Extension[];
   className?: string;
@@ -26,6 +40,7 @@ export function CodeMirrorEditor({
   onChange,
   onBlur,
   autoFocus,
+  diagnostics,
   extensions,
   className,
 }: CodeMirrorEditorProps) {
@@ -101,6 +116,30 @@ export function CodeMirrorEditor({
       changes: { from: 0, to: view.state.doc.length, insert: value },
     });
   }, [value]);
+
+  // Layer 3 — push externally-sourced diagnostics (the engine's, mapped to cell-local offsets by
+  // the caller) into CodeMirror's own lint machinery as squiggle underlines with hover messages.
+  // `setDiagnostics` auto-enables the lint extension, so nothing extra is needed in the base
+  // config. Clamp to the current doc length: an offset can momentarily exceed it while the last
+  // response's diagnostics linger against a since-shortened buffer, and an out-of-range range
+  // throws inside CodeMirror.
+  const diagKey = JSON.stringify(diagnostics ?? []);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const len = view.state.doc.length;
+    const cm: Diagnostic[] = (diagnostics ?? [])
+      .map((d) => ({
+        from: Math.max(0, Math.min(d.from, len)),
+        to: Math.max(0, Math.min(d.to, len)),
+        severity: d.severity,
+        message: d.message,
+      }))
+      .filter((d) => d.to >= d.from);
+    view.dispatch(setDiagnostics(view.state, cm));
+    // Keyed on the serialized diagnostics so this only re-dispatches when they actually change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diagKey]);
 
   return <div ref={hostRef} className={className} />;
 }

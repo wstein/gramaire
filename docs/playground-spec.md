@@ -804,10 +804,15 @@ count:
   (`lastAnalysis`), dimmed and labelled "stale", instead of all collapsing to
   raw source — only the cell that actually owns the error loses its rendered
   view.
+- **In-editor squiggles** (Layer 3): when a cell is open, each of its
+  diagnostics is converted from the document-wide `span` to a cell-local range
+  (`blockCharSpans`' `contentStart` subtracted) and pushed into CodeMirror via
+  `@codemirror/lint`'s `setDiagnostics` (`CodeMirrorEditor`'s `diagnostics`
+  prop) — an underline at the exact offending token, with the message + notes
+  on hover.
 
-Deliberately deferred: in-editor squiggles (CodeMirror `@codemirror/lint` — the
-`span` is already precise enough to convert to a cell-local offset for this),
-underlining the offending character in the "Try it" input, a method picker
+Deliberately deferred: underlining the offending character in the "Try it"
+input, a method picker
 (always builds Canonical), a "Format document" action (`gramaire fmt` isn't
 exposed to the JS engine yet — omitted rather than shipped as a non-functional
 button), and a real `.gram` CodeMirror language mode (plain text for now).

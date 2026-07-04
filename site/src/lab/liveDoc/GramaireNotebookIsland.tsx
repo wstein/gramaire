@@ -12,11 +12,13 @@ import {
   replaceBlockText,
   serializeDocument,
   blockIndexAtOffset,
+  blockCharSpans,
 } from "./document";
 import type { DocBlock, DocBlockKind } from "./document";
 import { parseMarkdownLite } from "./markdown";
 import { MarkdownBlocks } from "./MarkdownBlock";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
+import type { EditorDiagnostic } from "./CodeMirrorEditor";
 import { createLabWorker } from "./useLabWorker";
 import "./gramaireNotebook.css";
 
@@ -232,10 +234,26 @@ function CellDiagnostics({ diags }: { diags: DiagnosticInfo[] }) {
 
 function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
   const isEditing = editingCell.value === index;
-  const cellDiags = attributedDiagnostics.value
-    .filter((a) => a.blockIndex === index)
-    .map((a) => a.diag);
+  const myAttributed = attributedDiagnostics.value.filter(
+    (a) => a.blockIndex === index,
+  );
+  const cellDiags = myAttributed.map((a) => a.diag);
   const hasError = cellDiags.some((d) => d.severity === "error");
+
+  // Layer 3 — convert this cell's located diagnostics to cell-local squiggle ranges for the open
+  // editor. The engine's span is a document-wide offset; subtracting the cell's own content-start
+  // offset (blockCharSpans, computed against the committed blocks — the same coordinate space the
+  // response's spans are in) yields the offset within the editor's own buffer. The note lines are
+  // folded into the hover message so the full guidance shows on the squiggle.
+  const contentStart = blockCharSpans(blocks.value)[index]?.contentStart ?? 0;
+  const editorDiags: EditorDiagnostic[] = myAttributed
+    .filter((a) => a.diag.span)
+    .map((a) => ({
+      from: a.diag.span!.start - contentStart,
+      to: a.diag.span!.end - contentStart,
+      severity: a.diag.severity,
+      message: [a.diag.message, ...a.diag.notes].join("\n"),
+    }));
 
   // Prefer this response's own analysis; fall back to the last-good one (dimmed) when the current
   // grammar notation failed to parse (`analysis` null) so this untouched cell doesn't blank out
@@ -283,6 +301,7 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
           // endEditCell's blur-time commit.
           value={block.text}
           autoFocus
+          diagnostics={editorDiags}
           onChange={(text) => {
             cellDraft.value = text;
           }}
