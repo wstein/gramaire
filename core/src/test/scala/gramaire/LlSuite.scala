@@ -10,7 +10,18 @@ import ConformanceLexers.Lexer
 class LlSuite extends munit.FunSuite:
 
   private final case class Vec(input: String, expect: Boolean)
-  private final case class Case(name: String, grammar: String, vectors: Vector[Vec])
+  // `supportsCst` is false only for the indirect-left-recursion case below: `Ll.parse`/
+  // `parseTraced` call the direct-only `LeftRec.eliminate` (see their own doc comments), so a
+  // grammar whose recursion `Ll.recognize`'s `eliminateIndirect` alone resolves still has genuine,
+  // unresolved indirect recursion in the ATN they build — walking or predicting over it isn't
+  // merely "unsupported," it can recurse without bound (a JVM StackOverflow, or worse on Scala.js,
+  // whose native call stack is far shallower — this is how the gap was actually caught).
+  private final case class Case(
+      name: String,
+      grammar: String,
+      vectors: Vector[Vec],
+      supportsCst: Boolean = true
+  )
 
   private val cases: Vector[Case] = Vector(
     Case(
@@ -76,6 +87,31 @@ class LlSuite extends munit.FunSuite:
         Vec("y+", false),
         Vec("", false)
       )
+    ),
+    // Indirect (mutual) left recursion: A's head reference is B, not A itself, and vice versa —
+    // `LeftRec.isLeftRec` alone would see neither rule as left-recursive; `Ll.recognize`'s
+    // `LeftRec.eliminateIndirect` (Paull's algorithm) is what makes this parseable top-down at all.
+    // A is a bare pass-through to B (no trailing symbol of its own — `A : B`, not `A : B 'x'`),
+    // deliberately: substituting A's own alt into B's `A 'z'` alt collapses to direct recursion in
+    // B exactly the way Paull's algorithm is supposed to (B ends up `w (z)+`), while sidestepping a
+    // real, separately-tracked engine limitation (see `AtnSim.scala`'s own note on `move`) where a
+    // caller's OWN trailing symbol, if it happens to share the callee's tail-continuation's first
+    // token, can be wrongly pruned by SLL prediction before the tie-break logic ever runs — not
+    // something this port's simplified full-LL fallback (a single real context stack, not ANTLR's
+    // full PredictionContext DAG — see docs/all-star-port-plan.md §6) resolves correctly today.
+    Case(
+      "indirect left recursion — mutual A/B, A a bare pass-through (Paull's algorithm)",
+      "```gramaire\nA\n  : B\n\nB\n  : A 'z'\n  | 'w'\n```\n",
+      Vector(
+        Vec("w", true),
+        Vec("wz", true),
+        Vec("wzz", true),
+        Vec("wzzz", true),
+        Vec("", false),
+        Vec("z", false),
+        Vec("zz", false)
+      ),
+      supportsCst = false
     )
   )
 
@@ -129,7 +165,7 @@ class LlSuite extends munit.FunSuite:
   }
 
   test("Ll.parse builds the exact same Cst as the LR oracle, including left-recursive rules") {
-    cases.foreach { c =>
+    cases.filter(_.supportsCst).foreach { c =>
       Lr.parse(c.grammar) match
         case Left(e) => fail(s"${c.name}: grammar should parse: $e")
         case Right(g) =>
@@ -230,7 +266,7 @@ class LlSuite extends munit.FunSuite:
   }
 
   test("Ll.parse rejects exactly what the LR oracle rejects") {
-    cases.foreach { c =>
+    cases.filter(_.supportsCst).foreach { c =>
       Lr.parse(c.grammar) match
         case Left(e) => fail(s"${c.name}: grammar should parse: $e")
         case Right(g) =>
@@ -249,7 +285,7 @@ class LlSuite extends munit.FunSuite:
   }
 
   test("Ll.parseTraced builds the exact same Cst as Ll.parse, across the whole case corpus") {
-    cases.foreach { c =>
+    cases.filter(_.supportsCst).foreach { c =>
       Lr.parse(c.grammar) match
         case Left(e) => fail(s"${c.name}: grammar should parse: $e")
         case Right(g) =>
@@ -337,7 +373,7 @@ class LlSuite extends munit.FunSuite:
   }
 
   test("Ll.parseTraced rejects with a located LlError, not a silent None") {
-    cases.foreach { c =>
+    cases.filter(_.supportsCst).foreach { c =>
       Lr.parse(c.grammar) match
         case Left(e) => fail(s"${c.name}: grammar should parse: $e")
         case Right(g) =>

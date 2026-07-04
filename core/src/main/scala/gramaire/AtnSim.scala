@@ -281,6 +281,26 @@ object AtnSim:
   // Advance a lookahead-leaf configuration over one input terminal: if
   // its `Atom` edge matches, step to the edge's target; otherwise the
   // configuration dies.
+  //
+  // **Known limitation**, found while extending `LeftRec` to indirect (mutual) left recursion
+  // (`LeftRec.eliminateIndirect`), not fixed here: a config that has already returned to an empty
+  // stack (`completed` below) dies here on the very next `move`, the same as any config with no
+  // matching edge. That's usually right — it's exactly what makes a "keep matching one more, or
+  // stop" decision (an ordinary right-recursive tail rule) correctly favor continuing for as long
+  // as more input can extend it. But when this decision is embedded inside ANOTHER rule that has
+  // its own trailing symbol, and that trailing symbol happens to share its first token with the
+  // callee's own continuation, the "stop early" alternative — which is in fact the only one that
+  // leads to a full, successful parse — dies here before `resolve`'s "prefer completed" tie-break
+  // (below) or the full-LL retry ever gets a chance to run: `predict`'s `loop` sees only one
+  // surviving alt and wrongly declares it uniquely resolved by elimination, not disambiguation.
+  // A correct fix needs to track how much real input each alternative consumed before completing,
+  // and only prefer an early-finisher once nothing else can still make genuine progress — real
+  // restructuring of `predict`'s loop, attempted and reverted (it broke `ConformanceSuite`'s
+  // lr/calc/json Cst-parity and regressed `LlBenchmarkSuite`'s amortized-linear guarantee from
+  // ~6x to ~31x growth), not a small patch. Consistent with this port's own documented scope
+  // (§6: "a single real calling-context stack, not ANTLR's full PredictionContext DAG merging
+  // multiple simultaneously-possible contexts") — see `LlSuite.scala`'s indirect-recursion test
+  // for a grammar shape chosen specifically to avoid tripping this.
   private def move(atn: Atn, term: String, c: Config): Vector[Config] =
     Atn.stateAt(atn, c.state).transitions match
       case Vector(Transition.Atom(t, target)) if t == term => Vector(c.copy(state = target))
