@@ -130,9 +130,12 @@ only the open-ended classes.
   /(\r?\n)(?:[ \t]*\r?\n)*/` emits a single `\n`. `TERM_LIT` (ADR D34) is the one
   exception — its two-delimiter alternation cannot carry a per-branch capture
   (≤1 capture, D32), so it emits the whole quoted lexeme and the consumer
-  unquotes. Trimming an action body's surrounding whitespace is likewise the
-  **consumer's** concern (codegen),
-  not the lexer's.
+  unquotes. A `TERM_LIT` never spans a line break (its class excludes `\n`), so
+  an unclosed `'…` fails to match rather than greedily swallowing the rest of
+  the source — the notation lexer then reports the lone opening quote as a
+  located "unterminated string literal" instead of a cascade of downstream
+  "unexpected character" errors. Trimming an action body's surrounding
+  whitespace is likewise the **consumer's** concern (codegen), not the lexer's.
 
 ## 6. Modifiers, extras, and the external hook
 
@@ -239,7 +242,7 @@ WS       : /[ \t]+/                       %skip
 NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      %external(layout)
 ATTR     : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/
 IDENT    : /[A-Za-z_][A-Za-z0-9_]*/
-TERM_LIT : /'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/
+TERM_LIT : /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/
 ACTION   : /\{%((?:[^%]|%[^}])*)%\}/
 LABEL    : /#[ \t]*([A-Za-z_][A-Za-z0-9_]*)/
 PLUS     : "+"

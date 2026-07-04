@@ -317,6 +317,31 @@ test("an invalid grammar shows its diagnostic (message, note, location) in the d
   );
 });
 
+// Engine-side diagnostic quality (reported from the notebook): a missing closing quote used to
+// cascade into three misleading "unexpected character" errors across three cells (the greedy
+// multi-line TERM_LIT swallowed text across line breaks). It is now ONE clear "unterminated
+// string literal" error, attributed to the cell that owns the mistake.
+test("a missing closing quote is one 'unterminated string literal' error, not a cascade", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await breakFirstRule(page, "Expr\n  : Expr '+ Term\n  | Term");
+
+  await expect(page.locator(".gramaire__status")).toContainText("1 error");
+  await expect(page.locator(".gramaire__diag")).toHaveCount(1);
+  await expect(page.locator(".gramaire__diag-message").first()).toContainText(
+    "unterminated string literal",
+  );
+  await expect(page.locator(".gramaire__diag-loc").first()).toHaveText(
+    "in Expr",
+  );
+  await expect(page.locator(".gramaire__diag-note").first()).toContainText(
+    "closing `'`",
+  );
+  // Only the Expr cell is flagged; the untouched Term cell is not.
+  await expect(page.locator(".gramaire__cell--error")).toHaveCount(1);
+});
+
 // Layer 2: the error attributes to the offending cell (red border + tag + inline message), and
 // clicking the panel row jumps to and opens that cell.
 test("the offending cell is flagged with an inline error; clicking the panel row opens it", async ({
