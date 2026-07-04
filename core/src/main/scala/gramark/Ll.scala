@@ -57,12 +57,17 @@ object Ll:
     * DFA-cache hit/miss counts and ambiguities (`explain-conflict`'s ALL(*) path, `--profile`) —
     * the `Atn` built here is fresh to this call alone, and `AtnSim.Cache`'s state ids are only
     * meaningful against it, so a cache passed in must not be reused across grammars.
+    *
+    * Uses `LeftRec.eliminateIndirect` (direct AND mutual left recursion), not the narrower
+    * `LeftRec.eliminate` `parse`/`parseTraced` still use below — accept/reject correctness doesn't
+    * need `Fold`'s CST-fold-back provenance, so recognition gets the more general elimination first
+    * (recognizer-before-CST, the same order this port's other phases already shipped in).
     */
   def recognize(g: Grammar, toks: Vector[Token], cache: AtnSim.Cache = new AtnSim.Cache): Boolean =
     Desugar.desugar(g) match
       case Left(_) => false
       case Right(dg) =>
-        val atn = AtnBuild.buildAtn(LeftRec.eliminate(dg)._1)
+        val atn = AtnBuild.buildAtn(LeftRec.eliminateIndirect(dg)._1)
         val accepted = parseRule(atn, atn.start, toks, 0, cache) match
           case Some(pos) => pos == toks.length
           case None      => false
@@ -203,6 +208,12 @@ object Ll:
     * `prec` is the grammar's declared precedence (`Lr.precedenceOf`) — empty if it has none, the
     * common case, for which `PrecClimb.stratify` is a no-op. `cache` defaults to a fresh, untracked
     * one; see `recognize`'s doc for when to pass `new AtnSim.Cache(track = true)` instead.
+    *
+    * Deliberately calls `LeftRec.eliminate` (direct-only), NOT `recognize`'s `eliminateIndirect`:
+    * `Fold` only carries fold-back provenance for a rule's own final direct-elimination step, not
+    * for alternatives Paull's substitution moved in from a *different* rule, so a mutually
+    * left-recursive grammar has no correct `Cst` reconstruction yet — `recognize` alone covers it,
+    * matching this port's own "recognizer first" staging elsewhere (Phase 1 before Phase 2).
     */
   def parse(
       g: Grammar,

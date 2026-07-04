@@ -329,9 +329,42 @@ are the parsing core; 3–6 are the language and product surface.
   fixes), same-level left-associativity (`1-2-3`), mixed levels, and
   parenthesized precedence resets. All pass. `examples/calc-prec` parses under
   `ll-star` with the same tree LR produces — done.
-- ⏳ **Still deferred:** **indirect** (mutual) left recursion (`isLeftRec`
-  only checks an alt's head against its own rule's name; the corpus has none,
-  so this has never been exercised).
+- ✅ **Indirect (mutual) left recursion — recognition only.**
+  `LeftRec.eliminateIndirect` (`LeftRec.scala`) implements Paull's algorithm:
+  in the grammar's own declaration order `A₁, …, Aₙ`, for each `Aᵢ` substitute
+  any alternative headed by an earlier `Aⱼ` (`j < i`) with `Aⱼ`'s own current
+  alternatives, then eliminate `Aᵢ`'s own direct left recursion (reusing
+  `eliminate`'s rewrite, extracted into a shared `rewriteDirect` helper) —
+  correct for any fixed total order over all rules, not just ones already
+  known to participate in a cycle, so no separate cycle detection is needed.
+  `Ll.recognize` calls it in place of the direct-only `eliminate`.
+  **Recognition only, deliberately:** `Fold` only carries fold-back
+  provenance for a rule's own final direct-elimination step, not for
+  alternatives Paull's substitution moved in from a _different_ rule, so
+  `Ll.parse`/`parseTraced` keep calling `eliminate` (direct-only) and do not
+  gain CST support for the indirect case — the same "recognizer first"
+  staging this port already used for Phase 1 → Phase 2. **Test
+  (`LlSuite.scala`):** a hand-built mutual `A`/`B` grammar (`A : B`; `B : A
+  'z' | 'w'`), differentially checked against the LR oracle via
+  `Ll.recognize` only (a new `Case.supportsCst = false` flag excludes it from
+  the suite's `Ll.parse`/`parseTraced` tests, which would otherwise walk a
+  grammar those functions were never meant to handle).
+  **A real, separate engine limitation surfaced along the way, not fixed:**
+  a decision embedded inside another rule with its own trailing symbol, where
+  the callee's "keep going" alternative happens to start with the same token
+  the caller's trailing symbol needs, can be wrongly resolved by SLL
+  prediction via elimination — the correct, "stop early" alternative dies in
+  `move` before `resolve`'s tie-break or the full-LL retry ever run. A fix
+  was attempted (letting a completed configuration survive `move` instead of
+  dying) and reverted: it broke `ConformanceSuite`'s lr/calc/json Cst-parity
+  and regressed `LlBenchmarkSuite`'s amortized-linear guarantee from ~6x to
+  ~31x growth on a 10x input. A correct fix needs to track how much real
+  input each alternative consumed before completing and prefer the one that
+  consumed the most — a restructuring of `predict`'s loop, not a small patch.
+  Documented in place (`AtnSim.scala`'s own note on `move`), consistent with
+  this port's already-declared scope (§6: "a single real calling-context
+  stack, not ANTLR's full `PredictionContext` DAG merging multiple
+  simultaneously-possible contexts").
 
 ### Phase 3 — ANTLR ↔ Gramark converter (instead of growing Gramark's syntax) ✅
 
