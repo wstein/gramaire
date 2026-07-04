@@ -632,21 +632,23 @@ surface is reached by **conversion**, not syntax expansion (§4).
   no static conflict table to consult). The rendering itself
   (`renderLlStarReport`, `cli/jvm/src/main/scala/gramaire/cli/Main.scala`) is
   shared with `runLlStarConformance`, not a second copy.
-- ⏳ **Two pre-existing, unaddressed engine costs, surfaced (not caused) by
-  this phase:** ll-star's `traceCap`/`capSteps` work (`LabApi.scala`)
-  needed a long-input fixture to test its cap, which ran straight into two
-  latent issues in code this phase didn't otherwise touch — documented in
-  place (their own doc comments), not fixed: (1) `Parser.walk`
-  (`core/src/main/scala/gramaire/Parser.scala`) recomputes `stackBefore`/
-  `remainingBefore` from scratch at every step, O(n) each, so a full walk
-  over `n` tokens costs O(n²) total — LR-only, predates ALL(\*) entirely,
-  but a `traceCap` applied after the fact doesn't bound this cost, only the
-  wire payload size. (2) `Ll.walkSyms`
-  (`core/src/main/scala/gramaire/Ll.scala`) recurses non-tail-recursively
-  per RHS symbol, so one production with a very long body can stack-overflow
-  the walk. Neither is in scope for a trace-size cap to fix; both are real
-  and worth a dedicated pass if a pathological grammar/input in this class
-  ever matters in practice.
+- ✅ **Two pre-existing engine costs, surfaced (not caused) by this phase,
+  now fixed:** ll-star's `traceCap`/`capSteps` work (`LabApi.scala`) needed
+  a long-input fixture to test its cap, which ran straight into two latent
+  issues in code this phase didn't otherwise touch: (1) `Parser.walk`
+  (`core/src/main/scala/gramaire/Parser.scala`) used to recompute
+  `stackBefore`/`remainingBefore` from scratch at every step, O(n) each, so
+  a full walk over `n` tokens cost O(n²) total — LR-only, predates ALL(\*)
+  entirely. Fixed by keeping the stack as an already bottom-to-top `Vector`
+  (no per-step reversal) and precomputing the input's terminal symbols once
+  instead of re-mapping the remaining tokens every step. (2) `Ll.walkSyms`
+  (`core/src/main/scala/gramaire/Ll.scala`) used to recurse
+  non-tail-recursively per RHS symbol, so one production with a very long
+  body could stack-overflow the walk. Fixed by rewriting it as an explicit
+  `@tailrec` accumulator loop, so the compiler now enforces that it stays a
+  loop regardless of RHS length. Both fixes are covered by the existing
+  `ParserSuite`/`LlSuite`/`ConformanceSuite` regression suites (unchanged
+  externally-observable behavior, verified byte-for-byte).
 
 ## 4. ANTLR ↔ Gramaire converter (not syntax extensions)
 
