@@ -85,12 +85,25 @@ export function buildDocument(
  * Reconstruct the document text from `blocks` — the identity function on `buildDocument`'s own
  * output. A fence block's `text` is re-wrapped with fresh ```gramark/``` markers; a prose block's
  * `text` is emitted as-is. Blocks partition the source's lines contiguously with no gaps or
- * overlaps, so this always round-trips exactly.
+ * overlaps, so this always round-trips exactly — EXCEPT for a fence with zero content lines
+ * (adjacent ```gramark/``` markers): `buildDocument` collapses that shape to `text: ""`, the same
+ * value a fence with exactly ONE blank content line also collapses to, so the two are
+ * indistinguishable once represented as `text`. Resolving the ambiguity toward the fewest lines
+ * (2, no blank line) rather than the original 3 makes the round trip an idempotent FIXED POINT
+ * going forward (re-parsing this output reproduces `text: ""` again, and re-serializing produces
+ * this same 2-line form again) even though it isn't a byte-identical restoration of a
+ * genuinely-blank-line source on the very first pass — a rule/tokens/etc. fence with no content
+ * at all is incomplete either way, so there's no meaningful blank line to preserve exactly here
+ * (unlike prose, where a blank line is a real paragraph break).
  */
 export function serializeDocument(blocks: readonly DocBlock[]): string {
   return blocks
     .map((b) =>
-      b.kind === "prose" ? b.text : `${FENCE_OPEN}\n${b.text}\n${FENCE_CLOSE}`,
+      b.kind === "prose"
+        ? b.text
+        : b.text === ""
+          ? `${FENCE_OPEN}\n${FENCE_CLOSE}`
+          : `${FENCE_OPEN}\n${b.text}\n${FENCE_CLOSE}`,
     )
     .join("\n");
 }
@@ -128,7 +141,11 @@ export function withLineNumbers(
 ): NumberedDocBlock[] {
   let line = 1;
   return blocks.map((b) => {
-    const contentLines = b.text.split("\n").length;
+    // A fence's own empty `text` means ZERO content lines (see `serializeDocument`'s matching
+    // fixed-point choice), unlike a prose block's empty `text`, which is one genuine blank line —
+    // `"".split("\n").length` is 1 either way, so the fence case is corrected explicitly here.
+    const contentLines =
+      b.kind !== "prose" && b.text === "" ? 0 : b.text.split("\n").length;
     const lineCount = b.kind === "prose" ? contentLines : contentLines + 2;
     const startLine = line;
     const endLine = line + lineCount - 1;

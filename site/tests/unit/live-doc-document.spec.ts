@@ -256,3 +256,46 @@ test("blockIndexAtOffset: a diagnostic offset maps to the cell whose content con
   // Out-of-range offsets return null rather than mis-attributing.
   expect(blockIndexAtOffset(blocks, source.length + 100)).toBe(null);
 });
+
+// A fence with zero content lines (adjacent ```gramark/``` markers) and one with exactly ONE
+// blank content line both collapse to `text: ""` in buildDocument (there is no way to tell them
+// apart once represented as a single string) — serializeDocument resolves the ambiguity toward
+// the fewest lines, making the round trip a stable FIXED POINT going forward even though the
+// very first pass isn't necessarily byte-identical to a genuinely-blank-line source.
+test("serializeDocument: an empty fence (adjacent markers) reaches a stable 2-line fixed point", () => {
+  const source = "```gramark\n```\n";
+  const fences = [fence(0, "rule", "Empty", 1, 2)];
+  const blocks = buildDocument(source, fences);
+  expect(blocks[0].text).toBe("");
+
+  const serialized = serializeDocument(blocks);
+  expect(serialized).toBe(source); // 0-content-line source: exact round trip on the first pass
+
+  // Re-parsing and re-serializing reproduces the identical output — idempotent from here on.
+  const reparsed = buildDocument(serialized, fences);
+  expect(serializeDocument(reparsed)).toBe(serialized);
+});
+
+test("serializeDocument: a fence with exactly one blank content line collapses to the same fixed point", () => {
+  const source = "```gramark\n\n```\n";
+  const fences = [fence(0, "rule", "Empty", 1, 3)];
+  const blocks = buildDocument(source, fences);
+  expect(blocks[0].text).toBe(""); // indistinguishable from the zero-content-line case above
+
+  const serialized = serializeDocument(blocks);
+  expect(serialized).toBe("```gramark\n```\n"); // resolves to the minimal (2-line) form, not 3
+
+  // Fresh fences describing the NEW (2-line) text — a real caller always re-requests fences
+  // after an edit (see document.ts's own `buildDocument` doc), never reuses the pre-edit ones.
+  const reparsed = buildDocument(serialized, [fence(0, "rule", "Empty", 1, 2)]);
+  expect(serializeDocument(reparsed)).toBe(serialized); // stable from here on
+});
+
+test("withLineNumbers: an empty fence spans exactly 2 lines (its own markers), not 3", () => {
+  const source = "```gramark\n```\n";
+  const fences = [fence(0, "rule", "Empty", 1, 2)];
+  const blocks = buildDocument(source, fences);
+  const numbered = withLineNumbers(blocks);
+  expect(numbered[0].startLine).toBe(1);
+  expect(numbered[0].endLine).toBe(2);
+});

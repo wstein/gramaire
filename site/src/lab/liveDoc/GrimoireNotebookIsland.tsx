@@ -42,7 +42,7 @@ import "./grimoireNotebook.css";
 // textarea).
 
 const labWorker = createLabWorker();
-const { response, pending, evaluation } = labWorker;
+const { response, responseSource, pending, evaluation } = labWorker;
 
 // `blocks` — not `source` — is the primary signal. A local edit updates ONE block via
 // `replaceBlockText` directly; `buildDocument` (which needs `LabResponse.fences`, i.e. a
@@ -125,10 +125,36 @@ const warningCount = computed(
 // `blocks` itself (which would make it re-run on every local edit too, fighting the direct
 // updates above). Self-healing: any transient staleness between "user edited a block" and "the
 // next response landed" is corrected here, not accumulated.
+//
+// Two guards, both closing real races found in review (neither is hypothetical — both follow
+// directly from how `blocks`/`editingCell`/`editingProse`/the worker's debounce actually behave):
+//
+// 1. Never reshape while a cell/prose block is open for editing. `editingCell`/`editingProse`
+//    hold a plain array INDEX into `blocks` — rebuilding `blocks` from fresh `fences` can change
+//    which block sits at that index (a fence added/removed by an unrelated edit elsewhere shifts
+//    every later block's position). Reshaping out from under an open editor leaves its index
+//    pointing at a DIFFERENT block; committing (Save/blur) then silently overwrites that wrong
+//    block's text with the draft meant for the original one. Only one editor can be open at a
+//    time (both signals are module-level, not per-cell), and nothing else can change `response`
+//    while one is (Try-it input changes don't touch fence structure), so simply deferring the
+//    reshape until the open editor commits (which sets the signal back to `null`) is sufficient —
+//    the next response after that already reflects the committed text.
+// 2. Never apply a response whose `responseSource` doesn't match the CURRENT committed text.
+//    `useLabWorker`'s debounce/latest-wins guard only rejects a response whose request has been
+//    SUPERSEDED BY A NEWER ONE ALREADY SENT — it says nothing about a response for an
+//    still-in-flight (not yet superseded) request arriving AFTER a second edit, committed within
+//    the same debounce window, has already moved `blocks` past the text that request describes.
+//    Applying it anyway would slice the NEW text using fence line spans computed for the OLD
+//    text — the same "unrelated fence's marker text leaks into a prose block" corruption the
+//    original per-keystroke design already caused once, this time via the worker's own reply
+//    arriving out of step with local state rather than a naive recompute-every-keystroke bug.
 effect(() => {
   const resp = response.value;
   if (!resp) return;
-  blocks.value = buildDocument(serializeDocument(blocks.peek()), resp.fences);
+  if (editingCell.value !== null || editingProse.value !== null) return;
+  const current = serializeDocument(blocks.peek());
+  if (responseSource.value !== current) return;
+  blocks.value = buildDocument(current, resp.fences);
 });
 
 // A response with at least one fence is what unlocks the notebook view — empty on the very first
