@@ -735,7 +735,12 @@ predicate — a genuinely different, already-shipped action kind (its leading
 `?` survives every engine transform between the lexer and here, per
 `Railroad.actionDisplay`'s own comment) — gets a plain `"? "` text prefix
 rather than a different box color, so the distinction stays legible
-regardless of color vision. (`Railroad.Alt.action`, rendered by
+regardless of color vision. `Railroad.prettifyOperators` swaps common JS
+comparison digraphs/trigraphs for their single-glyph math equivalents
+(`=>`→⇒, `!==`→≢, `===`→≡, `!=`→≠, `<=`→≤, `>=`→≥ — longest-first so `!==`/
+`===` never get half-consumed by `!=`/`<=`'s own shorter match) in both the
+visible (truncated) text and the full `<title>` — a diagram-readability
+nicety, not a copy-paste source view. (`Railroad.Alt.action`, rendered by
 `Railroad.renderSvg` — a native SVG `<title>` on the same element still
 carries the full, untruncated source as a hover tooltip, so no frontend JS is
 needed.) The CLI's `gramaire fmt --diagrams=sidecar` output is unaffected

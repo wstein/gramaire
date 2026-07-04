@@ -516,7 +516,7 @@ test("the prose editor opens tall enough for its content and grows as more lines
 // Regression: a rule's action badge used to be an abstract "ƒ" icon inside the diagram; it now
 // shows the actual (truncated) action source as text to the right of the railroad, aligned with
 // the alternative's own row.
-test("a rule's action renders as real text beside its railroad, not an abstract ƒ icon", async ({
+test("a rule's action renders as real (operator-prettified) text beside its railroad, not an abstract ƒ icon", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
@@ -525,9 +525,10 @@ test("a rule's action renders as real text beside its railroad, not an abstract 
   const actionLabels = exprCell.locator("svg text.rr-action-text");
   await expect(actionLabels).toHaveCount(2);
   // toContainText, not toHaveText: the <text> also nests a <title> (the hover tooltip) whose own
-  // text is part of the same element's textContent, alongside the visible label.
-  await expect(actionLabels.first()).toContainText("(c) => c.expr + c.term");
-  await expect(actionLabels.nth(1)).toContainText("(c) => c.expr - c.term");
+  // text is part of the same element's textContent, alongside the visible label. "=>" prettified
+  // to "⇒" (Railroad.prettifyOperators).
+  await expect(actionLabels.first()).toContainText("(c) ⇒ c.expr + c.term");
+  await expect(actionLabels.nth(1)).toContainText("(c) ⇒ c.expr - c.term");
 
   const docText = await page.locator(".gramaire__doc").textContent();
   expect(docText).not.toContain("ƒ");
