@@ -11,6 +11,7 @@
 // Usage: npm run gen:lab-types (from site/)
 
 import { compile } from "json-schema-to-typescript";
+import { format, resolveConfig } from "prettier";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -73,6 +74,18 @@ if (typeof protocolVersion !== "number") {
 }
 parts.push(`export const LAB_PROTOCOL_VERSION = ${protocolVersion};`);
 
+// Run the output through the site's own prettier config before writing —
+// json-schema-to-typescript's `compile()` does its own internal formatting,
+// which doesn't always agree with printWidth-driven wrapping (e.g. long
+// union types), and the "Format check (prettier)" CI step re-checks every
+// file under src/ including this one. Without this, the two CI steps can
+// disagree on the same file and there's no way to satisfy both at once.
+const prettierConfig = await resolveConfig(outPath);
+const formatted = await format(banner + parts.join("\n\n") + "\n", {
+  ...prettierConfig,
+  filepath: outPath,
+});
+
 await mkdir(path.dirname(outPath), { recursive: true });
-await writeFile(outPath, banner + parts.join("\n\n") + "\n");
+await writeFile(outPath, formatted);
 console.log(`wrote ${path.relative(siteDir, outPath)}`);
