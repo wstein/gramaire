@@ -261,6 +261,26 @@ test("Try it renders real tokens and a CST for the default input", async ({
   await expect(page.locator(".gramaire-cst-branch").first()).toBeVisible();
 });
 
+// Layer 4: a rejected Try-it input underlines the exact offending character in a reconstructed
+// input line, with the message (and any notes) beneath — not just a flat "rejected".
+test("a rejected Try-it input underlines the offending character with the message", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  const input = page.locator(".gramaire__tryit-input");
+  await input.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Backspace");
+  await page.keyboard.type("1 @ 2");
+  await page.waitForTimeout(800);
+
+  await expect(page.locator(".gramaire__tryit-badchar")).toHaveText("@");
+  await expect(page.locator(".gramaire__tryit-message")).toContainText(
+    "unexpected character `@`",
+  );
+});
+
 test("clicking a prose block reveals a raw-markdown editor; blurring commits and re-renders it", async ({
   page,
 }) => {
