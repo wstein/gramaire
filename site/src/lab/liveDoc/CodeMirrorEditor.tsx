@@ -11,6 +11,11 @@ import { EditorState, type Extension } from "@codemirror/state";
 export interface CodeMirrorEditorProps {
   value: string;
   onChange: (text: string) => void;
+  /** Fires when the editor loses focus — the notebook's cells commit-and-collapse-to-rendered-
+   * view on blur, the same interaction prose blocks already use. */
+  onBlur?: () => void;
+  /** Grabs focus once, on mount — for a cell that just switched into edit mode. */
+  autoFocus?: boolean;
   /** Extra CodeMirror extensions (e.g. a custom theme) layered on top of `basicSetup`. */
   extensions?: Extension[];
   className?: string;
@@ -19,6 +24,8 @@ export interface CodeMirrorEditorProps {
 export function CodeMirrorEditor({
   value,
   onChange,
+  onBlur,
+  autoFocus,
   extensions,
   className,
 }: CodeMirrorEditorProps) {
@@ -29,19 +36,20 @@ export function CodeMirrorEditor({
   // transaction — which would reset the cursor/selection on every keystroke.
   const lastEmitted = useRef<string>(value);
   // The EditorView is created once (below) and must not be torn down on every keystroke (that
-  // would reset cursor/undo history) — but `onChange` is a fresh closure every render (Preact,
-  // like React, gives no stable-identity guarantee for an inline arrow function prop). Closing
-  // over `onChange` directly in the mount-once effect below would call only the FIRST render's
-  // closure forever, which captures that render's `blocks`/`index` (GrammarCellPreview's own
-  // closure state) — every edit after the first would then diff against a stale block list,
-  // producing a document text that doesn't match what CodeMirror already holds, which the
-  // `[value]` effect below would "correct" by dispatching AGAIN, which re-fires this listener,
-  // which calls the same stale `onChange` again — an infinite synchronous dispatch loop that
-  // freezes the tab (caught empirically: the 2nd keystroke hung indefinitely in manual browser
-  // verification). A ref updated every render, dereferenced inside the listener, always calls
-  // the latest `onChange` instead.
+  // would reset cursor/undo history) — but `onChange`/`onBlur` are fresh closures every render
+  // (Preact, like React, gives no stable-identity guarantee for an inline arrow function prop).
+  // Closing over them directly in the mount-once effect below would call only the FIRST render's
+  // closure forever, which captures that render's `blocks`/`index` (the notebook's own closure
+  // state) — every edit after the first would then diff against a stale block list, producing a
+  // document text that doesn't match what CodeMirror already holds, which the `[value]` effect
+  // below would "correct" by dispatching AGAIN, which re-fires this listener, which calls the
+  // same stale closure again — an infinite synchronous dispatch loop that freezes the tab (caught
+  // empirically: the 2nd keystroke hung indefinitely in manual browser verification). A ref
+  // updated every render, dereferenced inside the listener, always calls the latest closure.
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onBlurRef = useRef(onBlur);
+  onBlurRef.current = onBlur;
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -57,20 +65,34 @@ export function CodeMirrorEditor({
             lastEmitted.current = text;
             onChangeRef.current(text);
           }),
+          EditorView.domEventHandlers({
+            blur: () => onBlurRef.current?.(),
+          }),
         ],
       }),
       parent: hostRef.current,
     });
     viewRef.current = view;
+    if (autoFocus) view.focus();
     return () => view.destroy();
-    // Deliberately mount-once for `extensions`/`value`: re-creating the EditorView on every prop
-    // change would reset cursor/undo history. `onChange` itself is never stale (see onChangeRef
-    // above).
+    // Deliberately mount-once for `extensions`/`value`/`autoFocus`: re-creating the EditorView on
+    // every prop change would reset cursor/undo history. `onChange`/`onBlur` are never stale (see
+    // the refs above).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // External `value` changes (switching cells, an example load, an undo outside this editor) that
   // didn't originate from this editor's own `updateListener` — push them in as a fresh document.
+  // Callers must NOT feed this editor's own `onChange` output back into `value` (e.g. through a
+  // shared signal) while it's actively being typed into: rapid keystrokes can fire the
+  // updateListener for keystroke N+1 before Preact has re-rendered with keystroke N's value, so
+  // this effect can run with a STALE `value` (from the N-th render) after `lastEmitted` has
+  // already moved on to N+1's text — it would then dispatch the stale text back into CodeMirror,
+  // which re-fires the updateListener, which feeds the stale text back into `value` again: a
+  // ping-pong loop between the two most recent keystrokes that never settles (caught empirically:
+  // typing 2+ rapid characters hung indefinitely). `value` should be a stable snapshot during
+  // editing (the notebook passes the cell's original, pre-edit text, unchanged until a separate
+  // commit-on-blur step) so this effect only ever fires for genuine external changes.
   useEffect(() => {
     const view = viewRef.current;
     if (!view || value === lastEmitted.current) return;

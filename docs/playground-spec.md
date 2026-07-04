@@ -708,22 +708,28 @@ mid-review in favor of this standalone shape (see this session's feedback
 memory). Named "Gramaire Notebook" per `docs/rebrand-gramaire-plan.md` — the
 feature-level name ships now, ahead of any project-wide rebrand.
 
-Renders the whole document as prose interleaved with per-fence
-`CodeMirrorEditor` cells (`site/src/lab/liveDoc/CodeMirrorEditor.tsx`, plain
-text — no `.gram` language mode yet), each showing its `fences`-reported role
-badge and, for a rule cell, its railroad diagram/FIRST-FOLLOW rendered
-straight from `LabResponse.analysis` beneath it. Prose blocks render via a
-small markdown-lite parser (`site/src/lab/liveDoc/markdown.ts`, unit-tested —
-headings/paragraphs/`code`/`**bold**`, not full CommonMark) with click-to-
-edit-as-raw-text. A "Try it" section reuses the real engine's `parse.tokens`/
-`parse.cst` (not a toy evaluator) for a plain input field. Falls back to a
-full-document plain textarea whenever `LabResponse.fences` is empty — the
-very first paint before any response has arrived, and a genuine engine
-failure alike (`internalErrorResponse` always carries `fences: []`) — so
-there's no blank-screen state.
+Renders the whole document as prose interleaved with per-fence cells, each
+showing its `fences`-reported role badge. **Every cell — grammar and prose
+alike — uses the same click-to-edit interaction**: by default it shows a
+rendered, read-only view (a rule cell: its railroad diagram/FIRST-FOLLOW from
+`LabResponse.analysis`; a Tokens/Settings/Precedence cell, which has no
+railroad equivalent: its source in a plain read-only `<pre>`; a prose block:
+rendered markdown); clicking it reveals a `CodeMirrorEditor`
+(`site/src/lab/liveDoc/CodeMirrorEditor.tsx`, plain text — no `.gram` language
+mode yet) or, for prose, a raw-markdown `<textarea>`; blurring commits the
+edit into the shared `blocks` signal (once, not per keystroke) and collapses
+back to the rendered view — source and rendered output are never shown
+together. Prose renders via a small markdown-lite parser
+(`site/src/lab/liveDoc/markdown.ts`, unit-tested — headings/paragraphs/
+`code`/`**bold**`, not full CommonMark). A "Try it" section reuses the real
+engine's `parse.tokens`/`parse.cst` (not a toy evaluator) for a plain input
+field. Falls back to a full-document plain textarea whenever
+`LabResponse.fences` is empty — the very first paint before any response has
+arrived, and a genuine engine failure alike (`internalErrorResponse` always
+carries `fences: []`) — so there's no blank-screen state.
 
-Two real bugs surfaced and fixed during manual + Playwright verification,
-both regression-tested in `site/tests/visual/notebook.spec.ts`:
+Four real bugs surfaced and fixed during manual + Playwright verification,
+all regression-tested in `site/tests/visual/notebook.spec.ts`:
 
 - **Stale-closure infinite dispatch** (`CodeMirrorEditor.tsx`): the
   EditorView is mounted once (recreating it on every prop change would reset
@@ -735,23 +741,47 @@ both regression-tested in `site/tests/visual/notebook.spec.ts`:
   second dispatch, which re-fired the same stale closure — an infinite
   synchronous loop that froze the tab on the second keystroke. Fixed with a
   ref updated every render, dereferenced inside the listener.
-- **Whole-document recompute on every keystroke** desyncing block boundaries
-  (`GramaireNotebookIsland.tsx`): originally `blocks` was a `computed`
-  re-derived from `source` + `LabResponse.fences` on every edit — but
-  `fences` describes the PRE-edit line layout, so an edit changing a block's
-  line count (even a one-line prose rewrite) desynced every block after it
-  until a fresh response landed, leaking a neighboring fence's marker text
-  into the prose block as literal text. Separately, recomputing +
-  re-rendering every cell on every same-tick keystroke (with no settling
-  time) compounded into unbounded memory growth and crashed Chromium via
-  OOM — paced keystrokes (300ms apart) stayed flat. Fixed by making `blocks`
-  itself the primary signal (a local edit calls `replaceBlockText` directly,
-  no `buildDocument` involved), re-deriving from `buildDocument` only inside
-  an `effect` keyed on `response` changing (using `blocks.peek()`, not
-  `.value`, so the effect doesn't retrigger itself), plus a short (120ms)
-  debounce on committing a cell edit into the shared `blocks` signal —
-  separate from, and much shorter than, `scheduleEvaluate`'s own 200ms
-  worker-request debounce.
+- **Whole-document recompute on every keystroke** desyncing block boundaries:
+  originally `blocks` was a `computed` re-derived from `source` +
+  `LabResponse.fences` on every edit — but `fences` describes the PRE-edit
+  line layout, so an edit changing a block's line count (even a one-line
+  prose rewrite) desynced every block after it until a fresh response
+  landed, leaking a neighboring fence's marker text into the prose block as
+  literal text. Fixed by making `blocks` itself the primary signal (a local
+  edit calls `replaceBlockText` directly), re-deriving from `buildDocument`
+  only inside an `effect` keyed on `response` changing (`blocks.peek()`, not
+  `.value`, so the effect doesn't retrigger itself).
+- **Fence markers were part of a cell's editable text**: `block.text` used to
+  span the FULL fence including its opening ` ```gramaire `/closing ` ``` `
+  marker lines, so an edit touching a cell's first or last line — trivial to
+  do — could delete a marker and desync fence detection for the rest of the
+  document ("no fences" after an unremarkable edit). Fixed: a fence block's
+  `text` is now only the content strictly between the markers;
+  `serializeDocument` always re-wraps it with fresh ones on the way out, so
+  no edit can ever touch a marker line, regardless of what ends up inside
+  the cell.
+- **A round-tripped `value` prop raced under rapid typing**: the click-to-
+  edit redesign first fed a cell's own `onChange` output back into its
+  `CodeMirrorEditor`'s `value` prop through a shared signal (`cellDraft`).
+  Two rapid keystrokes could fire CodeMirror's `updateListener` for keystroke
+  N+1 before Preact re-rendered with keystroke N's value; the `[value]`-sync
+  effect then ran with a STALE `value` (from the N-th render) after
+  `lastEmitted` had already moved on to N+1's text, dispatched the stale text
+  back into CodeMirror, which re-fired the listener, which fed the stale
+  text back into the signal again — a ping-pong loop between the two most
+  recent keystrokes that never settled (2+ rapid characters hung
+  indefinitely). Fixed by making `value` a stable snapshot during editing
+  (the cell's original, pre-edit text, frozen until the blur-time commit) —
+  CodeMirror alone owns the live typing state, so the sync effect only ever
+  fires for genuine external changes.
+
+Also fixed: `.gramaire` had `min-height: 100vh`, growing it to its own full
+content height regardless of the fixed-shell `.content` it lives inside — the
+excess was silently clipped by `.shell`'s own `overflow: hidden` instead of
+ever scrolling, so content past the first viewport (like "Try it") was
+unreachable. Fixed to `height: 100%; min-height: 0` so `.gramaire__body`
+(`flex: 1; min-height: 0; overflow: auto`) is the one true scroll region,
+matching `lab.astro`'s own documented fixed-shell pattern.
 
 Deliberately deferred from this first cut: a method picker (always builds
 Canonical), a "Format document" action (`gramaire fmt` isn't exposed to the JS

@@ -42,6 +42,15 @@ const blocks = signal<DocBlock[]>(buildDocument(DEFAULT_SOURCE, []));
 const tryItInput = signal("1+2*3");
 const editingProse = signal<number | null>(null);
 const proseDraft = signal("");
+// Grammar cells mirror prose cells: click reveals the source editor, blur commits and collapses
+// back to the rendered view (railroad + FIRST/FOLLOW for a rule; read-only source for a fence
+// kind with no equivalent rendering yet). `cellDraft` is a LOCAL, isolated signal — typing only
+// updates it, never `blocks` — so editing one cell no longer reactively re-renders every other
+// cell on every keystroke at all (the earlier per-keystroke whole-document recompute this
+// replaces was the root cause of a real OOM crash under rapid typing); the shared `blocks` signal
+// only changes once, on blur/commit.
+const editingCell = signal<number | null>(null);
+const cellDraft = signal("");
 
 function scheduleEvaluate() {
   labWorker.evaluate(
@@ -76,24 +85,15 @@ const BADGE_LABEL: Record<DocBlockKind, string> = {
   precedence: "Precedence",
 };
 
-// Debounced separately from (and much shorter than) scheduleEvaluate's own 200ms worker-request
-// debounce: committing an edit re-renders every cell in the document (this notebook's
-// whole-document reactive model, not a per-cell isolated one — see
-// docs/rebrand-gramaire-plan.md's "status of the notebook feature" note on why a grammar is one
-// namespace). At human typing speed that's imperceptible; measured empirically (Chromium, CDP
-// heap metrics) that a FLOOD of same-tick keystrokes with no settling time between them compounds
-// into unbounded memory growth and an OOM crash within seconds — paced keystrokes (even 300ms
-// apart) stayed flat. Coalescing rapid keystrokes into one commit fixes this by construction,
-// independent of the exact cause of the per-keystroke cost.
-const COMMIT_DEBOUNCE_MS = 120;
-let commitTimer: ReturnType<typeof setTimeout> | undefined;
+function beginEditCell(index: number, text: string) {
+  editingCell.value = index;
+  cellDraft.value = text;
+}
 
-function onCellChange(index: number, text: string) {
-  clearTimeout(commitTimer);
-  commitTimer = setTimeout(() => {
-    blocks.value = replaceBlockText(blocks.value, index, text);
-    scheduleEvaluate();
-  }, COMMIT_DEBOUNCE_MS);
+function endEditCell(index: number) {
+  blocks.value = replaceBlockText(blocks.value, index, cellDraft.value);
+  editingCell.value = null;
+  scheduleEvaluate();
 }
 
 function beginEditProse(index: number, text: string) {
@@ -138,6 +138,7 @@ function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
 }
 
 function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
+  const isEditing = editingCell.value === index;
   const analysis = response.value?.analysis;
   const svg =
     block.nonterminal && analysis
@@ -147,10 +148,16 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
     block.nonterminal && analysis
       ? analysis.firstFollow.find((r) => r.name === block.nonterminal)
       : undefined;
+  const hasRendered = Boolean(svg || ff);
 
   return (
     <div class="gramaire__cell">
-      <div class="gramaire__cell-header">
+      <div
+        class="gramaire__cell-header"
+        onClick={() => {
+          if (!isEditing) beginEditCell(index, block.text);
+        }}
+      >
         <span class={`gramaire__badge gramaire__badge--${block.kind}`}>
           {BADGE_LABEL[block.kind]}
         </span>
@@ -158,34 +165,54 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
           <span class="gramaire__cell-name">{block.nonterminal}</span>
         )}
       </div>
-      <CodeMirrorEditor
-        className="gramaire__editor"
-        value={block.text}
-        onChange={(text) => onCellChange(index, text)}
-      />
-      {(svg || ff) && (
-        <div class="gramaire__output">
-          {svg && (
-            <div
-              class="gramaire__output-railroad"
-              dangerouslySetInnerHTML={{ __html: svg }}
-            />
-          )}
-          {ff && (
-            <div class="gramaire__output-ff">
-              <span>
-                <span class="gramaire__output-ff-label">FIRST</span>
-                <span class="gramaire__output-ff-value">
-                  {"{ " + ff.first.join(" ") + " }"}
-                </span>
-              </span>
-              <span>
-                <span class="gramaire__output-ff-label">FOLLOW</span>
-                <span class="gramaire__output-ff-value">
-                  {"{ " + ff.follow.join(" ") + " }"}
-                </span>
-              </span>
+      {isEditing ? (
+        <CodeMirrorEditor
+          className="gramaire__editor"
+          // The STABLE, pre-edit text — never cellDraft.value here (see CodeMirrorEditor's own
+          // [value]-effect comment for why round-tripping onChange's own output back into value
+          // is a real, empirically-confirmed race under rapid typing). CodeMirror owns the live
+          // typing state on its own; cellDraft only needs to hold the latest text for
+          // endEditCell's blur-time commit.
+          value={block.text}
+          autoFocus
+          onChange={(text) => {
+            cellDraft.value = text;
+          }}
+          onBlur={() => endEditCell(index)}
+        />
+      ) : (
+        <div
+          class="gramaire__cell-rendered"
+          title="Click to edit source"
+          onClick={() => beginEditCell(index, block.text)}
+        >
+          {hasRendered ? (
+            <div class="gramaire__output">
+              {svg && (
+                <div
+                  class="gramaire__output-railroad"
+                  dangerouslySetInnerHTML={{ __html: svg }}
+                />
+              )}
+              {ff && (
+                <div class="gramaire__output-ff">
+                  <span>
+                    <span class="gramaire__output-ff-label">FIRST</span>
+                    <span class="gramaire__output-ff-value">
+                      {"{ " + ff.first.join(" ") + " }"}
+                    </span>
+                  </span>
+                  <span>
+                    <span class="gramaire__output-ff-label">FOLLOW</span>
+                    <span class="gramaire__output-ff-value">
+                      {"{ " + ff.follow.join(" ") + " }"}
+                    </span>
+                  </span>
+                </div>
+              )}
             </div>
+          ) : (
+            <pre class="gramaire__cell-source">{block.text}</pre>
           )}
         </div>
       )}
