@@ -363,6 +363,26 @@ test("the offending cell is flagged with an inline error; clicking the panel row
   ).toBeVisible();
 });
 
+// Layer 3: opening the errored cell shows an in-editor squiggle underline at the exact span, with
+// the full message (and note) on hover.
+test("opening an errored cell shows an in-editor squiggle with the message on hover", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await breakFirstRule(page, "Foo Bar"); // "unexpected `Bar`" — a span-located diagnostic
+
+  await page.locator(".grimoire__cell--error .grimoire__cell-rendered").click();
+  const underline = page.locator(
+    ".grimoire__cell--error .cm-content .cm-lintRange-error",
+  );
+  await expect(underline.first()).toBeVisible();
+
+  await underline.first().hover();
+  await expect(page.locator(".cm-diagnostic").first()).toContainText(
+    "unexpected",
+  );
+});
+
 // Layer 2: one broken cell no longer blanks the whole notebook — the untouched Term/Factor cells
 // keep their (now stale, dimmed) railroad diagrams instead of collapsing to raw source.
 test("a single broken cell does not blank sibling cells — their diagrams persist, dimmed", async ({
