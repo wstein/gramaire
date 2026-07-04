@@ -436,38 +436,34 @@ object Ll:
   // (never consuming whatever transition comes after — a folded rule's trailing tail-rule call,
   // or a plain rule's path to `BlockEnd`, are the caller's concern).
   //
-  // KNOWN LATENT RISK, not yet addressed: the Atom/RuleCall recursive calls below are wrapped in
-  // `.map`, so they're NOT in tail position — each of the `n` real symbols in a single production's
-  // RHS consumes one JVM/JS call-stack frame. A grammar with one very long production body (large
-  // `n`, e.g. hundreds/thousands of RHS symbols in one alternative) can stack-overflow this walk.
-  // Surfaced while testing `lab/src/main/scala/gramark/lab/LabApi.scala`'s `capSteps` trace cap
-  // (see that function's own doc comment) — a flat-RHS fixture built to exceed the step cap hit
-  // this overflow before the cap logic was ever reached. Left unaddressed here: fixing it (e.g. an
-  // explicit work-list instead of real recursion) is a bigger change than this cap deserves, and
-  // ordinary grammars' RHS lengths are nowhere near the JVM/V8 default stack depth.
+  // An explicit tail-recursive `loop` accumulating into `acc`, rather than real recursion wrapped
+  // in `.map`/`.flatMap` — the previous shape put each of a production's `n` real symbols on its
+  // own JVM/JS call-stack frame (not in tail position), so a single alternative with a very long
+  // RHS could stack-overflow the walk; `@tailrec` makes the compiler enforce that this stays a
+  // loop regardless of `n`. `parseRuleCst`'s own recursion (crossing into a *different* rule) is
+  // untouched — that depth tracks grammar nesting, not RHS length, and was never the risk here.
   private def walkSyms(ctx: Ctx, state: Int, n: Int, pos: Int): Option[(Vector[Cst], Int, Int)] =
-    Atn.stateAt(ctx.atn, state).transitions match
-      case Vector(Transition.Epsilon(target)) => walkSyms(ctx, target, n, pos)
-      case _ if n == 0                        => Some((Vector.empty, state, pos))
-      case Vector(Transition.Atom(t, target)) =>
-        ctx.toks.lift(pos) match
-          case Some(tok) if tok.terminal == t =>
-            ctx.tracer.matchTok(pos, tok.terminal, tok.text)
-            walkSyms(ctx, target, n - 1, pos + 1).map { case (rest, s2, p2) =>
-              (Cst.Token(tok.terminal, tok.text) +: rest, s2, p2)
-            }
-          case _ =>
-            ctx.tracer.fail(pos, Vector(t), Atn.stateAt(ctx.atn, state).rule)
-            None
-      case Vector(Transition.RuleCall(_, target, follow)) =>
-        // See `walk`'s identical reasoning: push/pop bracket exactly the recursive descent into
-        // `target`, giving its own decisions the real "control returns to `follow`" context.
-        ctx.cache.pushContext(follow)
-        val childResult = parseRuleCst(ctx, target, pos)
-        ctx.cache.popContext()
-        childResult.flatMap { case (childCst, pos2) =>
-          walkSyms(ctx, follow, n - 1, pos2).map { case (rest, s2, p2) =>
-            (childCst +: rest, s2, p2)
-          }
-        }
-      case _ => None
+    @scala.annotation.tailrec
+    def loop(state: Int, n: Int, pos: Int, acc: Vector[Cst]): Option[(Vector[Cst], Int, Int)] =
+      Atn.stateAt(ctx.atn, state).transitions match
+        case Vector(Transition.Epsilon(target)) => loop(target, n, pos, acc)
+        case _ if n == 0                        => Some((acc, state, pos))
+        case Vector(Transition.Atom(t, target)) =>
+          ctx.toks.lift(pos) match
+            case Some(tok) if tok.terminal == t =>
+              ctx.tracer.matchTok(pos, tok.terminal, tok.text)
+              loop(target, n - 1, pos + 1, acc :+ Cst.Token(tok.terminal, tok.text))
+            case _ =>
+              ctx.tracer.fail(pos, Vector(t), Atn.stateAt(ctx.atn, state).rule)
+              None
+        case Vector(Transition.RuleCall(_, target, follow)) =>
+          // See `walk`'s identical reasoning: push/pop bracket exactly the recursive descent into
+          // `target`, giving its own decisions the real "control returns to `follow`" context.
+          ctx.cache.pushContext(follow)
+          val childResult = parseRuleCst(ctx, target, pos)
+          ctx.cache.popContext()
+          childResult match
+            case Some((childCst, pos2)) => loop(follow, n - 1, pos2, acc :+ childCst)
+            case None                   => None
+        case _ => None
+    loop(state, n, pos, Vector.empty)

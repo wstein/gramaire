@@ -103,24 +103,25 @@ object Parser:
     * path every other caller (including the self-hosting bootstrap) shares, and this walks the
     * exact same state-stack logic in lockstep with a parallel symbol stack purely for display.
     *
-    * KNOWN LATENT COST, not yet addressed: `stackBefore`/`remainingBefore` below are recomputed
-    * from scratch at every step (`st.symbols.reverse.toVector` / `input.drop(pos).map(...)`), each
-    * O(current stack depth) / O(remaining input length) — so a full walk over `n` tokens costs
-    * O(n^2) total, not O(n). `lab/src/main/scala/gramark/lab/LabApi.scala`'s `capSteps` bounds the
-    * WIRE-exposed step count (mirroring `Glr.forest`'s `forestCap`), but that cap is applied to the
-    * already-fully-computed result — it does not bound the cost of getting here, so a long accepted
-    * input still pays the full O(n^2) cost before any cap helps. Predates ll-star (this function is
-    * LR-only), but ll-star's own trace-capping work (`LabApi.traceCap`) surfaced it as a real
-    * pathological-input risk while testing that cap: see the discussion in `capSteps`'s own doc
-    * comment for why an end-to-end reproduction test wasn't added.
+    * `stackBefore`/`remainingBefore` used to be recomputed from scratch at every step
+    * (`st.symbols.reverse.toVector` over a top-first `List`, and `input.drop(pos).map(...)` over
+    * the raw token vector) — each O(current stack depth) / O(remaining input length), making a full
+    * walk over `n` tokens cost O(n^2) total, not O(n). Fixed by keeping `symbols` as an already
+    * bottom-to-top `Vector` (so `stackBefore` is just that vector, no reversal) and by precomputing
+    * the whole input's terminal symbols once into `remainingSyms`, so `remainingBefore` is a cheap
+    * `drop` over an already-built vector instead of re-mapping the remaining tokens every step.
+    * `lab/src/main/scala/gramark/lab/LabApi.scala`'s `capSteps` still bounds the WIRE-exposed step
+    * count (mirroring `Glr.forest`'s `forestCap`), independently of this.
     */
   def walk(table: ParseTable, input: Vector[Token]): Either[ParseError, Vector[LrStep]] =
-    final case class St(states: List[Int], symbols: List[GSym])
+    // `symbols` is bottom -> top (append on shift, `dropRight` on reduce) — the same order
+    // `LrStep.stackSymbols` wants, so `stackBefore` below needs no reversal.
+    final case class St(states: List[Int], symbols: Vector[GSym])
 
-    // The remaining, not-yet-shifted input as terminal symbols, plus a trailing EOF marker — the
-    // LR-walk stepper's REMAINING INPUT panel shows the `$` sentinel alongside real tokens.
-    def remainingOf(pos: Int): Vector[GSym] =
-      input.drop(pos).map(t => GSym.Term(t.terminal)) :+ GSym.EOF
+    // The whole input's terminal symbols, computed once, plus a trailing EOF marker — the LR-walk
+    // stepper's REMAINING INPUT panel shows the `$` sentinel alongside real tokens. Slicing a
+    // Vector (`drop`) is cheap; re-running `.map` over it at every step is not.
+    val remainingSyms: Vector[GSym] = input.map(t => GSym.Term(t.terminal)) :+ GSym.EOF
 
     def reduceStep(st: St, p: Int): Either[ParseError, (Prod, St)] =
       table.prods.lift(p) match
@@ -128,10 +129,10 @@ object Parser:
         case Some(prod) =>
           val k = prod.rhs.length
           val states2 = st.states.drop(k)
-          val symbols2 = st.symbols.drop(k)
+          val symbols2 = st.symbols.dropRight(k) :+ GSym.NonTerm(prod.lhs)
           val under = states2.headOption.getOrElse(0)
           table.goto.get((under, prod.lhs)) match
-            case Some(g) => Right((prod, St(g :: states2, GSym.NonTerm(prod.lhs) :: symbols2)))
+            case Some(g) => Right((prod, St(g :: states2, symbols2)))
             case None    => Left(ParseError.InternalError("missing goto after reduce"))
 
     def go(st: St, pos: Int, idx: Int, acc: Vector[LrStep]): Either[ParseError, Vector[LrStep]] =
@@ -140,8 +141,8 @@ object Parser:
       val look = mtok match
         case Some(tok) => GSym.Term(tok.terminal)
         case None      => GSym.EOF
-      val stackBefore = st.symbols.reverse.toVector
-      val remainingBefore = remainingOf(pos)
+      val stackBefore = st.symbols
+      val remainingBefore = remainingSyms.drop(pos)
       table.action.get((state, look)) match
         case Some(Action.Shift(j)) =>
           mtok match
@@ -155,7 +156,7 @@ object Parser:
                   remainingBefore
                 )
               go(
-                St(j :: st.states, GSym.Term(tok.terminal) :: st.symbols),
+                St(j :: st.states, st.symbols :+ GSym.Term(tok.terminal)),
                 pos + 1,
                 idx + 1,
                 acc :+ step
@@ -180,4 +181,4 @@ object Parser:
             case Some(tok) => Left(ParseError.UnexpectedToken(state, tok.terminal, pos))
             case None      => Left(ParseError.UnexpectedEnd(state, pos))
 
-    go(St(List(0), List.empty), 0, 0, Vector.empty)
+    go(St(List(0), Vector.empty), 0, 0, Vector.empty)
