@@ -1,0 +1,77 @@
+---
+title: Where Gramark is headed
+description: Why Gramark's focus has shifted from proving a self-hosting engine to building the product around it — interchange-format credibility, a live Notebook, and a planned rebrand.
+---
+
+import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+Gramark started as an internal proof: could a grammar notation describe
+itself well enough to bootstrap its own parser generator? That question is
+answered — the self-hosting loop (lexer → canonical LR(1) → LALR/IELR →
+generated codegen → parsing its own grammar spec back) is done and stable,
+with an ALL(\*)/PEG side-engine and several Scala backend targets layered on
+top of it since. The project's center of gravity has moved on to what that
+engine is actually _for_. Three things are happening in parallel now.
+
+## Earning credibility as an interchange format
+
+Rather than asserting Gramark is "the standard" EBNF-family format, the plan
+is to prove it — with real round-trips through established tools. ANTLR was
+first; Bison/yacc is the one most recently finished. The bar isn't "it
+parses": it's `import(export(x))` fidelity — a `.g4` or `.y` grammar
+imported into Gramark and exported back out should be the same grammar, not
+an approximation of it.
+
+## Becoming a learning and debugging platform
+
+Most of the recent work isn't in the CLI at all — it's the **Grimoire
+Notebook**, a standalone, live-editing, in-browser surface where a grammar
+is a real document: you edit it, get located error/warning squiggles on the
+exact broken cell, see railroad diagrams with action badges for every rule,
+and try it against real input via a calculator built from the grammar's own
+`{% %}` actions. That's a materially different product shape than "run a
+CLI, get a parser" — the Notebook is meant to be where you _understand_ a
+grammar, not just where you compile one.
+
+<LinkCard
+  title="Try the Grimoire Notebook"
+  href="/notebook/"
+  description="Click any cell to edit it — the railroad diagrams and FIRST/FOLLOW tables update live, against the real engine."
+/>
+
+## A planned identity change to match
+
+<Aside type="note" title="Not yet in effect">
+  This is a planned, gated change — nothing on the site has been renamed yet. It
+  ships as a full redesign before a general-availability release, not a
+  find-and-replace.
+</Aside>
+
+The project intends to rebrand **Gramark → Grimoire**, specifically because
+of this shift. "Grimoire" shares the root _gramaire_ with "grammar" — it
+names a book you write living things into, which fits a live notebook in a
+way the old grammar-plus-Markdown pun ("Gra-m-ark") never had to. The
+Grimoire Notebook already carries the name today, ahead of the rest of the
+rebrand, because it's the one part of the product this new identity was
+coined to describe.
+
+## Where this leaves the fundamentals
+
+None of this changes what already works. The three parse-table methods
+(canonical LR(1), LALR(1), IELR(1)), the single-file `.grmk.md` format, and
+the self-hosting loop are the foundation the interchange-format work and the
+Notebook are both built on — they're not being replaced, just no longer the
+whole story.
+
+<CardGrid>
+  <LinkCard
+    title="Getting started"
+    href="/tutorials/intro/"
+    description="Build a small calculator grammar from scratch, in about ten minutes."
+  />
+  <LinkCard
+    title="Try the Lab"
+    href="/lab/"
+    description="Edit a grammar and inspect its parse tables, conflicts, and parse trace directly."
+  />
+</CardGrid>
