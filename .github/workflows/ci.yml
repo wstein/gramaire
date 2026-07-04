@@ -20,6 +20,8 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - uses: sbt/setup-sbt@v1
+
       - name: Cache Coursier and sbt
         uses: actions/cache@v6
         with:
@@ -63,6 +65,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+
+      - uses: sbt/setup-sbt@v1
 
       - name: Cache Coursier and sbt
         uses: actions/cache@v6
@@ -138,6 +142,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+
+      - uses: sbt/setup-sbt@v1
 
       - name: Cache Coursier and sbt
         # Same cache as the core/lab job — building the Lab engine here
