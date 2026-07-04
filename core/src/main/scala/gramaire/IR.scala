@@ -798,90 +798,105 @@ object IR:
     * Not yet verified for a genuinely indirectly (mutually) left-recursive grammar — `Ll.parse`'s
     * own CST is not asserted correct for one either (`LlSuite`'s `supportsCst = false`), so there
     * is no reference behavior to reproduce yet; every grammar in the conformance corpus (including
-    * `json`/`ECMA-404`'s benign forward substitutions above) is covered.
+    * `json`/`ECMA-404`'s benign forward substitutions above) is covered. For exactly that
+    * unverified shape, this returns `None` rather than throwing: `withStrategy` computes this
+    * section for EVERY `ll-star` build regardless of which backend was actually requested (`atn` is
+    * built unconditionally too), so an internal-invariant violation here must not crash a command
+    * that never reads `rewritten` at all (`--backend dot`/`ir`/`ebnf`/`antlr` under `--strategy
+    * ll-star`) — `Option` already has a well-defined "not available" meaning (the `Desugar` failure
+    * case below), so an unexpected shape folds into the same meaning instead of introducing a
+    * second, uncaught failure mode.
     */
   def rewrittenGrammarOf(g: Grammar, prec: Precedence): Option[IRRewrittenGrammar] =
     Desugar.desugar(g) match
       case Left(_) => None
       case Right(dg) =>
-        val (stratified, stratumTags) = PrecClimb.stratify(dg, prec)
-        val (rewritten, folds, provByRule) = LeftRec.eliminateIndirectFull(stratified)
-        val prodIndex = Ll.indexProductions(dg)
-        val ruleByName: Map[String, Rule] = stratified.rules.map(r => r.name -> r).toMap
+        try rewrittenGrammarOfUnsafe(g, dg, prec)
+        catch case _: IllegalStateException => None
 
-        def resolve(ruleName: String, altIdx: Int): IRAltOrigin =
-          stratumTags.get((ruleName, altIdx)) match
-            case Some(PrecClimb.Tag.Transparent) => IRAltOrigin.Unwrap
-            case Some(PrecClimb.Tag.Original(origRule, origIdx)) =>
-              IRAltOrigin.Original(prodIndex((origRule, origIdx)))
-            case None => IRAltOrigin.Original(prodIndex((ruleName, altIdx)))
+  private def rewrittenGrammarOfUnsafe(
+      g: Grammar,
+      dg: Grammar,
+      prec: Precedence
+  ): Option[IRRewrittenGrammar] =
+    val (stratified, stratumTags) = PrecClimb.stratify(dg, prec)
+    val (rewritten, folds, provByRule) = LeftRec.eliminateIndirectFull(stratified)
+    val prodIndex = Ll.indexProductions(dg)
+    val ruleByName: Map[String, Rule] = stratified.rules.map(r => r.name -> r).toMap
 
-        // Mirrors `LeftRec.build`/`buildOp`'s own recursive dispatch exactly, but pre-resolved:
-        // `isOp` is this NODE's own build-vs-buildOp mode (`true` only at a `Fold.opAlt` root, or
-        // wherever a `Spliced` layer's own `fromIsOp` says the next layer inherits it).
-        def provIR(p: LeftRec.Prov, isOp: Boolean): IRProv = p match
-          case LeftRec.Prov.Direct(rule, idx) =>
-            val origin = resolve(rule, idx)
-            if isOp then IRProv.OpLeaf(origin) else IRProv.Leaf(origin)
-          case LeftRec.Prov.Spliced(rule, idx, from, fromIsOp) =>
-            val origin = resolve(rule, idx)
-            val innerSpan =
-              if fromIsOp then LeftRec.opSpan(ruleByName)(from) else LeftRec.span(ruleByName)(from)
-            IRProv.Wrap(origin, innerSpan, provIR(from, fromIsOp))
+    def resolve(ruleName: String, altIdx: Int): IRAltOrigin =
+      stratumTags.get((ruleName, altIdx)) match
+        case Some(PrecClimb.Tag.Transparent) => IRAltOrigin.Unwrap
+        case Some(PrecClimb.Tag.Original(origRule, origIdx)) =>
+          IRAltOrigin.Original(prodIndex((origRule, origIdx)))
+        case None => IRAltOrigin.Original(prodIndex((ruleName, altIdx)))
 
-        val ntNames: Set[String] = stratified.rules.map(_.name).toSet
-        def toSym(s: Sym): IRRewrittenSym = s match
-          case Ref(n) if ntNames.contains(n) => IRRewrittenSym.NonTerminal(n)
-          case Ref(n)                        => IRRewrittenSym.Terminal(n)
-          case Lit(t)                        => IRRewrittenSym.Terminal(t)
-          case Field(_, inner)               => toSym(inner)
-          case Rep(inner)                    => toSym(inner) // unreachable post-Desugar
-          case Star(inner)                   => toSym(inner) // unreachable
-          case Opt(inner)                    => toSym(inner) // unreachable
-          case Macro(nm, _)                  => IRRewrittenSym.NonTerminal(nm) // unreachable
-          case Group(_)                      => IRRewrittenSym.Terminal("(group)") // unreachable
-          case Any                           => IRRewrittenSym.Terminal("(any)") // unreachable
-          case Not(_)                        => IRRewrittenSym.Terminal("(not)") // unreachable
+    // Mirrors `LeftRec.build`/`buildOp`'s own recursive dispatch exactly, but pre-resolved:
+    // `isOp` is this NODE's own build-vs-buildOp mode (`true` only at a `Fold.opAlt` root, or
+    // wherever a `Spliced` layer's own `fromIsOp` says the next layer inherits it).
+    def provIR(p: LeftRec.Prov, isOp: Boolean): IRProv = p match
+      case LeftRec.Prov.Direct(rule, idx) =>
+        val origin = resolve(rule, idx)
+        if isOp then IRProv.OpLeaf(origin) else IRProv.Leaf(origin)
+      case LeftRec.Prov.Spliced(rule, idx, from, fromIsOp) =>
+        val origin = resolve(rule, idx)
+        val innerSpan =
+          if fromIsOp then LeftRec.opSpan(ruleByName)(from) else LeftRec.span(ruleByName)(from)
+        IRProv.Wrap(origin, innerSpan, provIR(from, fromIsOp))
 
-        def toAlt(a: Alt, prov: IRProv): IRRewrittenAlt = IRRewrittenAlt(a.syms.map(toSym), prov)
+    val ntNames: Set[String] = stratified.rules.map(_.name).toSet
+    def toSym(s: Sym): IRRewrittenSym = s match
+      case Ref(n) if ntNames.contains(n) => IRRewrittenSym.NonTerminal(n)
+      case Ref(n)                        => IRRewrittenSym.Terminal(n)
+      case Lit(t)                        => IRRewrittenSym.Terminal(t)
+      case Field(_, inner)               => toSym(inner)
+      case Rep(inner)                    => toSym(inner) // unreachable post-Desugar
+      case Star(inner)                   => toSym(inner) // unreachable
+      case Opt(inner)                    => toSym(inner) // unreachable
+      case Macro(nm, _)                  => IRRewrittenSym.NonTerminal(nm) // unreachable
+      case Group(_)                      => IRRewrittenSym.Terminal("(group)") // unreachable
+      case Any                           => IRRewrittenSym.Terminal("(any)") // unreachable
+      case Not(_)                        => IRRewrittenSym.Terminal("(not)") // unreachable
 
-        // A fold's synthetic tail rule is inlined into its main rule's `Folded.operators` below
-        // and never referenced by anything else once inlined, so it never surfaces as its own
-        // top-level `IRRewrittenRule`.
-        val tailRuleNames: Set[String] = folds.values.map(_.tailRule).toSet
-        val irRules = rewritten.rules
-          .filterNot(r => tailRuleNames.contains(r.name))
-          .map { r =>
-            folds.get(r.name) match
-              case Some(fold) =>
-                val tailRule = rewritten.rules
-                  .find(_.name == fold.tailRule)
-                  .getOrElse(
-                    throw new IllegalStateException(
-                      s"rewrittenGrammarOf: fold tail rule ${fold.tailRule} missing"
-                    )
-                  )
-                val bases = fold.baseAlt.zipWithIndex.map { case (p, k) =>
-                  toAlt(r.alts(2 * k), provIR(p, isOp = false))
-                }
-                val operators = fold.opAlt.zipWithIndex.map { case (p, j) =>
-                  toAlt(tailRule.alts(2 * j), provIR(p, isOp = true))
-                }
-                IRRewrittenRule(r.name, IRRuleBody.Folded(bases, operators))
-              case None =>
-                val provs = provByRule.getOrElse(
-                  r.name,
-                  throw new IllegalStateException(
-                    s"rewrittenGrammarOf: no provenance for rule ${r.name}"
-                  )
+    def toAlt(a: Alt, prov: IRProv): IRRewrittenAlt = IRRewrittenAlt(a.syms.map(toSym), prov)
+
+    // A fold's synthetic tail rule is inlined into its main rule's `Folded.operators` below
+    // and never referenced by anything else once inlined, so it never surfaces as its own
+    // top-level `IRRewrittenRule`.
+    val tailRuleNames: Set[String] = folds.values.map(_.tailRule).toSet
+    val irRules = rewritten.rules
+      .filterNot(r => tailRuleNames.contains(r.name))
+      .map { r =>
+        folds.get(r.name) match
+          case Some(fold) =>
+            val tailRule = rewritten.rules
+              .find(_.name == fold.tailRule)
+              .getOrElse(
+                throw new IllegalStateException(
+                  s"rewrittenGrammarOf: fold tail rule ${fold.tailRule} missing"
                 )
-                val alts =
-                  r.alts.zip(provs).map { case (a, p) => toAlt(a, provIR(p, isOp = false)) }
-                // See `IRRuleBody`'s own doc: an `Unwrap` alt sorts last, stable otherwise.
-                val (unwrap, rest) = alts.partition(a => topOrigin(a.prov) == IRAltOrigin.Unwrap)
-                IRRewrittenRule(r.name, IRRuleBody.Plain(rest ++ unwrap))
-          }
-        Some(IRRewrittenGrammar(g.rules.headOption.map(_.name).getOrElse(""), irRules))
+              )
+            val bases = fold.baseAlt.zipWithIndex.map { case (p, k) =>
+              toAlt(r.alts(2 * k), provIR(p, isOp = false))
+            }
+            val operators = fold.opAlt.zipWithIndex.map { case (p, j) =>
+              toAlt(tailRule.alts(2 * j), provIR(p, isOp = true))
+            }
+            IRRewrittenRule(r.name, IRRuleBody.Folded(bases, operators))
+          case None =>
+            val provs = provByRule.getOrElse(
+              r.name,
+              throw new IllegalStateException(
+                s"rewrittenGrammarOf: no provenance for rule ${r.name}"
+              )
+            )
+            val alts =
+              r.alts.zip(provs).map { case (a, p) => toAlt(a, provIR(p, isOp = false)) }
+            // See `IRRuleBody`'s own doc: an `Unwrap` alt sorts last, stable otherwise.
+            val (unwrap, rest) = alts.partition(a => topOrigin(a.prov) == IRAltOrigin.Unwrap)
+            IRRewrittenRule(r.name, IRRuleBody.Plain(rest ++ unwrap))
+      }
+    Some(IRRewrittenGrammar(g.rules.headOption.map(_.name).getOrElse(""), irRules))
 
   /** Re-tag an `IRGrammar`'s productions' inline-action profile with the document's declared host
     * language — the part of `withActionLang` below that doesn't need a full `IR` (just

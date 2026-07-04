@@ -144,17 +144,27 @@ object IRValidate:
         if productionId >= 0 && productionId < ruleCount then Vector.empty
         else Vector(s"rewritten: origin production id $productionId >= ruleCount $ruleCount")
 
-    def checkProv(p: IRProv): Vector[String] = p match
+    // `symsLen` is the OWNING alt's own `syms.length` — every backend computes
+    // `kidsVar.splitAt(innerSpan)` against exactly that many children (`BackendScalaPeg.tagExpr`,
+    // reused verbatim by the other two PEG backends), so `innerSpan` bounded only by `>= 0` still
+    // lets an out-of-range value through: `Vector.splitAt` silently clamps instead of throwing,
+    // so a too-large `innerSpan` would build a subtly wrong `Cst` with no error at validate time,
+    // compile time, or run time.
+    def checkProv(symsLen: Int)(p: IRProv): Vector[String] = p match
       case IRProv.Leaf(origin)   => checkAltOrigin(origin)
       case IRProv.OpLeaf(origin) => checkAltOrigin(origin)
       case IRProv.Wrap(origin, innerSpan, inner) =>
         checkAltOrigin(origin) ++
-          (if innerSpan >= 0 then Vector.empty
-           else Vector(s"rewritten: wrap innerSpan $innerSpan is negative")) ++
-          checkProv(inner)
+          (if innerSpan >= 0 && innerSpan <= symsLen then Vector.empty
+           else
+             Vector(
+               s"rewritten: wrap innerSpan $innerSpan out of range for an alt with $symsLen symbol(s)"
+             )
+          ) ++
+          checkProv(symsLen)(inner)
 
     def checkRewrittenAlt(ruleNames: Set[String])(a: IRRewrittenAlt): Vector[String] =
-      a.syms.flatMap(checkRewrittenSym(ruleNames, _)) ++ checkProv(a.prov)
+      a.syms.flatMap(checkRewrittenSym(ruleNames, _)) ++ checkProv(a.syms.length)(a.prov)
 
     def checkRewrittenRule(ruleNames: Set[String])(r: IRRewrittenRule): Vector[String] =
       r.body match
