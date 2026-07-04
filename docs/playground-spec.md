@@ -783,10 +783,34 @@ unreachable. Fixed to `height: 100%; min-height: 0` so `.gramaire__body`
 (`flex: 1; min-height: 0; overflow: auto`) is the one true scroll region,
 matching `lab.astro`'s own documented fixed-shell pattern.
 
-Deliberately deferred from this first cut: a method picker (always builds
-Canonical), a "Format document" action (`gramaire fmt` isn't exposed to the JS
-engine yet — omitted rather than shipped as a non-functional button), and a
-real `.gram` CodeMirror language mode (plain text for now).
+**Diagnostics (invalid-grammar feedback).** The engine already returns rich,
+located diagnostics (`LabResponse.diagnostics` — severity, stage, message,
+`notes`, and a `span` offset into the exact serialized source it was handed);
+the notebook surfaces them in two layers instead of the old bare "N issues"
+count:
+
+- **Document panel** (`DiagnosticsPanel`): a sticky strip under the topbar
+  listing every diagnostic with its message + note lines, and — when its span
+  maps to a cell — that cell's name as a clickable "jump to and open it"
+  location. The status bar splits the count into errors vs warnings
+  (`errorCount`/`warningCount`) and toggles the panel.
+- **Per-cell attribution** (Layer 2): each diagnostic's `span.start` is mapped
+  back to its owning cell via `blockIndexAtOffset` (`document.ts` — pure
+  char-range arithmetic that stays in exact lockstep with `serializeDocument`,
+  unit-tested). The offending cell gets a red border, an `error` tag, and the
+  message inline beneath it. Crucially, this fixes the "one typo blanks the
+  whole notebook" cliff: when the grammar notation fails to parse (`analysis`
+  null), untouched cells keep showing their **last-good railroad/FIRST-FOLLOW**
+  (`lastAnalysis`), dimmed and labelled "stale", instead of all collapsing to
+  raw source — only the cell that actually owns the error loses its rendered
+  view.
+
+Deliberately deferred: in-editor squiggles (CodeMirror `@codemirror/lint` — the
+`span` is already precise enough to convert to a cell-local offset for this),
+underlining the offending character in the "Try it" input, a method picker
+(always builds Canonical), a "Format document" action (`gramaire fmt` isn't
+exposed to the JS engine yet — omitted rather than shipped as a non-functional
+button), and a real `.gram` CodeMirror language mode (plain text for now).
 
 ---
 

@@ -7,6 +7,8 @@ import {
   serializeDocument,
   replaceBlockText,
   withLineNumbers,
+  blockCharSpans,
+  blockIndexAtOffset,
 } from "../../src/lab/liveDoc/document";
 import type { FenceInfo } from "../../src/lab/protocol";
 
@@ -208,4 +210,49 @@ test("withLineNumbers: a shorter/longer edit shifts every later block's line num
   )!.startLine;
 
   expect(termIndexAfter).toBe(termIndexBefore + 2);
+});
+
+test("blockCharSpans: content ranges point at the exact editable text in the serialized document", () => {
+  const source = readCalcMd();
+  const blocks = buildDocument(source, calcFences);
+  const serialized = serializeDocument(blocks);
+  expect(serialized).toBe(source); // precondition: spans are into `source` itself
+  const spans = blockCharSpans(blocks);
+
+  blocks.forEach((b, i) => {
+    // Every block's own `text` sits exactly at its contentStart..contentEnd in the document.
+    expect(serialized.slice(spans[i].contentStart, spans[i].contentEnd)).toBe(
+      b.text,
+    );
+    // A fence block's full range is wrapped in the markers; a prose block's isn't.
+    if (b.kind === "prose") {
+      expect(spans[i].contentStart).toBe(spans[i].start);
+      expect(spans[i].contentEnd).toBe(spans[i].end);
+    } else {
+      expect(serialized.slice(spans[i].start, spans[i].contentStart)).toBe(
+        "```gramaire\n",
+      );
+      expect(serialized.slice(spans[i].contentEnd, spans[i].end)).toBe("\n```");
+    }
+  });
+});
+
+test("blockIndexAtOffset: a diagnostic offset maps to the cell whose content contains it", () => {
+  const source = readCalcMd();
+  const blocks = buildDocument(source, calcFences);
+  const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
+  const factorIndex = blocks.findIndex((b) => b.nonterminal === "Factor");
+
+  // Simulate a diagnostic located on the first `Expr` token inside the Expr rule's content — the
+  // same coordinate space LabApi's DiagnosticInfo.span uses (an offset into this exact source).
+  const exprContentStart = blockCharSpans(blocks)[exprIndex].contentStart;
+  const offsetOfExprToken = source.indexOf("Expr", exprContentStart);
+  expect(blockIndexAtOffset(blocks, offsetOfExprToken)).toBe(exprIndex);
+
+  // An offset inside the Factor cell attributes to Factor, not a neighbor.
+  const factorContentStart = blockCharSpans(blocks)[factorIndex].contentStart;
+  expect(blockIndexAtOffset(blocks, factorContentStart + 1)).toBe(factorIndex);
+
+  // Out-of-range offsets return null rather than mis-attributing.
+  expect(blockIndexAtOffset(blocks, source.length + 100)).toBe(null);
 });
