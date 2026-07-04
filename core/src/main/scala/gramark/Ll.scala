@@ -2,9 +2,10 @@ package gramark
 
 // A top-down **LL recognizer and parser** driven by ALL(*) prediction (the
 // ALL(*) port, Phase 1/2). Desugars the grammar, optionally stratifies
-// `## Precedence`-driven ambiguous rules (`PrecClimb`), eliminates direct
-// left recursion (`LeftRec` — top-down parsing cannot descend it directly),
-// lowers the result to an `Atn`, and walks the network: at each rule it asks
+// `## Precedence`-driven ambiguous rules (`PrecClimb`), eliminates direct AND
+// indirect (mutual) left recursion (`LeftRec.eliminateIndirect`, Paull's
+// algorithm — top-down parsing cannot descend either directly), lowers the
+// result to an `Atn`, and walks the network: at each rule it asks
 // `AtnSim.predict` which alternative the input takes (SLL first, retrying
 // with the real calling context — `pushContext`/`popContext` below — only on
 // a genuine tie), then follows that alternative's chain — matching `Atom`
@@ -14,8 +15,9 @@ package gramark
 // This is the LR-parity keystone: `Ll.recognize` accepts exactly the
 // inputs the LR path (`Conformance.recognize`) does, and `Ll.parse` builds
 // the exact same `Cst` the LR path does (same production ids, same shape) —
-// including for left-recursive rules (`LeftRec.Fold` folds the flat
-// right-recursive walk back into the original left-associative shape) and
+// including for left- and mutually-recursive rules (`LeftRec.Fold`'s
+// `LeftRec.Prov` folds the flat right-recursive walk back into the original
+// nested shape, however many rules Paull's substitution spliced together) and
 // `## Precedence`-driven ambiguous ones (`PrecClimb.Tag` folds the
 // precedence-level cascade back onto the original rule's own alternatives).
 //
@@ -209,11 +211,10 @@ object Ll:
     * common case, for which `PrecClimb.stratify` is a no-op. `cache` defaults to a fresh, untracked
     * one; see `recognize`'s doc for when to pass `new AtnSim.Cache(track = true)` instead.
     *
-    * Deliberately calls `LeftRec.eliminate` (direct-only), NOT `recognize`'s `eliminateIndirect`:
-    * `Fold` only carries fold-back provenance for a rule's own final direct-elimination step, not
-    * for alternatives Paull's substitution moved in from a *different* rule, so a mutually
-    * left-recursive grammar has no correct `Cst` reconstruction yet — `recognize` alone covers it,
-    * matching this port's own "recognizer first" staging elsewhere (Phase 1 before Phase 2).
+    * Calls `LeftRec.eliminateIndirect` (Paull's algorithm), same as `recognize` — `Fold`'s
+    * provenance (`LeftRec.Prov`) covers both a rule's own direct elimination AND alternatives
+    * substituted in from a *different* rule during Paull's step, so a mutually left-recursive
+    * grammar reconstructs the same `Cst` shape the LR path would.
     */
   def parse(
       g: Grammar,
@@ -225,7 +226,7 @@ object Ll:
       case Left(_) => None
       case Right(dg) =>
         val (stratified, stratumTags) = PrecClimb.stratify(dg, prec)
-        val (rewritten, folds) = LeftRec.eliminate(stratified)
+        val (rewritten, folds) = LeftRec.eliminateIndirect(stratified)
         val atn = AtnBuild.buildAtn(rewritten)
         val ctx = Ctx(
           atn,
@@ -259,7 +260,7 @@ object Ll:
       case Left(_) => Left(LlError(0, Vector.empty, ""))
       case Right(dg) =>
         val (stratified, stratumTags) = PrecClimb.stratify(dg, prec)
-        val (rewritten, folds) = LeftRec.eliminate(stratified)
+        val (rewritten, folds) = LeftRec.eliminateIndirect(stratified)
         val atn = AtnBuild.buildAtn(rewritten)
         val tracer = new RecordingTracer
         val ctx = Ctx(
@@ -372,10 +373,14 @@ object Ll:
       (altIdx, altFirst) <- predictAlt(ctx, ruleStart, pos)
       k = altIdx / 2
       hasTail = altIdx % 2 == 1
-      origAltIdx = fold.baseAltIdx(k)
-      n = ctx.ruleByName(ruleName).alts(origAltIdx).syms.length
+      prov = fold.baseAlt(k)
+      n = LeftRec.span(ctx.ruleByName)(prov)
       (baseKids, stateAfter, posAfter) <- walkSyms(ctx, altFirst, n, pos)
-      base = tagCst(ctx, ruleName, origAltIdx, baseKids)
+      base = LeftRec.build(ctx.ruleByName, tagCst(ctx, _, _, _))(
+        prov,
+        throw new IllegalStateException("a base alt's provenance never needs an accumulator"),
+        baseKids
+      )
       result <-
         if !hasTail then Some((base, posAfter))
         else
@@ -388,8 +393,8 @@ object Ll:
               val stepsResult = parseTailChain(ctx, ruleName, fold, tailTarget, posAfter)
               ctx.cache.popContext()
               stepsResult.map { case (steps, posFinal) =>
-                val folded = steps.foldLeft(base) { case (acc, (opIdx, restKids)) =>
-                  tagCst(ctx, ruleName, opIdx, acc +: restKids)
+                val folded = steps.foldLeft(base) { case (acc, (opProv, restKids)) =>
+                  LeftRec.buildOp(ctx.ruleByName, tagCst(ctx, _, _, _))(opProv, acc, restKids)
                 }
                 (folded, posFinal)
               }
@@ -397,9 +402,10 @@ object Ll:
     yield result
 
   // Walk one `A_tail` visit: predict which operator alt (`aj`) matched, walk its own real
-  // symbols (`altTail` already dropped the leading self-reference `eliminate` stripped), and —
+  // symbols (`altTail` already dropped the leading self-reference `eliminate` stripped, or, for a
+  // splice composing with another rule's own tail-chain, `LeftRec.opSpan` accounts for it), and —
   // if this visit continues — recurse for the rest of the chain. Returns the ordered list of
-  // (original operator alt id, that alt's real symbols' kids) steps still to be folded, and the
+  // (that step's provenance, that alt's real symbols' kids) steps still to be folded, and the
   // position after the whole chain.
   private def parseTailChain(
       ctx: Ctx,
@@ -407,16 +413,16 @@ object Ll:
       fold: LeftRec.Fold,
       tailStart: Int,
       pos: Int
-  ): Option[(Vector[(Int, Vector[Cst])], Int)] =
+  ): Option[(Vector[(LeftRec.Prov, Vector[Cst])], Int)] =
     for
       (altIdx, altFirst) <- predictAlt(ctx, tailStart, pos)
       j = altIdx / 2
       hasMore = altIdx % 2 == 1
-      origOpIdx = fold.opAltIdx(j)
-      n = ctx.ruleByName(ruleName).alts(origOpIdx).syms.length - 1 // minus the dropped self-ref
+      prov = fold.opAlt(j)
+      n = LeftRec.opSpan(ctx.ruleByName)(prov)
       (restKids, stateAfter, posAfter) <- walkSyms(ctx, altFirst, n, pos)
       result <-
-        if !hasMore then Some((Vector((origOpIdx, restKids)), posAfter))
+        if !hasMore then Some((Vector((prov, restKids)), posAfter))
         else
           Atn.stateAt(ctx.atn, stateAfter).transitions match
             case Vector(Transition.RuleCall(_, moreTarget, follow)) =>
@@ -425,7 +431,7 @@ object Ll:
               val moreResult = parseTailChain(ctx, ruleName, fold, moreTarget, posAfter)
               ctx.cache.popContext()
               moreResult.map { case (more, posFinal) =>
-                ((origOpIdx, restKids) +: more, posFinal)
+                ((prov, restKids) +: more, posFinal)
               }
             case _ => None
     yield result
