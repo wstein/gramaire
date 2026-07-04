@@ -12,6 +12,13 @@ async function gotoNotebookReady(page: import("@playwright/test").Page) {
   });
 }
 
+function ruleCellLocator(page: import("@playwright/test").Page) {
+  return page
+    .locator(".grimoire__cell")
+    .filter({ has: page.locator(".grimoire__badge--rule") })
+    .first();
+}
+
 test("the notebook evaluates the default grammar against the real engine, no console errors", async ({
   page,
 }) => {
@@ -29,7 +36,7 @@ test("the notebook evaluates the default grammar against the real engine, no con
   ).toEqual([]);
 });
 
-test("every rule cell renders a role badge, its name, and a railroad diagram", async ({
+test("every rule cell renders a role badge, its name, and a railroad diagram by default (not source code)", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
@@ -41,13 +48,63 @@ test("every rule cell renders a role badge, its name, and a railroad diagram", a
   expect(names).toEqual(["Expr", "Term", "Factor"]);
 
   await expect(page.locator(".grimoire__output-railroad svg")).toHaveCount(3);
+  // Default (not-yet-clicked) state shows the rendered view, never an active editor.
+  await expect(page.locator(".cm-content")).toHaveCount(0);
+});
+
+// The core requested interaction: a grammar cell behaves like a prose cell — click reveals the
+// source editor, saving (blur) collapses back to the rendered view, never showing both at once.
+test("clicking a rule cell reveals its source editor; blurring commits and shows only the rendered railroad/FIRST-FOLLOW", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const ruleCell = ruleCellLocator(page);
+
+  await expect(
+    ruleCell.locator(".grimoire__output-railroad svg"),
+  ).toBeVisible();
+  await expect(ruleCell.locator(".cm-content")).toHaveCount(0);
+
+  await ruleCell.locator(".grimoire__cell-rendered").click();
+  await expect(ruleCell.locator(".cm-content")).toBeVisible();
+  await expect(ruleCell.locator(".grimoire__output-railroad")).toHaveCount(0);
+
+  await page.locator(".grimoire__topbar").click(); // blur, commits
+  await expect(ruleCell.locator(".cm-content")).toHaveCount(0);
+  await expect(
+    ruleCell.locator(".grimoire__output-railroad svg"),
+  ).toBeVisible();
+});
+
+// A fence kind with no railroad/FIRST-FOLLOW equivalent (Tokens/Settings/Precedence) still gets
+// the same click-to-edit interaction — its "rendered" view is a read-only source display, not an
+// active editor, until clicked.
+test("a Tokens cell shows read-only source by default; clicking still reveals its editor", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const tokensCell = page
+    .locator(".grimoire__cell")
+    .filter({ has: page.locator(".grimoire__badge--tokens") })
+    .first();
+
+  await expect(tokensCell.locator(".grimoire__cell-source")).toBeVisible();
+  await expect(tokensCell.locator(".cm-content")).toHaveCount(0);
+
+  await tokensCell.locator(".grimoire__cell-rendered").click();
+  await expect(tokensCell.locator(".cm-content")).toBeVisible();
+  await expect(tokensCell.locator(".grimoire__cell-source")).toHaveCount(0);
+
+  await page.locator(".grimoire__topbar").click();
+  await expect(tokensCell.locator(".cm-content")).toHaveCount(0);
+  await expect(tokensCell.locator(".grimoire__cell-source")).toBeVisible();
 });
 
 // Regression: .grimoire had `min-height: 100vh`, which grew it to its own full content height
 // (2000px+) regardless of the fixed-shell .content it lives inside — the excess was silently
-// clipped by .shell's `overflow: hidden` instead of ever scrolling, so anything past the first
-// viewport (like "Try it") was permanently unreachable. Fixed to `height: 100%; min-height: 0`
-// so .grimoire__body (flex: 1; min-height: 0; overflow: auto) is the one true scroll region.
+// clipped by .shell's `overflow: hidden` instead of ever scrolling. Fixed to `height: 100%;
+// min-height: 0` so .grimoire__body (flex: 1; min-height: 0; overflow: auto) is the one true
+// scroll region.
 test("the notebook body scrolls to reach content below the first viewport", async ({
   page,
 }) => {
@@ -65,20 +122,18 @@ test("the notebook body scrolls to reach content below the first viewport", asyn
   await expect(page.locator(".grimoire__tryit")).toBeInViewport();
 });
 
-test("editing a rule cell updates its railroad diagram live", async ({
+test("editing a rule cell and saving updates its railroad diagram", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
-
-  const ruleCell = page
-    .locator(".grimoire__cell")
-    .filter({ has: page.locator(".grimoire__badge--rule") })
-    .first();
+  const ruleCell = ruleCellLocator(page);
   const svgBefore = await ruleCell.locator("svg").innerHTML();
 
+  await ruleCell.locator(".grimoire__cell-rendered").click();
   await ruleCell.locator(".cm-content").click();
   await page.keyboard.press("End");
   await page.keyboard.type("\n  | 'zzz'");
+  await page.locator(".grimoire__topbar").click(); // blur, saves
 
   await expect(async () => {
     const svgAfter = await ruleCell.locator("svg").innerHTML();
@@ -127,22 +182,19 @@ test("editing a cell's first line never exposes or corrupts its ```gramark marke
   page,
 }) => {
   await gotoNotebookReady(page);
+  const ruleCell = ruleCellLocator(page);
 
-  const ruleCell = page
-    .locator(".grimoire__cell")
-    .filter({ has: page.locator(".grimoire__badge--rule") })
-    .first();
+  await ruleCell.locator(".grimoire__cell-rendered").click();
   const cellContent = ruleCell.locator(".cm-content");
-
   await expect(cellContent).not.toContainText("```");
 
   await cellContent.click();
   await page.keyboard.press("Control+Home");
   await page.keyboard.press("End");
   await page.keyboard.type("   "); // touch the first line, still syntactically valid
+  await page.locator(".grimoire__topbar").click(); // blur, saves
   await page.waitForTimeout(1000);
 
-  await expect(cellContent).not.toContainText("```");
   await expect(page.locator(".grimoire__badge")).toHaveCount(5);
   await expect(page.locator(".grimoire__cell-name")).toHaveText([
     "Expr",
@@ -152,15 +204,13 @@ test("editing a cell's first line never exposes or corrupts its ```gramark marke
   await expect(page.locator(".grimoire__output-railroad svg")).toHaveCount(3);
 });
 
-test("rapid typing does not crash the tab (regression: an unbounded per-keystroke reflow OOM'd Chromium)", async ({
+test("rapid typing in an open cell editor does not crash the tab (regression: an unbounded per-keystroke reflow OOM'd Chromium)", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
+  const ruleCell = ruleCellLocator(page);
 
-  const ruleCell = page
-    .locator(".grimoire__cell")
-    .filter({ has: page.locator(".grimoire__badge--rule") })
-    .first();
+  await ruleCell.locator(".grimoire__cell-rendered").click();
   await ruleCell.locator(".cm-content").click();
   await page.keyboard.press("End");
 
@@ -169,6 +219,37 @@ test("rapid typing does not crash the tab (regression: an unbounded per-keystrok
 
   // The page must still be alive and responsive afterward.
   await expect(page.locator(".grimoire__cell").first()).toBeVisible();
+});
+
+// Regression: CodeMirrorEditor's `value` prop used to be fed by the SAME signal its own
+// `onChange` wrote to (`cellDraft`), round-tripped back in as a "controlled" value. Two rapid
+// keystrokes could fire the updateListener for keystroke N+1 before Preact re-rendered with
+// keystroke N's value — the `[value]`-sync effect would then run with a STALE value (from the
+// N-th render, after `lastEmitted` had already moved on to N+1's text), dispatch that stale text
+// back into CodeMirror, which re-fired the listener, which fed the stale text back into the
+// signal again: a ping-pong loop between the two most recent keystrokes that never settled (a
+// `type()` call of 2+ characters hung indefinitely). Fixed by making `value` a stable snapshot
+// during editing (the cell's original text, frozen until the blur-time commit) — CodeMirror alone
+// owns the live typing state, so the sync effect never fires spuriously mid-edit.
+test("typing multiple rapid characters (with newlines/quotes) in a cell settles on the exact text typed, no ping-pong", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const ruleCell = ruleCellLocator(page);
+
+  await ruleCell.locator(".grimoire__cell-rendered").click();
+  await ruleCell.locator(".cm-content").click();
+  await page.keyboard.press("End");
+  await page.keyboard.type("\n  | 'zzz' {% (c) => c %}\n  | 'yyy'");
+
+  await expect(ruleCell.locator(".cm-content")).toContainText(
+    "'zzz' {% (c) => c %}",
+  );
+  await expect(ruleCell.locator(".cm-content")).toContainText("'yyy'");
+
+  await page.locator(".grimoire__topbar").click(); // blur, saves
+  await page.waitForTimeout(1000);
+  await expect(page.locator(".grimoire__badge")).toHaveCount(5);
 });
 
 test("Try it renders real tokens and a CST for the default input", async ({

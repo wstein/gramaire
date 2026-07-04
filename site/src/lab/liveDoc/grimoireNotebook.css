@@ -138,6 +138,25 @@
   padding: 9px 13px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-1);
+  cursor: pointer;
+}
+
+.grimoire__cell-rendered {
+  cursor: text;
+}
+.grimoire__cell-rendered:hover {
+  background: var(--bg-1);
+}
+
+.grimoire__cell-source {
+  margin: 0;
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .grimoire__badge {
