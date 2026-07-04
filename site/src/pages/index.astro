@@ -20,18 +20,27 @@
 // (design/gramark-site-handoff/Gramark Site.dc.html).
 //
 // The mock's showcase is *live* (editable, re-parses on keystroke) because
-// it's backed by its stand-in engine. This showcase stays static and links
-// out to /lab/ instead of embedding a real live editor here — the Lab (M4)
-// now exists as its own page (src/pages/lab.astro), but an embedded preview
-// island on Landing is its own increment, not bundled into this one — see
-// design/README.md's gold-standard boundary.
+// it's backed by its stand-in engine — `design/README.md`'s gold-standard
+// boundary is explicit that stand-in (`support.js`, an Earley parser with
+// eval()-based actions) is reference-only, never ported, never imported
+// from site code. The code panel below stays static (matching the mock's
+// contractual LAYOUT — a static code block is not something "that would
+// change if you swapped the input grammar," so it's fair game to leave
+// alone), but the "try it" strip beneath the diagram is now genuinely live,
+// on the real engine: `HomeCalcTryIt` reuses the same `createLabWorker`
+// the Grimoire Notebook does. divergence: embeds a real preview island on
+// Landing, closing the increment this file's own comment used to defer.
 import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
 import Button from "../components/Button.astro";
 import FeatureTile from "../components/FeatureTile.astro";
+import { HomeCalcTryIt } from "../lab/HomeCalcTryIt";
 
+// Byte-identical to examples/calc-js.grmk.md's own Expr rule — real, working syntax (the mock's
+// original `{% Add %}`/`{% Sub %}` bare-identifier actions were never valid: BackendJs has no
+// bare-identifier-as-function-call support, and would reference an undefined name at runtime).
 const showcaseSource = `Expr
-  : Expr \`+\` Term   {% Add %}
-  | Expr \`-\` Term   {% Sub %}
+  : Expr '+' Term   {% (c) => c.expr + c.term %}
+  | Expr '-' Term   {% (c) => c.expr - c.term %}
   | Term`;
 
 // Astro does not rewrite hand-written root-absolute href strings under the
@@ -88,6 +97,7 @@ const base = import.meta.env.BASE_URL;
               alt="Railroad diagram for the Expr rule"
             />
           </div>
+          <HomeCalcTryIt client:idle />
         </div>
       </div>
     </div>
