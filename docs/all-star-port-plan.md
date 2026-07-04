@@ -747,7 +747,10 @@ Principles kept:
   reject for the same input. Not yet addressed: a full-context fallback
   (ANTLR's own ALL(\*) re-simulates with full context when SLL prediction's
   result can't be trusted) would close this, but is a materially bigger
-  change than anything in this phase's scope.
+  change than anything in this phase's scope — see
+  `docs/lab-hardening-investigation.md` §A for a cheaper, scoped
+  alternative (a whole-input GLR bailout on reject only) and why it's
+  preferred over porting ANTLR's fallback from scratch.
 
 ## 7. Scala realization notes
 
