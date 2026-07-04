@@ -319,6 +319,78 @@ object Lr:
         (banner(bannerLines) +: preambleFence.toVector) ++ sect.sections.flatMap(section)
       parts.filter(_ != "").mkString("\n\n") + "\n"
 
+  // A rule fence's own first non-blank line always starts with that rule's own name (`RuleName`
+  // then `:`, same or next line) — enough to associate a section's leading prose with the ONE
+  // rule it documents, without re-invoking the full lr-notation parser for this purely cosmetic,
+  // best-effort feature.
+  private def firstIdent(content: String): Option[String] =
+    content
+      .split("\n", -1)
+      .toVector
+      .map(_.trim)
+      .find(_.nonEmpty)
+      .map(_.takeWhile(c => c.isLetterOrDigit || c == '_'))
+      .filter(_.nonEmpty)
+
+  // A `## ` section's own gramark fence content (the bare lines between its opening and closing
+  // ` ``` `), if it has one — mirrors `fenceOrigins`'s own extraction but scoped to one section,
+  // so `docCommentsOf` never needs to re-derive which fence belongs to which heading from a flat,
+  // whole-document fence list.
+  private def sectionFenceContent(sec: Vector[String]): Option[String] =
+    val body = sec.drop(1) // drop the "## heading" line itself
+    val start = body.indexWhere(_.trim == "```gramark")
+    if start < 0 then None
+    else
+      val rest = body.drop(start + 1)
+      val end = rest.indexWhere(_.trim == "```")
+      if end < 0 then None else Some(rest.take(end).mkString("\n"))
+
+  // The prose lines of a `## ` section BEFORE its own gramark fence opens — any other fence (a
+  // diagram, an illustrative snippet) is skipped whole, exactly as `walk` does for `strip`.
+  private def sectionLeadingProse(sec: Vector[String]): Option[String] =
+    val beforeFence = sec.drop(1).takeWhile(_.trim != "```gramark")
+    final case class Acc(inOtherFence: Boolean, out: Vector[String])
+    val acc = beforeFence.foldLeft(Acc(false, Vector.empty)) { (a, line) =>
+      val t = line.trim
+      if a.inOtherFence then if t == "```" then a.copy(inOtherFence = false) else a
+      else if t.startsWith("```") then a.copy(inOtherFence = true)
+      else if keepProse(line) then a.copy(out = a.out :+ line.trim)
+      else a
+    }
+    val trimmed = trimBlankEnds(acc.out)
+    if trimmed.isEmpty then None else Some(trimmed.mkString("\n"))
+
+  /** Every RULE-role `## ` section's own leading prose, keyed by the rule name its own gramark
+    * fence declares (ADR D39) — the source of a `Rule.doc` a caller can attach via
+    * `withDocComments`. A section with no prose, no rule fence, or a non-Rule-role fence
+    * (Tokens/Precedence/Settings) contributes nothing. Best-effort: a section whose fence defines
+    * more than one rule (an author grouping several nonterminals under one heading, ADR D29's "###+
+    * headings are free presentational grouping") attributes its prose to the FIRST rule only —
+    * imprecise for that hand-written shape, but exactly matches the one-rule-per- section output
+    * both `ConvertAntlr`'s and `ConvertBison`'s own renderers already produce, which is this
+    * feature's actual target.
+    */
+  def docCommentsOf(md: String): Map[String, String] =
+    val ls = toFenced(md).split("\n", -1).toVector
+    sectionize(ls).sections.flatMap { sec =>
+      for
+        content <- sectionFenceContent(sec)
+        if classifyFenceContent(content) == FenceKind.Rule
+        name <- firstIdent(content)
+        prose <- sectionLeadingProse(sec)
+      yield name -> prose
+    }.toMap
+
+  /** Attach each rule's own `docCommentsOf` entry as its `Rule.doc` (ADR D39). Never called by
+    * `parseWith`/`parse` themselves — their result must stay byte-comparable to hand-written
+    * `Grammar` literals (e.g. `SelfHostSuite`'s `Bootstrap.bootstrapGrammar` equality) — only a
+    * caller that specifically wants doc-comments (`gramark emit --backend bison`, and its own
+    * tests) opts in by calling this explicitly, after parsing.
+    */
+  def withDocComments(g: Grammar, md: String): Grammar =
+    val docs = docCommentsOf(md)
+    g.copy(rules = g.rules.map(r => if r.doc.isDefined then r else r.copy(doc = docs.get(r.name))))
+
   // A token-class definition line: an ALL-CAPS name then `:` on one
   // unindented line. A production head is a Mixed-case name on its OWN
   // line with the `:` on the next, so it never matches.

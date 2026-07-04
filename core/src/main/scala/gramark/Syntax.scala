@@ -46,8 +46,16 @@ object Sym:
 final case class Alt(syms: Vector[Sym], label: Option[String], action: Option[String])
 
 // A rule: a left-hand nonterminal name, its `#[attr]` attributes (e.g.
-// `inline`, ADR D28), and its alternatives.
-final case class Rule(name: String, attrs: Vector[String], alts: Vector[Alt])
+// `inline`, ADR D28), its alternatives, and an optional leading doc-comment
+// (ADR D39's cross-format comment round-trip — see `Lr.docCommentsOf`/
+// `Lr.withDocComments`; never populated by `Lr.parseWith`/`parse` themselves,
+// only by a caller that explicitly opts in).
+final case class Rule(
+    name: String,
+    attrs: Vector[String],
+    alts: Vector[Alt],
+    doc: Option[String] = None
+)
 
 // A grammar is an ordered list of rules.
 //

@@ -119,7 +119,10 @@ enum IRTerminal(val id: Int) derives CanEqual:
   case IRLiteral(tid: Int, s: String) extends IRTerminal(tid)
   case IRClass(tid: Int, s: String) extends IRTerminal(tid)
 
-final case class IRNonterminal(id: Int, name: String)
+// `comment` is the cross-format doc-comment round-trip field (ADR D39) — populated from
+// `Rule.doc` when the front end explicitly opts in (`Lr.withDocComments`, never `Lr.parseWith`/
+// `parse` themselves); omitted from JSON when absent, same convention as `label`/`predicate`.
+final case class IRNonterminal(id: Int, name: String, comment: Option[String] = None)
 
 // A right-hand-side symbol reference: into the nonterminal table or the
 // terminal table, with an optional `name:` field (D28).
@@ -257,8 +260,8 @@ object IR:
     val ntSet: Set[String] = ntNames.toSet
     val ntIdMap: Map[String, Int] = ntNames.zipWithIndex.toMap
     def ntId(n: String): Int = ntIdMap.getOrElse(n, -1)
-    val nonterminals: Vector[IRNonterminal] = ntNames.zipWithIndex.map { case (n, i) =>
-      IRNonterminal(i, n)
+    val nonterminals: Vector[IRNonterminal] = rules.zipWithIndex.map { case (r, i) =>
+      IRNonterminal(i, r.name, r.doc)
     }
     val startSymbol: String = ntNames.headOption.getOrElse("")
 
@@ -556,7 +559,10 @@ object IR:
       )
 
     def ntJson(n: IRNonterminal): Json =
-      Json.JObject(Vector("id" -> Json.JInt(n.id), "name" -> Json.JString(n.name)))
+      val commentEntry = n.comment.map(c => "comment" -> Json.JString(c)).toVector
+      Json.JObject(
+        Vector("id" -> Json.JInt(n.id), "name" -> Json.JString(n.name)) ++ commentEntry
+      )
 
     def terminalJson(t: IRTerminal): Json = t match
       case IRTerminal.IRLiteral(i, spelling) =>

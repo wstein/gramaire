@@ -273,7 +273,8 @@ object IRDecode:
       o <- obj(j)
       id <- field(o, "id").flatMap(int)
       name <- field(o, "name").flatMap(str)
-    yield IRNonterminal(id, name)
+      comment <- optStr(o, "comment")
+    yield IRNonterminal(id, name, comment)
 
   private def decodeRule(j: Json): Either[String, IRRule] =
     for
