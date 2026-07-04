@@ -25,6 +25,10 @@
   --rr-term-fill: var(--bg);
   --rr-term-stroke: var(--accent);
   --rr-nonterm-fill: var(--bg-1);
+  /* The railroad's `{% %}` action badge — reuses tokens.css's own --t-action hue, the same one
+     the Notebook's Precedence badge uses, so "this represents an action" reads consistently. */
+  --rr-action-fill: var(--bg);
+  --rr-action-stroke: var(--t-action);
 }
 
 .lab__toolbar {

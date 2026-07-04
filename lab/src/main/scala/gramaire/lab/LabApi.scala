@@ -402,7 +402,12 @@ object LabApi:
     // list rule, not gramaire fmt's native loop shape).
     val nts = Table.nontermSet(grammar)
     val railroad = grammar.rules.map { r =>
-      val prod = Railroad.Production(r.name, r.alts.map(_.syms.map(s => toDiaSym(nts, s))))
+      val prod = Railroad.Production(
+        r.name,
+        r.alts.map(alt =>
+          Railroad.Alt(alt.syms.map(s => toDiaSym(nts, s)), alt.action.map(BackendJs.unwrapBinder))
+        )
+      )
       r.name -> Railroad.renderSvg(prod, themed = true)
     }.toMap
 
