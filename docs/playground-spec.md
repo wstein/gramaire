@@ -676,3 +676,55 @@ respected, monospace for all grammar / CLI text (branding).
 - **Shareability:** a non-trivial grammar + input fits in a URL under 8 KB.
 - **"Aha" rate:** a first-time user can see _why_ an ambiguous grammar is
   ambiguous (two trees) without reading the docs.
+
+---
+
+## 9. Real-world limitations
+
+Every Engine choice has a genuine, demonstrable failure mode — not a
+hypothetical one. The Lab's example picker (`site/src/lab/examples.ts`)
+carries two `examples/*.grmk.md` fixtures specifically because they each
+need one Engine and genuinely fail under another, not because any Engine is
+generally "better."
+
+- **`Dangling else (needs ALL(*))`** (`examples/dangling-else.grmk.md`) — the
+  classic dangling-else ambiguity (`if c then if c then s else s`): a real,
+  unresolved shift/reduce conflict under **every** LR method (Canonical,
+  LALR, IELR alike — `gramark explain-conflict` calls it "genuine," not an
+  LALR artifact). `Output`/`Parse tree`/`Evaluate` can't build at all under
+  `lr`. `ll-star` still produces a parse — declaration order picks which one.
+
+  **A sharper finding surfaced while building this fixture, worth stating
+  plainly:** Gramark's `Ll.parseTraced` does not backtrack once a decision
+  commits (`AtnSim.predict` picks once per decision; `None`/a wrong commit
+  propagates monotonically — see `docs/all-star-port-plan.md`'s own design
+  note on this). For a self-embedding ambiguous construction like
+  dangling-else, that means **declaration order can make the difference
+  between ALL(\*) finding a real, derivable parse and rejecting a string
+  that a GLR forest proves is genuinely parseable** — not merely which of
+  several valid parses it prefers, an outright false rejection. Concretely:
+  the fixture's two `Stmt` alternatives (`if c then Stmt` and
+  `if c then Stmt else Stmt`) must be declared in exactly that order for
+  `"if c then if c then s else s"` to be accepted; declaring the
+  `else`-taking alternative first makes ALL(\*) commit to it at both the
+  outer and inner decision greedily, consuming the input's one `else` at
+  the wrong level and rejecting a string that does have a valid derivation.
+  This is a real, currently-unaddressed limitation of the SLL-only
+  prediction Gramark ports (`docs/all-star-port-plan.md`'s own "Phase 1 ✅
+  partial" — no full-context re-simulation fallback exists yet), not a
+  hypothetical edge case; anyone hand-writing a self-embedding ambiguous
+  grammar for `ll-star` should expect alternative order to matter for more
+  than just which parse wins.
+
+- **`LALR artifact (needs Canonical/IELR)`**
+  (`examples/lalr-artifact.grmk.md`) — the classic LR(1)-but-not-LALR(1)
+  grammar (`S : a A d | b B d | a B e | b A e`, `A : c`, `B : c`). The
+  language is completely unambiguous (one parse per string) and Canonical
+  LR(1) proves it: zero conflicts. LALR(1) merges the two states reached
+  after matching `c` (one via `A`, one via `B`) because they share the same
+  core, losing the lookahead precision that told them apart (`d` after
+  `A`-`c`, `e` after `B`-`c`) — `gramark explain-conflict` calls this an
+  "LALR artifact," 2 conflicts under LALR(1) that both Canonical LR(1) and
+  IELR(1) resolve cleanly. Pick LALR in the Engine picker on this example
+  and the build genuinely fails; pick Canonical or IELR and it doesn't —
+  the language never changed, only the automaton's precision did.

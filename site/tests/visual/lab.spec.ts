@@ -1014,3 +1014,58 @@ test("a normal-length trace/llTrace never shows the truncated note, LR or ALL(*)
   await page.click('button[role="tab"]:has-text("Walk")');
   await expect(page.locator(".lab__truncated-note")).toHaveCount(0);
 });
+
+test("the Dangling else example genuinely needs ALL(*) — every LR method rejects it", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+
+  await page.getByLabel("Example").selectOption("Dangling else (needs ALL(*))");
+  // ll-star is the default Engine, so this already demonstrates the point on load: a real,
+  // unresolved shift/reduce conflict under every LR method still builds and parses under ALL(*).
+  await expect(page.locator(".lab__status")).toHaveText("ok", {
+    timeout: 5000,
+  });
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted");
+  await expect(page.locator(".lab__statusbar-warnings")).toContainText(
+    "1 warning",
+  );
+
+  // Switching to any LR/GLR method, the same conflict is now a hard build failure — not a
+  // downgraded warning — because it's genuine, not an LALR-specific precision artifact.
+  for (const method of ["Canonical", "LALR", "IELR"]) {
+    await page.getByLabel("Engine").selectOption(method);
+    await expect(page.locator(".lab__status")).toHaveText("errors", {
+      timeout: 5000,
+    });
+  }
+});
+
+test("the LALR artifact example builds under Canonical/IELR, conflicts only under LALR", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+
+  await page
+    .getByLabel("Example")
+    .selectOption("LALR artifact (needs Canonical/IELR)");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  await page.getByLabel("Engine").selectOption("Canonical");
+  await expect(page.locator(".lab__status")).toHaveText("ok", {
+    timeout: 5000,
+  });
+  await page.getByLabel("Engine").selectOption("IELR");
+  await expect(page.locator(".lab__status")).toHaveText("ok", {
+    timeout: 5000,
+  });
+
+  // LALR alone reports a conflict — the language is genuinely LR(1) (Canonical/IELR just proved
+  // it), so this is a false positive from LALR's own state-merging, not real ambiguity.
+  await page.getByLabel("Engine").selectOption("LALR");
+  await expect(page.locator(".lab__status")).toHaveText("errors", {
+    timeout: 5000,
+  });
+});
