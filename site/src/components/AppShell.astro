@@ -14,7 +14,7 @@
 // as the slotted `tools` content.
 import Search from "@astrojs/starlight/components/Search.astro";
 
-type NavId = "home" | "tutorial" | "docs" | "lab";
+type NavId = "home" | "tutorial" | "docs" | "lab" | "notebook";
 
 // Auto-detect from the URL rather than requiring every caller (Landing,
 // every Starlight page) to pass it explicitly — this component is also
@@ -38,17 +38,18 @@ function detectActive(pathname: string, base: string): NavId | null {
   if (/^\/tutorials(\/|$)/.test(path)) return "tutorial";
   if (/^\/(docs|specs|brand)(\/|$)/.test(path)) return "docs";
   if (/^\/lab(\/|$)/.test(path)) return "lab";
+  if (/^\/notebook(\/|$)/.test(path)) return "notebook";
   return null;
 }
 const active = detectActive(Astro.url.pathname, import.meta.env.BASE_URL);
 
-// Pagefind indexes rendered page content, and the Lab is an interactive
-// tool with no indexable content of its own (its "content" is whatever
-// grammar/input the visitor is currently typing) — a search box there
-// invites a query that can never return a real result, which read as
+// Pagefind indexes rendered page content, and the Lab/Notebook are both
+// interactive tools with no indexable content of their own (their "content"
+// is whatever grammar/input the visitor is currently typing) — a search box
+// there invites a query that can never return a real result, which read as
 // broken/confusing rather than merely unhelpful. Every other section has
 // real Pagefind-indexed content behind it.
-const showSearch = active !== "lab";
+const showSearch = active !== "lab" && active !== "notebook";
 ---
 
 <gramark-topbar active={active} base={import.meta.env.BASE_URL}>

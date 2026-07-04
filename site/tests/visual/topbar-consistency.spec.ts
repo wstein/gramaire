@@ -273,3 +273,27 @@ test("the Lab has no search box, and no orphaned divider in its place", async ({
     "the brand/search divider should be hidden when there's no search box",
   ).toBe(true);
 });
+
+// Regression: before AppShell.astro's detectActive recognized "/notebook", the Notebook resolved
+// to no active nav section at all — meaning showSearch's `active !== "lab"` check saw a null
+// active and defaulted to showing search, on a page just as content-free (Pagefind-wise) as the
+// Lab.
+test("the Notebook highlights itself in the nav and has no search box", async ({
+  page,
+}) => {
+  await page.goto("/notebook/");
+  const topbar = page.locator("gramark-topbar");
+  await topbar.waitFor();
+  const info = await topbar.evaluate((el) => {
+    const current = el.shadowRoot.querySelector('a[aria-current="page"]');
+    const slot = el.shadowRoot.querySelector('slot[name="tools"]');
+    return {
+      currentLabel: current?.textContent?.trim() ?? null,
+      assignedCount: slot.assignedElements().length,
+    };
+  });
+  expect(info.currentLabel).toBe("Notebook");
+  expect(info.assignedCount, "Notebook should have no slotted search box").toBe(
+    0,
+  );
+});
