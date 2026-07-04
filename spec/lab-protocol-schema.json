@@ -50,7 +50,8 @@
         "analysis",
         "evaluatorJs",
         "atn",
-        "allStarLowering"
+        "allStarLowering",
+        "fences"
       ],
       "additionalProperties": false,
       "properties": {
@@ -99,7 +100,33 @@
         "allStarLowering": {
           "oneOf": [{ "$ref": "#/$defs/allStarLowering" }, { "type": "null" }],
           "description": "The Lowered Core tab's ALL(*)-only section: the same precedence-stratification and left-recursion-elimination rewrite Ll.parse/Ll.parseTraced run before lowering to an ATN, independent of which Engine/strategy the request selected (same reasoning as `productions`/`analysis`). Present whenever `productions` is; null only when the grammar notation itself failed to parse."
+        },
+        "fences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fenceInfo" },
+          "description": "The Live Document notebook's per-fence role + line span, in document order. Computed directly from LabRequest.source's own raw text, independent of whether the grammar notation parses (Lr.classifyFenceContent's \"case is law\" classification is pure content shape) — a broken grammar still shows correct cell boundaries/role badges to fix it by. Empty for a fence-free native .gram source."
         }
+      }
+    },
+    "fenceInfo": {
+      "title": "FenceInfo",
+      "description": "One ```gramaire fence's role and 1-based, inclusive line span in LabRequest.source's own raw text — the opening ```gramaire marker line through the closing ``` marker line.",
+      "type": "object",
+      "required": ["index", "kind", "nonterminal", "startLine", "endLine"],
+      "additionalProperties": false,
+      "properties": {
+        "index": { "type": "integer", "minimum": 0, "description": "0-based, in document order." },
+        "kind": {
+          "type": "string",
+          "enum": ["rule", "tokens", "settings", "precedence"],
+          "description": "Lr.classifyFenceContent's \"case is law\" content-shape classification."
+        },
+        "nonterminal": {
+          "type": ["string", "null"],
+          "description": "The rule this fence defines — its first non-blank line's leading token — when `kind` is \"rule\"; null for every other kind."
+        },
+        "startLine": { "type": "integer", "minimum": 1 },
+        "endLine": { "type": "integer", "minimum": 1 }
       }
     },
     "srcSpan": {

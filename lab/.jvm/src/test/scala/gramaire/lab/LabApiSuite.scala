@@ -4,7 +4,7 @@ package gramaire.lab
 // core/.jvm/src/test/scala/gramaire/ConformanceSuite.scala's own convention:
 // sbt-crossproject's `.jvm/src/test` is a platform-specific supplementary
 // source dir that coexists with CrossType.Pure's shared `src/test` tree.
-import gramaire.{Json, Method}
+import gramaire.{Json, Lr, Method}
 
 class LabApiSuite extends munit.FunSuite:
   private def readFile(path: String): String =
@@ -225,6 +225,40 @@ class LabApiSuite extends munit.FunSuite:
         // Expr -> Term (the third alt) has no {% %} action
         assertEquals(ps(2).rhs, Vector("Term"))
         assertEquals(ps(2).action, None)
+  }
+
+  test("evaluate: fences reports every ```gramaire fence's role and 1-based line span") {
+    val resp = LabApi.evaluate(LabRequest(calcMd, None, Method.Canonical))
+    assert(resp.buildOk)
+    // examples/calc.gram.md's own ```gramaire fences, in document order: Settings (6-9), Tokens
+    // (13-16), Expr/Term/Factor rules, Precedence (60-63). "## Error messages" uses a ```text
+    // fence, never ```gramaire, so it's correctly absent here.
+    assertEquals(resp.fences.map(_.index), Vector(0, 1, 2, 3, 4, 5))
+    assertEquals(
+      resp.fences.map(f => (f.kind, f.nonterminal, f.startLine, f.endLine)),
+      Vector(
+        ("settings", None, 6, 9),
+        ("tokens", None, 13, 16),
+        ("rule", Some("Expr"), 22, 27),
+        ("rule", Some("Term"), 35, 40),
+        ("rule", Some("Factor"), 48, 52),
+        ("precedence", None, 60, 63)
+      )
+    )
+  }
+
+  test("evaluate: fences is populated even when the grammar notation fails to parse") {
+    val resp = LabApi.evaluate(LabRequest(malformedMd, None, Method.Canonical))
+    assert(!resp.buildOk)
+    // `malformedMd`'s one ```gramaire fence ("Foo Bar", no `NL :`) fails Lr.parseWith, but its
+    // fence role is pure content-shape classification — independent of the grammar notation
+    // parsing at all — so the Live Document notebook still has a cell to show the error against.
+    assertEquals(resp.fences.map(f => (f.kind, f.nonterminal)), Vector(("rule", Some("Foo"))))
+  }
+
+  test("evaluate: fences is empty for a fence-free native .gram source") {
+    val resp = LabApi.evaluate(LabRequest(Lr.strip(calcMd), None, Method.Canonical))
+    assertEquals(resp.fences, Vector.empty)
   }
 
   test("evaluate: forest is populated for accepted input, unambiguous grammars yield one parse") {

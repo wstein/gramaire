@@ -123,6 +123,10 @@ export interface LabResponse {
    * The Lowered Core tab's ALL(*)-only section: the same precedence-stratification and left-recursion-elimination rewrite Ll.parse/Ll.parseTraced run before lowering to an ATN, independent of which Engine/strategy the request selected (same reasoning as `productions`/`analysis`). Present whenever `productions` is; null only when the grammar notation itself failed to parse.
    */
   allStarLowering: AllStarLowering | null;
+  /**
+   * The Live Document notebook's per-fence role + line span, in document order. Computed directly from LabRequest.source's own raw text, independent of whether the grammar notation parses (Lr.classifyFenceContent's "case is law" classification is pure content shape) — a broken grammar still shows correct cell boundaries/role badges to fix it by. Empty for a fence-free native .gram source.
+   */
+  fences: FenceInfo[];
 }
 /**
  * One structured diagnostic: a severity, which pipeline stage raised it, a message, an optional source span, free-form note/help lines, and a plain-text rendering (the same caret-framed text the CLI prints) as a display fallback.
@@ -321,6 +325,25 @@ export interface AmbiguityInfo {
 export interface AllStarLowering {
   afterPrecedence: ProductionInfo[];
   afterLeftRecursion: ProductionInfo[];
+}
+/**
+ * One ```gramaire fence's role and 1-based, inclusive line span in LabRequest.source's own raw text — the opening ```gramaire marker line through the closing ``` marker line.
+ */
+export interface FenceInfo {
+  /**
+   * 0-based, in document order.
+   */
+  index: number;
+  /**
+   * Lr.classifyFenceContent's "case is law" content-shape classification.
+   */
+  kind: "rule" | "tokens" | "settings" | "precedence";
+  /**
+   * The rule this fence defines — its first non-blank line's leading token — when `kind` is "rule"; null for every other kind.
+   */
+  nonterminal: string | null;
+  startLine: number;
+  endLine: number;
 }
 
 export const LAB_PROTOCOL_VERSION = 1;
