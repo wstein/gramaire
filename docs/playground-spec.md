@@ -714,7 +714,15 @@ alike — uses the same click-to-edit interaction**: by default it shows a
 rendered, read-only view (a rule cell: its railroad diagram/FIRST-FOLLOW from
 `LabResponse.analysis`; a Tokens/Settings/Precedence cell, which has no
 railroad equivalent: its source in a plain read-only `<pre>`; a prose block:
-rendered markdown); clicking it reveals a `CodeMirrorEditor`
+rendered markdown). An alternative with a `{% %}` action gets a small violet
+"ƒ" badge annexed to the end of its own row in the railroad diagram
+(`Railroad.Alt.action`, rendered by `Railroad.renderSvg` — a native SVG
+`<title>` gives a hover tooltip with the action source, so no frontend JS is
+needed); the CLI's `gramark fmt --diagrams=sidecar` output is unaffected
+(`parseProduction` never populates `action`, so committed sidecar SVGs stay
+byte-identical — the badge is a live-engine-only enhancement, and the Lab's
+own Grammar tab gets it too, since both share the same `analysisOf` call
+path). Clicking a rendered cell reveals a `CodeMirrorEditor`
 (`site/src/lab/liveDoc/CodeMirrorEditor.tsx`, plain text — no `.grmk` language
 mode yet) or, for prose, a raw-markdown `<textarea>`; blurring commits the
 edit into the shared `blocks` signal (once, not per keystroke) and collapses

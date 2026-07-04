@@ -5,18 +5,20 @@ package gramark
 // cross-check it, not share its code) — verified here against the same
 // hand-computed classic example the compiler core's own TableSuite uses.
 class AnalyzeSuite extends munit.FunSuite:
-  import Railroad.{DiaSym, Production}
+  import Railroad.{Alt, DiaSym, Production}
 
   // Expr : Term '+' Expr | Term
   // Term : NUMBER
   private val exprProd = Production(
     "Expr",
     Vector(
-      Vector(DiaSym("Term", term = false), DiaSym("+", term = true), DiaSym("Expr", term = false)),
-      Vector(DiaSym("Term", term = false))
+      Alt(
+        Vector(DiaSym("Term", term = false), DiaSym("+", term = true), DiaSym("Expr", term = false))
+      ),
+      Alt(Vector(DiaSym("Term", term = false)))
     )
   )
-  private val termProd = Production("Term", Vector(Vector(DiaSym("NUMBER", term = true))))
+  private val termProd = Production("Term", Vector(Alt(Vector(DiaSym("NUMBER", term = true)))))
 
   test("FIRST: a nonterminal's FIRST is the FIRST of its alternatives' first symbols") {
     val a = Analyze.analyzeGrammar(Vector(exprProd, termProd))

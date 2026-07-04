@@ -21,7 +21,14 @@ object Railroad:
   // it is a terminal (rounded "stadium") or a nonterminal (rectangle).
   final case class DiaSym(label: String, term: Boolean)
 
-  final case class Production(name: String, alts: Vector[Vector[DiaSym]])
+  // `action` is the alternative's `{% %}` source (already unwrapped of its synthesized binder),
+  // when the caller has one to show — `None` for every CLI/sidecar-parsed Production (see
+  // `parseProduction`, which strips actions before tokenizing and never repopulates this), so
+  // committed sidecar SVGs stay byte-identical. Only the live-engine path (`LabApi.analysisOf`)
+  // ever sets it, rendered as a small hoverable badge by `renderSvg`.
+  final case class Alt(syms: Vector[DiaSym], action: Option[String] = None)
+
+  final case class Production(name: String, alts: Vector[Alt])
 
   // ---- parse an `lr` block's payload into a Production ----------------------
 
@@ -83,7 +90,7 @@ object Railroad:
           if acc.isEmpty then acc
           else acc.updated(acc.length - 1, acc.last :+ DiaSym(v, term = !nonterminals.contains(v)))
     }
-    Production(name, alts)
+    Production(name, alts.map(Alt(_)))
 
   // ---- geometry ---------------------------------------------------------
 
@@ -98,6 +105,10 @@ object Railroad:
   private val BRANCH = 22
   private val MINW = 26
   private val CAPR = 3
+  private val ACTIONR = 9
+  private val ACTIONGAP = GAP / 2
+  private val ACTIONGLYPH =
+    "ƒ" // ƒ, reads as "function" — same single-glyph convention as a `+`/`-` terminal circle
 
   private def fmtNum(d: Double): String =
     if d == d.toLong.toDouble then d.toLong.toString else d.toString
@@ -118,23 +129,28 @@ object Railroad:
     ".rr-track{fill:none;stroke:#6B7280;stroke-width:2}" +
       ".rr-term{fill:#fff;stroke:#15B879;stroke-width:2}" +
       ".rr-nonterm{fill:#F5F6F3;stroke:#16181D;stroke-width:2}" +
+      ".rr-action{fill:#fff;stroke:#8B5CF6;stroke-width:2}" +
       s".rr-text{fill:#16181D;font:$font}" +
+      s".rr-action-text{fill:#8B5CF6;font:$font}" +
       ".rr-cap{fill:#16181D}"
   private val styleThemed =
     ".rr-track{fill:none;stroke:var(--rr-track,#6B7280);stroke-width:2}" +
       ".rr-term{fill:var(--rr-term-fill,#fff);stroke:var(--rr-term-stroke,#15B879);stroke-width:2}" +
       ".rr-nonterm{fill:var(--rr-nonterm-fill,#F5F6F3);stroke:var(--rr-ink,#16181D);stroke-width:2}" +
+      ".rr-action{fill:var(--rr-action-fill,#fff);stroke:var(--rr-action-stroke,#8B5CF6);stroke-width:2}" +
       s".rr-text{fill:var(--rr-ink,#16181D);font:$font}" +
+      s".rr-action-text{fill:var(--rr-action-stroke,#8B5CF6);font:$font}" +
       ".rr-cap{fill:var(--rr-ink,#16181D)}"
 
   // ---- SVG renderer -------------------------------------------------------
 
   def renderSvg(prod: Production, themed: Boolean = false): String =
-    val alts = if prod.alts.nonEmpty then prod.alts else Vector(Vector.empty)
-    def altWidth(a: Vector[DiaSym]): Int =
-      a.zipWithIndex.foldLeft(0) { case (w, (s, idx)) =>
+    val alts = if prod.alts.nonEmpty then prod.alts else Vector(Alt(Vector.empty))
+    def altWidth(a: Alt): Int =
+      val symsW = a.syms.zipWithIndex.foldLeft(0) { case (w, (s, idx)) =>
         w + boxWidth(s.label) + (if idx > 0 then GAP else 0)
       }
+      symsW + (if a.action.isDefined then ACTIONGAP + 2 * ACTIONR else 0)
     val contentW = math.max(MINW, alts.map(altWidth).max)
 
     val startX = MARGIN + STUB + BRANCH
@@ -174,7 +190,7 @@ object Railroad:
           )} V${fmtNum(yi - R)} Q$forkX ${fmtNum(yi)} ${forkX + R} ${fmtNum(yi)} H$startX"/>"""
 
       var cx = startX
-      alt.zipWithIndex.foreach { case (sym, j) =>
+      alt.syms.zipWithIndex.foreach { case (sym, j) =>
         if j > 0 then
           p += s"""<path class="rr-track" d="M$cx ${fmtNum(yi)} H${cx + GAP}"/>"""
           cx += GAP
@@ -188,6 +204,21 @@ object Railroad:
             yi
           )}" text-anchor="middle" dominant-baseline="central">${escXml(sym.label)}</text>"""
         cx += bw
+      }
+
+      // A small "ƒ" badge annexed to the end of the alternative's own row when it carries a
+      // `{% %}` action — a `<title>` gives a native hover tooltip with the action source (no
+      // frontend JS needed: the caller injects this SVG string as raw markup).
+      alt.action.foreach { action =>
+        cx += ACTIONGAP
+        val acx = cx + ACTIONR
+        p += s"""<circle class="rr-action" cx="${fmtNum(acx)}" cy="${fmtNum(
+            yi
+          )}" r="$ACTIONR"><title>${escXml(action)}</title></circle>"""
+        p += s"""<text class="rr-action-text" x="${fmtNum(acx)}" y="${fmtNum(
+            yi
+          )}" text-anchor="middle" dominant-baseline="central">$ACTIONGLYPH</text>"""
+        cx += 2 * ACTIONR
       }
 
       if cx < joinStartX then
@@ -219,7 +250,7 @@ object Railroad:
   // The body of a ```mermaid fence: a left-to-right flowchart with one path
   // per alternative, terminals as stadiums and nonterminals as rectangles.
   def renderMermaid(prod: Production): String =
-    val alts = if prod.alts.nonEmpty then prod.alts else Vector(Vector.empty)
+    val alts = if prod.alts.nonEmpty then prod.alts else Vector(Alt(Vector.empty))
     val lines = Vector.newBuilder[String]
     lines += "flowchart LR"
     lines += "  classDef term fill:#ffffff,stroke:#15B879,color:#16181D;"
@@ -227,10 +258,10 @@ object Railroad:
     lines += "  s(( ))"
     lines += "  e(( ))"
     alts.zipWithIndex.foreach { case (alt, i) =>
-      if alt.isEmpty then lines += "  s --> e"
+      if alt.syms.isEmpty then lines += "  s --> e"
       else
         val ids = Vector.newBuilder[String]
-        alt.zipWithIndex.foreach { case (sym, j) =>
+        alt.syms.zipWithIndex.foreach { case (sym, j) =>
           val id = s"n${i}_$j"
           ids += id
           val shape = if sym.term then s"([${mmLabel(sym.label)}])" else s"[${mmLabel(sym.label)}]"

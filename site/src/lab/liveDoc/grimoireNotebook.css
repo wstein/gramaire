@@ -29,6 +29,10 @@
   --rr-term-fill: var(--bg);
   --rr-term-stroke: var(--accent);
   --rr-nonterm-fill: var(--bg-1);
+  /* The railroad's `{% %}` action badge — reuses the Precedence badge's own "this is an action"
+     color (.grimoire__badge--precedence below) rather than inventing a new hue. */
+  --rr-action-fill: var(--bg);
+  --rr-action-stroke: var(--t-action);
 }
 
 .grimoire__topbar {
