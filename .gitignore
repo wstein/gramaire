@@ -31,6 +31,11 @@ site/.astro/
 # src/ — see worker.ts's own comment for why a static src/ import broke it.
 site/public/lab/engine.mjs
 
+# The homepage's build-time-prerendered Notebook response — generated from the above engine
+# bundle by `npm run prerender:notebook` (site/scripts/prerender-notebook.mjs), never committed
+# for the same reason: it's derived output, not source.
+site/src/lab/liveDoc/notebookPrerender.generated.json
+
 # Playwright (site/ visual tests) — reports and diffs are local-only;
 # snapshot baselines under tests/visual/**/*-snapshots/ ARE committed
 site/test-results/

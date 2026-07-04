@@ -1,76 +1,65 @@
 import { test, expect } from "@playwright/test";
 
-// `client:visible` hydrates HomeNotebookEmbed only once its own dynamic import resolves after
-// the IntersectionObserver fires — scrolling the button into view doesn't itself guarantee the
-// click handler is already attached, so give hydration a moment before clicking (same reasoning
-// as every other client:visible/client:idle lazy-load test in this suite).
-async function clickNotebookCta(page: import("@playwright/test").Page) {
-  const cta = page.locator(".home-notebook-cta");
-  await cta.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(500);
-  await cta.click();
-}
+// The homepage's embedded Gramaire Notebook preview (index.astro + GramaireNotebookIsland.tsx) —
+// build-time-prerendered: site/scripts/prerender-notebook.mjs precomputes a real LabResponse for
+// the calc-js example against the real engine BEFORE `astro build` runs, and index.astro passes
+// it as GramaireNotebookIsland's `initial` prop, so the static HTML already contains real cells/
+// badges/railroad diagrams — no mockup, no loading placeholder, no click gate. Requires
+// `npm run build:engine && npm run prerender:notebook` to have both run first.
 
-// The homepage showcase's live affordance (HomeNotebookEmbed.tsx) — a click-to-reveal embed of
-// the REAL Gramaire Notebook (same GramaireNotebookIsland component the standalone /notebook
-// page mounts), not a scaled-down reimplementation. Default (unclicked) state is a prerendered
-// static preview (the static code/diagram above it) plus a plain button; clicking it dynamically
-// imports GramaireNotebookIsland for the first time, which is what actually constructs its
-// Worker and loads the Scala.js engine bundle. Requires `npm run build:engine` to have run first.
-
-test("the homepage shows a prerendered static preview and loads no worker/engine bundle before the Notebook button is clicked", async ({
-  page,
+test("the homepage's static HTML already contains real Notebook cells, before any client JS runs", async ({
+  browser,
 }) => {
-  const requests: string[] = [];
-  page.on("request", (req) => {
-    if (/worker|engine/.test(req.url())) requests.push(req.url());
-  });
+  // A fresh context with JS disabled is the strongest proof available that content came from
+  // build-time SSR, not a script that ran after the page loaded.
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  await page.goto("/");
 
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".showcase__source")).toBeVisible();
-  await expect(page.locator(".showcase__diagram-svg img")).toBeVisible();
-  await expect(page.locator(".home-notebook-cta")).toBeVisible();
-  await expect(page.locator(".gramaire")).toHaveCount(0);
-
-  await page.waitForTimeout(500); // let client:visible hydration settle
-  expect(
-    requests,
-    `expected no worker/engine request before interaction, got: ${requests.join(", ")}`,
-  ).toEqual([]);
-});
-
-test("clicking the Notebook button mounts the real Gramaire Notebook and only then loads the engine", async ({
-  page,
-}) => {
-  const requests: string[] = [];
-  page.on("request", (req) => {
-    if (/worker|engine/.test(req.url())) requests.push(req.url());
-  });
-
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await clickNotebookCta(page);
-
-  await expect(page.locator(".gramaire__cell").first()).toBeVisible({
-    timeout: 5000,
-  });
   const badges = await page.locator(".gramaire__badge").allTextContents();
   expect(badges).toEqual(["Settings", "Tokens", "Rule", "Rule", "Rule"]);
 
+  const names = await page.locator(".gramaire__cell-name").allTextContents();
+  expect(names).toEqual(["Expr", "Term", "Factor"]);
+
+  await expect(page.locator(".gramaire__output-railroad svg")).toHaveCount(3);
+  await context.close();
+});
+
+test("the homepage loads no worker/engine bundle merely from being viewed — only once a cell is actually edited", async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  page.on("request", (req) => {
+    if (/worker|engine/.test(req.url())) requests.push(req.url());
+  });
+
+  await page.goto("/", { waitUntil: "networkidle" });
+  await expect(page.locator(".gramaire__cell").first()).toBeVisible();
   expect(
-    requests.length,
-    "expected at least one worker/engine request once the Notebook is live",
-  ).toBeGreaterThan(0);
+    requests,
+    `expected no worker/engine request before an edit, got: ${requests.join(", ")}`,
+  ).toEqual([]);
+
+  const ruleCell = page
+    .locator(".gramaire__cell")
+    .filter({ has: page.locator(".gramaire__badge--rule") })
+    .first();
+  await ruleCell.locator(".gramaire__cell-rendered").click();
+  await expect(ruleCell.locator(".cm-content")).toBeVisible();
+  await page.locator(".gramaire__statusbar").click(); // blur, commits, triggers a real evaluate
+
+  await expect
+    .poll(() => requests.length, {
+      message: "expected a worker/engine request once a cell edit committed",
+    })
+    .toBeGreaterThan(0);
 });
 
 test("a rule cell inside the embedded Notebook is clickable, same as the standalone page", async ({
   page,
 }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await clickNotebookCta(page);
-  await expect(page.locator(".gramaire__cell").first()).toBeVisible({
-    timeout: 5000,
-  });
-
   const ruleCell = page
     .locator(".gramaire__cell")
     .filter({ has: page.locator(".gramaire__badge--rule") })
@@ -81,15 +70,6 @@ test("a rule cell inside the embedded Notebook is clickable, same as the standal
 
   await ruleCell.locator(".gramaire__cell-rendered").click();
   await expect(ruleCell.locator(".cm-content")).toBeVisible();
-});
-
-test("the showcase code panel shows real, working syntax (not the mock's fictional bare-identifier actions)", async ({
-  page,
-}) => {
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  const code = await page.locator(".showcase__source").textContent();
-  expect(code).toContain("(c) => c.expr + c.term");
-  expect(code).not.toContain("{% Add %}");
 });
 
 test("the showcase header links to the standalone Notebook page", async ({

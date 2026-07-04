@@ -224,6 +224,12 @@ jobs:
         # same behavioral proof the atn-ts gate above gives its backend.
         run: npm run check:scala-peg-parity
 
+      - name: Prerender the homepage's Notebook preview
+        # Precomputes a real LabResponse for the calc-js example against the engine bundle just
+        # built above (site/scripts/prerender-notebook.mjs) — index.astro bakes it into the
+        # static HTML as GramaireNotebookIsland's `initial` prop. Must run before `npm run build`.
+        run: npm run prerender:notebook
+
       - name: Build
         run: npm run build
 

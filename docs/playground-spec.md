@@ -934,37 +934,61 @@ exposed to the JS engine yet — omitted rather than shipped as a non-functional
 button), and a real `.gram` CodeMirror language mode (plain text for now).
 
 **Homepage Notebook embed (shipped, `divergence:` — closes an increment
-`index.astro`'s own comment used to defer).** The showcase panel's static
-code `<pre>` and pre-generated SVG diagram stay exactly as they were — a
-legitimate, zero-JS prerendered preview of the calc-js `Expr` rule — but a
-"▶ Try the live Notebook" button now sits beneath them
-(`HomeNotebookEmbed.tsx`, `site/src/lab/HomeNotebookEmbed.tsx`). Clicking it
-mounts the REAL `GramaireNotebookIsland` (the same component
-`src/pages/notebook.astro` mounts standalone), not a scaled-down
-reimplementation: the same click-to-edit cells, railroad diagrams, and
-`createLabWorker` lifecycle, evaluating `NOTEBOOK_DEFAULT_SOURCE` (calc-js)
-verbatim — never `design/`'s stand-in Earley/`eval()` mock engine (see
-`design/README.md`'s gold-standard boundary — that engine is reference-only,
-never ported, never imported from site code).
+`index.astro`'s own comment used to defer).** The showcase panel embeds the
+REAL `GramaireNotebookIsland` (the same component `src/pages/notebook.astro`
+mounts standalone) directly — no click gate, no static code/diagram
+placeholder, no mockup. The static HTML already contains real cells/badges/
+railroad diagrams for the calc-js example, because the response driving them
+is computed at **build time**, not in the visitor's browser.
 
-Lazy by a dynamic `import()`, not a bolted-on `IntersectionObserver`:
-`GramaireNotebookIsland` builds its `createLabWorker` at module scope and
-calls `evaluate()` unconditionally from a mount effect — no prop exists to
-gate it — so the only lever for "don't cost anything until relevant" is
-deferring the _import_ itself. `HomeNotebookEmbed` does this with
-`preact/compat`'s `lazy()`/`Suspense`, wrapped behind the button's own click
-handler: a visitor who never clicks pays nothing beyond this tiny wrapper's
-own JS, verified in `home.spec.ts` by asserting zero worker/engine network
-requests before the click, and at least one immediately after.
+`site/scripts/prerender-notebook.mjs` runs `gramaireLabEvaluate` — the exact
+same top-level function `worker.ts`'s Worker calls — directly in a plain
+Node process against the calc-js grammar, and writes the resulting
+`LabResponse` to a gitignored `notebookPrerender.generated.json`.
+`index.astro`'s frontmatter reads that file (`fs.readFileSync` off
+`process.cwd()` — **not** `import.meta.url`: verified empirically that
+during `astro build`, an `.astro` file's own `import.meta.url` resolves to
+an Astro-internal scratch path, not its real source location) and passes it
+as `GramaireNotebookIsland`'s new `initial` prop.
 
-Also fixed in the same change: the showcase's own code sample was never
+This is deliberately a _standalone script_, not an `import` of
+`public/lab/engine.mjs` inside `index.astro`'s own frontmatter: `worker.ts`'s
+own comment documents that a _static_ import of that file once let Vite's
+minifier corrupt the linked Scala.js output, which is exactly why the Worker
+loads it via a `/* @vite-ignore */`-tagged runtime URL instead — and Astro's
+build runs through Vite too. `check-lab-parity.mjs` already proves the safe
+alternative: a plain Node script, never touched by Vite, importing the built
+engine by filesystem path. `prerender-notebook.mjs` reuses that exact
+pattern. Run via `npm run prerender:notebook`, after `build:engine` and
+before `astro build` (wired into both `ci.yml` and `deploy-docs.yml`); if
+the generated file is missing (e.g. a dev skipped the step), `index.astro`
+degrades gracefully to `initial={undefined}` — `GramaireNotebookIsland`
+then behaves exactly as `/notebook` always has (loading placeholder,
+evaluate-on-mount).
+
+`GramaireNotebookIsland`'s new `initial` prop is seeded synchronously on the
+component's very first call (`response.value`/`evaluation.value`/`blocks.value`
+set directly, not left to the module-level `effect` to react asynchronously)
+so Astro's build-time SSR and the client's first hydration render produce
+byte-identical output — no hydration mismatch. The mount effect skips its
+usual `scheduleEvaluate()` call when `initial` is present (re-running it
+would just reload the engine to reproduce the same response) — the engine
+only actually loads the first time a visitor commits a real edit or types
+into Try-it, same lazy-loading principle as everywhere else on this site.
+Not seeded: Try-it's own evaluated result, since that runs the grammar's
+compiled JS actions via a `Blob` + `URL.createObjectURL` + dynamic import of
+a `blob:` URL (`worker.ts`'s `runEvaluator`) — browser-only APIs, uncallable
+from the prerender script. Try-it stays lazy, filled in the first time a
+visitor actually types into it.
+
+Also fixed along the way: the showcase's old static code sample was never
 real, working syntax — `{% Add %}`/`{% Sub %}`, copied verbatim from the
 gold-standard mock's stand-in engine, are bare-identifier actions `BackendJs`
 has no support for (would reference an undefined name at runtime; see the
 earlier ƒ/λ railroad-action debate this session, rated 2/10 for exactly this
-reason). It now reads `(c) => c.expr + c.term`/`(c) => c.expr - c.term` —
-byte-identical to `examples/calc-js.gram.md`'s own `Expr` rule, and to what
-the new "try it" strip actually runs.
+reason). The embedded Notebook's own rule cells show
+`(c) => c.expr + c.term`/`(c) => c.expr - c.term` — byte-identical to
+`examples/calc-js.gram.md`'s own `Expr` rule.
 
 ---
 
