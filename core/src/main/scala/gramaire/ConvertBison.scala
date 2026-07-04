@@ -26,7 +26,7 @@ object ConvertBison:
 
   private enum Tok derives CanEqual:
     case TId(name: String) // a rule/token name, or a bare numeric argument (e.g. `%expect 3`)
-    case TStr(s: String) // 'x' — a quoted literal terminal; raw inner text, escapes intact
+    case TStr(s: String) // 'x' or "x" — a quoted literal terminal; escapes already decoded
     case TAction(s: String) // { … } — a semantic action, carried as opaque text (dropped)
     case TDirective(name: String) // %word — a declaration keyword, e.g. token/left/right/prec
     case TPercentBrace(s: String) // %{ … %} — verbatim C, never brace-nested (dropped)
@@ -67,14 +67,21 @@ object ConvertBison:
     def go(i: Int, acc: Vector[Tok]): Either[String, Vector[Tok]] =
       if i >= len then Right(acc)
       else
-        def str(j: Int, buf: StringBuilder): Either[String, Vector[Tok]] = at(j) match
+        // Decodes `\x` to the bare char `x` (dropping the backslash) as it scans, mirroring
+        // `Lr.unescape`'s own canonical model — so `TStr`'s payload is always the literal's real
+        // text, ready for `gramLit` to re-escape on render. Keeping the backslash raw here (as a
+        // first draft did) double-escapes on export: e.g. Bison's `'\''` (one apostrophe char)
+        // would render as the malformed `'\\''` instead of the correct `'\''`. Delimiter-agnostic
+        // so it serves both `'...'` and Bison's less common `"..."` literal tokens (Gramaire itself
+        // accepts either delimiter, ADR D34).
+        def str(j: Int, delim: Char, buf: StringBuilder): Either[String, Vector[Tok]] = at(j) match
           case Some('\\') =>
             at(j + 1) match
-              case Some(d) => str(j + 2, buf.append('\\').append(d))
+              case Some(d) => str(j + 2, delim, buf.append(d))
               case None    => Left("unterminated escape in quoted literal")
-          case Some('\'') => go(j + 1, acc :+ TStr(buf.toString))
-          case Some(d)    => str(j + 1, buf.append(d))
-          case None       => Left("unterminated quoted literal")
+          case Some(c) if c == delim => go(j + 1, acc :+ TStr(buf.toString))
+          case Some(d)               => str(j + 1, delim, buf.append(d))
+          case None                  => Left("unterminated quoted literal")
         def action(j: Int, depth: Int, buf: StringBuilder): Either[String, Vector[Tok]] =
           at(j) match
             case Some('{') => action(j + 1, depth + 1, buf.append('{'))
@@ -102,7 +109,8 @@ object ConvertBison:
             val e = percentBraceEnd(i + 2)
             go(math.min(e + 2, len), acc :+ TPercentBrace(slice(i + 2, e).trim))
           case Some('%')                               => directive(i + 1)
-          case Some('\'')                              => str(i + 1, StringBuilder())
+          case Some('\'')                              => str(i + 1, '\'', StringBuilder())
+          case Some('"')                               => str(i + 1, '"', StringBuilder())
           case Some('{')                               => action(i + 1, 1, StringBuilder())
           case Some(':')                               => go(i + 1, acc :+ TColon)
           case Some(';')                               => go(i + 1, acc :+ TSemi)
@@ -167,11 +175,11 @@ object ConvertBison:
       case Some('%') if at(j + 1) == Some('}') => j + 2
       case Some(_)                             => percentBraceEnd(j + 1)
       case None                                => j
-    def strEnd(j: Int): Int = at(j) match
-      case Some('\\') => strEnd(j + 2)
-      case Some('\'') => j + 1
-      case Some(_)    => strEnd(j + 1)
-      case None       => j
+    def strEnd(j: Int, delim: Char): Int = at(j) match
+      case Some('\\')            => strEnd(j + 2, delim)
+      case Some(c) if c == delim => j + 1
+      case Some(_)               => strEnd(j + 1, delim)
+      case None                  => j
     def go(i: Int, acc: Vector[Int]): Vector[Int] =
       if i >= len then acc
       else
@@ -180,7 +188,8 @@ object ConvertBison:
           case Some('/') if at(i + 1) == Some('*') => go(blockCommentEnd(i + 2), acc)
           case Some('%') if at(i + 1) == Some('{') => go(percentBraceEnd(i + 2), acc)
           case Some('%') if at(i + 1) == Some('%') => go(i + 2, acc :+ i)
-          case Some('\'')                          => go(strEnd(i + 1), acc)
+          case Some('\'')                          => go(strEnd(i + 1, '\''), acc)
+          case Some('"')                           => go(strEnd(i + 1, '"'), acc)
           case Some(_)                             => go(i + 1, acc)
           case None                                => acc
     go(0, Vector.empty)
@@ -204,21 +213,19 @@ object ConvertBison:
 
   // ── Declarations ──────────────────────────────────────────────────
 
-  // Drop a `<typeTag>` immediately following a directive, if present — Gramaire has no per-
-  // nonterminal/token value-type system, so `%type <T> …`/`%token <T> …`'s type tag is always
-  // irrelevant, not merely unrepresentable.
-  private def dropTypeTag(ts: List[Tok]): List[Tok] = ts match
-    case TLess :: tail => dropThrough(TGreater, tail)
-    case _             => ts
-
   // The plain names/literals up to the next directive/`%%`/EOF — one declaration's own argument
-  // list (`%token`/`%left`/`%right`/`%nonassoc`'s own operands).
+  // list (`%token`/`%left`/`%right`/`%nonassoc`'s own operands). A `<typeTag>` is dropped
+  // WHEREVER it appears in the list, not just once at the start — a single `%token` line may
+  // carry several typed groups (`%token <ival> NUM <sval> STR`, a common multi-type-tag idiom);
+  // Gramaire has no per-nonterminal/token value-type system, so every tag is always irrelevant,
+  // not merely unrepresentable, and must not swallow the names that follow it.
   private def argsOf(ts: List[Tok]): (Vector[String], List[Tok]) =
     def go(acc: Vector[String], rest: List[Tok]): (Vector[String], List[Tok]) = rest match
+      case TLess :: tail   => go(acc, dropThrough(TGreater, tail))
       case TId(n) :: tail  => go(acc :+ n, tail)
       case TStr(s) :: tail => go(acc :+ s"'$s'", tail)
       case _               => (acc, rest)
-    go(Vector.empty, dropTypeTag(ts))
+    go(Vector.empty, ts)
 
   private def assocOf(name: String): Option[Assoc] = name match
     case "left"                    => Some(Assoc.LeftA)

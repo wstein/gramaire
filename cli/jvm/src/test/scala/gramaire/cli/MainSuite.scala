@@ -13,6 +13,7 @@ import gramaire.{
   BackendTs,
   Grammar,
   IR,
+  Lr,
   Method,
   Rule
 }
@@ -160,6 +161,52 @@ class MainSuite extends munit.FunSuite:
     assert(Main.importResult("foo.y", "%%\nr : 'x' ;\n%%\n").isRight)
     assert(Main.importResult("foo.yy", "%%\nr : 'x' ;\n%%\n").isRight)
     assert(Main.importResult("foo.txt", "irrelevant").isLeft)
+  }
+
+  test("import: extension dispatch is case-insensitive (.G4/.Y/.YY work like .g4/.y/.yy)") {
+    assert(Main.importResult("Foo.G4", "grammar Foo; r : 'x' ;").isRight)
+    assert(Main.importResult("Foo.Y", "%%\nr : 'x' ;\n%%\n").isRight)
+    assert(Main.importResult("Foo.YY", "%%\nr : 'x' ;\n%%\n").isRight)
+  }
+
+  test("import: a `.yy` file's base name doesn't leak its extension into the grammar name") {
+    Main.importResult("my-parser.yy", "%%\nr : 'x' ;\n%%\n") match
+      case Left(e) => fail(s"should import: $e")
+      case Right(imp) =>
+        assert(
+          imp.markdown.contains("%name My-parser"),
+          s"expected a clean `My-parser` name, got:\n${imp.markdown}"
+        )
+        assert(!imp.markdown.contains(".yy"), "the `.yy` suffix must not survive into the name")
+  }
+
+  test(
+    "parseWithDocs: the real emit path attaches a rule's leading prose, unlike a bare Lr.parseWith"
+  ) {
+    val md =
+      """# G
+        |
+        |```gramaire
+        |%name G
+        |```
+        |
+        |## R
+        |
+        |A rule with its own leading doc comment.
+        |
+        |```gramaire
+        |R
+        |  : 'x'
+        |```
+        |""".stripMargin
+    Lr.parseWith(Method.Canonical, md) match
+      case Left(e) => fail(s"should parse: $e")
+      case Right(g) =>
+        assertEquals(g.rules.head.doc, None, "a bare parse never attaches doc comments")
+    Main.parseWithDocs(Method.Canonical, md) match
+      case Left(e) => fail(s"should parse: $e")
+      case Right(g) =>
+        assertEquals(g.rules.head.doc, Some("A rule with its own leading doc comment."))
   }
 
   test(
