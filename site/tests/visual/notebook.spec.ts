@@ -317,6 +317,30 @@ test("a prose image link renders the actual sidecar SVG, not literal markdown te
   await expect(page.locator(".gramaire-prose-image-missing")).toHaveCount(0);
 });
 
+// Regression: parseMarkdownLite had no table detection at all, so the "## Generated tables"
+// FIRST/FOLLOW pipe table (as `gramaire fmt` writes it) fell through to a paragraph and rendered as
+// literal pipe-delimited text — reported directly from the notebook (calc-js.gram.md's own
+// Generated tables section).
+test("the Generated tables section renders as a real table, not literal pipe text", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  const docText = await page.locator(".gramaire__doc").textContent();
+  expect(docText).not.toContain("| Nonterminal");
+  expect(docText).not.toContain("-----");
+
+  const table = page.locator(".gramaire-prose-table");
+  await expect(table).toHaveCount(1);
+  await expect(table.locator("th")).toHaveText([
+    "Nonterminal",
+    "FIRST",
+    "FOLLOW",
+  ]);
+  const firstRow = table.locator("tbody tr").first().locator("td");
+  await expect(firstRow.first()).toHaveText("Expr");
+});
+
 test("clicking a prose block reveals a raw-markdown editor; blurring commits and re-renders it", async ({
   page,
 }) => {

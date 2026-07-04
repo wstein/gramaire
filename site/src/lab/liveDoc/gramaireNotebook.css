@@ -224,6 +224,32 @@
   padding: 2px 8px;
 }
 
+/* Matches .lab__table's printer-paper look, so a "## Generated tables" section reads the same
+   whether it's rendered by the Lab or the Gramaire Notebook. */
+.gramaire-prose-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 14px;
+  font-size: 13px;
+}
+.gramaire-prose-table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  padding: 4px 10px 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.gramaire-prose-table td {
+  padding: 4px 10px 4px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-secondary);
+}
+.gramaire-prose-table tbody tr:nth-child(even) td {
+  background: var(--bg-1);
+}
+
 .gramaire__prose-editor {
   width: 100%;
   min-height: 70px;
