@@ -195,6 +195,14 @@ jobs:
         # each against spec/lab-protocol-schema.json.
         run: npm run check:lab-parity
 
+      - name: atn-ts backend parity gate (all-star-port-plan.md Phase 5)
+        # Runs the conformance corpus through `gramark emit --backend atn-ts
+        # --strategy ll-star` (sbt runMain), transpiles the emitted TS with
+        # tsc, and runs it under Node — proving the emitted ATN recognizer,
+        # not just its golden text, actually accepts/rejects like
+        # Ll.recognize on every vector.
+        run: npm run check:atn-ts-parity
+
       - name: Build
         run: npm run build
 
