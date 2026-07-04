@@ -541,8 +541,7 @@ object Lr:
         val virtualSrc = ruleOrigins.map(_.content).mkString("\n") + "\n"
         val docSpanned = Scanner.scanSpanned(lrScanItems, virtualSrc).map(mapSpanned(segs, _))
         val errorRuns = Scanner.mergeErrorRuns(docSpanned)
-        if errorRuns.nonEmpty then
-          Left(errorRuns.map(unmatchedRunDiagnostic))
+        if errorRuns.nonEmpty then Left(errorRuns.map(unmatchedRunDiagnostic))
         else Right(Lexer.normalizeNewlinesSpanned(docSpanned))
 
   // A run of unmatched characters, rendered as a lexical diagnostic. A run that STARTS with a
