@@ -672,6 +672,39 @@ surface is reached by **conversion**, not syntax expansion (§4).
   and run, not golden-diffed. `MainSuite`/`BackendRegistrySuite`/
   `BackendGoldenSuite` gained the usual strategy-gate, registry-lookup, and
   golden-text tests (`test/golden/CalcFastparse.scala`).
+- ✅ **A second opt-in backend, `scala-peg-combinators`, targeting
+  `scala.util.parsing.combinator.Parsers` — reached independently, asked
+  about (not assumed) before shipping alongside `scala-peg-fastparse` rather
+  than replacing it.** `Parsers` is generic over `type Elem`, so it parses a
+  `Vector[Token]` directly via a custom `Reader[Token]` — no synthetic-Char
+  encoding bridge needed, unlike `fastparse`. Its own well-known weakness
+  (poor left-recursion support via `PackratParsers`) doesn't matter here since
+  `IR.rewritten` already eliminates left recursion upstream; the real
+  tradeoff is that it's a separately-versioned, less actively maintained
+  module than `fastparse`. `BackendScalaPegCombinators.scala` emits `object
+  <Name> extends Parsers:`, `type Elem = Token`, an index-based `TokenReader`
+  (not `.tail`-slicing, to stay O(1) per step), and one `parse_<rule>` per
+  `IRRewrittenRule` — `Plain` as an ordered `|`-chain (still `Unwrap`-last:
+  `scala-parser-combinators`' own `|` commits to the first local success
+  exactly like `fastparse`'s does, so the PEG hiding problem and its fix both
+  carry over unchanged) and `Folded` as `base ~ rep(step) ^^ { ...
+  foldLeft ... }`, where each operator's `step: Parser[Cst => Cst]` defers
+  the accumulator fold to after `rep` runs (`rep`'s own repetitions can't
+  thread a changing accumulator into each step the way `scala-peg`'s
+  hand-rolled tail-recursive loop does). Reuses `BackendScalaPeg`'s
+  `ident`/`strLit`/`originExpr`/`tagExpr`/`indented` (widened to
+  `private[gramaire]`) rather than duplicating the `IRProv`-translation logic
+  a third time. One real bug caught by compiling: the first draft placed the
+  `scala.util.parsing.combinator.Parsers` import INSIDE the generated
+  `object <Name> extends Parsers:` body, but the `extends` clause resolves
+  `Parsers` before a body-nested import takes effect — fixed by moving both
+  imports to file scope. Registered as `"scala-peg-combinators"`
+  (`Capability.Cst`, `ll-star`-only); `codegen-scratch` now also depends on
+  `"org.scala-lang.modules" %% "scala-parser-combinators" % "2.4.0"`. **All
+  183 vector checks pass** (3 backends × the same 61-vector, four-corpus
+  set) via the same `check-scala-peg-parity.mjs`, parameterized by backend
+  name; `MainSuite`/`BackendRegistrySuite`/`BackendGoldenSuite` gained the
+  usual tests (`test/golden/CalcCombinators.scala`).
 
 ### Phase 6 — Diagnostics, profiling, conformance ✅ done (backend + Lab surface)
 
