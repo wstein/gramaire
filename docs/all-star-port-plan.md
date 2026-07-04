@@ -587,8 +587,29 @@ surface is reached by **conversion**, not syntax expansion (§4).
   every accept vector across all four real corpora
   (`calc`/`json`/`ECMA-404`/`calc-prec`) — all pass. This is Phase 1 of a
   follow-on plan to add a dependency-free Scala PEG/combinator backend and an
-  opt-in `fastparse` one from the same `IR.rewritten` input (Phases 2-4, not
-  yet built).
+  opt-in `fastparse` one from the same `IR.rewritten` input (Phase 2 below is
+  done; Phases 3-4 are not yet built).
+- ✅ **Phase 2 of that follow-on plan: `scala-peg`, a dependency-free codegen
+  backend reading `IR.rewritten`.** `BackendScalaPeg.scala` emits one
+  self-contained `object <Name>:` per grammar — a `Cst`/`Token` type plus one
+  `parse_<rule>` function per `IRRewrittenRule`, dispatching on `IRRuleBody`
+  (`Plain` tries alts in the IR's own order; `Folded` matches a base once then
+  tail-recursively repeats its operators) — with every `IRProv` baked to a
+  literal nested-tagging expression at codegen time, no runtime interpreter.
+  Registered as `"scala-peg"` (`Capability.Cst`, `ll-star`-only). Actually
+  compiling the emitted code (not just golden-diffing it) caught a real bug a
+  text diff would have missed: a generated `orElseChain` line starting with a
+  bare `(` gets attached by Scala's newline-continuation rule to whatever
+  identifier the PREVIOUS line ended in, silently miscompiling (`else None`
+  followed by a new line starting with `(op0(p))` parses as `None(op0(p))`,
+  failing only at type-check time). Fixed by never emitting a leading `(` at
+  the start of a generated line. Verified by compiling AND running the
+  generated `Calc.scala` against a real multi-precedence-level input
+  (`1+2*3`), producing the correct tree shape and correctly rejecting
+  incomplete input (`1+`); `MainSuite`/`BackendGoldenSuite` gained the usual
+  strategy-gate and golden-text tests. Phase 3 (not yet built) automates that
+  compile-and-run proof as a real parity gate, the same way `atn-ts`'s own
+  `check-atn-ts-parity.mjs` does for the TypeScript backend.
 
 ### Phase 6 — Diagnostics, profiling, conformance ✅ done (backend + Lab surface)
 
