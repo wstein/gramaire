@@ -607,9 +607,29 @@ surface is reached by **conversion**, not syntax expansion (§4).
   generated `Calc.scala` against a real multi-precedence-level input
   (`1+2*3`), producing the correct tree shape and correctly rejecting
   incomplete input (`1+`); `MainSuite`/`BackendGoldenSuite` gained the usual
-  strategy-gate and golden-text tests. Phase 3 (not yet built) automates that
-  compile-and-run proof as a real parity gate, the same way `atn-ts`'s own
-  `check-atn-ts-parity.mjs` does for the TypeScript backend.
+  strategy-gate and golden-text tests.
+- ✅ **Phase 3: the execute-and-verify parity gate that automates the
+  compile-and-run proof above.** No standalone Scala tooling exists in this
+  environment (no `scala-cli`/`scala`/`scalac`/`coursier`), so unlike
+  `check-atn-ts-parity.mjs` (which shells `tsc`+`node`), this goes through
+  `sbt` itself: a new **`codegen-scratch` sbt subproject**, deliberately not
+  in `root`'s aggregate (its own `Main.scala` only compiles once a generated
+  `Generated.scala` exists, so a plain `sbt compile`/`sbt test` must never
+  cascade into it). `ScalaPegParityMain.scala` (cli/jvm) writes one corpus
+  grammar's generated code as `codegen-scratch`'s `Generated.scala` plus a
+  line-protocol vectors file (base64-wrapped token text, no JSON dependency),
+  then prints each vector's EXPECTED answer via `Ll.parse`; `codegen-scratch`'s
+  own committed `Main.scala` compiles and runs that code for real, printing
+  each vector's ACTUAL answer via an independently-written `render` function
+  mirroring `gramaire.Cst.render` (duplicated, not imported — `codegen-scratch`
+  must never depend on `gramaire-core`). `site/scripts/check-scala-peg-
+  parity.mjs` shells both steps in one `sbt` session per grammar and diffs
+  accept/reject plus the rendered Cst. **All 61 vectors across all four real
+  corpora pass** (`calc` 10, `json` 19, `ECMA-404` 19, `calc-prec` 13),
+  including the `json`/`ECMA-404` vectors exercising the `IRProv.Wrap`
+  (Paull-substitution) path — the emitted Scala, actually compiled and run,
+  agrees with `Ll.parse` on every one. Wired into CI right after the `atn-ts`
+  gate (`npm run check:scala-peg-parity`).
 
 ### Phase 6 — Diagnostics, profiling, conformance ✅ done (backend + Lab surface)
 
