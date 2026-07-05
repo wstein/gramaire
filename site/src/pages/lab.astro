@@ -7,7 +7,7 @@
 // (interaction/layout are gold-standard; computed data is the real Core's
 // job).
 import AppShell from "../components/AppShell.astro";
-import LabIsland from "../lab/LabIsland";
+import LabIsland, { LabTopbarTools } from "../lab/LabIsland";
 import { pageHeadTags } from "../shared/page-head.mjs";
 import "../styles/tokens.css";
 import "../styles/starlight-bridge.css";
@@ -47,7 +47,9 @@ const headTags = pageHeadTags(base);
   </head>
   <body>
     <div class="shell">
-      <AppShell />
+      <AppShell>
+        <LabTopbarTools slot="page-tools" client:load />
+      </AppShell>
       <main class="content">
         <LabIsland client:load />
       </main>

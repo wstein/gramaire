@@ -826,7 +826,7 @@ test("toggling to Source view and back with no edits leaves the document unchang
 // Paper — a third, fully read-only view mode (serif type, narrow centered measure, numbered
 // figure/captions for railroad diagrams), independent of the Livebook-style editing affordances
 // every other view has.
-test("switching to Paper shows numbered figures for rules and labeled source for Tokens/Settings, with the Paper button pressed", async ({
+test("switching to Paper shows numbered figures for rules and prose, but no Tokens/Settings/Precedence blocks, with the Paper button pressed", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
@@ -847,10 +847,15 @@ test("switching to Paper shows numbered figures for rules and labeled source for
     "Figure 3 — Factor",
   ]);
 
-  const sourceLabels = await page
-    .locator(".grimoire__paper-source-label")
-    .allTextContents();
-  expect(sourceLabels).toEqual(["Settings", "Tokens"]);
+  // Tokens/Settings/Precedence are deliberately left out of Paper entirely — this is a
+  // reading/printing surface, and the raw declarations those fence kinds hold aren't part of
+  // the "document" a reader or a printed page wants, unlike a rule's own railroad diagram. The
+  // calc-js example's own "## Tokens" prose HEADING still shows (it's a prose block, part of the
+  // document's own narrative) — only the Tokens FENCE's raw regex definitions are gone.
+  await expect(page.locator(".grimoire__paper-source")).toHaveCount(0);
+  await expect(
+    page.locator(".grimoire__paper").getByText("Tokens", { exact: true }),
+  ).toBeVisible();
 });
 
 test("Paper is fully read-only — nothing in it is clickable/editable, unlike every other view", async ({
@@ -867,9 +872,8 @@ test("Paper is fully read-only — nothing in it is clickable/editable, unlike e
   await expect(page.locator(".grimoire__tryit")).toHaveCount(0);
   await expect(page.locator(".cm-content")).toHaveCount(0);
 
-  // Clicking directly on a figure/source block does nothing — no editor opens.
+  // Clicking directly on a figure does nothing — no editor opens.
   await page.locator(".grimoire__paper-figure").first().click();
-  await page.locator(".grimoire__paper-source").first().click();
   await expect(page.locator(".cm-content")).toHaveCount(0);
   await expect(page.locator(".grimoire__paper")).toBeVisible();
 });

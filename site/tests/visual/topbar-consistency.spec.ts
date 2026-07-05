@@ -247,31 +247,44 @@ for (const { name, path } of REPRESENTATIVE_PAGES) {
   });
 }
 
-test("the Lab has no search box, and no orphaned divider in its place", async ({
+test("the Lab has no search box, but does have its own Example/Engine/Start-rule controls", async ({
   page,
 }) => {
   // Lab is an interactive tool with no indexable Pagefind content of its
   // own (AppShell.astro's own comment) — the search box was removed there
-  // specifically. Removing it left the divider meant to separate the
-  // brand from the search box rendered right next to the brand with
-  // nothing after it: an orphaned mark, not an absence — gramark-topbar.mjs
-  // now hides that divider whenever nothing is slotted into `tools`.
+  // specifically. It now supplies its own `page-tools` content instead (the
+  // Example/Engine/Start-rule row, LabTopbarTools — moved out of the page
+  // body, the same relocation the Notebook's ViewToggle/DownloadActions
+  // already went through), so the divider next to it shows again (the
+  // same generic "something's there" logic Search relies on elsewhere, not
+  // a Lab-specific case).
   await page.goto("/lab/");
   const topbar = page.locator("gramark-topbar");
   await topbar.waitFor();
+  // LabTopbarTools' Start-rule control only appears once the engine's first evaluate() response
+  // lands — wait for it before asserting on the final, settled slot content.
+  await page.getByLabel("Engine").waitFor();
+  await expect(page.getByLabel("Start rule")).toBeVisible();
   const info = await topbar.evaluate((el) => {
     const slot = el.shadowRoot.querySelector('slot[name="tools"]');
+    const assigned = slot.assignedElements();
     const divider = el.shadowRoot.getElementById("tools-divider");
     return {
-      assignedCount: slot.assignedElements().length,
+      assignedCount: assigned.length,
+      hasSearch: assigned.some((el) => el.querySelector("site-search")),
+      hasLabTools: assigned.some((el) =>
+        el.querySelector(".lab__topbar-tools"),
+      ),
       dividerHidden: divider.hidden,
     };
   });
-  expect(info.assignedCount, "Lab should have no slotted search box").toBe(0);
+  expect(info.assignedCount).toBe(1);
+  expect(info.hasSearch).toBe(false);
+  expect(info.hasLabTools).toBe(true);
   expect(
     info.dividerHidden,
-    "the brand/search divider should be hidden when there's no search box",
-  ).toBe(true);
+    "the brand/tools divider should show once something is genuinely slotted in",
+  ).toBe(false);
 });
 
 // Regression: before AppShell.astro's detectActive recognized "/notebook", the Notebook resolved
@@ -309,17 +322,22 @@ test("the Notebook highlights itself in the nav, has no search box, but does hav
   expect(info.dividerHidden).toBe(false);
 });
 
-// The toggle sits flush against the nav links (right-aligned within the tools/spacer region),
-// not flush against the logo where Search sits on content pages — a `:host([data-page-tools=
-// "true"])`-scoped rule in gramark-topbar.mjs, so this doesn't move Search's own position on any
-// other page (verified separately by the search-box tests elsewhere in this file still passing).
-test("the Notebook's view toggle sits right-aligned, immediately left of Home — not flush against the logo", async ({
+// The whole page-tools row (view toggle + download actions) sits flush against the nav links
+// (right-aligned within the tools/spacer region), not flush against the logo where Search sits
+// on content pages — a `:host([data-page-tools="true"])`-scoped rule in gramark-topbar.mjs, so
+// this doesn't move Search's own position on any other page (verified separately by the
+// search-box tests elsewhere in this file still passing). Measured from `.grimoire__download-
+// actions` specifically — the LAST of the two page-tools elements, since download actions were
+// added after the toggle and sit to its right — not from the toggle itself.
+test("the Notebook's page-tools row sits right-aligned, immediately left of Home — not flush against the logo", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1100, height: 400 });
   await page.goto("/notebook/");
   const toggle = page.locator(".grimoire__view-toggle");
+  const downloads = page.locator(".grimoire__download-actions");
   await toggle.waitFor();
+  await downloads.waitFor();
 
   const topbar = page.locator("gramark-topbar");
   const homeLinkBox: number = await topbar.evaluate((el: Element) => {
@@ -333,11 +351,12 @@ test("the Notebook's view toggle sits right-aligned, immediately left of Home �
       el.shadowRoot!.querySelector(".brand")!.getBoundingClientRect().right,
   );
   const toggleBox = (await toggle.boundingBox())!;
+  const downloadsBox = (await downloads.boundingBox())!;
 
   // Closer to Home's left edge than to the logo's right edge — compared relatively rather than
   // against an exact pixel count, since the gap to Home includes the nav's own internal
   // padding/divider spacing, unrelated to this alignment rule itself.
-  const distanceToHome = homeLinkBox - toggleBox.x - toggleBox.width;
+  const distanceToHome = homeLinkBox - downloadsBox.x - downloadsBox.width;
   const distanceToLogo = toggleBox.x - logoBox;
   expect(distanceToHome).toBeLessThan(distanceToLogo);
 });

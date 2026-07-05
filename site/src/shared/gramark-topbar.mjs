@@ -134,14 +134,31 @@ const TEMPLATE = `
      always wins that space first, leaving auto margins elsewhere permanently at 0 (confirmed
      empirically: margin-left:auto on .tools alone measured 0px). Neutralizing .spacer's own
      flex-grow, scoped to the same case, frees that space for .tools's auto margin to actually
-     consume instead. :host([data-page-tools="true"]) scopes both rules to the Notebook
-     specifically, without touching .tools/.spacer for every other page Search still uses —
-     matched against the literal string "true", not just attribute PRESENCE: Astro renders the
-     data-page-tools attribute as the literal string "false" when its value is false (confirmed
-     against the built HTML), not an omitted attribute, so a bare presence check would
-     incorrectly match every page. */
+     consume instead. :host([data-page-tools="true"]) scopes all three rules below to a page
+     with its own page-tools content specifically (the Notebook's view toggle + download
+     actions, or the Lab's Example/Engine/Start-rule controls) — every other page Search still
+     uses is untouched. Matched against the literal string "true", not just attribute PRESENCE:
+     Astro renders the data-page-tools attribute as the literal string "false" when its value is
+     false (confirmed against the built HTML), not an omitted attribute, so a bare presence
+     check would incorrectly match every page.
+     Also widens the slot itself past Search's fixed 200px: at 200px, the Notebook's five
+     controls (Notebook/Source/Paper + the two download buttons) wrapped to two rows, which
+     would have made THIS shared component's own height content-dependent per page — including
+     silently invalidating lab.css's own .lab height: calc(100vh - 49px) rule (that 49px is
+     this bar's own single-row height), a bug this same width fix also happens to prevent, not
+     just a cosmetic one. Plain width:auto (no min-width floor guessed at a fixed pixel count) —
+     the Notebook's five controls and the Lab's three dropdowns each have their own real,
+     already-correct natural width; a min-width big enough for one is bigger than the other
+     actually needs, and the leftover space inside that oversized box left-aligns by default
+     (ordinary inline flow, nothing in this rule centers or right-justifies a slotted box's own
+     CONTENT), landing as dead space between the controls and Home instead of closing the gap —
+     confirmed empirically (a 420px floor measured a 79px gap to Home, most of it exactly that
+     unused leftover), not just assumed safe. */
   :host([data-page-tools="true"]) .spacer { flex: none; }
   :host([data-page-tools="true"]) .tools { margin-left: auto; }
+  :host([data-page-tools="true"]) ::slotted([slot="tools"]) {
+    width: auto;
+  }
 
   .spacer { flex: 1; }
 
