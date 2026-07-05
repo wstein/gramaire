@@ -928,6 +928,21 @@ didn't) — the Notebook attributes and links a diagnostic purely from its
 span, so this alone is what made it clickable in the panel and gave its
 Settings cell the amber border/tag Layer 2 already gave errors.
 
+**Notebook/Source view toggle.** A sliding switch in the status bar
+(`.gramaire__view-toggle`, `GramaireNotebookIsland.tsx`) flips between the
+per-cell rendering above and a single `CodeMirrorEditor` over the whole raw
+`.gram.md` document (`serializeDocument(blocks.value)`, the same text every
+other evaluate() call already sends). A real sliding switch, not the topbar's
+segmented Light/Auto/Dark control (`gramaire-topbar.mjs`) — that's a 3-way
+exclusive choice, this is a plain two-state one. Entering source view
+snapshots a stable base text for CodeMirror's own `value` prop (never the
+live draft — the same race `CodeMirrorEditor`'s own `[value]`-effect comment
+already documents for per-cell editors); leaving it (or blurring the editor)
+reparses the latest typed text with `fences: []` (the same degenerate
+one-prose-block shape the no-fences fallback textarea already produces) and
+re-evaluates — the next real response's `fences` restores proper cell
+structure once the engine catches up, exactly like any other edit.
+
 Deliberately deferred: a method picker
 (always builds Canonical), a "Format document" action (`gramaire fmt` isn't
 exposed to the JS engine yet — omitted rather than shipped as a non-functional

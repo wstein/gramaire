@@ -705,3 +705,73 @@ test("clicking the status bar collapses and re-opens the diagnostics panel", asy
   await page.locator(".gramaire__status").click();
   await expect(page.locator(".gramaire__diagnostics")).toBeVisible();
 });
+
+// The Notebook/Source view switch — a real sliding toggle in the status bar, not a separate page.
+test("toggling to Source view replaces the per-cell rendering with one editor over the whole raw document", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await expect(page.locator(".gramaire__cell")).toHaveCount(5);
+
+  await page.locator(".gramaire__view-toggle").click();
+
+  await expect(page.locator(".gramaire__cell")).toHaveCount(0);
+  const editor = page.locator(".gramaire__source-editor .cm-content");
+  await expect(editor).toBeVisible();
+  await expect(editor).toContainText("```gramaire");
+  await expect(editor).toContainText("Expr");
+  await expect(editor).toContainText("(c) => c.expr + c.term");
+});
+
+test("editing the raw source and toggling back updates the corresponding cell's railroad diagram", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  await page.locator(".gramaire__view-toggle").click();
+  const editorContent = page.locator(".gramaire__source-editor .cm-content");
+  await expect(editorContent).toContainText("c.expr + c.term");
+
+  // Select-all across the whole multi-KB document and retype it is unreliable in CodeMirror via
+  // Playwright (empirically: large insertText calls corrupted the buffer) — instead, select just
+  // the one target line (CodeMirror renders each line as its own `.cm-line` div) and replace it.
+  const targetLine = page.locator(".cm-line", {
+    hasText: "c.expr + c.term %}",
+  });
+  await targetLine.click();
+  await page.keyboard.press("End");
+  await page.keyboard.down("Shift");
+  await page.keyboard.press("Home");
+  await page.keyboard.up("Shift");
+  await page.keyboard.insertText(
+    "  : Expr '+' Term   {% (c) => c.expr + c.term + 1 %}",
+  );
+
+  await page.locator(".gramaire__view-toggle").click(); // toggle back, commits on blur
+  await expect(page.locator(".gramaire__cell")).toHaveCount(5);
+  await page.waitForTimeout(1000); // settle worker round-trip, same as breakFirstRule
+
+  const ruleCell = ruleCellLocator(page);
+  await expect(
+    ruleCell.locator("svg text.rr-action-text").first(),
+  ).toContainText("c.expr + c.term + 1");
+});
+
+test("toggling to Source view and back with no edits leaves the document unchanged", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const namesBefore = await page
+    .locator(".gramaire__cell-name")
+    .allTextContents();
+
+  await page.locator(".gramaire__view-toggle").click();
+  await page.locator(".gramaire__view-toggle").click();
+
+  await expect(page.locator(".gramaire__cell-name")).toHaveCount(
+    namesBefore.length,
+  );
+  expect(await page.locator(".gramaire__cell-name").allTextContents()).toEqual(
+    namesBefore,
+  );
+});
