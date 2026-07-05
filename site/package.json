@@ -28,6 +28,7 @@
     "astro": "^7.0.5",
     "codemirror": "^6.0.2",
     "firacode": "^6.2.0",
+    "harfbuzzjs": "^1.4.0",
     "pdf-lib": "^1.17.1",
     "preact": "^10.29.4"
   },
