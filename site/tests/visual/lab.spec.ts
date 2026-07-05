@@ -1084,6 +1084,53 @@ test("the LALR artifact example builds under Canonical/IELR, conflicts only unde
   });
 });
 
+test("the Predicate guard example builds a real `let` binding action, but disables Evaluate", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+
+  await page
+    .getByLabel("Example")
+    .selectOption("Predicate guard (no live evaluator)");
+  // Default input "let x = 2 + 3": 'let' Name '=' Expr, a real assignment-shaped action.
+  await expect(page.locator(".lab__status")).toHaveText("ok", {
+    timeout: 5000,
+  });
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted");
+
+  // A `{%? %}` predicate anywhere in the grammar suppresses the whole evaluatorJs — combined
+  // with regular `{% %}` actions elsewhere or not, `Evaluate` is disabled with the reason why.
+  const evaluateTab = page.locator('button[role="tab"]:has-text("Evaluate")');
+  await expect(evaluateTab).toBeDisabled();
+  await expect(evaluateTab).toHaveAttribute(
+    "title",
+    "The grammar must build successfully, with no `{%? %}` predicate, to run Evaluate.",
+  );
+
+  // `Stmt`'s `let` binding still carries a REAL, computed action (unlike a predicate-guarded
+  // alt, which can't also have one) — visible in Lowered Core even though Evaluate can't run it.
+  await page.click('button[role="tab"]:has-text("Lowered Core")');
+  await expect(page.locator(".lab__panel").first()).toContainText(
+    "(c) => ({ name: c.name, value: c.expr })",
+  );
+  await page.click('button[role="tab"]:has-text("Parse tree")');
+
+  // Prediction doesn't evaluate a predicate's body yet (ADR D42) — Name's predicate could only
+  // ever gate `if` (never declared as a literal token, unlike `let`), and even that isn't
+  // enforced yet: "let if = 1" parses exactly the same as "let x = 1" today.
+  await page.locator(".lab__pane--fill .lab__editor").fill("let if = 1");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  // "if" alone falls back to Term -> Name (an ordinary identifier reference) via plain LR(1)
+  // one-token lookahead — same as any other name; nothing marks it reserved at parse time yet.
+  await page.locator(".lab__pane--fill .lab__editor").fill("if + 1");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+});
+
 test("Lowered Core shows the ALL(*) left-recursion rewrite for a directly left-recursive rule", async ({
   page,
 }) => {

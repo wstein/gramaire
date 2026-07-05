@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "mode": "sidecar",
+  "grammarSha256": "e21e85788d0ec6fc40b2733fe115d80a6df4cd241547a2217015888c9c04b11c",
+  "artifacts": [
+    {
+      "kind": "railroad",
+      "nonterminal": "Stmt",
+      "path": "diagrams-predicate-guard/stmt.svg",
+      "sourceSha256": "3f8b670e233db2cbe3e92b11c84a9e4e29cf5cee4b8343ff9440bb1cccc93714"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Expr",
+      "path": "diagrams-predicate-guard/expr.svg",
+      "sourceSha256": "6fd516313de7da1a4fe7781d9cf6faf821dc62efba686175b89682ad76b3c898"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Term",
+      "path": "diagrams-predicate-guard/term.svg",
+      "sourceSha256": "14c952c2d25c6c6ec2153d35e36559dbccda7781f5d6174af68884065bce88ee"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Name",
+      "path": "diagrams-predicate-guard/name.svg",
+      "sourceSha256": "d911b35a4242a53f9f3a8aa657d4416756cdb532beef37b53061eaba14209497"
+    },
+    {
+      "kind": "tables",
+      "section": "Generated tables",
+      "sourceSha256": "e21e85788d0ec6fc40b2733fe115d80a6df4cd241547a2217015888c9c04b11c"
+    }
+  ]
+}
