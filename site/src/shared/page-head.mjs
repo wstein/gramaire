@@ -17,7 +17,7 @@
 // new document-level <head> tag here, not by hand in astro.config.mjs or
 // index.astro, so the two surfaces can't diverge on it again.
 export const GOOGLE_FONTS_HREF =
-  "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap";
+  "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap";
 
 /** @param {string} base the deploy base path, e.g. "/gramark/" in CI, "/" locally */
 export function pageHeadTags(base) {

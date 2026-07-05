@@ -148,22 +148,32 @@ object Railroad:
   // identically on GitHub (and keeps the drift goldens stable). `themed`
   // routes every ink through a `--rr-*` CSS custom property with the fixed
   // value as fallback.
-  private val font = s"${FS}px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
+  // 'Fira Code' first for its ligatures (=>, !=, <=, etc. render as single glyphs) — only takes
+  // effect where this SVG is inlined into a page that has ALSO loaded that webfont (both
+  // GrimoireNotebookIsland.tsx and LabIsland.tsx embed via dangerouslySetInnerHTML, sharing
+  // site/src/shared/page-head.mjs's Google Fonts stylesheet); the CLI's committed sidecar SVGs
+  // (referenced via <img src>, an opaque image with no access to the parent page's fonts) fall
+  // through to the plain monospace stack instead — a known, accepted limitation, not a bug.
+  private val font =
+    s"${FS}px 'Fira Code',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
+  // Ligatures aren't reliably on by default for code-font ligatures across browsers from
+  // font-family alone — this explicit feature-settings pair is what actually enables them.
+  private val ligatures = """font-feature-settings:"liga" 1,"calt" 1;"""
   private val styleFixed =
     ".rr-track{fill:none;stroke:#6B7280;stroke-width:2}" +
       ".rr-term{fill:#fff;stroke:#15B879;stroke-width:2}" +
       ".rr-nonterm{fill:#F5F6F3;stroke:#16181D;stroke-width:2}" +
       ".rr-action-box{fill:none;stroke:#8B5CF6;stroke-width:1.5;stroke-dasharray:3 2}" +
-      s".rr-text{fill:#16181D;font:$font}" +
-      s".rr-action-text{fill:#8B5CF6;font:$font;font-style:italic}" +
+      s".rr-text{fill:#16181D;font:$font;$ligatures}" +
+      s".rr-action-text{fill:#8B5CF6;font:$font;font-style:italic;$ligatures}" +
       ".rr-cap{fill:#16181D}"
   private val styleThemed =
     ".rr-track{fill:none;stroke:var(--rr-track,#6B7280);stroke-width:2}" +
       ".rr-term{fill:var(--rr-term-fill,#fff);stroke:var(--rr-term-stroke,#15B879);stroke-width:2}" +
       ".rr-nonterm{fill:var(--rr-nonterm-fill,#F5F6F3);stroke:var(--rr-ink,#16181D);stroke-width:2}" +
       ".rr-action-box{fill:none;stroke:var(--rr-action-stroke,#8B5CF6);stroke-width:1.5;stroke-dasharray:3 2}" +
-      s".rr-text{fill:var(--rr-ink,#16181D);font:$font}" +
-      s".rr-action-text{fill:var(--rr-action-stroke,#8B5CF6);font:$font;font-style:italic}" +
+      s".rr-text{fill:var(--rr-ink,#16181D);font:$font;$ligatures}" +
+      s".rr-action-text{fill:var(--rr-action-stroke,#8B5CF6);font:$font;font-style:italic;$ligatures}" +
       ".rr-cap{fill:var(--rr-ink,#16181D)}"
 
   // ---- SVG renderer -------------------------------------------------------
