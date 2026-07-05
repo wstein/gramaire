@@ -433,11 +433,43 @@ function moveBlock(index: number, direction: -1 | 1) {
   scheduleEvaluate();
 }
 
+// The Bin — every deleted block, oldest first, kept around for the rest of the session so a
+// delete several edits ago is still recoverable without walking the undo stack back through
+// everything since (undo is the right tool for "I just did that"; the Bin is the right tool for
+// "I deleted that a while ago"). Session-only, like `blocks` itself — never persisted alongside
+// the autosave snapshot (notebookPersistence.ts's own header explains why only the serialized TEXT
+// is ever persisted; a binned block is exactly the kind of derived, non-authoritative state that
+// contract excludes).
+const binOpen = signal(false);
+const binnedBlocks = signal<DocBlock[]>([]);
+const binCount = computed(() => binnedBlocks.value.length);
+
 function deleteBlock(index: number) {
   if (blocksLocked()) return;
+  const removed = blocks.value[index];
   pushUndoSnapshot();
   blocks.value = removeBlock(blocks.value, index);
   scheduleEvaluate();
+  if (removed) binnedBlocks.value = [...binnedBlocks.value, removed];
+}
+
+// Restores a binned block to the END of the document, not its original position — every other
+// block may since have moved, been deleted, or been inserted around it, so "original position"
+// isn't even well-defined anymore; appending (then letting the existing Up/Down actions reposition
+// it) is the same "land it somewhere safe, let the user place it" approach `insertCellAt`'s own
+// placeholders already use.
+function restoreFromBin(id: string) {
+  if (blocksLocked()) return;
+  const entry = binnedBlocks.value.find((b) => b.id === id);
+  if (!entry) return;
+  binnedBlocks.value = binnedBlocks.value.filter((b) => b.id !== id);
+  pushUndoSnapshot();
+  blocks.value = insertBlock(blocks.value, blocks.value.length, entry);
+  scheduleEvaluate();
+}
+
+function clearBin() {
+  binnedBlocks.value = [];
 }
 
 // Copies a fragment URL to this cell's own stable DOM id — no navigation, no history entry, just
@@ -1243,6 +1275,45 @@ function OutlineSidebar() {
   );
 }
 
+// The Bin — a sidebar of deleted blocks (newest first, so the delete a user is most likely
+// chasing down is right at the top), each restorable individually. A sibling of `.grimoire__doc`
+// on the OPPOSITE side from the outline, so both can be open together without overlapping.
+function BinSidebar() {
+  if (!binOpen.value) return null;
+  const entries = binnedBlocks.value;
+  return (
+    <nav class="grimoire__bin" aria-label="Deleted blocks">
+      {entries.length === 0 ? (
+        <div class="grimoire__bin-empty">The bin is empty.</div>
+      ) : (
+        <>
+          <ul class="grimoire__bin-list">
+            {entries
+              .slice()
+              .reverse()
+              .map((block) => (
+                <li key={block.id} class="grimoire__bin-item">
+                  <span class="grimoire__bin-label">{cellLabel(block)}</span>
+                  <button
+                    type="button"
+                    class="grimoire__bin-restore"
+                    disabled={blocksLocked()}
+                    onClick={() => restoreFromBin(block.id)}
+                  >
+                    Restore
+                  </button>
+                </li>
+              ))}
+          </ul>
+          <button type="button" class="grimoire__bin-clear" onClick={clearBin}>
+            Empty bin
+          </button>
+        </>
+      )}
+    </nav>
+  );
+}
+
 // Layer 1: the document-level diagnostics panel — every diagnostic the engine returned, rendered
 // with its message + note lines (and, when its span maps to a cell, that cell's name as a
 // clickable "jump to it" location). Sticky under the topbar so it stays in view while scrolling
@@ -1905,6 +1976,25 @@ function UndoButton() {
   );
 }
 
+// Same toggle convention as OutlineToggle — labelled with a live count so there's a visible signal
+// that something IS in the bin without having to open it first.
+function BinToggle() {
+  const count = binCount.value;
+  return (
+    <button
+      type="button"
+      class="grimoire__download-btn"
+      aria-pressed={binOpen.value}
+      title="Show or hide deleted blocks"
+      onClick={() => {
+        binOpen.value = !binOpen.value;
+      }}
+    >
+      Bin{count > 0 ? ` (${count})` : ""}
+    </button>
+  );
+}
+
 // The one combined topbar-tools island `notebook.astro` mounts — `ViewToggle` and
 // `DownloadActions` both belong in the same page-tools slot, so one shared `client:load` island
 // for both avoids a second Preact root/hydration entry for controls that are never meaningfully
@@ -1916,6 +2006,7 @@ export function NotebookTopbarTools() {
       <DownloadActions />
       <UndoButton />
       <OutlineToggle />
+      <BinToggle />
       <ViewToggle />
     </>
   );
@@ -2218,6 +2309,7 @@ export function GrimoireNotebookIsland(
             </>
           )}
         </div>
+        <BinSidebar />
       </div>
       <StatusBar />
     </div>

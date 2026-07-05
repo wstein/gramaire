@@ -2435,3 +2435,101 @@ test("while a cell editor is open, Ctrl/Cmd+Z reaches CodeMirror's own undo, not
   await ruleCell.locator(".grimoire__toolbar-btn--cancel").click();
   await expect(ruleNonterminals(page)).resolves.toEqual(before.slice(0, -1));
 });
+
+function binToggleButton(page: import("@playwright/test").Page) {
+  return page.locator("gramark-topbar .grimoire__download-btn", {
+    hasText: "Bin",
+  });
+}
+
+test("deleting a cell adds it to the Bin, with a live count on the toggle", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await expect(binToggleButton(page)).toHaveText("Bin");
+
+  const before = await ruleNonterminals(page);
+  const factorCell = page.locator('.grimoire__cell[data-kind="rule"]').last();
+  await factorCell.hover();
+  await factorCell.locator(".grimoire__cell-action--delete").click();
+  await expect.poll(() => ruleNonterminals(page)).toEqual(before.slice(0, -1));
+
+  await expect(binToggleButton(page)).toHaveText("Bin (1)");
+  await binToggleButton(page).click();
+  await expect(page.locator(".grimoire__bin-item")).toHaveCount(1);
+  await expect(page.locator(".grimoire__bin-label")).toHaveText("Factor");
+});
+
+test("Restore from the Bin appends the block to the end of the document", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const before = await ruleNonterminals(page);
+
+  const exprCell = page.locator('.grimoire__cell[data-kind="rule"]').first();
+  await exprCell.hover();
+  await exprCell.locator(".grimoire__cell-action--delete").click();
+  await expect.poll(() => ruleNonterminals(page)).toEqual(before.slice(1));
+
+  await binToggleButton(page).click();
+  await page.locator(".grimoire__bin-restore").click();
+
+  await expect
+    .poll(() => ruleNonterminals(page))
+    .toEqual([...before.slice(1), before[0]]);
+  await expect(binToggleButton(page)).toHaveText("Bin");
+  await expect(page.locator(".grimoire__bin-empty")).toContainText(
+    "The bin is empty.",
+  );
+});
+
+test("deleting several cells keeps every one recoverable, newest first, independent of undo", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  for (const kind of ["Expr", "Term"]) {
+    const cell = page.locator(
+      `.grimoire__cell[data-kind="rule"][data-nonterminal="${kind}"]`,
+    );
+    await cell.hover();
+    await cell.locator(".grimoire__cell-action--delete").click();
+  }
+  await expect.poll(() => ruleNonterminals(page)).toEqual(["Factor"]);
+
+  await binToggleButton(page).click();
+  const labels = await page.locator(".grimoire__bin-label").allTextContents();
+  expect(labels).toEqual(["Term", "Expr"]); // newest deletion first
+
+  // Restoring the older (Expr) entry works without needing to undo the more recent (Term) delete.
+  await page
+    .locator(".grimoire__bin-item", { hasText: "Expr" })
+    .locator(".grimoire__bin-restore")
+    .click();
+  await expect.poll(() => ruleNonterminals(page)).toEqual(["Factor", "Expr"]);
+  await expect(
+    page.locator(".grimoire__bin-item", { hasText: "Term" }),
+  ).toHaveCount(1);
+});
+
+test("Empty bin clears every entry, and Restore is disabled while an editor is open", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const factorCell = page.locator('.grimoire__cell[data-kind="rule"]').last();
+  await factorCell.hover();
+  await factorCell.locator(".grimoire__cell-action--delete").click();
+  await expect(binToggleButton(page)).toHaveText("Bin (1)");
+
+  await binToggleButton(page).click();
+  await page.locator(".grimoire__prose").first().click();
+  await expect(page.locator(".grimoire__prose-editor")).toBeVisible();
+  await expect(page.locator(".grimoire__bin-restore")).toBeDisabled();
+  await page.locator(".grimoire__toolbar-btn--cancel").click();
+
+  await page.locator(".grimoire__bin-clear").click();
+  await expect(binToggleButton(page)).toHaveText("Bin");
+  await expect(page.locator(".grimoire__bin-empty")).toContainText(
+    "The bin is empty.",
+  );
+});
