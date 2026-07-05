@@ -36,6 +36,32 @@ export function isRailroadPlaceholder(block: MdBlock): boolean {
   );
 }
 
+export type MdHeading = { tag: "h2" | "h3" | "h4"; parts: MdInline[] };
+
+/** If `parsed`'s own rendered view opens with a heading — tolerating a leading run of
+ * `isRailroadPlaceholder` images before it, since MarkdownBlock.tsx's own `MarkdownBlocks`
+ * already renders those as nothing — returns that heading and its own index in `parsed`. `null`
+ * when real, visible content precedes every heading (or there's no heading at all). This matters
+ * because `gramaire fmt --diagrams=sidecar` writes exactly that placeholder directly after a
+ * rule's fence and before the NEXT section's own heading (examples/calc-js.gram.md's own
+ * `## Term`/`## Factor`/`## Generated tables` blocks are all shaped this way) — a naive
+ * "is parsed[0] a heading" check would silently miss most real sections in that document.
+ * Deliberately STRICTER than a plain "does this block contain a heading anywhere" scan (a
+ * different question — "what should this block be called" vs. "does this block's own view start
+ * with one"), so this is not shared with any such broader existing check. */
+export function leadingHeading(
+  parsed: MdBlock[],
+): { heading: MdHeading; index: number } | null {
+  for (let i = 0; i < parsed.length; i++) {
+    const b = parsed[i];
+    if (b.tag === "h2" || b.tag === "h3" || b.tag === "h4") {
+      return { heading: { tag: b.tag, parts: b.parts }, index: i };
+    }
+    if (!isRailroadPlaceholder(b)) return null;
+  }
+  return null;
+}
+
 function parseInline(text: string): MdInline[] {
   const parts: MdInline[] = [];
   // Image checked first: `![alt](src)` shares no syntax with the other two, but must be tried

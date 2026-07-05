@@ -206,6 +206,99 @@ export function swapBlocks(
   return next;
 }
 
+// Section-aware move (GramaireNotebookIsland.tsx's own `moveBlock`/`CellActions`) — moving a block
+// whose own rendered view opens with a heading moves that heading's WHOLE section (itself plus
+// every block that belongs under it) as one unit, the way Livebook's own section reorder works,
+// rather than swapping just the one heading block with its single neighbor. This module stays
+// markdown-agnostic (see this file's own header) by taking an INJECTED `headingLevelOf` callback
+// rather than importing markdown.ts's own heading-detection itself — GramaireNotebookIsland.tsx
+// supplies the real implementation (built on markdown.ts's `leadingHeading`); a unit test here can
+// use a trivial numeric stub. "Level" is h2=2 < h3=3 < h4=4 — shallower is smaller, matching the
+// nesting a document's own heading levels already express.
+
+/** Exclusive end index of the section starting at `startIndex` — every block from `startIndex` up
+ * to (not including) the first LATER block whose own heading level is <= the starting block's own
+ * level, or `blocks.length` if there is none. A block `headingLevelOf` reports `null` for (not a
+ * heading-leading block) is absorbed INTO the section — it never ends it, only a same-or-shallower
+ * heading does, so a deeper nested subsection stays part of its own parent section. If
+ * `blocks[startIndex]` itself isn't a heading-leading block, the "section" is just itself
+ * (`startIndex + 1`) — the same single-block shape `moveBlock`'s own non-heading path already uses. */
+export function sectionEndIndex(
+  blocks: readonly DocBlock[],
+  startIndex: number,
+  headingLevelOf: (block: DocBlock) => number | null,
+): number {
+  const level = headingLevelOf(blocks[startIndex]);
+  if (level === null) return startIndex + 1;
+  for (let i = startIndex + 1; i < blocks.length; i++) {
+    const l = headingLevelOf(blocks[i]);
+    if (l !== null && l <= level) return i;
+  }
+  return blocks.length;
+}
+
+/** Start index of the section immediately preceding the one at `index` (whose own level the
+ * caller already knows, as `level`) — a true SIBLING at the same level, never a shallower
+ * ancestor's own boundary. Scans backward, skipping blocks that are non-heading (absorbed
+ * content) or a DEEPER level (a nested subsection of some earlier sibling, not that sibling's own
+ * start). Returns `null` the moment a SHALLOWER block is found first (`index`'s section is the
+ * first child under its own enclosing level — nothing to swap with going up) or the scan reaches
+ * the start of the document with no match. */
+export function previousSiblingSectionStart(
+  blocks: readonly DocBlock[],
+  index: number,
+  level: number,
+  headingLevelOf: (block: DocBlock) => number | null,
+): number | null {
+  for (let j = index - 1; j >= 0; j--) {
+    const l = headingLevelOf(blocks[j]);
+    if (l === null || l > level) continue;
+    return l === level ? j : null;
+  }
+  return null;
+}
+
+/** Start index of the section immediately following the one that ends (exclusive) at
+ * `sectionEnd` (== `sectionEndIndex(blocks, index, headingLevelOf)`, computed once by the caller
+ * and passed in rather than recomputed) — `sectionEnd` itself IS the next section's own start
+ * whenever it's a true sibling at `level`. `null` when `sectionEnd` is past the end of the
+ * document, or (symmetric with `previousSiblingSectionStart`) a SHALLOWER heading sits there
+ * instead — `index`'s section is the last child under its own enclosing level, nothing to swap
+ * with going down. */
+export function nextSiblingSectionStart(
+  blocks: readonly DocBlock[],
+  sectionEnd: number,
+  level: number,
+  headingLevelOf: (block: DocBlock) => number | null,
+): number | null {
+  if (sectionEnd >= blocks.length) return null;
+  return headingLevelOf(blocks[sectionEnd]) === level ? sectionEnd : null;
+}
+
+/** Exchange two adjacent, contiguous slices — `[start, mid)` and `[mid, end)` — as one unit,
+ * preserving each slice's own internal order and every block's own identity (same `DocBlock`
+ * references relocated, no `id` ever regenerated). Generalizes `swapBlocks`'s single-index swap to
+ * a same-shaped range swap — the move that lets a whole heading section (however many blocks it
+ * spans) trade places with its immediately adjacent sibling section in one step. A no-op (returns
+ * `blocks` unchanged, same reference) unless `0 <= start <= mid <= end <= blocks.length`, the same
+ * "caller doesn't need its own bounds check" contract `swapBlocks` already offers. */
+export function swapAdjacentRanges(
+  blocks: readonly DocBlock[],
+  start: number,
+  mid: number,
+  end: number,
+): DocBlock[] {
+  if (start < 0 || start > mid || mid > end || end > blocks.length) {
+    return blocks as DocBlock[];
+  }
+  return [
+    ...blocks.slice(0, start),
+    ...blocks.slice(mid, end),
+    ...blocks.slice(start, mid),
+    ...blocks.slice(end),
+  ];
+}
+
 /** Insert `block` at `index` (before the block currently there; `index === blocks.length` appends
  * at the end) — every block from `index` on shifts one position later. Used by the Notebook's
  * `+ Prose`/`+ Rule` insert affordances; the caller opens the new block for editing immediately

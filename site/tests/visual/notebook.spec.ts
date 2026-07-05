@@ -1536,7 +1536,12 @@ test("hovering a cell reveals its action row; it's invisible at rest", async ({
   await expect(actions).toHaveCSS("opacity", "1");
 });
 
-test("the first block's Up and the last block's Down are disabled, not hidden", async ({
+// The very first block is the document's own "# Calc-js" title (an h2) — its section is
+// section-aware Move's own top-level case: it spans the ENTIRE document (there's no shallower
+// heading to bound it), so both Up and Down are correctly disabled, not just Up. The last block
+// ("## Generated tables", an h3 sibling of Tokens/Expr/Term/Factor) has a previous sibling
+// section (Factor) to swap with going up, but nothing after it going down.
+test("the first block's section spans the whole document (both disabled); the last section's Down is disabled, not hidden", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
@@ -1546,11 +1551,148 @@ test("the first block's Up and the last block's Down are disabled, not hidden", 
 
   await first.hover();
   await expect(first.locator(".gramaire__cell-action").first()).toBeDisabled();
-  await expect(first.locator(".gramaire__cell-action").nth(1)).toBeEnabled();
+  await expect(first.locator(".gramaire__cell-action").nth(1)).toBeDisabled();
 
   await last.hover();
   await expect(last.locator(".gramaire__cell-action").first()).toBeEnabled();
   await expect(last.locator(".gramaire__cell-action").nth(1)).toBeDisabled();
+});
+
+// The real default document only ever nests one level deep (h2 title, h3 sections) — these
+// boundary checks instead build a small multi-level document (h3 "Alpha" > h4 "Alpha One" > a
+// rule, then a sibling h3 "Beta" > a rule) via the same `+ Prose`/`+ Rule` insert affordances
+// every other insert test already uses, appending at the end each time.
+async function appendProse(
+  page: import("@playwright/test").Page,
+  text: string,
+) {
+  const zone = page.locator(".gramaire__insert-zone").last();
+  await zone.hover();
+  await zone
+    .locator(".gramaire__insert-btn")
+    .filter({ hasText: "Prose" })
+    .click();
+  await page.locator(".gramaire__prose-editor").fill(text);
+  await page.locator(".gramaire__statusbar").click();
+  await page.waitForTimeout(1000);
+}
+async function appendRule(
+  page: import("@playwright/test").Page,
+  source: string,
+) {
+  const zone = page.locator(".gramaire__insert-zone").last();
+  await zone.hover();
+  await zone
+    .locator(".gramaire__insert-btn")
+    .filter({ hasText: "Rule" })
+    .click();
+  const editor = page.locator(".cm-content").last();
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type(source);
+  await page.locator(".gramaire__statusbar").click();
+  await page.waitForTimeout(1500);
+}
+function labelledOrder(page: import("@playwright/test").Page) {
+  return page
+    .locator(".gramaire__prose, .gramaire__cell[data-kind]")
+    .evaluateAll((els) =>
+      els.map((el) =>
+        el.classList.contains("gramaire__prose")
+          ? "h:" + el.textContent!.trim().replace(/↑↓LinkDelete.*$/, "")
+          : "r:" + el.getAttribute("data-nonterminal"),
+      ),
+    );
+}
+
+test("moving a heading's section moves every block that belongs to it, as one contiguous unit", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  // A heading directly followed by another heading (or, here, by the default document's own
+  // trailing "Generated tables" prose) with no fence between them always collapses into ONE
+  // prose block on the next round-trip (prose-block boundaries are fences, not headings — see
+  // document.ts/buildDocument) — so a throwaway separating rule comes first, and every heading
+  // below is likewise followed by a rule fence before the next heading, matching how the real
+  // default document itself is shaped.
+  await appendRule(page, "Sep\n  : 'z'");
+  await appendProse(page, "## Alpha");
+  await appendRule(page, "AlphaRule\n  : 'a'");
+  await appendProse(page, "### Alpha One");
+  await appendRule(page, "AlphaOneRule\n  : 'b'");
+  await appendProse(page, "## Beta");
+  await appendRule(page, "BetaRule\n  : 'c'");
+
+  const before = await labelledOrder(page);
+  expect(before.slice(-6)).toEqual([
+    "h:Alpha",
+    "r:AlphaRule",
+    "h:Alpha One",
+    "r:AlphaOneRule",
+    "h:Beta",
+    "r:BetaRule",
+  ]);
+
+  // "Alpha"'s own section is itself + AlphaRule + the nested "Alpha One" h4 (absorbed, deeper
+  // than Alpha's own h3) + AlphaOneRule (4 blocks) — moving it Down must relocate all 4 past the
+  // WHOLE "Beta" section (2 blocks) as one unit, never interleaving.
+  const alphaHeading = page
+    .locator(".gramaire__prose", { hasText: "Alpha" })
+    .first();
+  await alphaHeading.hover();
+  await alphaHeading.locator(".gramaire__cell-action").nth(1).click(); // Down
+  await page.waitForTimeout(500);
+
+  const after = await labelledOrder(page);
+  expect(after.slice(-6)).toEqual([
+    "h:Beta",
+    "r:BetaRule",
+    "h:Alpha",
+    "r:AlphaRule",
+    "h:Alpha One",
+    "r:AlphaOneRule",
+  ]);
+});
+
+test("Up/Down on a heading disable at the true first/last SIBLING SECTION boundary, not the first/last block", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  // "Tokens" isn't the first BLOCK (the title/settings precede it), but it IS the first h3
+  // sibling — Up must be disabled there even though index !== 0.
+  const tokensHeading = page.locator(".gramaire__prose").nth(1);
+  await expect(tokensHeading).toContainText("Tokens");
+  await tokensHeading.hover();
+  await expect(
+    tokensHeading.locator(".gramaire__cell-action").first(),
+  ).toBeDisabled();
+  await expect(
+    tokensHeading.locator(".gramaire__cell-action").nth(1),
+  ).toBeEnabled();
+
+  // Expr/Term/Factor are interior siblings — both enabled.
+  for (const nth of [2, 3, 4]) {
+    const heading = page.locator(".gramaire__prose").nth(nth);
+    await heading.hover();
+    await expect(
+      heading.locator(".gramaire__cell-action").first(),
+    ).toBeEnabled();
+    await expect(
+      heading.locator(".gramaire__cell-action").nth(1),
+    ).toBeEnabled();
+  }
+
+  // "Generated tables" is the last h3 sibling — Down disabled, Up enabled (Factor precedes it).
+  const lastHeading = page.locator(".gramaire__prose").nth(5);
+  await expect(lastHeading).toContainText("Generated tables");
+  await lastHeading.hover();
+  await expect(
+    lastHeading.locator(".gramaire__cell-action").first(),
+  ).toBeEnabled();
+  await expect(
+    lastHeading.locator(".gramaire__cell-action").nth(1),
+  ).toBeDisabled();
 });
 
 test("clicking Down moves a block later in the document and re-evaluates", async ({
@@ -1830,6 +1972,57 @@ test("there is one more insert zone than there are blocks (one before each, one 
   await expect(page.locator(".gramaire__insert-zone")).toHaveCount(
     blockCount + 1,
   );
+});
+
+// Regression: the insert zone used to be 14px at rest and grow to `auto` (measured ~19px) on
+// hover, nudging every later block down a few pixels on every single hover — contradicting its
+// own "hovering never shifts surrounding content" intent. The zone's own resting height now
+// matches its hovered height exactly, so a sibling below never moves.
+test("hovering an insert zone causes zero layout shift for the content below it", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const zone = page.locator(".gramaire__insert-zone").nth(2);
+  const sibling = page
+    .locator(".gramaire__prose, .gramaire__cell[data-kind]")
+    .nth(3);
+
+  const zoneBefore = await zone.boundingBox();
+  const siblingBefore = await sibling.boundingBox();
+  await zone.hover();
+  const zoneAfter = await zone.boundingBox();
+  const siblingAfter = await sibling.boundingBox();
+
+  expect(zoneAfter!.height).toBe(zoneBefore!.height);
+  expect(siblingAfter!.y).toBe(siblingBefore!.y);
+});
+
+// Regression: a heading-leading prose block's hover background used to extend well above the
+// heading's own text (24px for h3, 18px for h4) — an artificial top margin that existed only to
+// keep the old absolute-positioned CellActions from clipping into short heading text. The actions
+// now sit inline in their own row alongside the heading instead, so no such clearance is needed.
+test("a heading-leading prose block's hover state shows no gap above the heading, actions rendered inline", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const tokensBlock = page.locator(".gramaire__prose").nth(1);
+  await expect(tokensBlock).toContainText("Tokens");
+  await tokensBlock.hover();
+
+  const box = await tokensBlock.boundingBox();
+  const heading = tokensBlock.locator("h2, h3, h4");
+  const headingBox = await heading.boundingBox();
+  // Roughly the block's own padding (2px), nowhere near the old 24px/18px margin.
+  expect(headingBox!.y - box!.y).toBeLessThan(8);
+
+  const actions = tokensBlock.locator(
+    ".gramaire__prose-heading-row > .gramaire__cell-actions",
+  );
+  await expect(actions).toHaveCount(1);
+  const actionsBox = await actions.boundingBox();
+  // Same row as the heading — vertically overlapping it, not floating above it.
+  expect(actionsBox!.y).toBeLessThan(headingBox!.y + headingBox!.height);
+  expect(actionsBox!.y + actionsBox!.height).toBeGreaterThan(headingBox!.y);
 });
 
 test("+ Prose inserts an empty prose block at that position and opens it for typing", async ({

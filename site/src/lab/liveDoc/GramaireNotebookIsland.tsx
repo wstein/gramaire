@@ -26,11 +26,15 @@ import {
   blockIndexAtOffset,
   blockCharSpans,
   isPaperBlock,
+  sectionEndIndex,
+  previousSiblingSectionStart,
+  nextSiblingSectionStart,
+  swapAdjacentRanges,
 } from "./document";
 import type { DocBlock, DocBlockKind } from "./document";
-import { parseMarkdownLite } from "./markdown";
+import { parseMarkdownLite, leadingHeading } from "./markdown";
 import type { MdBlock, MdInline } from "./markdown";
-import { MarkdownBlocks } from "./MarkdownBlock";
+import { MarkdownBlocks, MarkdownHeading } from "./MarkdownBlock";
 import { buildPaperPdf } from "./paperPdf";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
 import type { EditorDiagnostic } from "./CodeMirrorEditor";
@@ -426,10 +430,54 @@ function undo() {
   scheduleEvaluate();
 }
 
+// The ONE place document.ts's injected `headingLevelOf` callback is actually implemented —
+// document.ts stays markdown-agnostic (see its own new functions' doc comments); this is the only
+// spot that combines DocBlock shape with markdown parsing for section boundaries. Deliberately
+// answers "does this block's OWN rendered view start with a heading" (via markdown.ts's
+// `leadingHeading`, tolerating leading railroad placeholders) — a DIFFERENT, stricter question
+// than `outlineEntries`'s own `.find()` above, which labels a block by a heading anywhere inside
+// it. The numeric level (2/3/4) doubles as the "shallower is smaller" ordering
+// sectionEndIndex/previousSiblingSectionStart/nextSiblingSectionStart need.
+function headingLevelOf(block: DocBlock): number | null {
+  if (block.kind !== "prose") return null;
+  const lead = leadingHeading(parseMarkdownLite(block.text));
+  return lead ? Number(lead.heading.tag.slice(1)) : null;
+}
+
+// Moving a block whose own view opens with a heading moves that heading's WHOLE section (itself
+// plus every block that belongs under it, per sectionEndIndex) as one unit, trading places with
+// the immediately adjacent SIBLING section — Livebook's own section-reorder model, adapted to a
+// document with no explicit "section" object, only headings inferred from prose text. Moving any
+// other block (a lone rule/tokens/settings/precedence cell, or a plain non-heading prose block)
+// keeps the exact single-block adjacent swap this always did.
 function moveBlock(index: number, direction: -1 | 1) {
   if (blocksLocked()) return;
-  pushUndoSnapshot();
-  blocks.value = swapBlocks(blocks.value, index, index + direction);
+  const bs = blocks.value;
+  const level = headingLevelOf(bs[index]);
+  if (level === null) {
+    pushUndoSnapshot();
+    blocks.value = swapBlocks(bs, index, index + direction);
+    scheduleEvaluate();
+    return;
+  }
+  const end = sectionEndIndex(bs, index, headingLevelOf);
+  if (direction === -1) {
+    const prevStart = previousSiblingSectionStart(
+      bs,
+      index,
+      level,
+      headingLevelOf,
+    );
+    if (prevStart === null) return; // first sibling section — CellActions already disables Up
+    pushUndoSnapshot();
+    blocks.value = swapAdjacentRanges(bs, prevStart, index, end);
+  } else {
+    const nextStart = nextSiblingSectionStart(bs, end, level, headingLevelOf);
+    if (nextStart === null) return; // last sibling section — CellActions already disables Down
+    const nextEnd = sectionEndIndex(bs, nextStart, headingLevelOf);
+    pushUndoSnapshot();
+    blocks.value = swapAdjacentRanges(bs, index, end, nextEnd);
+  }
   scheduleEvaluate();
 }
 
@@ -495,8 +543,27 @@ async function copyCellLink(index: number): Promise<boolean> {
 // ANY editor being open, anywhere in the document — not just this cell's own.
 function CellActions({ index }: { index: number }) {
   const [copied, setCopied] = useState(false);
-  const total = blocks.value.length;
+  const bs = blocks.value;
+  const total = bs.length;
   const locked = editingCell.value !== null || editingProse.value !== null;
+  // A heading-leading block's Up/Down reflect whether there's an adjacent SIBLING SECTION to swap
+  // with (moveBlock's own section path) — not merely whether this is the first/last BLOCK, since a
+  // heading's section can start well after index 0 (e.g. "Tokens" isn't the first block, but IS
+  // the first h3 sibling) or span all the way to the document's own end.
+  const level = headingLevelOf(bs[index]);
+  const canMoveUp =
+    level === null
+      ? index > 0
+      : previousSiblingSectionStart(bs, index, level, headingLevelOf) !== null;
+  const canMoveDown =
+    level === null
+      ? index < total - 1
+      : nextSiblingSectionStart(
+          bs,
+          sectionEndIndex(bs, index, headingLevelOf),
+          level,
+          headingLevelOf,
+        ) !== null;
 
   return (
     <div class="gramaire__cell-actions">
@@ -504,7 +571,7 @@ function CellActions({ index }: { index: number }) {
         type="button"
         class="gramaire__cell-action"
         title="Move up"
-        disabled={locked || index === 0}
+        disabled={locked || !canMoveUp}
         onClick={(e) => {
           e.stopPropagation();
           moveBlock(index, -1);
@@ -516,7 +583,7 @@ function CellActions({ index }: { index: number }) {
         type="button"
         class="gramaire__cell-action"
         title="Move down"
-        disabled={locked || index === total - 1}
+        disabled={locked || !canMoveDown}
         onClick={(e) => {
           e.stopPropagation();
           moveBlock(index, 1);
@@ -984,6 +1051,19 @@ function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
   // `blocks` (the whole-document reactive model), which re-renders every ProseBlock too — cheap in
   // isolation, but compounding for no reason when this prose text hasn't itself changed.
   const parsed = useMemo(() => parseMarkdownLite(block.text), [block.text]);
+  // A block whose own rendered view opens with a heading gets that heading pulled out into its
+  // own row alongside CellActions (rendered inline to its right) instead of the actions floating
+  // as an absolute corner overlay — the overlay needed an artificial top margin on h3/h4 to avoid
+  // visually clipping into the heading text, which is exactly the "empty gap above the heading on
+  // hover" bug this replaces (gramaireNotebook.css's own `.gramaire__prose-heading-row` rules).
+  const lead = useMemo(() => leadingHeading(parsed), [parsed]);
+  const rest = useMemo(
+    () =>
+      lead
+        ? [...parsed.slice(0, lead.index), ...parsed.slice(lead.index + 1)]
+        : parsed,
+    [parsed, lead],
+  );
   return (
     <div
       class="gramaire__prose"
@@ -997,8 +1077,15 @@ function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
         handleCellActivateKey(e, () => beginEditProse(index, block.text))
       }
     >
-      <CellActions index={index} />
-      <MarkdownBlocks blocks={parsed} />
+      {lead ? (
+        <div class="gramaire__prose-heading-row">
+          <MarkdownHeading heading={lead.heading} />
+          <CellActions index={index} />
+        </div>
+      ) : (
+        <CellActions index={index} />
+      )}
+      <MarkdownBlocks blocks={rest} />
     </div>
   );
 }
