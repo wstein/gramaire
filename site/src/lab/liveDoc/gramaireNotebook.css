@@ -29,8 +29,8 @@
   --rr-term-fill: var(--bg);
   --rr-term-stroke: var(--accent);
   --rr-nonterm-fill: var(--bg-1);
-  /* The railroad's `{% %}` action label — reuses the Precedence badge's own "this is an action"
-     color (.gramaire__badge--precedence below) rather than inventing a new hue. */
+  /* The railroad's `{% %}` action label color — see Railroad.scala's own `ligatures`/font
+     comment for the current (muted, textbook-caption) treatment. */
   --rr-action-stroke: var(--t-action);
 }
 
@@ -330,9 +330,8 @@
 
 /* Save/Cancel (+ the prose editor's own Bold/Italic/Heading/Code/Link) — a standalone rounded
    bar above the prose textarea (the default shape) or, with the `--flush` modifier, a borderless
-   strip that reads as part of the grammar cell's own chrome (between its header and its
-   CodeMirror editor, matching .gramaire__cell-header's own bottom-border convention) rather than
-   a second floating box inside an already-bordered cell. */
+   strip directly above a grammar cell's CodeMirror editor (a plain bottom-border separator,
+   not a second floating box). */
 .gramaire__toolbar {
   display: flex;
   align-items: center;
@@ -390,51 +389,12 @@
   filter: brightness(1.08);
 }
 
+/* Plain flow container, like `.gramaire__prose` — no border/background at rest. Errors/warnings
+   are signalled by `CellDiagnostics`'s own severity-colored message below, not a colored border;
+   "which cell is this" comes from the document's own preceding prose heading, not an internal
+   badge/name header (Layer 2's old `.gramaire__cell-header` — removed, not just restyled). */
 .gramaire__cell {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 10px);
-  background: var(--bg);
   margin: 6px 0 20px;
-  overflow: hidden;
-}
-
-/* Layer 2 — a cell that owns an error diagnostic. */
-.gramaire__cell--error {
-  border-color: #e05a4b;
-}
-/* Same treatment, one severity down: a cell that owns a warning (and no error) still builds and
-   renders fine, so it keeps its railroad/FIRST-FOLLOW — just flagged, instead of looking
-   identical to a clean cell until the diagnostics panel happens to be open. */
-.gramaire__cell--warning {
-  border-color: #d9930a;
-}
-
-.gramaire__cell-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 13px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-1);
-  cursor: pointer;
-}
-
-.gramaire__cell-error-tag {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #e05a4b;
-  background: color-mix(in srgb, #e05a4b 14%, var(--bg));
-  border-radius: 999px;
-  padding: 2px 8px;
-  cursor: pointer;
-}
-.gramaire__cell-error-tag--warning {
-  color: #d9930a;
-  background: color-mix(in srgb, #d9930a 16%, var(--bg));
 }
 
 .gramaire__cell-diags {
@@ -478,7 +438,7 @@
 }
 
 .gramaire__cell-rendered {
-  cursor: text;
+  cursor: pointer;
 }
 .gramaire__cell-rendered:hover {
   background: var(--bg-1);
@@ -493,40 +453,6 @@
   color: var(--fg-secondary);
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-.gramaire__badge {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  border-radius: 999px;
-  padding: 3px 9px;
-  border: 1px solid var(--border-strong);
-  color: var(--fg-muted);
-  background: var(--bg-2);
-}
-.gramaire__badge--rule {
-  color: var(--accent);
-  background: var(--accent-softer);
-  border-color: var(--accent);
-}
-.gramaire__badge--tokens {
-  color: var(--t-tokens-badge);
-  background: color-mix(in srgb, var(--t-tokens-badge) 12%, var(--bg));
-  border-color: var(--t-tokens-badge);
-}
-.gramaire__badge--precedence {
-  color: var(--t-action);
-  background: color-mix(in srgb, var(--t-action) 12%, var(--bg));
-  border-color: var(--t-action);
-}
-
-.gramaire__cell-name {
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  color: var(--fg-muted);
 }
 
 .gramaire__editor {

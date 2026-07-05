@@ -715,9 +715,20 @@ resolving to no active nav section at all) and from the homepage (a
 the Lab, it hides the Starlight search box (`AppShell.astro`'s `showSearch`):
 both are interactive tools with no indexable Pagefind content of their own.
 
-Renders the whole document as prose interleaved with per-fence cells, each
-showing its `fences`-reported role badge. **Every cell — grammar and prose
-alike — uses the same click-to-edit interaction**: by default it shows a
+Renders the whole document as prose interleaved with per-fence cells,
+rendered inline with no border or role-badge/name header of their own — a
+cell reads like plain markdown at rest, discoverable only via a pointer
+cursor and a subtle background tint on hover (`.gramaire__cell-rendered`,
+the same "hover-tint, no box" pattern `.gramaire__prose` already used).
+"Which cell is this" comes from the document's own preceding prose heading
+(`## Expr`, `## Tokens`, ...), not internal chrome; `Railroad.renderSvg`'s
+`aria-label="Railroad diagram for the {name} rule"` keeps the name
+available to assistive tech either way. A cell that owns an error or
+warning gets no border color either — `CellDiagnostics`, rendered directly
+beneath every cell, unconditionally prints the full message (+ notes)
+inline whenever one applies, which is signal enough on its own.
+**Every cell — grammar and prose alike — uses the same click-to-edit
+interaction**: by default it shows a
 rendered, read-only view (a rule cell: its railroad diagram/FIRST-FOLLOW from
 `LabResponse.analysis`; a Tokens/Settings/Precedence cell, which has no
 railroad equivalent: its source in a plain read-only `<pre>`; a prose block:
@@ -882,15 +893,14 @@ count:
 - **Per-cell attribution** (Layer 2): each diagnostic's `span.start` is mapped
   back to its owning cell via `blockIndexAtOffset` (`document.ts` — pure
   char-range arithmetic that stays in exact lockstep with `serializeDocument`,
-  unit-tested). The offending cell gets a red border, an `error` tag, and the
-  message inline beneath it — a cell with only a warning (the grammar still
-  builds) gets the same treatment one severity down (amber border, a
-  `warning` tag), rather than looking identical to a clean cell until the
-  panel happens to be open. Either tag is itself clickable (`stopPropagation`
-  so it reveals the panel without also opening the cell's editor). Crucially,
-  the error treatment fixes the "one typo blanks the whole notebook" cliff:
-  when the grammar notation fails to parse (`analysis` null), untouched cells
-  keep showing their **last-good railroad/FIRST-FOLLOW** (`lastAnalysis`),
+  unit-tested). No border color or tag on the cell itself (cells have no
+  chrome to color) — `CellDiagnostics`, rendered directly beneath every cell,
+  unconditionally prints the message + notes inline whenever that cell owns
+  one, at either severity; the document panel's own row is what's clickable
+  (jumps to and opens the owning cell). Crucially, the error treatment fixes
+  the "one typo blanks the whole notebook" cliff: when the grammar notation
+  fails to parse (`analysis` null), untouched cells keep showing their
+  **last-good railroad/FIRST-FOLLOW** (`lastAnalysis`),
   dimmed and labelled "stale", instead of all collapsing to raw source — only
   the cell that actually owns the error loses its rendered view.
 - **In-editor squiggles** (Layer 3): when a cell is open, each of its
@@ -926,7 +936,8 @@ the directive itself (`unknownSettingWarnings` previously built every
 diagnostic with none at all, the one warning generator in `Lr.scala` that
 didn't) — the Notebook attributes and links a diagnostic purely from its
 span, so this alone is what made it clickable in the panel and gave its
-Settings cell the amber border/tag Layer 2 already gave errors.
+Settings cell the same inline `CellDiagnostics` message Layer 2 already
+gave errors.
 
 **Notebook/Source view toggle.** A sliding switch in the status bar
 (`.gramaire__view-toggle`, `GramaireNotebookIsland.tsx`) flips between the

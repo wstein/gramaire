@@ -13,10 +13,15 @@ async function gotoNotebookReady(page: import("@playwright/test").Page) {
 }
 
 function ruleCellLocator(page: import("@playwright/test").Page) {
+  return page.locator('.gramaire__cell[data-kind="rule"]').first();
+}
+
+// Cells render inline with no visible badge/name header — `data-nonterminal` (an invisible test
+// hook, GramaireNotebookIsland.tsx) is how a test asserts rule identity/order without one.
+function ruleNonterminals(page: import("@playwright/test").Page) {
   return page
-    .locator(".gramaire__cell")
-    .filter({ has: page.locator(".gramaire__badge--rule") })
-    .first();
+    .locator('.gramaire__cell[data-kind="rule"]')
+    .evaluateAll((els) => els.map((el) => el.getAttribute("data-nonterminal")));
 }
 
 test("the notebook evaluates the default grammar against the real engine, no console errors", async ({
@@ -29,24 +34,27 @@ test("the notebook evaluates the default grammar against the real engine, no con
   });
 
   await gotoNotebookReady(page);
-  await expect(page.locator(".gramaire__badge")).toHaveCount(5);
+  await expect(page.locator(".gramaire__cell")).toHaveCount(5);
   expect(
     errors,
     `unexpected console/page errors: ${errors.join("; ")}`,
   ).toEqual([]);
 });
 
-test("every rule cell renders a role badge, its name, and a railroad diagram by default (not source code)", async ({
+test("every rule cell renders inline (no border/badge) with a railroad diagram by default, not source code", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
 
-  // The notebook opens on the calc-js example: Settings, then Tokens, then the three rules.
-  const badges = await page.locator(".gramaire__badge").allTextContents();
-  expect(badges).toEqual(["Settings", "Tokens", "Rule", "Rule", "Rule"]);
+  // The notebook opens on the calc-js example: Settings, then Tokens, then the three rules —
+  // `data-kind`/`data-nonterminal` are invisible test hooks (GramaireNotebookIsland.tsx), not a
+  // visible badge/name header (removed: cells render inline like plain markdown at rest).
+  const kinds = await page
+    .locator(".gramaire__cell")
+    .evaluateAll((els) => els.map((el) => el.getAttribute("data-kind")));
+  expect(kinds).toEqual(["settings", "tokens", "rule", "rule", "rule"]);
 
-  const names = await page.locator(".gramaire__cell-name").allTextContents();
-  expect(names).toEqual(["Expr", "Term", "Factor"]);
+  expect(await ruleNonterminals(page)).toEqual(["Expr", "Term", "Factor"]);
 
   await expect(page.locator(".gramaire__output-railroad svg")).toHaveCount(3);
   // Default (not-yet-clicked) state shows the rendered view, never an active editor.
@@ -85,8 +93,7 @@ test("a Tokens cell shows read-only source by default; clicking still reveals it
 }) => {
   await gotoNotebookReady(page);
   const tokensCell = page
-    .locator(".gramaire__cell")
-    .filter({ has: page.locator(".gramaire__badge--tokens") })
+    .locator('.gramaire__cell[data-kind="tokens"]')
     .first();
 
   await expect(tokensCell.locator(".gramaire__cell-source")).toBeVisible();
@@ -164,12 +171,8 @@ test("editing a prose block to a different line count never corrupts sibling cel
   );
   // ...nor after it settles.
   await page.waitForTimeout(1000);
-  await expect(page.locator(".gramaire__badge")).toHaveCount(5);
-  await expect(page.locator(".gramaire__cell-name")).toHaveText([
-    "Expr",
-    "Term",
-    "Factor",
-  ]);
+  await expect(page.locator(".gramaire__cell")).toHaveCount(5);
+  expect(await ruleNonterminals(page)).toEqual(["Expr", "Term", "Factor"]);
   await expect(page.locator(".gramaire__output-railroad svg")).toHaveCount(3);
 });
 
@@ -196,12 +199,8 @@ test("editing a cell's first line never exposes or corrupts its ```gramaire mark
   await page.locator(".gramaire__statusbar").click(); // blur, saves
   await page.waitForTimeout(1000);
 
-  await expect(page.locator(".gramaire__badge")).toHaveCount(5);
-  await expect(page.locator(".gramaire__cell-name")).toHaveText([
-    "Expr",
-    "Term",
-    "Factor",
-  ]);
+  await expect(page.locator(".gramaire__cell")).toHaveCount(5);
+  expect(await ruleNonterminals(page)).toEqual(["Expr", "Term", "Factor"]);
   await expect(page.locator(".gramaire__output-railroad svg")).toHaveCount(3);
 });
 
@@ -250,7 +249,7 @@ test("typing multiple rapid characters (with newlines/quotes) in a cell settles 
 
   await page.locator(".gramaire__statusbar").click(); // blur, saves
   await page.waitForTimeout(1000);
-  await expect(page.locator(".gramaire__badge")).toHaveCount(5);
+  await expect(page.locator(".gramaire__cell")).toHaveCount(5);
 });
 
 test("Try it renders real tokens and a CST for the default input", async ({
@@ -591,44 +590,44 @@ test("a missing closing quote is one 'unterminated string literal' error, not a 
   await expect(page.locator(".gramaire__diag-note").first()).toContainText(
     "closing `'`",
   );
-  // Only the Expr cell is flagged; the untouched Term cell is not.
-  await expect(page.locator(".gramaire__cell--error")).toHaveCount(1);
+  // Only the Expr cell is flagged; the untouched Term cell is not. No border/tag anymore — a
+  // cell "owning" a diagnostic is the one CellDiagnostics actually attributes it to.
+  await expect(
+    page.locator(".gramaire__cell:has(.gramaire__cell-diag--error)"),
+  ).toHaveCount(1);
 });
 
-// Layer 2: the error attributes to the offending cell (red border + tag + inline message), and
-// clicking the panel row jumps to and opens that cell.
+// Layer 2: the error attributes to the offending cell (an inline message via CellDiagnostics, no
+// border/tag — cells render plain at rest), and clicking the panel row jumps to and opens that cell.
 test("the offending cell is flagged with an inline error; clicking the panel row opens it", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
   await breakFirstRule(page, "Foo Bar");
 
-  const erroredCell = page.locator(".gramaire__cell--error");
+  const erroredCell = page.locator(
+    ".gramaire__cell:has(.gramaire__cell-diag--error)",
+  );
   await expect(erroredCell).toHaveCount(1);
-  await expect(erroredCell.locator(".gramaire__cell-error-tag")).toBeVisible();
   await expect(
     erroredCell.locator(".gramaire__cell-diag-message"),
   ).toContainText("unexpected");
 
   await page.locator(".gramaire__diag--linked").first().click();
-  await expect(
-    page.locator(".gramaire__cell--error .cm-content"),
-  ).toBeVisible();
+  await expect(erroredCell.locator(".cm-content")).toBeVisible();
 });
 
 // A warning-only cell (the grammar still builds — a bad/typo'd %directive is cosmetic, never
-// fatal) gets the same treatment as an error one turn down: an amber border and a "warning" tag,
-// and the panel row is clickable — unknownSettingWarnings now carries a real span, where it used
-// to have none at all (so blockIndex was always null, and this diagnostic could never be linked).
+// fatal) gets the same treatment as an error one turn down: an inline message via
+// CellDiagnostics, and the panel row is clickable — unknownSettingWarnings now carries a real
+// span, where it used to have none at all (so blockIndex was always null, and this diagnostic
+// could never be linked).
 test("a cell with only a warning is flagged the same way an error is, and its panel row is clickable", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
 
-  const settingsCell = page
-    .locator(".gramaire__cell")
-    .filter({ has: page.locator(".gramaire__badge--settings") })
-    .first();
+  const settingsCell = page.locator('.gramaire__cell[data-kind="settings"]');
   await settingsCell.locator(".gramaire__cell-rendered").click();
   await settingsCell.locator(".cm-content").click();
   await page.keyboard.press("Control+A");
@@ -637,16 +636,13 @@ test("a cell with only a warning is flagged the same way an error is, and its pa
   await settingsCell.locator(".gramaire__toolbar-btn--save").click();
   await page.waitForTimeout(1000);
 
-  const warnedCell = page.locator(".gramaire__cell--warning");
+  const warnedCell = page.locator(
+    ".gramaire__cell:has(.gramaire__cell-diag--warning)",
+  );
   await expect(warnedCell).toHaveCount(1);
   await expect(
-    warnedCell.locator(".gramaire__cell-error-tag--warning"),
-  ).toHaveText("warning");
-
-  // Clicking the tag reveals the panel without opening the cell's editor.
-  await warnedCell.locator(".gramaire__cell-error-tag").click();
-  await expect(page.locator(".gramaire__diagnostics")).toBeVisible();
-  await expect(warnedCell.locator(".cm-content")).toHaveCount(0);
+    warnedCell.locator(".gramaire__cell-diag-message"),
+  ).toBeVisible();
 
   // The panel row itself is linked (blockIndex resolved via the warning's own span) and clicking
   // it jumps to and opens the owning cell.
@@ -664,10 +660,11 @@ test("opening an errored cell shows an in-editor squiggle with the message on ho
   await gotoNotebookReady(page);
   await breakFirstRule(page, "Foo Bar"); // "unexpected `Bar`" — a span-located diagnostic
 
-  await page.locator(".gramaire__cell--error .gramaire__cell-rendered").click();
-  const underline = page.locator(
-    ".gramaire__cell--error .cm-content .cm-lintRange-error",
+  const erroredCell = page.locator(
+    ".gramaire__cell:has(.gramaire__cell-diag--error)",
   );
+  await erroredCell.locator(".gramaire__cell-rendered").click();
+  const underline = erroredCell.locator(".cm-content .cm-lintRange-error");
   await expect(underline.first()).toBeVisible();
 
   await underline.first().hover();
@@ -761,17 +758,12 @@ test("toggling to Source view and back with no edits leaves the document unchang
   page,
 }) => {
   await gotoNotebookReady(page);
-  const namesBefore = await page
-    .locator(".gramaire__cell-name")
-    .allTextContents();
+  const namesBefore = await ruleNonterminals(page);
 
   await page.locator(".gramaire__view-toggle").click();
   await page.locator(".gramaire__view-toggle").click();
 
-  await expect(page.locator(".gramaire__cell-name")).toHaveCount(
-    namesBefore.length,
-  );
-  expect(await page.locator(".gramaire__cell-name").allTextContents()).toEqual(
-    namesBefore,
-  );
+  // ruleNonterminals reads plain attributes (no Playwright auto-wait) — poll since the toggle's
+  // own commit + re-derive round-trip settles a moment after the click, not synchronously with it.
+  await expect.poll(() => ruleNonterminals(page)).toEqual(namesBefore);
 });
