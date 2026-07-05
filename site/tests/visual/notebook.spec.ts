@@ -729,7 +729,7 @@ test("the view toggle lives in the shared topbar's tools slot, its aria-pressed 
   const topbarToggle = page.locator(
     "gramark-topbar .grimoire__view-toggle-btn",
   );
-  await expect(topbarToggle).toHaveCount(2);
+  await expect(topbarToggle).toHaveCount(3);
 
   await expect(viewToggleButton(page, "Notebook")).toBeVisible();
   await expect(viewToggleButton(page, "Notebook")).toHaveAttribute(
@@ -821,6 +821,75 @@ test("toggling to Source view and back with no edits leaves the document unchang
   // ruleNonterminals reads plain attributes (no Playwright auto-wait) — poll since the toggle's
   // own commit + re-derive round-trip settles a moment after the click, not synchronously with it.
   await expect.poll(() => ruleNonterminals(page)).toEqual(namesBefore);
+});
+
+// Paper — a third, fully read-only view mode (serif type, narrow centered measure, numbered
+// figure/captions for railroad diagrams), independent of the Livebook-style editing affordances
+// every other view has.
+test("switching to Paper shows numbered figures for rules and labeled source for Tokens/Settings, with the Paper button pressed", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await viewToggleButton(page, "Paper").click();
+
+  await expect(viewToggleButton(page, "Paper")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.locator(".grimoire__paper")).toBeVisible();
+
+  const captions = await page
+    .locator(".grimoire__paper-figure figcaption")
+    .allTextContents();
+  expect(captions).toEqual([
+    "Figure 1 — Expr",
+    "Figure 2 — Term",
+    "Figure 3 — Factor",
+  ]);
+
+  const sourceLabels = await page
+    .locator(".grimoire__paper-source-label")
+    .allTextContents();
+  expect(sourceLabels).toEqual(["Settings", "Tokens"]);
+});
+
+test("Paper is fully read-only — nothing in it is clickable/editable, unlike every other view", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await viewToggleButton(page, "Paper").click();
+  await expect(page.locator(".grimoire__paper")).toBeVisible();
+
+  // No Notebook-only chrome leaks into Paper: no hover-reveal cell actions, no insert zones, no
+  // Try-it calculator, no CodeMirror editor anywhere.
+  await expect(page.locator(".grimoire__cell-actions")).toHaveCount(0);
+  await expect(page.locator(".grimoire__insert-zone")).toHaveCount(0);
+  await expect(page.locator(".grimoire__tryit")).toHaveCount(0);
+  await expect(page.locator(".cm-content")).toHaveCount(0);
+
+  // Clicking directly on a figure/source block does nothing — no editor opens.
+  await page.locator(".grimoire__paper-figure").first().click();
+  await page.locator(".grimoire__paper-source").first().click();
+  await expect(page.locator(".cm-content")).toHaveCount(0);
+  await expect(page.locator(".grimoire__paper")).toBeVisible();
+});
+
+test("round-tripping Source → Paper → Notebook (never having visited Source's own commit path from Paper) leaves the document unchanged", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const namesBefore = await ruleNonterminals(page);
+
+  // Regression: an earlier version of toNotebook() unconditionally committed sourceDraft,
+  // which is stale/empty the first time a visitor goes straight from Paper to Notebook without
+  // Source in between — this exercises exactly that path (Source → Paper → Notebook), not just
+  // Notebook ↔ Paper directly.
+  await viewToggleButton(page, "Source").click();
+  await viewToggleButton(page, "Paper").click();
+  await viewToggleButton(page, "Notebook").click();
+
+  await expect.poll(() => ruleNonterminals(page)).toEqual(namesBefore);
+  await expect(page.locator(".grimoire__cell")).toHaveCount(5);
 });
 
 // Livebook-style hover-reveal per-cell actions (reorder/link/delete) — a small floating row, not

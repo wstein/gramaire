@@ -77,6 +77,10 @@
   --font-ui:
     "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* The Paper view's reading typography — same IBM Plex family as --font-ui/--font-mono (visual
+     cohesion with the rest of the type system) rather than an unrelated serif face. Loaded via
+     page-head.mjs's GOOGLE_FONTS_HREF, same as the other two. */
+  --font-serif: "IBM Plex Serif", ui-serif, Georgia, serif;
   color-scheme: light;
 
   --bg: #ffffff;
