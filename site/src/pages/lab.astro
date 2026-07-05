@@ -43,7 +43,11 @@ const headTags = pageHeadTags(base);
     </script>
     <title>Gramaire — Lab</title>
     <meta name="description" content="Try Gramaire grammars in the browser." />
-    {headTags.map((t) => t.tag === "link" && <link {...t.attrs} />)}
+    {
+      headTags.map(({ tag: Tag, attrs, content }) => (
+        <Tag {...attrs} set:html={content} />
+      ))
+    }
   </head>
   <body>
     <div class="shell">
