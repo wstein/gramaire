@@ -322,17 +322,24 @@ test("the Notebook highlights itself in the nav, has no search box, but does hav
   expect(info.dividerHidden).toBe(false);
 });
 
-// The whole page-tools row (view toggle + download actions) sits flush against the nav links
-// (right-aligned within the tools/spacer region), not flush against the logo where Search sits
-// on content pages — a `:host([data-page-tools="true"])`-scoped rule in gramark-topbar.mjs, so
-// this doesn't move Search's own position on any other page (verified separately by the
-// search-box tests elsewhere in this file still passing). Measured from `.grimoire__download-
-// actions` specifically — the LAST of the two page-tools elements, since download actions were
-// added after the toggle and sit to its right — not from the toggle itself.
-test("the Notebook's page-tools row sits right-aligned, immediately left of Home — not flush against the logo", async ({
+// The whole page-tools row (download actions + view toggle, in that order) sits flush against
+// the divider/nav links (right-aligned within the tools/spacer region), not flush against the
+// logo where Search sits on content pages — a `:host([data-page-tools="true"])`-scoped rule in
+// gramark-topbar.mjs, so this doesn't move Search's own position on any other page (verified
+// separately by the search-box tests elsewhere in this file still passing). Checked directly
+// against the new `.divider--nav` separator (added on request between the tools content and
+// Home) rather than compared relatively to the logo-side gap: once BOTH sides have their own
+// divider, the two gaps become comparable in magnitude by construction, so a bare "closer to
+// Home than to logo" comparison stopped being a meaningful signal (confirmed empirically after
+// adding the separator — this exact relative check flipped/regressed, not a coincidence).
+test("the Notebook's page-tools row sits right-aligned, immediately left of the nav separator — not flush against the logo", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1100, height: 400 });
+  // Wide enough that there's real slack width to distribute — at ~1100px the content (~366px)
+  // nearly fills the whole tools/spacer region on its own, leaving too little free space for
+  // the two gaps to differ meaningfully regardless of which side margin-left:auto pushes toward
+  // (confirmed empirically: both gaps measured ~36px at 1100px, only diverging at wider widths).
+  await page.setViewportSize({ width: 1600, height: 400 });
   await page.goto("/notebook/");
   const toggle = page.locator(".grimoire__view-toggle");
   const downloads = page.locator(".grimoire__download-actions");
@@ -340,12 +347,11 @@ test("the Notebook's page-tools row sits right-aligned, immediately left of Home
   await downloads.waitFor();
 
   const topbar = page.locator("gramark-topbar");
-  const homeLinkBox: number = await topbar.evaluate((el: Element) => {
-    const home = [...el.shadowRoot!.querySelectorAll("nav.ctx a")].find(
-      (a) => a.textContent?.trim() === "Home",
-    );
-    return home!.getBoundingClientRect().left;
-  });
+  const navDividerLeft: number = await topbar.evaluate(
+    (el: Element) =>
+      el.shadowRoot!.querySelector(".divider--nav")!.getBoundingClientRect()
+        .left,
+  );
   const logoBox: number = await topbar.evaluate(
     (el: Element) =>
       el.shadowRoot!.querySelector(".brand")!.getBoundingClientRect().right,
@@ -353,10 +359,11 @@ test("the Notebook's page-tools row sits right-aligned, immediately left of Home
   const toggleBox = (await toggle.boundingBox())!;
   const downloadsBox = (await downloads.boundingBox())!;
 
-  // Closer to Home's left edge than to the logo's right edge — compared relatively rather than
-  // against an exact pixel count, since the gap to Home includes the nav's own internal
-  // padding/divider spacing, unrelated to this alignment rule itself.
-  const distanceToHome = homeLinkBox - downloadsBox.x - downloadsBox.width;
-  const distanceToLogo = toggleBox.x - logoBox;
-  expect(distanceToHome).toBeLessThan(distanceToLogo);
+  // Immediately adjacent to the nav separator (just the row's own natural gap, ~36px measured
+  // directly — the flex gap plus a little breathing room, not a large empty span) — and far from
+  // the logo, which would mean the right-align rule silently stopped applying.
+  const distanceToDivider = navDividerLeft - toggleBox.x - toggleBox.width;
+  const distanceToLogo = downloadsBox.x - logoBox;
+  expect(distanceToDivider).toBeLessThan(50);
+  expect(distanceToLogo).toBeGreaterThan(100);
 });

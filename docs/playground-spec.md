@@ -998,34 +998,48 @@ itself: it was already slotted-content-agnostic (the `::slotted([slot=
 already auto-shows/hides generically based on `assignedElements().length`,
 not on what's actually there.
 
-It DOES carry small, deliberately scoped additions since — both pages'
-page-tools content sits right-aligned, flush against the nav links, rather
-than flush against the logo where Search's fixed-width box sits:
-`AppShell.astro` stamps `data-page-tools={hasPageTools}` onto
-`<gramark-topbar>` itself, and its own shadow CSS uses
-`:host([data-page-tools="true"])` to neutralize `.spacer`'s `flex:1`, give
-`.tools` `margin-left:auto`, and widen `.tools`'s own slotted box past
-Search's fixed 200px (`width: auto`, no min-width floor) — scoped to a page
-with its own page-tools content, whichever page that is; Search's own
-position on every other page is untouched. All three rules were tuned
-empirically, not assumed correct on the first attempt: `margin-left:auto`
-on `.tools` alone measured 0px (flex-grow gets first claim on a flex line's
-free space, resolved BEFORE auto margins get whatever's left over, so
-`.spacer`'s pre-existing `flex:1` always won that space first until its own
-flex-grow was neutralized too); and a first attempt at widening used a
-guessed `min-width: 420px` floor, which measured a 79px dead gap between
-the Notebook's controls and Home — the Notebook's actual content (~366px)
-was narrower than the guessed floor, and content left-aligns by default
-inside an oversized box rather than filling or centering within it, so the
-leftover space landed as a gap before Home instead of closing it. Plain
-`width: auto` (no floor at all) sizes the box exactly to whichever page's
-real content is inside, correct for the Notebook's five controls and the
-Lab's three dropdowns alike, with nothing to tune per page.
-`data-page-tools`'s value is matched against the literal string `"true"`,
-not bare attribute presence: Astro renders the attribute as
+It DOES carry small, deliberately scoped additions since. `AppShell.astro`
+stamps `data-page-tools={hasPageTools}` onto `<gramark-topbar>` itself, and
+its own shadow CSS uses `:host([data-page-tools="true"])` to neutralize
+`.spacer`'s `flex:1`, give `.tools` `margin-left:auto`, and widen `.tools`'s
+own slotted box past Search's fixed 200px (`width: auto`, no min-width
+floor) — scoped to a page with its own page-tools content, whichever page
+that is; Search's own position on every other page is untouched. All three
+rules were tuned empirically, not assumed correct on the first attempt:
+`margin-left:auto` on `.tools` alone measured 0px (flex-grow gets first
+claim on a flex line's free space, resolved BEFORE auto margins get
+whatever's left over, so `.spacer`'s pre-existing `flex:1` always won that
+space first until its own flex-grow was neutralized too); and a first
+attempt at widening used a guessed `min-width: 420px` floor, which measured
+a 79px dead gap between the Notebook's controls and Home — the Notebook's
+actual content (~366px) was narrower than the guessed floor, and content
+left-aligns by default inside an oversized box rather than filling or
+centering within it, so the leftover space landed as a gap before Home
+instead of closing it. Plain `width: auto` (no floor at all) sizes the box
+exactly to whichever page's real content is inside, correct for the
+Notebook's five controls and the Lab's three dropdowns alike, with nothing
+to tune per page. `data-page-tools`'s value is matched against the literal
+string `"true"`, not bare attribute presence: Astro renders the attribute as
 `data-page-tools="false"` when its value is false, not an omitted
 attribute — confirmed against the built HTML, since a bare presence check
 would have matched every page.
+
+The Notebook's page-tools content is right-aligned (flush against the nav
+links); the Lab's is deliberately LEFT-aligned instead (flush against the
+logo, where Search normally sits) — a divergence, not an oversight.
+`:host([data-page-tools="true"][active="lab"])` overrides the general
+right-align rules specifically for the Lab (one more attribute selector
+than the general `[data-page-tools="true"]` rules — strictly higher
+specificity, so it wins regardless of source order), resetting `.spacer`
+back to `flex:1` and `.tools`'s `margin-left` back to `0`. A third divider
+(`.divider--nav`, unconditional — every page always has something in the
+tools slot now, Search or page-tools, so it never needs the brand|tools
+divider's own hide-when-empty logic) sits between the tools content and the
+nav links on every page, matching the brand|tools divider's own look —
+hidden below the same 720px breakpoint `nav.ctx` itself already hides at
+(confirmed necessary, not just tidy: at 320px it measured enough extra
+width to push the theme control 0.8px past the viewport edge, a real if
+tiny regression the existing mobile-width test caught).
 
 **Paper view** (`PaperView`/`PaperBlock`, `.grimoire__paper`,
 `GrimoireNotebookIsland.tsx`) — a third, fully read-only reading/printing
@@ -1059,6 +1073,24 @@ Fully read-only: no click handlers, no `CellActions`, no `InsertZone`, no
 `TryIt`. `DiagnosticsPanel`/`StatusBar` stay unconditional, same as they
 already were for Source view — not a new special case for Paper.
 
+Viewing this project's own self-hosting grammar (`grammar/Gramark.grmk.md`)
+in Paper surfaced a real, pre-existing bug in `parseMarkdownLite`
+(`markdown.ts`) shared by BOTH views, not a Paper-specific one: GFM's
+`<details><summary>...</summary>...</details>` collapsible-section wrapper
+— used 58 times across 5 real files in this repo
+(`grammar/Gramark.grmk.md`, `grammar/Productions.grmk.md`,
+`examples/ECMA-404.grmk.md`, `examples/lalr-artifact.grmk.md`,
+`examples/dangling-else.grmk.md`) — has no HTML-awareness in this parser at
+all, so a `<details>`/`<summary>...</summary>`/`</details>` line fell
+through to `para.push(line)` like ordinary prose, rendering as literal text
+(a paragraph literally reading `<details>`). Fixed with a per-line skip
+(`/^<\/?(details|summary)\b[^>]*>/i`, flushing any in-progress paragraph
+first) rather than threading a new block kind through the parser's small
+state machine — every real occurrence sits on its own line, so a targeted
+line filter is the lower-risk fix. A prose heading that happens to be
+named "Tokens" is unrelated prose narrative and still renders — see above;
+this fix is about the literal `<details>`/`<summary>` WRAPPER tags only.
+
 New typography groundwork this needed: `tokens.css` gained
 `--font-serif: "IBM Plex Serif", ui-serif, Georgia, serif` — the same IBM
 Plex family already used for `--font-ui`/`--font-mono`, for visual cohesion
@@ -1087,10 +1119,12 @@ restores proper cell structure once the engine catches up, exactly like any
 other edit.
 
 **Download actions** (`DownloadActions`, `.grimoire__download-actions`,
-`GrimoireNotebookIsland.tsx`) — two plain buttons next to `ViewToggle`,
-combined into one `NotebookTopbarTools` export so `notebook.astro` mounts a
-single `client:load` island in the topbar's `page-tools` slot for both,
-rather than a second separate Preact root for one more control.
+`GrimoireNotebookIsland.tsx`) — two plain buttons, ordered BEFORE
+`ViewToggle` in the topbar row (`↓ Source`, `Print / PDF`, then `Notebook /
+Source / Paper`) — combined into one `NotebookTopbarTools` export so
+`notebook.astro` mounts a single `client:load` island in the topbar's
+`page-tools` slot for both, rather than a second separate Preact root for
+one more control.
 
 - **`↓ Source`**: the first save-to-disk feature this codebase has (confirmed
   by research before building it — no `download=`/`Blob(`/`createObjectURL`

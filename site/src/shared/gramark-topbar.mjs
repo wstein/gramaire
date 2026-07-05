@@ -159,6 +159,14 @@ const TEMPLATE = `
   :host([data-page-tools="true"]) ::slotted([slot="tools"]) {
     width: auto;
   }
+  /* The Lab's own page-tools content (Example/Engine/Start-rule) stays LEFT-aligned, flush next
+     to the brand — unlike the Notebook's, which is right-aligned flush against the nav links.
+     Both attribute selectors ([data-page-tools="true"][active="lab"]) together outweigh the
+     general rules above (one more attribute selector = strictly higher specificity), so this
+     cleanly overrides them for the Lab specifically without touching the Notebook's own
+     right-aligned case. */
+  :host([data-page-tools="true"][active="lab"]) .spacer { flex: 1; }
+  :host([data-page-tools="true"][active="lab"]) .tools { margin-left: 0; }
 
   .spacer { flex: 1; }
 
@@ -203,6 +211,10 @@ const TEMPLATE = `
 
   @media (max-width: 720px) {
     nav.ctx { display: none; }
+    /* This divider separates the tools/page-tools content from nav.ctx specifically — pointless
+       (and, measured directly, enough to push the theme control off-screen at 320px) once nav
+       itself is hidden at this width. */
+    .divider--nav { display: none; }
     /* .tools is itself display:flex, so its slotted child (a plain <div>)
        becomes a flex ITEM of it — width:auto on a flex item does NOT
        mean "fill the container" the way it does on a block element; without
@@ -257,6 +269,7 @@ const TEMPLATE = `
   <div class="tools" part="tools"><slot name="tools"></slot></div>
   <div class="spacer"></div>
 
+  <div class="divider divider--nav"></div>
   <nav class="ctx" part="nav" id="ctx"></nav>
 
   <div class="divider"></div>

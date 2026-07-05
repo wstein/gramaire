@@ -143,7 +143,7 @@
 .grimoire__download-actions {
   display: inline-flex;
   gap: 6px;
-  margin-left: 10px;
+  margin-right: 10px;
 }
 .grimoire__download-btn {
   font-family: var(--font-mono);

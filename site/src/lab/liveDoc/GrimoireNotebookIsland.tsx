@@ -1182,8 +1182,8 @@ function DownloadActions() {
 export function NotebookTopbarTools() {
   return (
     <>
-      <ViewToggle />
       <DownloadActions />
+      <ViewToggle />
     </>
   );
 }

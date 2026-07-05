@@ -104,6 +104,18 @@ export function parseMarkdownLite(md: string): MdBlock[] {
       i++;
       continue;
     }
+    // `<details>`/`<summary>...</summary>`/`</details>` — GFM's own collapsible-section wrapper,
+    // used throughout this project's own `.grmk.md` files (`grammar/Gramark.grmk.md` and others)
+    // to make a rule's source collapsible on GitHub. This parser has no real HTML awareness at
+    // all, so without this check these lines fell through to `para.push(line)` and rendered as
+    // literal text (a paragraph literally reading "<details>", confirmed against a real
+    // document) — every occurrence sits on its own line in practice, so a per-line skip (not a
+    // new block kind threaded through the state machine) is the whole fix.
+    if (/^<\/?(details|summary)\b[^>]*>/i.test(line)) {
+      flush();
+      i++;
+      continue;
+    }
     const heading = line.match(/^(#{1,3})\s+(.*)/);
     if (heading) {
       flush();
