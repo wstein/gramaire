@@ -1455,11 +1455,24 @@ each other. Lives in `document.ts`, not `paperPdf.ts` or
 above) — one function, imported by both, no cycle. Same placement
 restriction as `%pdf-figure-scale`: its own line in prose, never inside a
 ` ```gramaire ` fence (the Settings-fence misclassification defect noted
-above applies identically here). Deliberately scoped to Paper/PDF's prose
-headings/paragraphs only — tables keep their own fixed size in both
-surfaces, and Notebook's compact scale is untouched, since the directive's
-whole purpose is controlling the _reading/printing_ presentation, not the
-editing one.
+above applies identically here, now fixed either way). Deliberately scoped
+to Paper/PDF's prose headings/paragraphs only — tables keep their own
+fixed size in both surfaces, and Notebook's compact scale is untouched,
+since the directive's whole purpose is controlling the _reading/printing_
+presentation, not the editing one.
+
+**Correction (2026-07-06): hidden from rendered prose.** The directive's
+own line used to render as a literal, visible paragraph everywhere the
+document's prose is read (Notebook, Paper, and — via the same
+`parseMarkdownLite` call — the exported PDF too), since `markdown.ts`'s
+lite parser has no concept of a directive and simply saw an ordinary text
+line. `parseMarkdownLite` now skips a `%paper-font-scale`-prefixed line
+entirely (matched by keyword prefix alone, so even a malformed value still
+hides), the same way it already skipped `<details>`/HTML-comment
+housekeeping lines for the identical reason: this is author-facing
+presentational config, not something a reader was ever meant to see as a
+paragraph. The raw source editor is unaffected — an author must still be
+able to see, edit, and remove their own directive there.
 
 **Hover-reveal per-cell actions** (Livebook-style — `CellActions`,
 `GramaireNotebookIsland.tsx`): a small floating row (↑/↓/Link/Delete) in a

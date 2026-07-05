@@ -1345,6 +1345,44 @@ test("%paper-font-scale scales Paper's reading-prose type uniformly, leaving Not
   );
 });
 
+// Regression: `%paper-font-scale` is presentational housekeeping (like the directive comment
+// above says), not real document prose — but `parseMarkdownLite` (markdown.ts) has no directive
+// awareness, so before this fix its own line rendered as a literal, visible paragraph everywhere
+// the document's prose is read (Notebook, Paper, and — via the same `parseMarkdownLite` call in
+// paperPdf.ts — the exported PDF too). The raw source editor still shows it (an author must be
+// able to see/edit/remove their own directive), only the READ-ONLY renderings hide it.
+test("%paper-font-scale's own line never renders as visible prose, in either Notebook or Paper", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await page.locator(".gramaire__prose").first().click();
+  await page
+    .locator(".gramaire__prose-editor")
+    .fill("%paper-font-scale 1.5\n\nReal prose.\n");
+  await page.locator(".gramaire__statusbar").click();
+
+  await expect(page.locator(".gramaire__prose").first()).toContainText(
+    "Real prose.",
+  );
+  await expect(page.locator(".gramaire__prose").first()).not.toContainText(
+    "paper-font-scale",
+  );
+
+  await viewToggleButton(page, "Paper").click();
+  await expect(page.locator(".gramaire__paper")).toBeVisible();
+  await expect(page.locator(".gramaire__paper")).toContainText("Real prose.");
+  await expect(page.locator(".gramaire__paper")).not.toContainText(
+    "paper-font-scale",
+  );
+
+  // The raw editor is unaffected — an author must still be able to see/edit their own directive.
+  await viewToggleButton(page, "Notebook").click();
+  await page.locator(".gramaire__prose").first().click();
+  await expect(page.locator(".gramaire__prose-editor")).toHaveValue(
+    /%paper-font-scale 1\.5/,
+  );
+});
+
 test("round-tripping Source → Paper → Notebook (never having visited Source's own commit path from Paper) leaves the document unchanged", async ({
   page,
 }) => {
