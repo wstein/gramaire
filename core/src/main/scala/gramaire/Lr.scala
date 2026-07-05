@@ -447,7 +447,14 @@ object Lr:
   // instead, cascading into a run of misleading "unexpected character" diagnostics naming
   // unrelated characters from later in the very same fence (reported directly: `%naqme Calc-js`
   // produced three separate "unexpected character" errors, one of them the `-` inside `Calc-js`).
-  private val settingDeclShapeRe = "^%[A-Za-z][A-Za-z0-9]*\\s".r
+  //
+  // Regression: the shape above claimed to cover "any `%word `", but the character class excluded
+  // `-`/`_` and required a literal trailing argument — so a real, client-side-only directive like
+  // `%pdf-figure-scale 0.4` (paperPdf.ts) or `%paper-font-scale 1.5` (document.ts) still failed
+  // `forall` and fell through to `Rule` exactly like the typo case this comment already describes
+  // fixing. `[A-Za-z0-9_-]*` allows a hyphenated/underscored directive name; `(\s|$)` accepts a
+  // bare, argument-less flag directive too (previously required a trailing space unconditionally).
+  private val settingDeclShapeRe = "^%[A-Za-z][A-Za-z0-9_-]*(\\s|$)".r
   private def isSettingDecl(l: String): Boolean =
     val t = l.trim
     settingDeclShapeRe.findPrefixOf(t).isDefined && !isPrecDecl(l)
