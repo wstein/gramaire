@@ -462,3 +462,23 @@ export function isPaperBlock(
 ): block is DocBlock & { kind: "prose" | "rule" } {
   return block.kind === "prose" || block.kind === "rule";
 }
+
+/** `%paper-font-scale 0.9` as its own line anywhere in the document's PROSE (never inside a
+ * ```gramaire fence — same restriction as `paperPdf.ts`'s own `%pdf-figure-scale`, and for the
+ * identical reason: the real engine's fence classifier currently misclassifies a Settings fence
+ * containing an unrecognized `%`-line, corrupting the whole document). A plain multiplier over the
+ * shared `--prose-reading-*` scale (tokens.css) — 1 means "the scale as authored," not some other
+ * unrecognized default. Scales prose headings/paragraphs only, not tables or railroad diagrams
+ * (`%pdf-figure-scale` already covers diagrams, PDF-only).
+ *
+ * Lives here, not in `paperPdf.ts` or `GramaireNotebookIsland.tsx`, for the same reason
+ * `isPaperBlock` does: Paper's own CSS custom property (`PaperView`'s inline
+ * `--paper-font-scale`) AND the PDF's derived point sizes both call this exact function against
+ * the exact same serialized text, so the two can never read the directive differently from each
+ * other. Ignores a non-finite or non-positive value (a typo'd directive silently falls back to 1
+ * rather than producing zero-size or inverted text). */
+export function paperFontScale(text: string): number {
+  const match = /^%paper-font-scale\s+([\d.]+)/m.exec(text);
+  const value = match ? parseFloat(match[1]) : NaN;
+  return Number.isFinite(value) && value > 0 ? value : 1;
+}

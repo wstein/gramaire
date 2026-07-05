@@ -503,6 +503,15 @@
 .gramaire__prose h4 {
   font-size: 14px;
 }
+/* Without this, h2/h3/h4 fall back to the UA default heading weight (`bold`/700) — a weight
+   IBM Plex Serif has no real glyph file for (tokens.css's own `--prose-heading-weight` comment),
+   so the browser synthesizes a heavier, blurrier fake-bold here that Paper's and the PDF's own
+   headings (both already pinned to the real SemiBold 600) never showed. */
+.gramaire__prose h2,
+.gramaire__prose h3,
+.gramaire__prose h4 {
+  font-weight: var(--prose-heading-weight);
+}
 /* Margin, by contrast, is a CHILD-only rule: a heading that follows other real content within the
    same block (a direct child of `.gramaire__prose`) still needs vertical separation from what
    came before it, but a block's own LEADING heading (pulled into `.gramaire__prose-heading-row`
@@ -1073,7 +1082,13 @@
   margin: 0 auto;
   padding: 48px 24px 80px;
   font-family: var(--font-serif);
-  font-size: 17px;
+  /* calc()'d, not a bare var(): `--paper-font-scale` is an inline custom property PaperView sets
+     from the document's own `%paper-font-scale` directive (document.ts's `paperFontScale`,
+     GramaireNotebookIsland.tsx) — a plain multiplier over the shared reading scale, not a
+     replacement for it. `var(--paper-font-scale, 1)` falls back to a no-op when the property isn't
+     set at all (every other page using this stylesheet, and any test that renders this class in
+     isolation). */
+  font-size: calc(var(--prose-reading-body) * var(--paper-font-scale, 1));
   line-height: 1.75;
   color: var(--fg);
 }
@@ -1084,9 +1099,21 @@
 .gramaire__paper h5,
 .gramaire__paper h6 {
   font-family: var(--font-serif);
-  font-weight: 600;
+  font-weight: var(--prose-heading-weight);
   line-height: 1.3;
   margin: 1.6em 0 0.6em;
+}
+/* h1/h5/h6 never actually occur (parseMarkdownLite only ever produces h2/h3/h4 — markdown.ts) —
+   these three are the only headings that need an explicit size at all; the shared rule above still
+   covers all six for family/weight/line-height/margin in case that ever changes. */
+.gramaire__paper h2 {
+  font-size: calc(var(--prose-reading-h2) * var(--paper-font-scale, 1));
+}
+.gramaire__paper h3 {
+  font-size: calc(var(--prose-reading-h3) * var(--paper-font-scale, 1));
+}
+.gramaire__paper h4 {
+  font-size: calc(var(--prose-reading-h4) * var(--paper-font-scale, 1));
 }
 .gramaire__paper p {
   margin: 0 0 1.1em;

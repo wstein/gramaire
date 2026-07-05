@@ -26,6 +26,7 @@ import {
   blockIndexAtOffset,
   blockCharSpans,
   isPaperBlock,
+  paperFontScale,
   sectionEndIndex,
   previousSiblingSectionStart,
   nextSiblingSectionStart,
@@ -2187,8 +2188,16 @@ function PaperBlock({
 
 function PaperView() {
   let ruleCount = 0;
+  // The document's own `%paper-font-scale` directive (document.ts's `paperFontScale`) — an inline
+  // custom property, not a class swap, so `.gramaire__paper`'s own `calc()` rules (gramaireNotebook
+  // .css) are the ONE place that formula lives; a class-per-scale approach would need one CSS rule
+  // per possible multiplier instead of a single `var(--paper-font-scale, 1)` fallback.
+  const scale = paperFontScale(serializeDocument(blocks.value));
   return (
-    <div class="gramaire__paper">
+    <div
+      class="gramaire__paper"
+      style={{ "--paper-font-scale": String(scale) }}
+    >
       {blocks.value.filter(isPaperBlock).map((block, index) => {
         const figureNumber = block.kind === "rule" ? ++ruleCount : null;
         return (

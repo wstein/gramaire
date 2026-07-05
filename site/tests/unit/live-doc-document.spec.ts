@@ -17,6 +17,7 @@ import {
   previousSiblingSectionStart,
   nextSiblingSectionStart,
   swapAdjacentRanges,
+  paperFontScale,
 } from "../../src/lab/liveDoc/document";
 import type { DocBlock } from "../../src/lab/liveDoc/document";
 import type { FenceInfo } from "../../src/lab/protocol";
@@ -685,4 +686,29 @@ test("swapAdjacentRanges: a no-op (same reference back) on an invalid range", ()
   expect(swapAdjacentRanges(blocks, 2, 1, 3)).toBe(blocks); // start > mid
   expect(swapAdjacentRanges(blocks, 0, 4, 3)).toBe(blocks); // mid > end
   expect(swapAdjacentRanges(blocks, 0, 1, 4)).toBe(blocks); // end > blocks.length
+});
+
+test("paperFontScale: no directive anywhere in the document defaults to 1 (no-op)", () => {
+  expect(
+    paperFontScale("# Title\n\nSome ordinary prose, no directive at all.\n"),
+  ).toBe(1);
+});
+
+test("paperFontScale: reads a `%paper-font-scale` line found anywhere in the prose", () => {
+  const text = "# Title\n\n%paper-font-scale 0.85\n\nSome prose after it.\n";
+  expect(paperFontScale(text)).toBe(0.85);
+});
+
+test("paperFontScale: a non-numeric, zero, or negative value falls back to 1, not NaN/0/negative", () => {
+  expect(paperFontScale("%paper-font-scale not-a-number\n")).toBe(1);
+  expect(paperFontScale("%paper-font-scale 0\n")).toBe(1);
+  expect(paperFontScale("%paper-font-scale -1.5\n")).toBe(1);
+});
+
+test("paperFontScale: only matches the directive at the start of its own line", () => {
+  expect(
+    paperFontScale(
+      "This mentions %paper-font-scale 2 mid-sentence, not as a directive.",
+    ),
+  ).toBe(1);
 });

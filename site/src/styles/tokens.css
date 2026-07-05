@@ -81,6 +81,30 @@
      cohesion with the rest of the type system) rather than an unrelated serif face. Loaded via
      page-head.mjs's GOOGLE_FONTS_HREF, same as the other two. */
   --font-serif: "IBM Plex Serif", ui-serif, Georgia, serif;
+  /* The ONLY heading weight IBM Plex Serif actually loads besides 400 (page-head.mjs's
+     GOOGLE_FONTS_HREF requests `wght@400;600`, not 700) — a bare CSS `bold`/`700` has no real
+     glyph file, so the browser fake-bolds (synthesizes) it instead, visibly heavier/blurrier than
+     this SemiBold. Shared by every prose heading (gramaireNotebook.css's `.gramaire__prose`
+     Notebook cells AND `.gramaire__paper` Paper view) and by the PDF export's own embedded
+     SemiBold font file (paperPdf.ts's `serifBold`) — one token instead of three independently
+     re-discovering the same 600, which is exactly how Notebook's own headings were left rendering
+     a synthesized bold until this was added. */
+  --prose-heading-weight: 600;
+  /* The Paper view's and the exported PDF's shared reading-prose type scale (paperPdf.ts reads
+     these same custom properties live via getComputedStyle, converting px to PDF points, so the
+     two can never drift apart — they're meant to be WYSIWYG of each other, one being the printable
+     form of the other). Deliberately its OWN scale, not shared with the Notebook's compact inline-
+     editor prose (`.gramaire__prose`, gramaireNotebook.css): a "read/print this document" surface
+     and a dense inline-editing surface warrant different type sizes, same reasoning Paper's own
+     42rem reading-width already applies to line length. Ratios mirror `.gramaire__prose`'s own
+     h2/h3/h4-to-body proportions (21/16.5/14 : 14.5), just scaled up from Notebook's 14.5px body
+     to this scale's 17px one — h4 sitting slightly under body size is carried over deliberately,
+     not a mistake: a small, bold "label" heading is an established look already used by the
+     compact scale, not unique to this one. */
+  --prose-reading-h2: 24px;
+  --prose-reading-h3: 19px;
+  --prose-reading-h4: 16px;
+  --prose-reading-body: 17px;
   color-scheme: light;
 
   --bg: #ffffff;
