@@ -920,41 +920,35 @@ test("↓ Source downloads the document's raw .gram.md, named from its own %name
   expect(content).toContain("```gramaire");
 });
 
-// "Print / PDF" always prints the Paper view specifically, regardless of which view the visitor
-// was on when they clicked — switching view mode first, then relying on the print stylesheet
-// (notebook.astro's own <style>) to hide the interactive chrome and let the document flow across
-// physical pages instead of clipping to the fixed-shell's one-screen scroll region.
-test("Print / PDF switches to Paper (even from Source), and the print stylesheet hides chrome without clipping content", async ({
+// "↓ PDF" builds a real PDF entirely client-side (pdf-lib, dynamically imported inside
+// buildPaperPdf — see paperPdf.ts's own header comment) — a one-click download (an earlier
+// browser-print-to-PDF path was removed on request once this shipped). Doesn't touch viewMode at
+// all: buildPaperPdf reads blocks/analysis directly, independent of whatever view is on screen
+// when clicked.
+test("↓ PDF downloads a real PDF file, named from the document's own %name directive, without switching views", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
   await viewToggleButton(page, "Source").click();
   await expect(page.locator(".gramaire__source-editor")).toBeVisible();
 
-  await downloadButton(page, "Print").click();
-  await expect(viewToggleButton(page, "Paper")).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await expect(page.locator(".gramaire__paper")).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent("download", { timeout: 15000 }),
+    downloadButton(page, "PDF").click(),
+  ]);
 
-  await page.emulateMedia({ media: "print" });
-  await expect(page.locator("gramaire-topbar")).toBeHidden();
-  await expect(page.locator(".gramaire__statusbar")).toBeHidden();
+  expect(download.suggestedFilename()).toBe("Calc-js.pdf");
+  // viewMode is untouched — still on Source, unlike clicking Print (which switches to Paper).
+  await expect(page.locator(".gramaire__source-editor")).toBeVisible();
 
-  // Not clipped to the fixed-shell's one-screen scroll region under print — the whole document's
-  // natural height is reachable (a real, easy-to-miss failure mode this page's own .shell/.content
-  // height:100vh;overflow:hidden would otherwise cause, not a hypothetical one).
-  const { shellOverflow, contentHeight } = await page.evaluate(() => {
-    const shell = document.querySelector(".shell")!;
-    const content = document.querySelector(".content")!;
-    return {
-      shellOverflow: getComputedStyle(shell).overflow,
-      contentHeight: content.scrollHeight,
-    };
-  });
-  expect(shellOverflow).toBe("visible");
-  expect(contentHeight).toBeGreaterThan(0);
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  const bytes = Buffer.concat(chunks);
+  // A real PDF, not an empty/corrupt file — the magic header every valid PDF starts with, and a
+  // plausible size (this document's own vector text + 3 rasterized railroad diagrams).
+  expect(bytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  expect(bytes.length).toBeGreaterThan(10_000);
 });
 
 // Livebook-style hover-reveal per-cell actions (reorder/link/delete) — a small floating row, not

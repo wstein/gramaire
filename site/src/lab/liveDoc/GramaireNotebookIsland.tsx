@@ -20,10 +20,12 @@ import {
   serializeDocument,
   blockIndexAtOffset,
   blockCharSpans,
+  isPaperBlock,
 } from "./document";
 import type { DocBlock, DocBlockKind } from "./document";
 import { parseMarkdownLite } from "./markdown";
 import { MarkdownBlocks } from "./MarkdownBlock";
+import { buildPaperPdf } from "./paperPdf";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
 import type { EditorDiagnostic } from "./CodeMirrorEditor";
 import { createLabWorker } from "./useLabWorker";
@@ -1114,14 +1116,63 @@ function ViewToggle() {
   );
 }
 
+// Both download actions read `blocks.value` as a one-shot snapshot baked permanently into a
+// file — unlike a VIEW rendering normally (which shows a harmless, self-healing transient
+// "no fences yet" fallback and then correctly re-renders once a fresh response lands), a
+// snapshot taken during that exact transient window bakes the wrong, degenerate
+// single-mega-prose-block shape into the file for good. This is a real, reproducible race, not a
+// hypothetical one: clicking either download button while the Source editor is open blurs it as
+// an ordinary side effect of the click landing elsewhere in the topbar, which commits the
+// pending edit (`commitSourceEdit`'s own `fences: []` rebuild) — reading `blocks.value`
+// synchronously, immediately after, catches it mid-transition before the subsequent real
+// evaluate() response has restored proper fence-classified blocks (confirmed empirically: a
+// deliberately reproduced case downloaded a single-block, diagram-less PDF).
+//
+// The first fix attempt here was itself wrong, caught the same way: waiting for
+// `response.value.fences.length > 0` looked plausible but checks the WRONG object — `response`
+// only updates later, once the debounced evaluate() actually resolves, while `blocks.value` is
+// overwritten SYNCHRONOUSLY and immediately by `commitSourceEdit`. Right after committing,
+// `response.value` is still the OLD (pre-edit) response, which already has fences.length > 0, so
+// that check returned instantly without waiting for anything — reproduced directly (a "fixed"
+// build still downloaded a 2KB single-block PDF in ~60ms, far too fast for a real worker
+// round-trip). The actual re-derive effect above (`effect(() => { ... blocks.value =
+// buildDocument(current, resp.fences); })`) is what fixes `blocks.value` back up, and it only
+// fires once a response whose OWN `responseSource` matches the just-committed text lands — so
+// the correct signal is `blocks.value` itself being reassigned to a NEW array by that effect,
+// not any particular shape of `response`.
+async function settledBlocks(): Promise<DocBlock[]> {
+  if (viewMode.value !== "source") return blocks.value;
+  commitSourceEdit();
+  const afterCommit = blocks.value;
+  return new Promise((resolve) => {
+    let dispose: (() => void) | undefined;
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      dispose?.();
+      resolve(blocks.value);
+    };
+    // A safety net, not the real mechanism — if the engine round-trip somehow never resolves
+    // (e.g. a broken grammar that never produces fences again), this still returns SOMETHING
+    // rather than hanging the download forever.
+    const timer = setTimeout(finish, 5000);
+    dispose = effect(() => {
+      if (blocks.value !== afterCommit) finish();
+    });
+    if (finished) dispose(); // the effect's own first run already resolved synchronously
+  });
+}
+
 // Downloads the whole document as its raw `.gram.md` source — the standard vanilla Blob-URL +
 // `<a download>` + click pattern (this codebase has never done a save-to-disk before this, so
 // there's no existing helper to reuse). The filename comes from the document's own `%name`
 // directive (a client-side scan over the serialized text, mirroring what the engine's own
 // `Lr.nameOf` reads server-side) — falls back to a generic name if absent/not-yet-set, e.g. a
 // freshly loaded document with no rules typed yet.
-function downloadSource() {
-  const text = serializeDocument(blocks.value);
+async function downloadSource() {
+  const text = serializeDocument(await settledBlocks());
   const name = /^%name\s+(.+)$/m.exec(text)?.[1]?.trim() || "gramaire-notebook";
   const blob = new Blob([text], { type: "text/markdown" });
   const url = URL.createObjectURL(blob);
@@ -1132,24 +1183,32 @@ function downloadSource() {
   URL.revokeObjectURL(url);
 }
 
-// "PDF" here means the browser's own print-to-PDF path (every modern browser's print dialog
-// offers "Save as PDF" as a destination) — zero new dependencies, versus a client-side PDF
-// library this codebase has never needed before and that typically renders rich HTML/SVG (the
-// railroad diagrams) with worse fidelity than the browser's own print engine. Always prints the
-// Paper view specifically, regardless of which view the visitor was on when they clicked — the
-// print stylesheet (notebook.astro's own <style>, not this file's CSS: see that file's own
-// comment on why) targets .gramaire__paper's clean layout, not the interactive Notebook/Source
-// chrome. Switching view MODE is synchronous (a signal write), but the resulting DOM update needs
-// a real paint before window.print() can capture it — double rAF (not a single one, and not just
-// assumed reliable: verified empirically against a real page) schedules after both the current
-// frame's own work AND the frame the view-mode change's re-render lands in.
-function printPaper() {
-  if (viewMode.value === "paper") {
-    window.print();
-    return;
-  }
-  viewMode.value = "paper";
-  requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+// A genuinely separate, one-click PDF download — see paperPdf.ts's own header comment for the
+// full reasoning (the team debate, why pdf-lib, why the hybrid vector-text + rasterized-diagram
+// approach, and the named v1 limitations). An earlier iteration also had a "Print" action
+// (browser print-to-PDF) alongside this one — removed on request once this shipped, no longer
+// needed as a second path to the same goal. Doesn't touch viewMode at all (settledBlocks may
+// commit a pending Source edit, but that's a `blocks`/`response` update, not a view switch —
+// clicking this while on Source stays on Source). The pdf-lib import itself is dynamic (inside
+// buildPaperPdf, not at this file's top level) — its ~19MB unpacked size (mostly AFM font-metric
+// tables) never reaches the page's initial bundle, only fetched the moment this is actually
+// clicked, the same lazy-load convention this codebase already uses for the Scala engine/worker.
+async function downloadPdf() {
+  const blks = await settledBlocks();
+  const analysis = response.value?.analysis ?? lastAnalysis.value;
+  const bytes = await buildPaperPdf(blks, analysis);
+  const text = serializeDocument(blks);
+  const name = /^%name\s+(.+)$/m.exec(text)?.[1]?.trim() || "gramaire-notebook";
+  // pdf-lib's Uint8Array is typed against a generic ArrayBufferLike (permitting a
+  // SharedArrayBuffer-backed view), which TS's DOM lib's BlobPart is stricter than — a real
+  // Uint8Array is always a valid BlobPart at runtime, this is purely a type-level mismatch.
+  const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${name}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function DownloadActions() {
@@ -1166,10 +1225,10 @@ function DownloadActions() {
       <button
         type="button"
         class="gramaire__download-btn"
-        title="Print, or save as PDF, using the Paper view's layout"
-        onClick={printPaper}
+        title="Download this document as a real PDF file (vector text, rasterized diagrams)"
+        onClick={downloadPdf}
       >
-        Print / PDF
+        ↓ PDF
       </button>
     </div>
   );
@@ -1198,12 +1257,8 @@ export function NotebookTopbarTools() {
 // Prose and rule blocks only — Tokens/Settings/Precedence are deliberately left out of Paper
 // entirely (not merely styled differently): this is a reading/printing surface, and the raw
 // declarations those fence kinds hold aren't part of the "document" a reader or a printed page
-// wants, unlike a rule's own railroad diagram.
-function isPaperBlock(
-  block: DocBlock,
-): block is DocBlock & { kind: "prose" | "rule" } {
-  return block.kind === "prose" || block.kind === "rule";
-}
+// wants, unlike a rule's own railroad diagram. `isPaperBlock` (the filter) lives in document.ts,
+// shared with `paperPdf.ts`'s `buildPaperPdf` — see that export's own comment.
 
 function PaperBlock({
   block,
