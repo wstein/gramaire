@@ -1,7 +1,7 @@
 package gramaire.cli
 
 // Ported from the structural half of bootstrap/gramaire-check.test.ts, plus
-// a real drift check against the 7 gated grammar files' committed
+// a real drift check against the 8 gated grammar files' committed
 // `.gram.lock` sidecars — the exact CI idempotence gate this CLI replaces.
 class GramaireCheckSuite extends munit.FunSuite:
   private def readFile(path: String): String =
@@ -14,7 +14,8 @@ class GramaireCheckSuite extends munit.FunSuite:
     "examples/calc-js.gram.md",
     "examples/json.gram.md",
     "examples/readme.gram.md",
-    "examples/antlr/antlr4.gram.md"
+    "examples/antlr/antlr4.gram.md",
+    "examples/luau.gram.md"
   )
 
   // Standalone native `.gram` files (ADR D36, first-class — see GramaireCheck.scala's "Native
