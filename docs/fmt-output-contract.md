@@ -319,23 +319,53 @@ lock.
 ## Line-length policy
 
 Default MD013 caps lines at 80 columns and, by default, checks inside code
-blocks. `fmt` keeps within it by wrapping production alternatives onto
-indented continuation lines. Where a single payload line is genuinely
-irreducible, this is the **one** rule for which a shipped config may set
-`MD013: { code_blocks: false }` — and it is the only sanctioned
-deviation. Prose, headings, captions, and tables are always wrapped to
-stay default-clean; the worked example needs no deviation at all.
+blocks, tables, and headings. `fmt` keeps prose/productions within it by
+wrapping production alternatives onto indented continuation lines. Three
+things stay genuinely irreducible past 80 columns in a real grammar, and
+this repo's own `.markdownlint-cli2.jsonc` sanctions all three (verified
+2026-07-05 — a prior draft of this section claimed only one, and claimed
+the worked example needed none of them; both were wrong, checked by
+actually running bare `markdownlint-cli2` with no config against the
+committed example files):
+
+- `MD013: { code_blocks: false }` — a single payload line inside a
+  ` ```gramark ` fence that's genuinely irreducible.
+- `MD013: { tables: false }` — a FIRST/FOLLOW or conflict-summary row wide
+  enough to list every terminal in a nonterminal's set; wrapping a Markdown
+  table row isn't possible without breaking the table itself.
+- `MD013: { headings: false }` — a rule or grammar name long enough to push
+  its own `##` heading past 80 columns.
+
+A file clean only under this repo's own config, not bare defaults, is
+**not** disqualified from this contract — it just needs that config
+shipped alongside it if it travels somewhere its own project doesn't
+already relax the same three cells. The `<details>`/`<summary>` exception
+above (sidecar mode's source collapsing) is the only deviation that
+`markdownlint-cli2` cannot be configured around at all (MD033 is a
+same-tag allow-list, not a line-length knob).
 
 ## CI gate
 
-`gramark --check` is the no-write CI mode. It passes only if all three hold:
+Two independently-invoked checks together enforce all three guarantees —
+no single command runs all of them:
 
-1. **Idempotent** — `fmt` would make no change (the file is canonical).
-2. **No drift** — every derived artifact matches its lock digest.
-3. **Lint-clean** — `markdownlint-cli2` over the file reports zero issues.
+1. **`gramark --check <file>`** (`GramarkCheck.checkStructure` +
+   `checkDrift`) verifies guarantees 1 and a stronger version of 3
+   (canonical structure, and every derived artifact matching its lock
+   digest — not just "would `fmt` change nothing," but "is what's on disk
+   the thing `fmt` would actually produce"). It does **not** run
+   `markdownlint-cli2` itself — no mature JVM equivalent exists, and lint
+   has no compiler-core relationship (see `GramarkCheck.scala`'s own header
+   comment).
+2. **`docs-lint`** (`make lint-docs`, Node-native, repo-wide) runs
+   `markdownlint-cli2` under this repo's `.markdownlint-cli2.jsonc` — see
+   "Line-length policy" above for why that's the relaxed config, not bare
+   defaults — over every `.md` file including `.grmk.md`, enforcing
+   guarantee 2.
 
-Any failure is a non-zero exit with a curated message naming the file,
-the section, and the remedy (`run gramark fmt`).
+Both must pass for a file to satisfy this contract; running only one is not
+sufficient. Any `gramark --check` failure is a non-zero exit with a curated
+message naming the file, the section, and the remedy (`run gramark fmt`).
 
 ## Worked example
 
@@ -344,7 +374,12 @@ the complete JSON grammar (RFC 8259) formatted to this contract — a full,
 instantly recognisable language on one screen, with a value-union and two
 bracketed lists that render into clear railroad diagrams. For the optional
 `## Precedence` section, see [`examples/calc.grmk.md`](../examples/calc.grmk.md).
-Both pass `markdownlint-cli2` with the default ruleset and no configuration.
+Both pass `markdownlint-cli2` under this repo's own `.markdownlint-cli2.jsonc`
+(the actual CI gate); `json.grmk.md` specifically needs the `MD013: { tables:
+false }` deviation above for its own FIRST/FOLLOW table and does **not** pass
+under bare defaults with no config — confirmed by running bare
+`markdownlint-cli2` directly against it (2026-07-05), correcting this
+section's own prior, untested claim to the contrary.
 
 ## Native `.grmk` format contract
 
