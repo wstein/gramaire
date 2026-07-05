@@ -892,6 +892,67 @@ test("round-tripping Source → Paper → Notebook (never having visited Source'
   await expect(page.locator(".gramaire__cell")).toHaveCount(5);
 });
 
+function downloadButton(page: import("@playwright/test").Page, label: string) {
+  return page.locator(".gramaire__download-btn", { hasText: label });
+}
+
+// Downloading the document as raw source — the standard Blob-URL + <a download> pattern
+// (DownloadActions, GramaireNotebookIsland.tsx), the first save-to-disk feature this codebase has.
+test("↓ Source downloads the document's raw .gram.md, named from its own %name directive", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    downloadButton(page, "Source").click(),
+  ]);
+
+  expect(download.suggestedFilename()).toBe("Calc-js.gram.md");
+  const stream = await download.createReadStream();
+  let content = "";
+  for await (const chunk of stream) content += chunk;
+  expect(content).toContain("%name Calc-js");
+  expect(content).toContain("```gramaire");
+});
+
+// "Print / PDF" always prints the Paper view specifically, regardless of which view the visitor
+// was on when they clicked — switching view mode first, then relying on the print stylesheet
+// (notebook.astro's own <style>) to hide the interactive chrome and let the document flow across
+// physical pages instead of clipping to the fixed-shell's one-screen scroll region.
+test("Print / PDF switches to Paper (even from Source), and the print stylesheet hides chrome without clipping content", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await viewToggleButton(page, "Source").click();
+  await expect(page.locator(".gramaire__source-editor")).toBeVisible();
+
+  await downloadButton(page, "Print").click();
+  await expect(viewToggleButton(page, "Paper")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.locator(".gramaire__paper")).toBeVisible();
+
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator("gramaire-topbar")).toBeHidden();
+  await expect(page.locator(".gramaire__statusbar")).toBeHidden();
+
+  // Not clipped to the fixed-shell's one-screen scroll region under print — the whole document's
+  // natural height is reachable (a real, easy-to-miss failure mode this page's own .shell/.content
+  // height:100vh;overflow:hidden would otherwise cause, not a hypothetical one).
+  const { shellOverflow, contentHeight } = await page.evaluate(() => {
+    const shell = document.querySelector(".shell")!;
+    const content = document.querySelector(".content")!;
+    return {
+      shellOverflow: getComputedStyle(shell).overflow,
+      contentHeight: content.scrollHeight,
+    };
+  });
+  expect(shellOverflow).toBe("visible");
+  expect(contentHeight).toBeGreaterThan(0);
+});
+
 // Livebook-style hover-reveal per-cell actions (reorder/link/delete) — a small floating row, not
 // a header bar, so it doesn't reintroduce the border/badge chrome the de-boxed cell design
 // dropped. No "Edit" button: clicking the cell body already does that.

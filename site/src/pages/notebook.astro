@@ -6,7 +6,7 @@
 import AppShell from "../components/AppShell.astro";
 import {
   GramaireNotebookIsland,
-  ViewToggle,
+  NotebookTopbarTools,
 } from "../lab/liveDoc/GramaireNotebookIsland";
 import { pageHeadTags } from "../shared/page-head.mjs";
 import "../styles/tokens.css";
@@ -47,7 +47,7 @@ const headTags = pageHeadTags(base);
   <body>
     <div class="shell">
       <AppShell>
-        <ViewToggle slot="page-tools" client:load />
+        <NotebookTopbarTools slot="page-tools" client:load />
       </AppShell>
       <main class="content">
         <GramaireNotebookIsland client:load />
@@ -76,5 +76,46 @@ const headTags = pageHeadTags(base);
   .content {
     flex: 1;
     min-height: 0;
+  }
+
+  /* The "Print / PDF" download action (DownloadActions, GramaireNotebookIsland.tsx) always
+     switches to Paper first, then calls window.print() — this is what that print actually looks
+     like. Lives here, not in the reusable gramaireNotebook.css: that file is also imported by the
+     homepage's embedded showcase card (index.astro), which has none of THIS page's own
+     .shell/.content/shared-topbar structure to reset — a print stylesheet that hides
+     gramaire-topbar and resets .shell's height:100vh;overflow:hidden belongs to the PAGE, not the
+     reusable feature CSS. :global() for every selector below: none of `.gramaire`'s own render
+     tree is part of THIS component's template (it's a separate Preact island), so Astro's default
+     scoping — which only scopes selectors matching elements literally written in ITS OWN
+     template — would otherwise silently never match any of it (same reasoning this file's own
+     :global(html, body) rule above already relies on, just for more selectors). */
+  @media print {
+    :global(gramaire-topbar),
+    :global(.gramaire__statusbar),
+    :global(.gramaire__diagnostics) {
+      display: none !important;
+    }
+    /* Otherwise the printed output clips to one screen's worth of content instead of flowing
+       across physical pages — a real, easy-to-miss failure mode (this page's own fixed-shell
+       layout is exactly what makes the Notebook body scroll internally in the browser), not a
+       hypothetical one. */
+    .shell,
+    .content {
+      height: auto;
+      overflow: visible;
+    }
+    :global(.gramaire),
+    :global(.gramaire__body),
+    :global(.gramaire__doc) {
+      height: auto !important;
+      overflow: visible !important;
+    }
+    :global(.gramaire__paper) {
+      max-width: none;
+      margin: 0;
+    }
+    :global(.gramaire__paper-figure) {
+      break-inside: avoid;
+    }
   }
 </style>

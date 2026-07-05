@@ -1062,6 +1062,46 @@ already produces) and re-evaluates — the next real response's `fences`
 restores proper cell structure once the engine catches up, exactly like any
 other edit.
 
+**Download actions** (`DownloadActions`, `.gramaire__download-actions`,
+`GramaireNotebookIsland.tsx`) — two plain buttons next to `ViewToggle`,
+combined into one `NotebookTopbarTools` export so `notebook.astro` mounts a
+single `client:load` island in the topbar's `page-tools` slot for both,
+rather than a second separate Preact root for one more control.
+
+- **`↓ Source`**: the first save-to-disk feature this codebase has (confirmed
+  by research before building it — no `download=`/`Blob(`/`createObjectURL`
+  pattern existed anywhere in `site/src` before this). Standard vanilla
+  Blob-URL + `<a download>` + click. The filename comes from the document's
+  own `%name` directive — a client-side `/^%name\s+(.+)$/m` scan over
+  `serializeDocument(blocks.value)`, mirroring what the engine's own
+  `Lr.nameOf` reads server-side — falling back to a generic name if
+  absent/not-yet-set.
+- **`Print / PDF`**: the browser's own print-to-PDF path (every modern
+  browser's print dialog offers "Save as PDF" as a destination) rather than
+  a client-side PDF-generation dependency — zero new dependencies (confirmed
+  none exists or has ever been discussed for this repo), and typically
+  better SVG/CSS fidelity for the railroad diagrams than such a library
+  would produce. Always prints the Paper view specifically, switching
+  `viewMode` first if the visitor was on Notebook or Source when they
+  clicked, then `window.print()` after a double `requestAnimationFrame` (not
+  a single one, and not just assumed reliable — verified empirically against
+  a real page) to let the view-mode change actually paint before print
+  captures it.
+
+The print stylesheet itself lives in `notebook.astro`'s own `<style>` block
+(`@media print`, using `:global()` for the island-rendered classes it
+doesn't own directly — the same pattern that block's own
+`:global(html, body)` rule already uses), NOT in the reusable
+`gramaireNotebook.css`: that file is also imported by the homepage's
+embedded showcase card (`index.astro`), which has none of this page's own
+`.shell`/`.content`/shared-topbar structure to reset. It hides
+`gramaire-topbar`/`.gramaire__statusbar`/`.gramaire__diagnostics`, and resets
+`.shell`/`.content`/`.gramaire`/`.gramaire__body`/`.gramaire__doc` from
+`height:100vh; overflow:hidden` to `height:auto; overflow:visible` — without
+this, the printed output would clip to one screen's worth of content instead
+of flowing across physical pages, a real failure mode this page's own
+fixed-shell layout would otherwise cause, not a hypothetical one.
+
 **Hover-reveal per-cell actions** (Livebook-style — `CellActions`,
 `GramaireNotebookIsland.tsx`): a small floating row (↑/↓/Link/Delete) in a
 block's top-right corner, `opacity: 0` at rest and `1` on the block's own

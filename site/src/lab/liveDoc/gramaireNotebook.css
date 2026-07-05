@@ -137,6 +137,35 @@
     0 0 0 1px var(--border-strong);
 }
 
+/* Download actions (DownloadActions, GramaireNotebookIsland.tsx) — plain text buttons, same
+   family as the insert-zone buttons elsewhere in this file, not a filled/segmented control like
+   ViewToggle: these are one-shot actions, not a persistent multi-way state to reflect. */
+.gramaire__download-actions {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: 10px;
+}
+.gramaire__download-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  padding: 5px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.gramaire__download-btn:hover {
+  background: var(--bg-2);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.gramaire__download-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* Layer 1 — the document diagnostics panel. Sticky on its own again — the ViewToggle that used
    to share this sticky anchor moved out into the shared site topbar's own `tools` slot (always
    visible regardless of scroll already, since the topbar sits outside this page's own scrolling

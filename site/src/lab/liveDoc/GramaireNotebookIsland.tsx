@@ -1043,16 +1043,15 @@ function StatusBar() {
 // whichever button is pressed IS the answer — and it's already the right shape to have grown a
 // third (Paper) button with no redesign, exactly as originally anticipated when it was two.
 //
-// Exported (not just called from this file's own render tree) so `notebook.astro` can mount it as
-// its OWN separate `client:load` island, slotted into the shared topbar (AppShell.astro's
-// `page-tools` slot) rather than living in the Notebook page's own body — the shared topbar sits
-// outside the page's scrolling region already, so it's inherently always reachable with no sticky
-// CSS of its own needed. Reads/writes the exact same module-scope `viewMode`/`blocks`/
-// `sourceViewBase`/`sourceDraft` signals `GramaireNotebookIsland`'s own island uses — two
-// `client:load` islands importing the same module share the same signal instances (Vite dedupes
-// the shared module into one chunk both islands' bundles import from), so this and the main
-// island stay in lockstep despite being two separate Preact roots.
-export function ViewToggle() {
+// Not exported directly — `notebook.astro` mounts the combined `NotebookTopbarTools` (below,
+// alongside `DownloadActions`) as its ONE `client:load` island in the shared topbar (AppShell.
+// astro's `page-tools` slot), rather than a separate island per control. Reads/writes the exact
+// same module-scope `viewMode`/`blocks`/`sourceViewBase`/`sourceDraft` signals
+// `GramaireNotebookIsland`'s own island uses — two `client:load` islands importing the same
+// module share the same signal instances (Vite dedupes the shared module into one chunk both
+// islands' bundles import from), so this and the main island stay in lockstep despite being two
+// separate Preact roots.
+function ViewToggle() {
   // Leaving Source (either for Notebook or for Paper) needs its pending edit committed first —
   // but ONLY when actually leaving Source: commitSourceEdit() rebuilds `blocks` straight from
   // `sourceDraft.value`, which is stale (or still empty, if Source was never opened this
@@ -1112,6 +1111,80 @@ export function ViewToggle() {
         Paper
       </button>
     </div>
+  );
+}
+
+// Downloads the whole document as its raw `.gram.md` source — the standard vanilla Blob-URL +
+// `<a download>` + click pattern (this codebase has never done a save-to-disk before this, so
+// there's no existing helper to reuse). The filename comes from the document's own `%name`
+// directive (a client-side scan over the serialized text, mirroring what the engine's own
+// `Lr.nameOf` reads server-side) — falls back to a generic name if absent/not-yet-set, e.g. a
+// freshly loaded document with no rules typed yet.
+function downloadSource() {
+  const text = serializeDocument(blocks.value);
+  const name = /^%name\s+(.+)$/m.exec(text)?.[1]?.trim() || "gramaire-notebook";
+  const blob = new Blob([text], { type: "text/markdown" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${name}.gram.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// "PDF" here means the browser's own print-to-PDF path (every modern browser's print dialog
+// offers "Save as PDF" as a destination) — zero new dependencies, versus a client-side PDF
+// library this codebase has never needed before and that typically renders rich HTML/SVG (the
+// railroad diagrams) with worse fidelity than the browser's own print engine. Always prints the
+// Paper view specifically, regardless of which view the visitor was on when they clicked — the
+// print stylesheet (notebook.astro's own <style>, not this file's CSS: see that file's own
+// comment on why) targets .gramaire__paper's clean layout, not the interactive Notebook/Source
+// chrome. Switching view MODE is synchronous (a signal write), but the resulting DOM update needs
+// a real paint before window.print() can capture it — double rAF (not a single one, and not just
+// assumed reliable: verified empirically against a real page) schedules after both the current
+// frame's own work AND the frame the view-mode change's re-render lands in.
+function printPaper() {
+  if (viewMode.value === "paper") {
+    window.print();
+    return;
+  }
+  viewMode.value = "paper";
+  requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+}
+
+function DownloadActions() {
+  return (
+    <div class="gramaire__download-actions">
+      <button
+        type="button"
+        class="gramaire__download-btn"
+        title="Download this document as its raw .gram.md source"
+        onClick={downloadSource}
+      >
+        ↓ Source
+      </button>
+      <button
+        type="button"
+        class="gramaire__download-btn"
+        title="Print, or save as PDF, using the Paper view's layout"
+        onClick={printPaper}
+      >
+        Print / PDF
+      </button>
+    </div>
+  );
+}
+
+// The one combined topbar-tools island `notebook.astro` mounts — `ViewToggle` and
+// `DownloadActions` both belong in the same page-tools slot, so one shared `client:load` island
+// for both avoids a second Preact root/hydration entry for controls that are never meaningfully
+// separate.
+export function NotebookTopbarTools() {
+  return (
+    <>
+      <ViewToggle />
+      <DownloadActions />
+    </>
   );
 }
 
