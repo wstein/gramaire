@@ -26,15 +26,35 @@
 // a re-encoded copy, so it must be genuine sfnt data; `@fontsource/fira-code`'s `.woff2` parses
 // fine in-memory but produces a PDF poppler/most strict readers reject as "invalid font file",
 // confirmed directly, since WOFF2's compressed container isn't valid embedded FontFile3 data),
-// matching the on-screen letterforms exactly. This does NOT reproduce true GSUB ligature substitution
-// (`=>` still draws as two adjacent glyphs, not one fused shape) — pdf-lib has no OpenType shaping
-// engine, and unlike some coding fonts, Fira Code has no Private-Use-Area ligature fallback variant
-// to substitute in instead (confirmed by research, not assumed); real shaping would need a
-// HarfBuzz-class dependency, judged not worth it for a caption-only cosmetic detail. Fira Code also
-// has no italic member (`styles: ["normal"]` in its own metadata) — unlike a browser, which
-// synthesizes `.rr-action-text`'s `font-style: italic` by slanting the regular face, this draws it
-// upright instead (an angled caption read as distracting, on request) — distinguished from a
-// rule/token label by color alone. Known limitations, accepted on
+// matching the on-screen letterforms exactly. Text is shaped with a REAL OpenType engine —
+// `harfbuzzjs` (a WASM port of HarfBuzz) — rather than drawn via pdf-lib's own `drawText`, which
+// only does a naive character→glyph cmap lookup with no GSUB/GPOS shaping at all. `=>`/`->`/`!=`
+// style Fira Code ligatures render as their real connected glyph shapes (matching the on-screen
+// notebook's `font-feature-settings: "liga" 1, "calt" 1`), not two plain adjacent characters.
+// Shaped glyphs are drawn via `page.pushOperators` — a public escape hatch — issuing one `Tm`+`Tj`
+// (text-matrix + show-glyph) pair per glyph at the position/advance HarfBuzz computes, bypassing
+// `drawText`/`font.encodeText` entirely. This only works because the font is embedded unsubsetted
+// (`embedFont`'s `subset` option already defaults to `false`): a non-subsetted embed keeps
+// `CIDToGIDMap: Identity`, so a glyph ID HarfBuzz computes from parsing the SAME raw `.ttf` bytes
+// is directly usable as the PDF's own glyph code, with no remapping table to account for.
+//
+// This replaces an earlier, narrower fix that embedded the real font but left ligatures off
+// entirely (`embedFont`'s `features` option forced `calt`/`liga` off) to dodge a real bug:
+// `@pdf-lib/fontkit`'s own simplified shaper (used internally by plain `drawText` on a custom
+// font) mis-computed the width of a substituted glyph for the specific letter pair "Fl",
+// breaking "parseFloat" into "parseFl oat". Verified directly, before writing any of this, that
+// real HarfBuzz does NOT reproduce that bug: every glyph in this font — including every
+// contextual-alternate substitution "Fl" and every ligature sequence trigger — gets the exact
+// same, correct advance width (this is a strictly monospace font: a coding-ligature font's
+// "ligatures" are always one-character-cell-wide contextual alternates that visually connect to
+// their neighbor, never a true multi-character-merged glyph, since a monospace font must keep
+// per-character grid alignment for cursor/selection to work) — confirmed the fontkit-only bug was
+// exactly that, an implementation defect in fontkit's own shaper, not a Fira Code font defect.
+//
+// Fira Code has no italic member (`styles: ["normal"]` in its own metadata) — unlike a browser,
+// which synthesizes `.rr-action-text`'s `font-style: italic` by slanting the regular face, this
+// draws it upright instead (an angled caption read as distracting, on request) — distinguished
+// from a rule/token label by color alone. Known limitations, accepted on
 // purpose rather than discovered later: simple top-to-bottom flow, no smart page-break avoidance
 // around a figure straddling a page boundary; tables render as plain ruled text rows, columns at
 // fixed fractions of the content width, no per-column text measurement; inline bold/code/image
@@ -202,8 +222,29 @@ export async function buildPaperPdf(
   analysis: GrammarAnalysis | null,
 ): Promise<Uint8Array> {
   const scale = figureScale(serializeDocument(blocks));
-  const [{ PDFDocument, StandardFonts, rgb }, { default: fontkit }] =
-    await Promise.all([import("pdf-lib"), import("@pdf-lib/fontkit")]);
+  const [
+    {
+      PDFDocument,
+      StandardFonts,
+      rgb,
+      pushGraphicsState,
+      popGraphicsState,
+      beginText,
+      endText,
+      setFillingColor,
+      setFontAndSize,
+      setTextMatrix,
+      showText,
+      PDFHexString,
+      toHexStringOfMinLength,
+    },
+    { default: fontkit },
+    hb,
+  ] = await Promise.all([
+    import("pdf-lib"),
+    import("@pdf-lib/fontkit"),
+    import("harfbuzzjs"),
+  ]);
 
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
@@ -212,24 +253,17 @@ export async function buildPaperPdf(
   const serifItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
   // The real on-screen font, not a generic monospace substitute. Figure text is short
   // (identifiers, truncated action captions) and ASCII/Latin — the whole font embeds, not a
-  // hand-picked subset. Ligature/contextual features explicitly disabled — pdf-lib's fontkit-based
-  // custom-font layout auto-applies a font's GSUB features during encoding (a documented pdf-lib
-  // issue, #490 "Unwanted ligatures"), and Fira Code's own table has a `calt`/`liga` rule that
-  // fires on a plain "Fl" letter pair (nothing to do with programming ligatures), reproduced
-  // directly: it silently substituted a wrong-width glyph, rendering "parseFloat" as "parseFl
-  // oat" with a bogus gap. This document never wants any GSUB substitution anyway (real ligature
-  // shaping is the separate, deliberately-not-attempted gap noted above) — off entirely avoids
-  // relying on the specific feature-tag list pdf-lib happens to default to.
+  // hand-picked subset. `subset` is left at its default (`false`) deliberately — a non-subsetted
+  // embed keeps `CIDToGIDMap: Identity`, the property `shapeLabel` below relies on to draw
+  // HarfBuzz's own glyph IDs directly.
   const firaBytes = await fetch(firaCodeUrl).then((r) => r.arrayBuffer());
-  const mono = await pdfDoc.embedFont(firaBytes, {
-    features: {
-      liga: false,
-      clig: false,
-      dlig: false,
-      calt: false,
-      rlig: false,
-    },
-  });
+  const mono = await pdfDoc.embedFont(firaBytes);
+  // A second, independent parse of the SAME raw bytes — HarfBuzz needs its own Face/Font to shape
+  // text; this has nothing to do with pdf-lib's own embedding above, only glyph IDs need to agree
+  // between the two (guaranteed by parsing identical bytes with no subsetting on either side).
+  const hbFace = new hb.Face(new hb.Blob(firaBytes), 0);
+  const hbFont = new hb.Font(hbFace);
+  const unitsPerEm = hbFace.upem;
   const ink = rgb(0.09, 0.09, 0.11);
   const muted = rgb(0.42, 0.42, 0.46);
   // Matches Railroad.scala's own `styleFixed` (the same light-theme hex palette the notebook's
@@ -257,11 +291,37 @@ export async function buildPaperPdf(
     }
   };
 
+  // Real OpenType shaping for one label — HarfBuzz's own glyph IDs/positions (font design units),
+  // converted to PDF points via `size / unitsPerEm` (NOT a hardcoded /1000 — units-per-em varies
+  // per font). `cluster`-tracking isn't needed: this font's "ligatures" never merge multiple input
+  // characters into fewer output glyphs (see this file's header comment) — every glyph is simply
+  // positioned in sequence by its own advance.
+  const shapeLabel = (text: string, size: number) => {
+    const buf = new hb.Buffer();
+    buf.addText(text);
+    buf.guessSegmentProperties();
+    hb.shape(hbFont, buf);
+    const infos = buf.getGlyphInfos();
+    const positions = buf.getGlyphPositions();
+    const unitsToPt = size / unitsPerEm;
+    let penX = 0;
+    const glyphs = infos.map((info, i) => {
+      const g = {
+        id: info.codepoint,
+        x: (penX + positions[i].xOffset) * unitsToPt,
+        y: positions[i].yOffset * unitsToPt,
+      };
+      penX += positions[i].xAdvance;
+      return g;
+    });
+    return { glyphs, totalWidth: penX * unitsToPt };
+  };
+
   // Re-emits a parsed railroad SVG as pdf-lib vector primitives, anchored so the SVG's own
   // (0,0) — its top-left corner — lands at (originX, topY) in PDF space, scaled uniformly by
   // `totalScale` (already PX_TO_PT-corrected and figure-scaled by the caller). `drawSvgPath`
   // auto-flips the Y axis and applies `scale` via its own CTM (so raw SVG-space path/stroke-width
-  // values pass straight through); `drawEllipse`/`drawText` don't go through that CTM, so their
+  // values pass straight through); `drawEllipse`/shaped text don't go through that CTM, so their
   // coordinates are converted by hand via `toY` below — same formula pdf-lib's own path transform
   // computes internally (`topY - svgY * totalScale`), just applied outside it.
   const drawVectorRailroad = (
@@ -312,19 +372,33 @@ export async function buildPaperPdf(
         const size = FS_PT * totalScale;
         const cx = parseFloat(el.attrs.x ?? "0");
         const cy = parseFloat(el.attrs.y ?? "0");
-        const textWidth = mono.widthOfTextAtSize(el.text, size);
-        page.drawText(el.text, {
-          x: toX(cx) - textWidth / 2,
-          // `dominant-baseline: central` has no pdf-lib equivalent — 0.32×size approximates a
-          // typical font's visual center above its baseline closely enough for a figure label.
-          y: toY(cy) - size * 0.32,
-          size,
-          font: mono,
-          // Action text is upright, not slanted — Fira Code has no italic member anyway
-          // (`styles: ["normal"]`), and a synthetic skew read as distracting in a figure caption;
-          // distinguished from a rule/token label by color alone, same as everywhere else in Paper.
-          color: isAction ? rrColors.actionText : rrColors.text,
-        });
+        const { glyphs, totalWidth } = shapeLabel(el.text, size);
+        const baseX = toX(cx) - totalWidth / 2;
+        // `dominant-baseline: central` has no pdf-lib equivalent — 0.32×size approximates a
+        // typical font's visual center above its baseline closely enough for a figure label.
+        const baseY = toY(cy) - size * 0.32;
+        // Action text is upright, not slanted — Fira Code has no italic member anyway
+        // (`styles: ["normal"]`), and a synthetic skew read as distracting in a figure caption;
+        // distinguished from a rule/token label by color alone, same as everywhere else in Paper.
+        const color = isAction ? rrColors.actionText : rrColors.text;
+        // `page.node.newFontDictionary` is the same public call `page.setFont` itself makes
+        // internally to register a font's resource-dictionary key — used directly here since
+        // `page.getFont()` (which would otherwise return it) is a private API.
+        const fontKey = page.node.newFontDictionary(mono.name, mono.ref);
+        const ops = [
+          pushGraphicsState(),
+          beginText(),
+          setFillingColor(color),
+          setFontAndSize(fontKey, size),
+        ];
+        for (const g of glyphs) {
+          ops.push(
+            setTextMatrix(1, 0, 0, 1, baseX + g.x, baseY + g.y),
+            showText(PDFHexString.of(toHexStringOfMinLength(g.id, 4))),
+          );
+        }
+        ops.push(endText(), popGraphicsState());
+        page.pushOperators(...ops);
       }
     }
   };

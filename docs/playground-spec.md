@@ -1204,23 +1204,21 @@ track routing, and text all match the on-screen rendering, and the file
 shrank dramatically (a full `Calc-js` PDF: ~57KB rasterized → ~4.7KB
 vector) now that there's no embedded PNG image data.
 
-**Figure text: embedding the real Fira Code font, and the `%pdf-figure-scale`-adjacent
-"unwanted ligature" trap.** Figure text initially drew in a standard PDF
-Courier/Courier-Oblique font — the right SHAPE (monospace) but the wrong
-FONT (not what the notebook itself renders). Fixing this properly means
+**Figure text: embedding the real Fira Code font, then real HarfBuzz
+shaping.** Figure text initially drew in a standard PDF Courier/
+Courier-Oblique font — the right SHAPE (monospace) but the wrong FONT
+(not what the notebook itself renders). Fixing this properly means
 embedding a real TrueType font, which raised the actual question behind
 the "PDF does not use TrueType ligatures" request: can pdf-lib reproduce
 Fira Code's `=>`/`->`/`!=`-style connected ligature glyphs? Researched
 directly rather than assumed: pdf-lib has no OpenType GSUB shaping engine
-at all (true ligature fusion would need a HarfBuzz-class dependency), and
+of its own (true ligature fusion needs a HarfBuzz-class dependency), and
 — contrary to an initial, incorrect assumption — Fira Code does NOT ship a
 Private-Use-Area ligature fallback variant the way some other coding fonts
 do, so there's no shortcut either. Presented as an explicit choice (embed
 the real font only vs. full HarfBuzz shaping vs. leave it as Courier);
-chose to embed the real font only, accepting that a fused ligature glyph
-won't reproduce — a bounded, honest partial fix rather than either
-over-engineering a caption-only cosmetic detail or leaving a wrong font in
-place.
+the user picked "embed the real font only" first — a bounded initial fix,
+landing the right typeface without yet solving true ligature fusion.
 
 Sourcing the actual font bytes had its own dead end: `@fontsource/fira-code`
 (already a natural candidate, small, OFL-licensed) only ships `.woff2` —
@@ -1240,19 +1238,60 @@ touching any real code. Traced to a documented pdf-lib issue (#490,
 "Unwanted ligatures"): `@pdf-lib/fontkit`'s text-layout step auto-applies
 whatever GSUB features a custom font's table defines during encoding, and
 Fira Code has a `calt`/contextual rule that fires on that exact pair and
-substitutes a wrong-metric glyph — nothing to do with programming
-ligatures, and by design nothing this document ever wants applied anyway
-(real ligature shaping is the explicitly-deferred gap above). Fixed by
-passing `features: { liga: false, clig: false, dlig: false, calt: false,
-rlig: false }` to `embedFont`, turning off every GSUB substitution path
-rather than guessing which single tag was responsible.
+substitutes a wrong-metric glyph. The interim fix disabled every ligature
+feature tag on `embedFont` to dodge it — meaning ligatures were off
+entirely at that point, not yet the goal this section's title implies.
+
+**Upgrading to real shaping.** The user came back with `harfbuzzjs` usage
+docs, asking for the previously-deferred full option after all. Before
+writing any integration code, confirmed feasibility by reading pdf-lib's
+own source directly: `page.pushOperators(...)` is a public escape hatch
+around `drawText`'s naive cmap-only encoding; embedding with `subset:
+false` (already the default, already what this file was doing) keeps
+`CIDToGIDMap: Identity`, so a glyph ID HarfBuzz computes from parsing the
+SAME raw `.ttf` bytes is directly usable as the PDF's own glyph code, no
+remapping needed. A standalone Node spike (harfbuzzjs + the real
+`FiraCode-Regular.ttf`, no browser needed) then answered the one open
+question directly rather than guessing: does real HarfBuzz reproduce the
+"Fl" bug? **No.** Every glyph in every tested case — plain identifiers,
+"Fl", the full "parseFloat", and every ligature sequence (`=>`, `!=`,
+`->`, `<=`, `>=`, `==`) — got the exact same, correct advance width. This
+is a strictly monospace font: Fira Code's "ligatures" are always
+one-character-cell-wide contextual alternates that visually connect to
+their neighbor (never a true multi-character-merged glyph — a coding font
+has to preserve per-character grid alignment for cursor/selection to keep
+working), so there was never a genuine width-blowout case to guard
+against; the earlier bug was purely a `@pdf-lib/fontkit`-internal
+shaping defect, not a Fira Code font defect. This simplified the shipped
+implementation versus what was originally planned (a per-glyph
+advance-ratio fallback heuristic) — turned out to be unnecessary once the
+spike's real numbers were in hand.
+
+Shipped as: `shapeLabel` (in `paperPdf.ts`) builds an `hb.Buffer`, shapes
+it against a HarfBuzz `Font` parsed from the same raw font bytes already
+handed to `pdfDoc.embedFont`, and converts each glyph's HarfBuzz-space
+position (font design units) to PDF points via `size / unitsPerEm` (read
+from the font's own `upem`, never a hardcoded `/1000`). Drawing bypasses
+`page.drawText` entirely — one `Tm` (absolute text-matrix) + `Tj`
+(show-glyph) pair per glyph via `page.pushOperators(...)`, since pdf-lib
+has no `TJ`-array convenience builder. `=>`/`->`/`!=`-style sequences now
+render as their real connected ligature glyphs, matching the on-screen
+notebook's own `font-feature-settings: "liga" 1, "calt" 1` exactly — the
+originally-deferred option, now shipped. `harfbuzzjs`'s only module
+(`dist/index.mjs`) does a top-level `await` that fetches+instantiates its
+own WASM on evaluation, so laziness is achieved the same way as
+pdf-lib/`@pdf-lib/fontkit` already were: `import("harfbuzzjs")` sits
+alongside them in the same `Promise.all(...)` inside `buildPaperPdf`,
+never at module load — confirmed via the Network tab that the wasm asset
+has zero requests on page load and fetches only once a PDF is actually
+built.
 
 Fira Code also has no italic member (`styles: ["normal"]` in its own
 metadata) — a browser synthesizes `.rr-action-text`'s `font-style: italic`
 by slanting the regular face automatically; an initial attempt mirrored
 that with pdf-lib's own `xSkew` on `drawText`, then dropped entirely on
 request (action captions read as distracting when angled) — action text
-now draws upright, distinguished from a rule/token label by color alone,
+draws upright, distinguished from a rule/token label by color alone,
 matching how every other view in this document treats it.
 
 A figure capped by WIDTH alone (the original v1 attempt) still let a
