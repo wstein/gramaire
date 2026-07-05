@@ -943,6 +943,29 @@ one-prose-block shape the no-fences fallback textarea already produces) and
 re-evaluates — the next real response's `fences` restores proper cell
 structure once the engine catches up, exactly like any other edit.
 
+**Ligature font in railroad SVG text (`Railroad.scala`'s shared `font`/
+`ligatures` vals).** `=>`/`!=`/`<=`/etc. now render as their single-glyph
+ligature forms via **Fira Code** (prepended to the font stack, loaded the
+same way as the site's other Google Fonts, `page-head.mjs`), plus an
+explicit `font-feature-settings:"liga" 1,"calt" 1` on `.rr-text`/
+`.rr-action-text` — code-font ligatures aren't reliably on by default across
+browsers from `font-family` alone, so this is required, not just a nicety.
+Revisits the ligature-vs-substitution question this session already debated
+once (`Railroad.prettifyOperators`, a hand-written glyph-swap, shipped then
+fully removed) — this time landing on real font ligatures instead.
+
+Only takes effect where this SVG is **inlined** into a page that has also
+loaded the font — confirmed true for both `GramaireNotebookIsland.tsx` and
+`LabIsland.tsx` (`dangerouslySetInnerHTML`, sharing `page-head.mjs`'s
+stylesheet). The CLI's committed sidecar SVGs (`gramaire fmt
+--diagrams=sidecar`, referenced via `<img src>` in docs/examples or viewed
+standalone/on GitHub) do **not** get ligatures: an `<img>`-embedded SVG is an
+opaque image with no access to the parent page's fonts, and embedding the
+font itself into every committed SVG is a materially bigger, separate
+feature — deliberately out of scope here, and those files are untouched
+(same `styleFixed`/`styleThemed` font stack either way, but nothing
+regenerates them just for this).
+
 Deliberately deferred: a method picker
 (always builds Canonical), a "Format document" action (`gramaire fmt` isn't
 exposed to the JS engine yet — omitted rather than shipped as a non-functional
