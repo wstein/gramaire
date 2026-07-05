@@ -835,6 +835,28 @@ test("a rule's railroad diagram has an accessible name for screen readers", asyn
   await expect(railroad).toHaveAttribute("aria-label", /Railroad diagram for/);
 });
 
+// Regression: the railroad diagram and its FIRST/FOLLOW sets used to be two unrelated pieces of
+// content that happened to sit in the same div — a screen reader had an accessible name for the
+// diagram alone, nothing tying the FIRST/FOLLOW chips below it to that same rule. Wrapping both in
+// a real <figure> (named by its own sr-only <figcaption>) groups them as one accessible unit.
+test("a rule's diagram and FIRST/FOLLOW are grouped as one accessible figure", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const output = ruleCellLocator(page).locator(".gramaire__output");
+  await expect(output).toHaveJSProperty("tagName", "FIGURE");
+  const figcaption = output.locator("figcaption");
+  await expect(figcaption).toHaveText(
+    /Railroad diagram and FIRST\/FOLLOW sets for the .+ rule/,
+  );
+  // Still visually hidden (a 1x1px clip), not a second visible label duplicating the diagram's own
+  // nonterminal box — Playwright's toBeVisible() doesn't catch clip-based hiding (a nonzero
+  // bounding box still counts as "visible" to it), so the box size itself is the real check here.
+  const box = await figcaption.boundingBox();
+  expect(box?.width).toBeLessThanOrEqual(1);
+  expect(box?.height).toBeLessThanOrEqual(1);
+});
+
 // Regression: a rule's own FIRST/FOLLOW used to render as one plain-text, space-joined string
 // (`{ \`(\` \`NUMBER\` }`) — hard to scan once a FOLLOW set has more than a couple of tokens, and
 // visually inconsistent with the Generated-tables table's own per-token styling a few scrolls
@@ -1145,6 +1167,30 @@ test("switching to Paper shows numbered figures for rules and prose, but no Toke
   await expect(
     page.locator(".gramaire__paper").getByText("Tokens", { exact: true }),
   ).toBeVisible();
+});
+
+// Regression: Paper used to show only the railroad diagram — a rule's FIRST/FOLLOW sets were
+// Notebook/PDF-only. Reusing GrammarCell's own .gramaire__output-ff markup keeps every rule's
+// FIRST/FOLLOW readable on every surface, not just the two interactive/exported ones.
+test("a rule's figure in Paper includes its FIRST/FOLLOW chips alongside the diagram", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await viewToggleButton(page, "Paper").click();
+
+  const figure = page.locator(".gramaire__paper-figure", { hasText: "Factor" });
+  const firstChips = await figure
+    .locator(".gramaire__output-ff-group")
+    .first()
+    .locator(".gramaire__output-ff-chips code")
+    .allTextContents();
+  expect(firstChips).toEqual(["(", "NUMBER"]);
+  const followChips = await figure
+    .locator(".gramaire__output-ff-group")
+    .nth(1)
+    .locator(".gramaire__output-ff-chips code")
+    .allTextContents();
+  expect(followChips).toEqual([")", "*", "+", "-", "/", "$"]);
 });
 
 test("Paper is fully read-only — nothing in it is clickable/editable, unlike every other view", async ({

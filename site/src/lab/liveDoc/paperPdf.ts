@@ -62,7 +62,7 @@
 // "[image: alt]" fallback, never embedded).
 import type { DocBlock } from "./document";
 import { isPaperBlock, paperFontScale, serializeDocument } from "./document";
-import type { GrammarAnalysis } from "../protocol";
+import type { GrammarAnalysis, RenderedSymbol, SymbolKind } from "../protocol";
 import { parseMarkdownLite, isRailroadPlaceholder } from "./markdown";
 import type { MdBlock, MdInline } from "./markdown";
 // Type-only — erased at compile time, doesn't affect pdf-lib's own lazy (dynamic-import) loading.
@@ -354,6 +354,17 @@ export async function buildPaperPdf(
     actionText: muted,
     cap: ink,
   };
+  // Matches tokens.css's light-theme FIRST/FOLLOW chip palette exactly (gramaireNotebook.css's
+  // `.gramaire__output-ff-chips code[data-kind]`), a separate convention from `rrColors` above:
+  // the railroad diagram only ever distinguishes terminal-vs-nonterminal, but a FIRST/FOLLOW chip
+  // also tells a literal apart from a named token, so the two don't share one color set.
+  const ffColors: Record<SymbolKind, ReturnType<typeof rgb>> = {
+    literal: rgb(0x7d / 255, 0x8d / 255, 0x85 / 255), // --t-op
+    token: rgb(0xb4 / 255, 0x53 / 255, 0x0a / 255), // --t-term
+    nonterminal: rgb(0x0a / 255, 0x8f / 255, 0x63 / 255), // --t-nonterm / --accent
+    eof: rgb(0x56 / 255, 0x68 / 255, 0x60 / 255), // --fg-muted
+  };
+  const ffChipBg = rgb(0xed / 255, 0xf5 / 255, 0xf0 / 255); // --bg-2
 
   // Paper's own reading-prose scale (tokens.css's `--prose-reading-*` custom properties), read
   // live rather than duplicated as literals here — the exact same reasoning `isPaperBlock` living
@@ -515,6 +526,62 @@ export async function buildPaperPdf(
     }
   };
 
+  const FF_CHIP_SIZE = 9;
+  const FF_CHIP_PAD_X = 5;
+  const FF_CHIP_PAD_Y = 2;
+  const FF_CHIP_GAP = 4;
+  const FF_LABEL_GAP = 8;
+  const FF_ROW_HEIGHT = FF_CHIP_SIZE + FF_CHIP_PAD_Y * 2;
+  const FF_ROW_GAP = 7;
+
+  // One FIRST/FOLLOW line — a muted label followed by each symbol as its own kind-colored chip
+  // (rounded background + text), wrapping within CONTENT_WIDTH exactly like drawLines' own text
+  // wrap. Mirrors the Notebook/Paper HTML chips (.gramaire__output-ff-chips) so a rule's
+  // FIRST/FOLLOW reads the same across every surface, not just on screen. Plain `page.drawText`
+  // with the embedded (unsubsetted) mono font, not shapeLabel's HarfBuzz path — these are short,
+  // plain identifiers/punctuation with no Fira Code contextual ligature to worry about, so
+  // pdf-lib's own default ToUnicode coverage is already correct (see glyphToText's own comment).
+  const drawFirstFollowRow = (
+    label: string,
+    symbols: readonly RenderedSymbol[],
+  ) => {
+    if (symbols.length === 0) return;
+    ensureRoom(FF_ROW_HEIGHT + FF_ROW_GAP);
+    let x = MARGIN;
+    page.drawText(label, {
+      x,
+      y: y - FF_CHIP_PAD_Y - FF_CHIP_SIZE,
+      size: FF_CHIP_SIZE,
+      font: mono,
+      color: muted,
+    });
+    x += mono.widthOfTextAtSize(label, FF_CHIP_SIZE) + FF_LABEL_GAP;
+    for (const s of symbols) {
+      const chipWidth =
+        mono.widthOfTextAtSize(s.text, FF_CHIP_SIZE) + FF_CHIP_PAD_X * 2;
+      if (x + chipWidth > MARGIN + CONTENT_WIDTH) {
+        x = MARGIN;
+        y -= FF_ROW_HEIGHT + FF_ROW_GAP;
+        ensureRoom(FF_ROW_HEIGHT + FF_ROW_GAP);
+      }
+      page.drawSvgPath(roundedRectPath(0, 0, chipWidth, FF_ROW_HEIGHT, 3), {
+        x,
+        y,
+        scale: 1,
+        color: ffChipBg,
+      });
+      page.drawText(s.text, {
+        x: x + FF_CHIP_PAD_X,
+        y: y - FF_CHIP_PAD_Y - FF_CHIP_SIZE,
+        size: FF_CHIP_SIZE,
+        font: mono,
+        color: ffColors[s.kind],
+      });
+      x += chipWidth + FF_CHIP_GAP;
+    }
+    y -= FF_ROW_HEIGHT + FF_ROW_GAP;
+  };
+
   const drawLines = (
     text: string,
     font: import("pdf-lib").PDFFont,
@@ -630,6 +697,14 @@ export async function buildPaperPdf(
         totalScale,
       );
       y -= drawHeight + 6;
+    }
+    const ff = block.nonterminal
+      ? analysis?.firstFollow.find((r) => r.name === block.nonterminal)
+      : undefined;
+    if (ff) {
+      drawFirstFollowRow("FIRST", ff.first);
+      drawFirstFollowRow("FOLLOW", ff.follow);
+      y -= 2;
     }
     ensureRoom(16);
     const caption = `Figure ${ruleCount} — ${block.nonterminal}`;

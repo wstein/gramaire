@@ -1227,7 +1227,7 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
           }
         >
           {hasRendered ? (
-            <div
+            <figure
               class={`gramaire__output${isStale ? " gramaire__output--stale" : ""}`}
             >
               {svg && (
@@ -1263,7 +1263,14 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
                   stale — fix the error above to refresh
                 </div>
               )}
-            </div>
+              {/* Names the figure as one accessible group covering both the diagram and its
+                  FIRST/FOLLOW sets — visually hidden since the rule name already reads inside
+                  the diagram's own nonterminal box and in the source above it. */}
+              <figcaption class="gramaire__sr-only">
+                Railroad diagram and FIRST/FOLLOW sets for the{" "}
+                {block.nonterminal} rule
+              </figcaption>
+            </figure>
           ) : (
             <pre class="gramaire__cell-source">{block.text}</pre>
           )}
@@ -2163,9 +2170,33 @@ function PaperBlock({
     block.nonterminal && analysis
       ? (analysis.railroad[block.nonterminal] ?? "")
       : "";
+  const ff =
+    block.nonterminal && analysis
+      ? analysis.firstFollow.find((r) => r.name === block.nonterminal)
+      : undefined;
   return (
     <figure class="gramaire__paper-figure">
       {svg && <div dangerouslySetInnerHTML={{ __html: svg }} />}
+      {ff && (
+        <div class="gramaire__output-ff">
+          <span class="gramaire__output-ff-group">
+            <span class="gramaire__output-ff-label">FIRST</span>
+            <span class="gramaire__output-ff-chips">
+              {ff.first.map((s, i) => (
+                <SymbolChip key={i} symbol={s} />
+              ))}
+            </span>
+          </span>
+          <span class="gramaire__output-ff-group">
+            <span class="gramaire__output-ff-label">FOLLOW</span>
+            <span class="gramaire__output-ff-chips">
+              {ff.follow.map((s, i) => (
+                <SymbolChip key={i} symbol={s} />
+              ))}
+            </span>
+          </span>
+        </div>
+      )}
       <figcaption>
         Figure {figureNumber} — {block.nonterminal}
       </figcaption>
