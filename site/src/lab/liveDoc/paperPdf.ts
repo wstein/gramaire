@@ -12,13 +12,23 @@
 // server-side rendering, e.g. headless-Chrome `page.pdf`, was never on the table).
 //
 // Explicitly v1-scoped, not presented as feature-complete: prose renders as real vector text
-// (selectable, small file — this is what actually reads as "serious document"), railroad diagrams
-// embed as rasterized PNGs (SVG→canvas→PNG — no extra library needed for that step). Known
-// limitations, accepted on purpose rather than discovered later: simple top-to-bottom flow, no
-// smart page-break avoidance around a figure straddling a page boundary; tables render as plain
-// ruled text rows, columns at fixed fractions of the content width, no per-column text
-// measurement; inline bold/code/image formatting within a paragraph flattens to plain text (an
-// inline image becomes a bracketed "[image: alt]" fallback, never embedded).
+// (selectable, small file — this is what actually reads as "serious document"). Railroad diagrams
+// ALSO render as real vector graphics now (drawVectorRailroad below) rather than a rasterized PNG
+// — the diagrams use a small, fixed SVG vocabulary (circle/path/rect/text, no groups or transforms,
+// confirmed directly against Railroad.scala's own renderSvg), tractable to re-emit as pdf-lib
+// primitives one-for-one: `<path>` tracks go straight through pdf-lib's own `drawSvgPath` (which
+// already understands M/H/V/Q/A path syntax and auto-flips the Y axis for SVG's convention), a
+// rounded `<rect>` is synthesized into an equivalent arc-cornered path (pdf-lib has no native
+// rounded-rect primitive), `<circle>` becomes `drawEllipse`, `<text>` becomes `drawText` with a
+// manually-approximated vertical-centering offset (pdf-lib has no `dominant-baseline`). Figure text
+// draws in a standard monospace PDF font (Courier/Courier-Oblique) with no ligature substitution —
+// that's a separate, not-yet-addressed gap (see the `%pdf-figure-scale`-adjacent TrueType-ligatures
+// follow-up), not something this vector pass attempts to solve. Known limitations, accepted on
+// purpose rather than discovered later: simple top-to-bottom flow, no smart page-break avoidance
+// around a figure straddling a page boundary; tables render as plain ruled text rows, columns at
+// fixed fractions of the content width, no per-column text measurement; inline bold/code/image
+// formatting within a paragraph flattens to plain text (an inline image becomes a bracketed
+// "[image: alt]" fallback, never embedded).
 import type { DocBlock } from "./document";
 import { isPaperBlock, serializeDocument } from "./document";
 import type { GrammarAnalysis } from "../protocol";
@@ -63,6 +73,11 @@ const PX_TO_PT = 72 / 96;
 // something this directive's design can route around from inside the fence. Scanning the whole
 // document's text rather than only fence content is what makes prose placement work at all.
 const DEFAULT_FIGURE_SCALE = 0.65;
+// Railroad.scala's own `FS` (its labels' font size, in the SAME SVG-px unit space as every other
+// coordinate a railroad SVG uses) — kept in that same unit space here too, multiplied by
+// `totalScale` (which already folds in PX_TO_PT + the figure-scale) alongside every other
+// coordinate in `drawVectorRailroad`, rather than pre-converted to points on its own.
+const FS_PT = 13;
 
 // `%pdf-figure-scale 0.4` as its own line anywhere in the document's PROSE (never inside a
 // ```gramaire fence — see the comment above) — a plain multiplier on top of DEFAULT_FIGURE_SCALE
@@ -115,56 +130,59 @@ function wrapLine(
   return lines;
 }
 
-function svgDimensions(svg: string): { width: number; height: number } {
+// One parsed element from a railroad SVG's flat child list — `Railroad.scala`'s `renderSvg` never
+// nests elements in a `<g>` or applies a `transform` (confirmed directly by reading it), so a flat
+// list of direct children, each dispatched by tag name, is all `drawVectorRailroad` needs; there's
+// no transform stack to track.
+interface RailroadEl {
+  tag: string;
+  cls: string;
+  attrs: Record<string, string>;
+  text: string;
+}
+
+function parseRailroadSvg(svg: string): {
+  width: number;
+  height: number;
+  elements: RailroadEl[];
+} {
   const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
   const root = doc.documentElement;
   const width = parseFloat(root.getAttribute("width") ?? "600");
   const height = parseFloat(root.getAttribute("height") ?? "200");
-  return { width, height };
+  const elements: RailroadEl[] = [];
+  for (const el of Array.from(root.children)) {
+    const tag = el.tagName.toLowerCase();
+    if (tag === "style") continue;
+    const attrs: Record<string, string> = {};
+    for (const attr of Array.from(el.attributes)) attrs[attr.name] = attr.value;
+    // `.textContent` would also pull in a nested `<title>` tooltip's text (rr-action-text carries
+    // one) — only this element's own direct text nodes are the visible label.
+    let text = "";
+    for (const node of Array.from(el.childNodes)) {
+      if (node.nodeType === Node.TEXT_NODE) text += node.textContent ?? "";
+    }
+    elements.push({ tag, cls: attrs.class ?? "", attrs, text });
+  }
+  return { width, height, elements };
 }
 
-// The railroad SVGs' own `styleThemed` CSS (Railroad.scala) bakes a real fallback color into
-// every `var(--x, #hex)` reference — confirmed directly, not assumed — so rasterizing the raw
-// SVG string standalone (outside the live page's own CSS custom-property cascade, which an
-// offscreen Image/canvas pipeline has no access to) still renders with the correct light-theme
-// colors. No pre-processing of the SVG string is needed before this.
-async function rasterizeSvgToPng(svg: string): Promise<{
-  bytes: Uint8Array;
-  width: number;
-  height: number;
-}> {
-  const { width, height } = svgDimensions(svg);
-  const blobUrl = URL.createObjectURL(
-    new Blob([svg], { type: "image/svg+xml" }),
+// A rounded rect as an SVG path `d` string (pdf-lib has no native rounded-rect primitive) — drawn
+// clockwise from the top edge, matching how a browser renders `<rect rx>`, so it composes with
+// `drawSvgPath`'s own Y-flip the same way the railroad's own `<path>` tracks already do.
+function roundedRectPath(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): string {
+  const rr = Math.min(r, w / 2, h / 2);
+  return (
+    `M${x + rr} ${y} H${x + w - rr} A${rr} ${rr} 0 0 1 ${x + w} ${y + rr} ` +
+    `V${y + h - rr} A${rr} ${rr} 0 0 1 ${x + w - rr} ${y + h} H${x + rr} ` +
+    `A${rr} ${rr} 0 0 1 ${x} ${y + h - rr} V${y + rr} A${rr} ${rr} 0 0 1 ${x + rr} ${y} Z`
   );
-  try {
-    const img = new Image();
-    img.src = blobUrl;
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error("Failed to rasterize railroad SVG"));
-    });
-    const scale = 2; // crisper diagrams in the PDF than a 1:1 raster would give
-    const canvas = document.createElement("canvas");
-    canvas.width = width * scale;
-    canvas.height = height * scale;
-    const ctx = canvas.getContext("2d")!;
-    ctx.scale(scale, scale);
-    ctx.drawImage(img, 0, 0, width, height);
-    const pngBlob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (b) => (b ? resolve(b) : reject(new Error("canvas.toBlob failed"))),
-        "image/png",
-      );
-    });
-    return {
-      bytes: new Uint8Array(await pngBlob.arrayBuffer()),
-      width,
-      height,
-    };
-  } finally {
-    URL.revokeObjectURL(blobUrl);
-  }
 }
 
 export async function buildPaperPdf(
@@ -178,8 +196,24 @@ export async function buildPaperPdf(
   const serif = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const serifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
   const serifItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+  const mono = await pdfDoc.embedFont(StandardFonts.Courier);
+  const monoItalic = await pdfDoc.embedFont(StandardFonts.CourierOblique);
   const ink = rgb(0.09, 0.09, 0.11);
   const muted = rgb(0.42, 0.42, 0.46);
+  // Matches Railroad.scala's own `styleFixed` (the same light-theme hex palette the notebook's
+  // live pages already fall back to when no CSS custom properties are in scope) — `ink`/`muted`
+  // above already approximate `.rr-nonterm`'s stroke and `.rr-track`'s stroke respectively, reused
+  // as-is rather than duplicated.
+  const rrColors = {
+    track: muted,
+    termFill: rgb(1, 1, 1),
+    termStroke: rgb(0x15 / 255, 0xb8 / 255, 0x79 / 255),
+    nontermFill: rgb(0xf5 / 255, 0xf6 / 255, 0xf3 / 255),
+    nontermStroke: ink,
+    text: ink,
+    actionText: muted,
+    cap: ink,
+  };
 
   let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   let y = PAGE_HEIGHT - MARGIN;
@@ -188,6 +222,76 @@ export async function buildPaperPdf(
     if (y - needed < MARGIN) {
       page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
       y = PAGE_HEIGHT - MARGIN;
+    }
+  };
+
+  // Re-emits a parsed railroad SVG as pdf-lib vector primitives, anchored so the SVG's own
+  // (0,0) — its top-left corner — lands at (originX, topY) in PDF space, scaled uniformly by
+  // `totalScale` (already PX_TO_PT-corrected and figure-scaled by the caller). `drawSvgPath`
+  // auto-flips the Y axis and applies `scale` via its own CTM (so raw SVG-space path/stroke-width
+  // values pass straight through); `drawEllipse`/`drawText` don't go through that CTM, so their
+  // coordinates are converted by hand via `toY` below — same formula pdf-lib's own path transform
+  // computes internally (`topY - svgY * totalScale`), just applied outside it.
+  const drawVectorRailroad = (
+    parsed: ReturnType<typeof parseRailroadSvg>,
+    originX: number,
+    topY: number,
+    totalScale: number,
+  ) => {
+    const toX = (svgX: number) => originX + svgX * totalScale;
+    const toY = (svgY: number) => topY - svgY * totalScale;
+    for (const el of parsed.elements) {
+      if (el.tag === "circle") {
+        const cx = parseFloat(el.attrs.cx ?? "0");
+        const cy = parseFloat(el.attrs.cy ?? "0");
+        const r = parseFloat(el.attrs.r ?? "0") * totalScale;
+        page.drawEllipse({
+          x: toX(cx),
+          y: toY(cy),
+          xScale: r,
+          yScale: r,
+          color: rrColors.cap,
+        });
+      } else if (el.tag === "path") {
+        page.drawSvgPath(el.attrs.d ?? "", {
+          x: originX,
+          y: topY,
+          scale: totalScale,
+          borderColor: rrColors.track,
+          borderWidth: 2,
+        });
+      } else if (el.tag === "rect") {
+        const rx = parseFloat(el.attrs.x ?? "0");
+        const ry = parseFloat(el.attrs.y ?? "0");
+        const w = parseFloat(el.attrs.width ?? "0");
+        const h = parseFloat(el.attrs.height ?? "0");
+        const r = parseFloat(el.attrs.rx ?? "0");
+        const isTerm = el.cls.includes("rr-term");
+        page.drawSvgPath(roundedRectPath(rx, ry, w, h, r), {
+          x: originX,
+          y: topY,
+          scale: totalScale,
+          color: isTerm ? rrColors.termFill : rrColors.nontermFill,
+          borderColor: isTerm ? rrColors.termStroke : rrColors.nontermStroke,
+          borderWidth: 2,
+        });
+      } else if (el.tag === "text" && el.text) {
+        const isAction = el.cls.includes("rr-action-text");
+        const font = isAction ? monoItalic : mono;
+        const size = FS_PT * totalScale;
+        const cx = parseFloat(el.attrs.x ?? "0");
+        const cy = parseFloat(el.attrs.y ?? "0");
+        const textWidth = font.widthOfTextAtSize(el.text, size);
+        page.drawText(el.text, {
+          x: toX(cx) - textWidth / 2,
+          // `dominant-baseline: central` has no pdf-lib equivalent — 0.32×size approximates a
+          // typical font's visual center above its baseline closely enough for a figure label.
+          y: toY(cy) - size * 0.32,
+          size,
+          font,
+          color: isAction ? rrColors.actionText : rrColors.text,
+        });
+      }
     }
   };
 
@@ -278,33 +382,33 @@ export async function buildPaperPdf(
       ? (analysis?.railroad[block.nonterminal] ?? "")
       : "";
     if (svg) {
-      const raster = await rasterizeSvgToPng(svg);
-      const png = await pdfDoc.embedPng(raster.bytes);
+      const parsed = parseRailroadSvg(svg);
       // Pixels → points (PX_TO_PT), then the document's own figure-scale multiplier (DEFAULT_
       // FIGURE_SCALE, or a %pdf-figure-scale override) — THEN cap by whichever of width or height
       // is more restrictive, regardless of the diagram's own aspect ratio. A wide-but-short
       // diagram is capped by width, a narrow-but-tall one by height, and either way the final size
       // never exceeds what one fresh page can actually hold — the caps stay a real safety net
       // even for a document-supplied scale, not just the default.
-      const naturalWidth = raster.width * PX_TO_PT * scale;
-      const naturalHeight = raster.height * PX_TO_PT * scale;
+      const naturalWidth = parsed.width * PX_TO_PT * scale;
+      const naturalHeight = parsed.height * PX_TO_PT * scale;
       const widthScale = CONTENT_WIDTH / naturalWidth;
       const heightScale = MAX_FIGURE_HEIGHT / naturalHeight;
       const drawScale = Math.min(1, widthScale, heightScale);
       const drawWidth = naturalWidth * drawScale;
       const drawHeight = naturalHeight * drawScale;
+      const totalScale = PX_TO_PT * scale * drawScale;
       // A big figure starts on its own fresh page rather than a small sliver of room left on the
       // current one — ensureRoom alone would still have technically fit it (the height cap
       // guarantees that), but a diagram sharing a page with only a few leftover points of
       // whatever came before it reads as cramped, not deliberate.
       if (drawHeight > CONTENT_HEIGHT * 0.4) ensureRoom(CONTENT_HEIGHT);
       ensureRoom(drawHeight + 24);
-      page.drawImage(png, {
-        x: MARGIN + (CONTENT_WIDTH - drawWidth) / 2,
-        y: y - drawHeight,
-        width: drawWidth,
-        height: drawHeight,
-      });
+      drawVectorRailroad(
+        parsed,
+        MARGIN + (CONTENT_WIDTH - drawWidth) / 2,
+        y,
+        totalScale,
+      );
       y -= drawHeight + 6;
     }
     ensureRoom(16);
