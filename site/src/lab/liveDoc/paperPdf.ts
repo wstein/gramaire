@@ -65,6 +65,10 @@ import { isPaperBlock, serializeDocument } from "./document";
 import type { GrammarAnalysis } from "../protocol";
 import { parseMarkdownLite, isRailroadPlaceholder } from "./markdown";
 import type { MdBlock, MdInline } from "./markdown";
+// Type-only — erased at compile time, doesn't affect pdf-lib's own lazy (dynamic-import) loading.
+// Needed because a destructured `const { PDFDict } = await import("pdf-lib")` binding is a value
+// only, not a type; `obj is PDFDict` below needs an actual type reference to narrow against.
+import type { PDFDict as PDFDictType } from "pdf-lib";
 import firaCodeUrl from "firacode/distr/ttf/FiraCode-Regular.ttf?url";
 
 const PAGE_WIDTH = 612; // US Letter, points (72pt/inch)
@@ -217,6 +221,51 @@ function roundedRectPath(
   );
 }
 
+// PDF's bfchar entries are UTF-16BE hex, in JS-native code units — `charCodeAt` already gives
+// UTF-16 code units directly (surrogate pairs included, unsplit), so no manual surrogate-pair
+// math is needed the way `codePointAt`-based iteration would require.
+function textToUtf16Hex(text: string): string {
+  let hex = "";
+  for (let i = 0; i < text.length; i++) {
+    hex += text.charCodeAt(i).toString(16).padStart(4, "0");
+  }
+  return hex;
+}
+
+// Same bfchar/CMap structure pdf-lib's own (private) `CMap.js` builds — reimplemented here since
+// this one covers a caller-supplied glyphId→text map instead of a font's default-cmap-reachable
+// glyph set (see `glyphToText`'s own comment on why that distinction matters).
+function buildToUnicodeCmap(glyphToText: ReadonlyMap<number, string>): string {
+  const bfChars = Array.from(glyphToText.entries())
+    .map(
+      ([gid, text]) =>
+        `<${gid.toString(16).padStart(4, "0")}> <${textToUtf16Hex(text)}>`,
+    )
+    .join("\n");
+  return [
+    "/CIDInit /ProcSet findresource begin",
+    "12 dict begin",
+    "begincmap",
+    "/CIDSystemInfo <<",
+    "  /Registry (Adobe)",
+    "  /Ordering (UCS)",
+    "  /Supplement 0",
+    ">> def",
+    "/CMapName /Adobe-Identity-UCS def",
+    "/CMapType 2 def",
+    "1 begincodespacerange",
+    "<0000><ffff>",
+    "endcodespacerange",
+    `${glyphToText.size} beginbfchar`,
+    bfChars,
+    "endbfchar",
+    "endcmap",
+    "CMapName currentdict /CMap defineresource pop",
+    "end",
+    "end",
+  ].join("\n");
+}
+
 export async function buildPaperPdf(
   blocks: readonly DocBlock[],
   analysis: GrammarAnalysis | null,
@@ -237,6 +286,8 @@ export async function buildPaperPdf(
       showText,
       PDFHexString,
       toHexStringOfMinLength,
+      PDFDict,
+      PDFName,
     },
     { default: fontkit },
     hb,
@@ -291,11 +342,19 @@ export async function buildPaperPdf(
     }
   };
 
+  // What each drawn glyph ID actually represents, in source text — needed to patch the PDF's
+  // ToUnicode CMap after the fact (see the round-trip patch at the end of this function). pdf-lib
+  // auto-generates a ToUnicode CMap covering every glyph reachable via a plain per-codepoint cmap
+  // lookup, entirely independent of what we actually draw — which already correctly covers most
+  // glyphs (an ordinary, unsubstituted "c" or "x" IS that same default glyph). It does NOT cover a
+  // glyph ONLY reachable via a HarfBuzz contextual-alternate/ligature substitution (the connected
+  // "=>" arrow, or "l" after "F" — see this file's header comment): copying that text back out of
+  // the PDF reads as garbage without an explicit entry for it.
+  const glyphToText = new Map<number, string>();
+
   // Real OpenType shaping for one label — HarfBuzz's own glyph IDs/positions (font design units),
   // converted to PDF points via `size / unitsPerEm` (NOT a hardcoded /1000 — units-per-em varies
-  // per font). `cluster`-tracking isn't needed: this font's "ligatures" never merge multiple input
-  // characters into fewer output glyphs (see this file's header comment) — every glyph is simply
-  // positioned in sequence by its own advance.
+  // per font).
   const shapeLabel = (text: string, size: number) => {
     const buf = new hb.Buffer();
     buf.addText(text);
@@ -312,6 +371,18 @@ export async function buildPaperPdf(
         y: positions[i].yOffset * unitsToPt,
       };
       penX += positions[i].xAdvance;
+      if (!glyphToText.has(g.id)) {
+        // `cluster` is this glyph's own start index into `text`; the next glyph's (distinct)
+        // cluster value bounds it. This font never merges multiple input characters into fewer
+        // glyphs (confirmed directly — every "ligature" here is a same-count contextual
+        // alternate, see the header comment), so this is always exactly one character in
+        // practice; the `+ 1` fallback only guards a slice that would otherwise come out empty.
+        const nextCluster = infos[i + 1]?.cluster ?? text.length;
+        glyphToText.set(
+          g.id,
+          text.slice(info.cluster, Math.max(nextCluster, info.cluster + 1)),
+        );
+      }
       return g;
     });
     return { glyphs, totalWidth: penX * unitsToPt };
@@ -532,5 +603,32 @@ export async function buildPaperPdf(
     y -= 26;
   }
 
-  return pdfDoc.save();
+  const rawBytes = await pdfDoc.save();
+  if (glyphToText.size === 0) return rawBytes;
+
+  // pdf-lib's own auto-generated ToUnicode CMap (already embedded in `rawBytes` above) doesn't
+  // cover every glyph this document actually drew (see `glyphToText`'s own comment) — reload the
+  // just-saved bytes and overwrite the embedded Fira Code font's `/ToUnicode` stream with one that
+  // does, so copy/pasting figure text back out of the exported PDF reads correctly (e.g. "=>",
+  // not garbled mojibake) rather than just looking right on screen. `mono` is the only Type0
+  // (custom, non-standard) font this document ever embeds — the standard serif fonts are Type1,
+  // so filtering by Subtype alone is enough to find it, no name-matching needed.
+  const patchedDoc = await PDFDocument.load(rawBytes);
+  const fontDict = patchedDoc.context
+    .enumerateIndirectObjects()
+    .map(([, obj]) => obj)
+    .find(
+      (obj): obj is PDFDictType =>
+        obj instanceof PDFDict &&
+        obj.lookup(PDFName.of("Subtype"))?.toString() === "/Type0",
+    );
+  if (!fontDict) return rawBytes; // defensive — should always be found when glyphToText isn't empty
+  const cmapStream = patchedDoc.context.flateStream(
+    buildToUnicodeCmap(glyphToText),
+  );
+  fontDict.set(
+    PDFName.of("ToUnicode"),
+    patchedDoc.context.register(cmapStream),
+  );
+  return patchedDoc.save();
 }

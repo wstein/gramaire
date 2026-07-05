@@ -1286,6 +1286,46 @@ never at module load — confirmed via the Network tab that the wasm asset
 has zero requests on page load and fetches only once a PDF is actually
 built.
 
+**Copy/paste out of the PDF was still broken — a `ToUnicode` gap, not a
+rendering bug.** Shipped, then reported directly against the real PDF:
+selecting and copying a figure caption (`"(c) => c.expr - c.term"`) pasted
+back as `"(c) ֱֵ c.expr - c.term"` — the `=>` specifically came out as
+mojibake, the rest of the line copied fine. Root cause, found by reading
+`CustomFontEmbedder.js` directly: pdf-lib still auto-generates a
+`/ToUnicode` CMap when it saves, but it's built from
+`allGlyphsInFontSortedById` — every codepoint in the font's own character
+set run through `glyphForCodePoint`, entirely independent of what our code
+actually draws. An ordinary, unsubstituted glyph (a plain "c" or "x") IS
+that same default glyph, so it already got a correct entry — exactly why
+only the ligature-substituted glyph (`=>`'s connected arrow, a HarfBuzz
+contextual-alternate glyph ID never reachable via a plain per-codepoint
+cmap lookup) had no entry at all, and a PDF viewer's fallback for an
+unmapped code is what produced the garbage.
+
+Fixed with a round-trip patch: `shapeLabel` now also records, per glyph ID
+(via HarfBuzz's own `cluster` field — the source text's start index),
+what original text it represents, into a document-wide
+`Map<glyphId, string>`. After `pdfDoc.save()` produces working-but-
+copy-broken bytes, `PDFDocument.load()` reloads them, finds the embedded
+Fira Code font's dictionary (the only `/Subtype /Type0` font this
+document ever embeds — the serif fonts are Type1, so filtering by
+Subtype alone is enough), builds a complete replacement `/ToUnicode` CMap
+stream covering every glyph the document actually drew (the same
+bfchar-CMap text format pdf-lib's own, private `CMap.js` generates,
+reimplemented here since it only exposes that generator internally), and
+overwrites the font dict's `ToUnicode` entry before re-saving. Every API
+this needs (`PDFDocument.load`, `context.enumerateIndirectObjects()`,
+`PDFDict.set`, `context.flateStream`, `context.register`, `PDFName`) is
+confirmed public, no private pdf-lib internals required — though
+`PDFContext.lookupMaybe(ref, PDFDict)` turned out to THROW on a
+wrong-type ref rather than returning `undefined` (only a missing/null ref
+does that), so the actual lookup uses `enumerateIndirectObjects()` +
+a plain `instanceof PDFDict` type-guard instead. Verified via
+`pdftotext` (which relies on the exact same `/ToUnicode` mechanism a real
+viewer's copy uses) against both the `Calc-js` example and the
+self-hosting grammar's much larger, more varied set of real action
+captions — every `=>` extracts correctly now, nothing else regressed.
+
 Fira Code also has no italic member (`styles: ["normal"]` in its own
 metadata) — a browser synthesizes `.rr-action-text`'s `font-style: italic`
 by slanting the regular face automatically; an initial attempt mirrored
