@@ -4,7 +4,7 @@ import { test, expect } from "@playwright/test";
 // build-time-prerendered: site/scripts/prerender-notebook.mjs precomputes a real LabResponse for
 // the calc-js example against the real engine BEFORE `astro build` runs, and index.astro passes
 // it as GrimoireNotebookIsland's `initial` prop, so the static HTML already contains real cells/
-// badges/railroad diagrams — no mockup, no loading placeholder, no click gate. Requires
+// railroad diagrams — no mockup, no loading placeholder, no click gate. Requires
 // `npm run build:engine && npm run prerender:notebook` to have both run first.
 
 test("the homepage's static HTML already contains real Notebook cells, before any client JS runs", async ({
@@ -16,11 +16,17 @@ test("the homepage's static HTML already contains real Notebook cells, before an
   const page = await context.newPage();
   await page.goto("/");
 
-  const badges = await page.locator(".grimoire__badge").allTextContents();
-  expect(badges).toEqual(["Settings", "Tokens", "Rule", "Rule", "Rule"]);
+  // Cells render inline with no visible badge/name header — `data-kind`/`data-nonterminal` are
+  // invisible test hooks (GrimoireNotebookIsland.tsx).
+  const kinds = await page
+    .locator(".grimoire__cell")
+    .evaluateAll((els) => els.map((el) => el.getAttribute("data-kind")));
+  expect(kinds).toEqual(["settings", "tokens", "rule", "rule", "rule"]);
 
-  const names = await page.locator(".grimoire__cell-name").allTextContents();
-  expect(names).toEqual(["Expr", "Term", "Factor"]);
+  const nonterminals = await page
+    .locator('.grimoire__cell[data-kind="rule"]')
+    .evaluateAll((els) => els.map((el) => el.getAttribute("data-nonterminal")));
+  expect(nonterminals).toEqual(["Expr", "Term", "Factor"]);
 
   await expect(page.locator(".grimoire__output-railroad svg")).toHaveCount(3);
   await context.close();
@@ -41,10 +47,7 @@ test("the homepage loads no worker/engine bundle merely from being viewed — on
     `expected no worker/engine request before an edit, got: ${requests.join(", ")}`,
   ).toEqual([]);
 
-  const ruleCell = page
-    .locator(".grimoire__cell")
-    .filter({ has: page.locator(".grimoire__badge--rule") })
-    .first();
+  const ruleCell = page.locator('.grimoire__cell[data-kind="rule"]').first();
   await ruleCell.locator(".grimoire__cell-rendered").click();
   await expect(ruleCell.locator(".cm-content")).toBeVisible();
   await page.locator(".grimoire__statusbar").click(); // blur, commits, triggers a real evaluate
@@ -60,10 +63,7 @@ test("a rule cell inside the embedded Notebook is clickable, same as the standal
   page,
 }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  const ruleCell = page
-    .locator(".grimoire__cell")
-    .filter({ has: page.locator(".grimoire__badge--rule") })
-    .first();
+  const ruleCell = page.locator('.grimoire__cell[data-kind="rule"]').first();
   await expect(
     ruleCell.locator(".grimoire__output-railroad svg"),
   ).toBeVisible();

@@ -487,12 +487,10 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
     (a) => a.blockIndex === index,
   );
   const cellDiags = myAttributed.map((a) => a.diag);
+  // A cell with only a warning still builds fine and keeps its rendered railroad/FIRST-FOLLOW
+  // (unlike hasError, which forces raw source instead) — CellDiagnostics below prints the actual
+  // message either way, so there's no separate warning affordance needed at the cell itself.
   const hasError = cellDiags.some((d) => d.severity === "error");
-  // A cell with only a warning still builds fine — it keeps its rendered railroad/FIRST-FOLLOW
-  // (unlike hasError, which forces raw source instead), just flagged the same way an error is:
-  // an amber border and a "warning" tag, rather than nothing at all until the diagnostics panel
-  // happens to be open.
-  const hasWarning = cellDiags.some((d) => d.severity === "warning");
 
   // Layer 3 — convert this cell's located diagnostics to cell-local squiggle ranges for the open
   // editor. The engine's span is a document-wide offset; subtracting the cell's own content-start
@@ -526,44 +524,13 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
       : undefined;
   const hasRendered = !hasError && Boolean(svg || ff);
 
-  const cellStateClass = hasError
-    ? " grimoire__cell--error"
-    : hasWarning
-      ? " grimoire__cell--warning"
-      : "";
-
   return (
     <div
-      class={`grimoire__cell${cellStateClass}`}
+      class="grimoire__cell"
       id={`grimoire-cell-${index}`}
+      data-kind={block.kind}
+      data-nonterminal={block.nonterminal ?? undefined}
     >
-      <div
-        class="grimoire__cell-header"
-        onClick={() => {
-          if (!isEditing) beginEditCell(index, block.text);
-        }}
-      >
-        <span class={`grimoire__badge grimoire__badge--${block.kind}`}>
-          {BADGE_LABEL[block.kind]}
-        </span>
-        {block.nonterminal && (
-          <span class="grimoire__cell-name">{block.nonterminal}</span>
-        )}
-        {(hasError || hasWarning) && (
-          <span
-            class={`grimoire__cell-error-tag${hasError ? "" : " grimoire__cell-error-tag--warning"}`}
-            title="Show the diagnostics panel"
-            onClick={(e) => {
-              // Reveal the panel without ALSO opening this cell's editor — the header's own
-              // onClick (beginEditCell) would otherwise fire too, since this tag is a child of it.
-              e.stopPropagation();
-              diagPanelCollapsed.value = false;
-            }}
-          >
-            {hasError ? "error" : "warning"}
-          </span>
-        )}
-      </div>
       {isEditing ? (
         <>
           <EditorToolbar
@@ -869,7 +836,7 @@ function StatusBar() {
 
 export interface GrimoireNotebookIslandProps {
   // A build-time-precomputed response (site/scripts/prerender-notebook.mjs), so a page can embed
-  // this component already showing real cells/badges/diagrams instead of the "Building the first
+  // this component already showing real cells/diagrams instead of the "Building the first
   // response…" placeholder — used by the homepage (index.astro), not the standalone /notebook
   // page (which passes nothing and evaluates live on mount, exactly as before).
   initial?: { response: LabResponse; evaluation: EvaluationResult | null };
