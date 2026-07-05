@@ -175,6 +175,7 @@ function scheduleEvaluate() {
 function commitSourceEdit() {
   const current = serializeDocument(blocks.peek());
   if (sourceDraft.value === current) return;
+  pushUndoSnapshot();
   blocks.value = buildDocument(sourceDraft.value, []);
   scheduleEvaluate();
 }
@@ -401,14 +402,40 @@ function blocksLocked(): boolean {
   return editingCell.value !== null || editingProse.value !== null;
 }
 
+// Document-level undo (Ctrl/Cmd+Z) — one entry per structural or committed-text edit, holding the
+// PRIOR `blocks` array. Every real edit here replaces `blocks.value` wholesale rather than
+// mutating in place (insertBlock/removeBlock/swapBlocks/replaceBlockText/buildDocument all return
+// a fresh array), so capturing the reference just before reassignment is enough — no deep clone.
+// Capped so an unbounded editing session can't grow this without limit.
+const UNDO_STACK_LIMIT = 50;
+const undoStack = signal<DocBlock[][]>([]);
+const canUndo = computed(() => undoStack.value.length > 0);
+
+function pushUndoSnapshot() {
+  undoStack.value = [...undoStack.value, blocks.value].slice(-UNDO_STACK_LIMIT);
+}
+
+function undo() {
+  // While an editor is open, or Source view's own single whole-document editor is live, Ctrl/Cmd+Z
+  // must reach that editor's native text-undo instead — see setupUndoShortcut's own guard.
+  if (blocksLocked() || viewMode.value === "source") return;
+  const stack = undoStack.value;
+  if (stack.length === 0) return;
+  undoStack.value = stack.slice(0, -1);
+  blocks.value = stack[stack.length - 1];
+  scheduleEvaluate();
+}
+
 function moveBlock(index: number, direction: -1 | 1) {
   if (blocksLocked()) return;
+  pushUndoSnapshot();
   blocks.value = swapBlocks(blocks.value, index, index + direction);
   scheduleEvaluate();
 }
 
 function deleteBlock(index: number) {
   if (blocksLocked()) return;
+  pushUndoSnapshot();
   blocks.value = removeBlock(blocks.value, index);
   scheduleEvaluate();
 }
@@ -502,6 +529,7 @@ function CellActions({ index }: { index: number }) {
 // beginEditProse flow rather than inventing a separate "new block" editing path.
 function insertProseAt(index: number) {
   if (blocksLocked()) return;
+  pushUndoSnapshot();
   const block: DocBlock = {
     id: makeBlockId(),
     kind: "prose",
@@ -529,6 +557,7 @@ function insertCellAt(
   nonterminal: string | null,
 ) {
   if (blocksLocked()) return;
+  pushUndoSnapshot();
   const block: DocBlock = {
     id: makeBlockId(),
     kind,
@@ -622,7 +651,11 @@ function endEditCell(index: number) {
   // `cellDraft` a second time into a cell that's no longer open, or into whatever cell now
   // happens to occupy this index.
   if (editingCell.peek() !== index) return;
-  blocks.value = replaceBlockText(blocks.value, index, cellDraft.value);
+  const current = blocks.peek()[index];
+  if (current && current.text !== cellDraft.value) {
+    pushUndoSnapshot();
+    blocks.value = replaceBlockText(blocks.value, index, cellDraft.value);
+  }
   editingCell.value = null;
   scheduleEvaluate();
   focusCellAfterEdit(index);
@@ -648,7 +681,11 @@ function endEditProse(index: number) {
   // Same reentrancy guard as endEditCell above, same reason: a DOM-removal blur after
   // Cancel/Escape already cleared `editingProse` must not re-commit a stale draft.
   if (editingProse.peek() !== index) return;
-  blocks.value = replaceBlockText(blocks.value, index, proseDraft.value);
+  const current = blocks.peek()[index];
+  if (current && current.text !== proseDraft.value) {
+    pushUndoSnapshot();
+    blocks.value = replaceBlockText(blocks.value, index, proseDraft.value);
+  }
   editingProse.value = null;
   scheduleEvaluate();
   focusCellAfterEdit(index);
@@ -668,6 +705,7 @@ function acceptRestore() {
   const offer = restoreOffer.value;
   if (!offer) return;
   restoreOffer.value = null;
+  pushUndoSnapshot();
   blocks.value = buildDocument(offer.text, []);
   scheduleEvaluate();
 }
@@ -1549,6 +1587,7 @@ function loadDocumentText(
   text: string,
   handle: WritableFileHandle | null = null,
 ) {
+  pushUndoSnapshot();
   blocks.value = buildDocument(text, []);
   viewMode.value = "notebook";
   fileHandle.value = handle;
@@ -1847,6 +1886,25 @@ function OutlineToggle() {
   );
 }
 
+// A one-shot action, not a toggle — disabled once the undo stack is empty rather than hidden, same
+// convention as the first block's Up / last block's Down in CellActions (a control whose absence
+// would otherwise read as "broken" rather than "nothing to do").
+function UndoButton() {
+  const disabled =
+    !canUndo.value || blocksLocked() || viewMode.value === "source";
+  return (
+    <button
+      type="button"
+      class="grimoire__download-btn"
+      disabled={disabled}
+      title="Undo the last edit (Ctrl/Cmd+Z)"
+      onClick={undo}
+    >
+      Undo
+    </button>
+  );
+}
+
 // The one combined topbar-tools island `notebook.astro` mounts — `ViewToggle` and
 // `DownloadActions` both belong in the same page-tools slot, so one shared `client:load` island
 // for both avoids a second Preact root/hydration entry for controls that are never meaningfully
@@ -1856,6 +1914,7 @@ export function NotebookTopbarTools() {
     <>
       <OpenActions />
       <DownloadActions />
+      <UndoButton />
       <OutlineToggle />
       <ViewToggle />
     </>
@@ -2007,6 +2066,21 @@ function setupSessionAutosave(): () => void {
   };
 }
 
+// Global Ctrl/Cmd+Z — standalone page only, same reasoning as setupSessionAutosave: the homepage's
+// seeded `initial` embed is a showcase widget, not a real editing session worth a global keyboard
+// shortcut. Shift is excluded so Cmd+Shift+Z is left free rather than double-firing plain undo —
+// there's no redo yet, but reserving the combo now costs nothing.
+function setupUndoShortcut(): () => void {
+  const onKeydown = (event: KeyboardEvent) => {
+    if (!(event.metaKey || event.ctrlKey)) return;
+    if (event.key.toLowerCase() !== "z" || event.shiftKey) return;
+    event.preventDefault();
+    undo();
+  };
+  window.addEventListener("keydown", onKeydown);
+  return () => window.removeEventListener("keydown", onKeydown);
+}
+
 export interface GrimoireNotebookIslandProps {
   // A build-time-precomputed response (site/scripts/prerender-notebook.mjs), so a page can embed
   // this component already showing real cells/diagrams instead of the "Building the first
@@ -2040,9 +2114,11 @@ export function GrimoireNotebookIsland(
     if (props.initial) return () => labWorker.dispose();
 
     const disposeAutosave = setupSessionAutosave();
+    const disposeUndoShortcut = setupUndoShortcut();
     return () => {
       labWorker.dispose();
       disposeAutosave();
+      disposeUndoShortcut();
     };
   }, []);
 
