@@ -947,6 +947,16 @@ span, so this alone is what made it clickable in the panel and gave its
 Settings cell the same inline `CellDiagnostics` message Layer 2 already
 gave errors.
 
+**Correction (2026-07-06):** the "any `%word` shape" claim above was itself
+incomplete — `settingDeclShapeRe`'s character class excluded `-`/`_` and
+required a literal trailing argument, so a real, already-shipped directive
+like `%pdf-figure-scale 0.4` (paperPdf.ts) or `%paper-font-scale 1.5`
+(document.ts) — hyphenated, and neither one a typo — still failed the same
+`forall` shape check and fell through to `Rule`, exactly the cascade this
+section describes fixing. Now `^%[A-Za-z][A-Za-z0-9_-]*(\s|$)`: hyphens/
+underscores are part of the directive-name shape, and a bare, argument-less
+flag directive (no trailing value at all) matches too.
+
 **Notebook/Source view toggle.** An `aria-pressed` segmented button pair
 (`ViewToggle`, `.grimoire__view-toggle`, `GrimoireNotebookIsland.tsx`) flips
 between the per-cell rendering above and a single `CodeMirrorEditor` over the
@@ -1385,19 +1395,20 @@ shrinking." Client-side only (a PDF-export presentational concern, not a
 grammar-semantic one) — scanned with a plain regex over the whole
 serialized document text, never sent to or validated by the engine.
 **Must be written as its own line in prose, never inside a ```gramark
-fence** — confirmed directly, this is not a theoretical concern: the real
-engine's fence classifier currently misclassifies a Settings fence
-containing ANY unrecognized `%`-directive as a `rule` fence instead
-(reproduces with `%pdf-figure-scale` and with an unrelated made-up
-directive equally, so it's a general, pre-existing engine defect, not
-something specific to this feature) — corrupting the whole document (the
-Settings block renders as a bogus rule cell named after its own first
-directive, and a trailing rule silently drops). Scanning the entire
-document's raw text rather than only fence content is what makes prose
-placement work safely today without waiting on that engine bug to be
-fixed. That engine-side defect (Lr.scala's fence classification not
-tolerating an unrecognized Settings-fence directive) is tracked separately,
-out of scope for this PDF-export feature.
+fence** — confirmed directly, this was not a theoretical concern: the
+engine's fence classifier used to misclassify a Settings fence containing
+ANY unrecognized `%`-directive as a `rule` fence instead (reproduced with
+`%pdf-figure-scale` and with an unrelated made-up directive equally, so it
+was a general engine defect, not something specific to this feature) —
+corrupting the whole document (the Settings block rendered as a bogus rule
+cell named after its own first directive, and a trailing rule silently
+dropped). Scanning the entire document's raw text rather than only fence
+content is what made prose placement work safely even before that engine
+bug was fixed. **Fixed 2026-07-06** (`Lr.scala`'s `settingDeclShapeRe`,
+see the correction under "Layered diagnostics" above) — this restriction
+is now belt-and-suspenders, not a live workaround, but stays documented
+since a Settings-fence directive is still the more natural place an author
+would first try writing one.
 
 **Prose typography: Notebook/Paper/PDF used three independently-drifting
 scales, and `%paper-font-scale`.** The `cee2215` commit unified prose

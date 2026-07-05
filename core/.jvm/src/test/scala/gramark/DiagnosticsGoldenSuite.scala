@@ -323,6 +323,43 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
     )
   }
 
+  test(
+    "unknown setting warning: a hyphenated or argument-less %directive keeps the Settings fence classified as Settings"
+  ) {
+    // Regression: isSettingDecl's shape regex claimed to accept "any %word" but its character
+    // class excluded `-`/`_` and required a literal trailing argument — so a real, already-shipped
+    // client-side directive like paperPdf.ts's own `%pdf-figure-scale 0.4` (hyphenated) or a bare,
+    // argument-less flag directive still failed `forall` and fell through to `Rule`, exactly the
+    // cascade-of-lex-errors bug the `%naqme` test above already covers for a plain typo.
+    val md = """# Calc-js
+      |
+      |```gramark
+      |%name Calc-js
+      |%pdf-figure-scale 0.4
+      |%some-bare-flag
+      |```
+      |
+      |## Expr
+      |
+      |```gramark
+      |Expr
+      |: NUMBER
+      |```
+      |""".stripMargin
+    Lr.parseWith(Method.Canonical, md) match
+      case Left(diags) => fail(s"expected the grammar to build cleanly, got: $diags")
+      case Right(_)    => ()
+    val warnings = Lr.warningsFor(md)
+    assertEquals(
+      warnings.map(_.message).toSet,
+      Set(
+        "unknown setting `%pdf-figure-scale` (ignored)",
+        "unknown setting `%some-bare-flag` (ignored)"
+      ),
+      s"expected both non-`%name` directives flagged as unknown settings, not a lex-error cascade, got: $warnings"
+    )
+  }
+
   test("unknown attribute warning: names the rule, suggests the one known attribute") {
     val md = """# Warn
       |
