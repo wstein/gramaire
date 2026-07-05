@@ -962,7 +962,7 @@ test("+ Prose inserts an empty prose block at that position and opens it for typ
 // The one non-obvious claim this feature depends on: `serializeDocument` wraps ANY non-prose
 // block in the same generic fence regardless of the client's own `kind` label — what the ENGINE
 // reclassifies it as next depends on the fence's real first-line shape once re-parsed, not what
-// the client called it. This proves the placeholder text ("NewRule\n  : ") really does
+// the client called it. This proves the placeholder text ("NewRule\n  : 'TODO'") really does
 // reclassify as `rule` again after a real edit, not just that the client-side label says so.
 test("+ Rule inserts a rule skeleton that reclassifies as a real rule cell after editing", async ({
   page,
@@ -977,13 +977,14 @@ test("+ Rule inserts a rule skeleton that reclassifies as a real rule cell after
     .click();
 
   const editor = page.locator(".cm-content").first();
-  await expect(editor).toHaveText("NewRule  : ");
+  await expect(editor).toHaveText("NewRule  : 'TODO'");
 
-  // Click the second line precisely (End alone, without a click, lands wherever autoFocus put
-  // the cursor — verified the hard way against a real page, not assumed).
-  await editor.locator(".cm-line").nth(1).click();
-  await page.keyboard.press("End");
-  await page.keyboard.type("'x'");
+  // Select-all + retype rather than End+append: the placeholder already ends in a quoted
+  // literal (so the fresh cell builds clean immediately, with no syntax error), and this
+  // replaces it wholesale instead of appending after it.
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type("NewRule\n  : 'x'");
   await page.locator(".gramaire__statusbar").click();
   await page.waitForTimeout(1500);
 

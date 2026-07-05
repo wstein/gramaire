@@ -986,24 +986,30 @@ first and one after the last — `blocks.value.length + 1` zones), fixed at a
 small height even at rest so hovering never shifts surrounding content —
 only the buttons themselves fade in. `+ Prose` inserts an empty prose block
 (`document.ts`'s `insertBlock`) and opens it for typing immediately; `+
-Rule` inserts a placeholder skeleton (`"NewRule\n  : "`) and opens ITS
-editor instead. Both then `scheduleEvaluate()` — the newly-inserted block
-is empty/incomplete, but keeping the engine in sync is still the
-consistent, unconditional rule every mutation follows, not a special case.
+Rule` inserts a placeholder skeleton (`"NewRule\n  : 'TODO'"`) and opens ITS
+editor instead. Both then `scheduleEvaluate()` — keeping the engine in
+sync is the consistent, unconditional rule every mutation follows, not a
+special case.
 
-The `+ Rule` placeholder's exact text matters, and isn't arbitrary:
-`serializeDocument` wraps any non-prose block in the same generic fence
-marker regardless of the client's own `kind` label — what the ENGINE
+The `+ Rule` placeholder's exact text matters, and isn't arbitrary, on two
+counts: `serializeDocument` wraps any non-prose block in the same generic
+fence marker regardless of the client's own `kind` label — what the ENGINE
 reclassifies a fence as on the next round-trip depends on its real
 first-line shape once re-parsed, not what the client called it. A bare
-`"NewRule\n  : "` matches the same shape every existing rule fence has (a
-bare word, then `:`), so it reclassifies as `rule` again once the user's
-own edit and the next evaluate() land — confirmed against the real engine,
-not assumed: inserting before an existing rule and completing it (e.g.
-`NewRule : 'x'`) does produce a `rule`-kind cell with its own working
-railroad diagram (and, since Gramaire's first rule is its start rule,
-correctly warns that the rules after it are now unreachable — the engine's
-real analysis, not a stubbed response).
+`"NewRule\n  : "` (no trailing symbol) matches the same shape every
+existing rule fence has (a bare word, then `:`), so it reclassifies as
+`rule` again — confirmed against the real engine, not assumed. But an empty
+alternative is also a genuine syntax error, shown the instant the cell is
+inserted, before the user has touched it (caught directly: the raw
+`"NewRule\n  : "` version left a fresh cell showing "unexpected end of
+input" the moment `+ Rule` was clicked) — so the placeholder ends in a
+trailing quoted literal (`'TODO'`), always a valid terminal reference
+regardless of the document's own tokens/rules, making the fresh cell
+buildable immediately. It does still warn, correctly: since Gramaire's first
+rule is its start rule, inserting one before existing rules makes them
+newly unreachable — the engine's real analysis, not a stubbed response, so
+that warning is expected and left alone, not something the placeholder
+should try to avoid.
 
 Same disabled-while-editing guard as the hover-reveal actions above —
 inserting is exactly as index-sensitive as reordering/deleting.
