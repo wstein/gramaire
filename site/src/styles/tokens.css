@@ -96,7 +96,6 @@
   --accent-softer: color-mix(in srgb, var(--accent) 8%, var(--bg));
   --t-nonterm: var(--accent);
   --t-term: #b4530a;
-  --t-action: #6f42c1;
   --t-op: #7d8d85;
   --t-comment: #7d8d85;
   --out-bg: #0c130f;
@@ -128,7 +127,6 @@
   --node: #15b879;
   --t-nonterm: var(--accent);
   --t-term: #f0a868;
-  --t-action: #c4a8ec;
   --t-op: #73877e;
   --t-comment: #73877e;
   --out-bg: #080d0a;

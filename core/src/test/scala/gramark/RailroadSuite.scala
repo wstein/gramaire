@@ -56,7 +56,7 @@ class RailroadSuite extends munit.FunSuite:
   }
 
   test(
-    "renderSvg: an alt with an action renders it boxed, with the full source as a hover title"
+    "renderSvg: an alt with an action renders a muted caption, with the full source as a hover title"
   ) {
     val prod = Production(
       "Expr",
@@ -68,8 +68,9 @@ class RailroadSuite extends munit.FunSuite:
       )
     )
     val svg = renderSvg(prod)
-    assert(svg.contains("""<rect class="rr-action-box""""))
     assert(svg.contains("""<text class="rr-action-text""""))
+    // No box — a plain textbook-figure caption, not a callout (see Railroad.scala's own comment).
+    assert(!svg.contains("rr-action-box"))
     assert(svg.contains("<title>(c) =&gt; c.term &lt; 1 &amp;&amp; c.term</title>"))
     assert(svg.contains(">(c) =&gt; c.term &lt; 1 &amp;&amp; c.term</text>"))
   }
@@ -99,9 +100,8 @@ class RailroadSuite extends munit.FunSuite:
       Production("Expr", Vector(Alt(Vector(DiaSym("Term", term = false)), action = None)))
     val bare = Production("Expr", Vector(Alt(Vector(DiaSym("Term", term = false)))))
     assertEquals(renderSvg(withNone), renderSvg(bare))
-    // ".rr-action-box"/".rr-action-text" alone would trivially match the SVG's own
-    // always-present <style> rules, so check for the actual elements.
-    assert(!renderSvg(withNone).contains("""<rect class="rr-action-box""""))
+    // ".rr-action-text" alone would trivially match the SVG's own always-present <style> rule,
+    // so check for the actual element.
     assert(!renderSvg(withNone).contains("""<text class="rr-action-text""""))
   }
 
@@ -114,34 +114,40 @@ class RailroadSuite extends munit.FunSuite:
       "Expr",
       Vector(Alt(Vector(DiaSym("Term", term = false)), action = Some("a much longer action")))
     )
-    def boxX(svg: String) =
-      """<rect class="rr-action-box" x="(\d+)"""".r.findFirstMatchIn(svg).map(_.group(1))
-    // Both alts have the exact same symbol row ("Term"), so the fork/join geometry — and thus
-    // where the action box's own left edge starts — must be identical regardless of the action
-    // text's own length (only the box's own width, and the overall <svg> width, may grow).
-    assertEquals(boxX(renderSvg(short)), boxX(renderSvg(long)))
+    // Strip what legitimately differs by design (the outer <svg>'s own width, which grows to fit
+    // the longer action; the action-text element itself, whose content/size differs) — what's
+    // left is the track/symbol geometry, which must be byte-identical: both alts have the exact
+    // same symbol row ("Term"), so the fork/join geometry the action sits past must never shift
+    // just because the action's OWN text got longer.
+    def trackGeometry(svg: String) =
+      svg
+        .replaceFirst("""<svg[^>]*>""", "<svg>")
+        .replaceAll("""<text class="rr-action-text".*?</text>""", "")
+    assertEquals(trackGeometry(renderSvg(short)), trackGeometry(renderSvg(long)))
   }
 
   test(
-    "renderSvg: each alt's action box starts at the same x, each at its own row's y"
+    "renderSvg: each alt's action caption starts at the same x, each at its own row's y"
   ) {
     val prod = Production(
       "Expr",
       Vector(
-        Alt(Vector(DiaSym("Term", term = false)), action = Some("first")),
-        Alt(Vector(DiaSym("NUMBER", term = true)), action = Some("second"))
+        Alt(Vector(DiaSym("Term", term = false)), action = Some("same")),
+        Alt(Vector(DiaSym("NUMBER", term = true)), action = Some("same"))
       )
     )
     val svg = renderSvg(prod)
-    val boxTags = """<rect class="rr-action-box" x="(\d+)" y="(\d+)"""".r
+    // Centered x can legitimately land on a .5 (an odd box width) — [\d.]+, not just \d+.
+    val textTags = """<text class="rr-action-text" x="([\d.]+)" y="([\d.]+)"""".r
       .findAllMatchIn(svg)
       .map(m => (m.group(1), m.group(2)))
       .toVector
-    assertEquals(boxTags.length, 2)
-    // Same column (both boxes start at the same x, regardless of each row's own symbol width)...
-    assertEquals(boxTags.map(_._1).distinct.length, 1)
+    assertEquals(textTags.length, 2)
+    // Same column (both alts' own symbol row is identical width, and both actions are the same
+    // text, so the centered x is identical too)...
+    assertEquals(textTags.map(_._1).distinct.length, 1)
     // ...but each at its own row's height, not both crammed onto one line.
-    assertEquals(boxTags.map(_._2).distinct.length, 2)
+    assertEquals(textTags.map(_._2).distinct.length, 2)
   }
 
   test(
