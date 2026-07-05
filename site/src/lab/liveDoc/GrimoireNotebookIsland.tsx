@@ -207,7 +207,21 @@ effect(() => {
   if (editingCell.value !== null || editingProse.value !== null) return;
   const current = serializeDocument(blocks.peek());
   if (responseSource.value !== current) return;
-  blocks.value = buildDocument(current, resp.fences);
+  const next = buildDocument(current, resp.fences);
+  blocks.value = next;
+  // document.ts's own round-trip contract admits ONE exception: a fence with exactly one blank
+  // content line (` ```gramark\n\n``` `) collapses to the same zero-content-line fixed point as a
+  // fence with NO content line at all, so `serializeDocument(next)` can come out one byte SHORTER
+  // than `current` — the text `resp`'s own diagnostic spans were computed against. Left alone,
+  // every diagnostic after the collapsed fence would be attributed using a coordinate system
+  // (this response's spans, into the OLD/longer text) that no longer matches the one
+  // `blockCharSpans(next)` now describes (the NEW/shorter, already-collapsed text) — off by
+  // exactly the number of characters the collapse removed, until some LATER, unrelated edit
+  // happened to trigger a fresh evaluate(). Reachable purely by typing such a fence in Source view
+  // and toggling back, no mistake of the user's own. Re-requesting evaluate() for the
+  // now-reserialized (already at its fixed point, per document.ts) text converges in exactly one
+  // more response, whose own spans will finally agree with `next`'s own layout.
+  if (serializeDocument(next) !== current) scheduleEvaluate();
 });
 
 // A response with at least one fence is what unlocks the notebook view — empty on the very first
