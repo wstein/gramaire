@@ -144,6 +144,10 @@ interface WritableFileHandle {
 const fileHandle = signal<WritableFileHandle | null>(null);
 // A lightweight visual cue for the drag-and-drop target — no other state depends on this.
 const isDraggingFile = signal(false);
+// A failed saveInPlace() write — shown via SaveErrorBanner near the other session banners, even
+// though the Save button itself lives in the topbar island (NotebookTopbarTools); both islands
+// already share every other piece of this module's state the same way.
+const saveError = signal<string | null>(null);
 
 function scheduleEvaluate() {
   labWorker.evaluate(
@@ -157,7 +161,19 @@ function scheduleEvaluate() {
 // last response's fence positions, so this rebuilds with `fences: []` (one mega prose block, same
 // degenerate shape the no-fences fallback textarea already produces) and lets the next real
 // response (scheduleEvaluate, below) restore proper cell structure once the engine catches up.
+// No `prev` is passed here even on the genuine-edit path — a Source rewrite can touch line counts
+// anywhere, so there's no byte-identical-source precondition to build a span match on; every
+// block is correctly reborn with a fresh id there (buildDocument's own contract).
+//
+// Guarded by a no-op check first: without it, simply toggling into Source view and back —
+// no edit at all — still collapsed every block into one fresh-fenceless prose block and back,
+// discarding every block's `id` (and, since blocks are Preact-keyed by `id`, remounting every
+// cell/prose component, losing any local component state) for zero reason. `ViewToggle`'s
+// `leaveSourceIfNeeded` calls this unconditionally whenever Source was the mode being left, so a
+// no-op guard here is the one place that can cheaply tell "genuine edit" from "just looked."
 function commitSourceEdit() {
+  const current = serializeDocument(blocks.peek());
+  if (sourceDraft.value === current) return;
   blocks.value = buildDocument(sourceDraft.value, []);
   scheduleEvaluate();
 }
@@ -1075,6 +1091,30 @@ function ForeignUpdateNotice() {
   );
 }
 
+// A failed saveInPlace() write — an error here would otherwise be an unhandled promise rejection
+// in the console, indistinguishable from a successful save to the user actually watching the page.
+function SaveErrorBanner() {
+  const message = saveError.value;
+  if (!message) return null;
+  return (
+    <div
+      class="grimoire__autosave-banner grimoire__autosave-banner--notice"
+      role="alert"
+    >
+      <span>Save failed: {message}</span>
+      <button
+        type="button"
+        class="grimoire__toolbar-btn grimoire__toolbar-btn--cancel"
+        onClick={() => {
+          saveError.value = null;
+        }}
+      >
+        Dismiss
+      </button>
+    </div>
+  );
+}
+
 // Layer 1: the document-level diagnostics panel — every diagnostic the engine returned, rendered
 // with its message + note lines (and, when its span maps to a cell, that cell's name as a
 // clickable "jump to it" location). Sticky under the topbar so it stays in view while scrolling
@@ -1412,10 +1452,27 @@ function confirmReplace(): boolean {
 // only refreshes when TOGGLING into Source, never reactively — replacing `blocks` while already
 // on Source would leave the visible editor showing the OLD text, and blurring it would then
 // silently overwrite this fresh document with that stale text via commitSourceEdit.
-function loadDocumentText(text: string) {
+//
+// `handle` sets (or clears) `fileHandle` in the same place `blocks` itself changes, instead of
+// every call site repeating its own `fileHandle.value = …` line right after calling this.
+function loadDocumentText(
+  text: string,
+  handle: WritableFileHandle | null = null,
+) {
   blocks.value = buildDocument(text, []);
   viewMode.value = "notebook";
+  fileHandle.value = handle;
   scheduleEvaluate();
+}
+
+// Shared by the legacy `<input type=file>` and drag-and-drop — both just need "read this File's
+// text, then load it," differing only in how they got a `File` in the first place. Deliberately
+// does NOT call `confirmReplace()` itself: `loadFromFileInput` and `loadFromDrop` (below) have
+// different needs — one has already been confirmed by its caller, the other never has — so each
+// decides for itself whether to ask.
+async function loadFile(file: File | undefined) {
+  if (!file) return;
+  loadDocumentText(await file.text());
 }
 
 // Prefers the File System Access API (`showOpenFilePicker`) when available — it returns a
@@ -1424,6 +1481,12 @@ function loadDocumentText(text: string) {
 // `<input type=file>` the caller already has a ref to) is the universal fallback, which can never
 // yield a handle — `fileHandle` stays null, and Save degrades to downloadSource's existing
 // download-a-copy behavior.
+//
+// `confirmReplace()` is checked ONCE, here — `legacyInput` is `tabIndex={-1}` (see OpenActions
+// below) specifically so it can only ever be reached via this function's own `.click()`, never by
+// a keyboard user tabbing to it directly; `loadFromFileInput`'s own `onChange` below can therefore
+// trust that confirmation already happened, rather than asking the same question a second time
+// after the OS file picker has already closed.
 async function openFile(legacyInput: HTMLInputElement | null) {
   if (!confirmReplace()) return;
   const picker = (
@@ -1448,8 +1511,7 @@ async function openFile(legacyInput: HTMLInputElement | null) {
       return;
     }
     const file = await handle.getFile();
-    loadDocumentText(await file.text());
-    fileHandle.value = handle;
+    loadDocumentText(await file.text(), handle);
     return;
   }
   legacyInput?.click();
@@ -1457,20 +1519,20 @@ async function openFile(legacyInput: HTMLInputElement | null) {
 
 // The `<input type=file>` fallback's own onChange — never yields a fileHandle, so a document
 // opened this way can only ever be re-saved as a fresh download (downloadSource), same as before
-// this feature existed.
+// this feature existed. No `confirmReplace()` here: `openFile` (the only way this input is ever
+// triggered) already asked before invoking the OS picker.
 async function loadFromFileInput(input: HTMLInputElement) {
   const file = input.files?.[0];
   input.value = ""; // reset so choosing the SAME file again still fires a change event
-  if (!file || !confirmReplace()) return;
-  loadDocumentText(await file.text());
-  fileHandle.value = null;
+  await loadFile(file);
 }
 
+// Drag-and-drop never routes through openFile()'s own confirmReplace() — this is the only guard
+// it gets.
 async function loadFromDrop(dataTransfer: DataTransfer | null) {
   const file = dataTransfer?.files?.[0];
   if (!file || !confirmReplace()) return;
-  loadDocumentText(await file.text());
-  fileHandle.value = null;
+  await loadFile(file);
 }
 
 // Loads one of the Lab's own curated EXAMPLES (../examples) — the exact same conformance-tested
@@ -1480,25 +1542,42 @@ function loadExample(name: string) {
   if (!example || !confirmReplace()) return;
   loadDocumentText(example.source);
   tryItInput.value = example.input;
-  fileHandle.value = null;
 }
 
 // Writes the current document straight back to the file it was opened from (only possible when
 // `fileHandle` holds a real File System Access handle) — falls back to the ordinary
-// download-a-copy flow otherwise, so the Save button is never a dead end.
+// download-a-copy flow otherwise, so the Save button is never a dead end. The write can fail in
+// ways entirely outside this page's control (permission revoked, the file deleted/moved on disk,
+// the volume unmounted) — surfaced via `saveError` (a `SaveErrorBanner` near the other session
+// banners) rather than left as a silent, uncaught rejection that looks identical to success.
 async function saveInPlace() {
   const handle = fileHandle.value;
   if (!handle) return downloadSource();
-  const text = serializeDocument(await settledBlocks());
-  const writable = await handle.createWritable();
-  await writable.write(text);
-  await writable.close();
+  saveError.value = null;
+  try {
+    const text = serializeDocument(await settledBlocks());
+    const writable = await handle.createWritable();
+    await writable.write(text);
+    await writable.close();
+  } catch (e) {
+    saveError.value =
+      e instanceof Error
+        ? e.message
+        : "Save failed — the file may have been moved, deleted, or its permission revoked.";
+  }
 }
 
 async function settledBlocks(): Promise<DocBlock[]> {
   if (viewMode.value !== "source") return blocks.value;
+  const beforeCommit = blocks.value;
   commitSourceEdit();
   const afterCommit = blocks.value;
+  // `commitSourceEdit` is a no-op when the Source draft matches what's already committed (no
+  // edit to reclassify) — `afterCommit` is then the SAME reference as `beforeCommit`, and nothing
+  // will ever reassign `blocks.value` again on its own, so the wait-for-reshape dance below would
+  // never resolve until its own 5s safety-net timeout. Short-circuit immediately instead: there's
+  // nothing to settle.
+  if (afterCommit === beforeCommit) return afterCommit;
   return new Promise((resolve) => {
     let dispose: (() => void) | undefined;
     let finished = false;
@@ -1579,6 +1658,13 @@ function OpenActions() {
         type="file"
         accept=".grmk.md,.md,text/markdown"
         class="grimoire__file-input-hidden"
+        // Reachable ONLY via openFile()'s own `.click()` — never by a keyboard user tabbing to
+        // it directly, which would bypass openFile's confirmReplace() guard entirely (this
+        // "visually hidden but focusable" CSS pattern is otherwise deliberately kept tabbable;
+        // this one specific input needs the opposite, since it's a proxy the "Open" button
+        // already owns, not its own independent affordance).
+        tabIndex={-1}
+        aria-hidden="true"
         onChange={(e) => loadFromFileInput(e.currentTarget)}
       />
       <button
@@ -1717,6 +1803,93 @@ function PaperView() {
   );
 }
 
+// Session autosave — standalone page only, never the homepage's seeded `initial` embed (a visitor
+// idly clicking the homepage preview must never overwrite the real page's saved session, and must
+// never be offered someone else's restore prompt — the mount effect only calls this when
+// `!props.initial`). Persists ONLY the serialized TEXT — see notebookPersistence.ts's own header
+// for why a `DocBlock[]` structure is never persisted. Extracted from the mount effect into its
+// own function so the write-debounce/multi-tab-notice/unload-guard trio reads as one coherent
+// unit with its own local state, rather than sharing a single `useEffect` body with the
+// worker-lifecycle concern that mounts it.
+function setupSessionAutosave(): () => void {
+  const storage = window.localStorage;
+  const tabId = getTabId();
+  let knownTimestamp = 0;
+
+  const existing = readAutosaveSnapshot(storage);
+  if (shouldOfferRestore(existing, NOTEBOOK_DEFAULT_SOURCE)) {
+    restoreOffer.value = existing;
+    knownTimestamp = existing.timestamp;
+  }
+
+  // `debounceTimer` doubles as the "is a write still in flight" flag (`undefined` once none is
+  // pending) — a separate boolean would only ever restate what this already tracks.
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  // Nested inside this client-only call (never at module scope) — it touches
+  // `window.localStorage`, which doesn't exist during Astro's server-side render of this module;
+  // a module-scope effect runs immediately at import time and would crash the build the instant
+  // it read `storage`.
+  const disposeAutosave = effect(() => {
+    const text = serializeDocument(blocks.value);
+    // Skip while a restore decision is still pending — writing now would silently overwrite the
+    // very snapshot the banner above is offering to restore, before the user has a chance to
+    // accept it (a real, previously-shipped bug: this effect fired immediately on mount against
+    // the still-default `blocks.value`, and ~500ms later clobbered a prior session's real
+    // snapshot in localStorage before anyone could click "Restore"). Reading `restoreOffer.value`
+    // makes this effect re-run the moment the offer clears (Restore or Discard), resuming normal
+    // autosave with whatever `blocks.value` is by then.
+    if (restoreOffer.value !== null) return;
+    // Skip while a cell/prose editor is open — not for safety (the committed state this reads
+    // is always coherent; see this module's header) but so a draft the user is about to Cancel
+    // never gets written even for the debounce window's duration.
+    if (blocksLocked()) return;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      const snapshot: AutosaveSnapshot = {
+        text,
+        timestamp: Date.now(),
+        tabId,
+      };
+      writeAutosaveSnapshot(storage, snapshot);
+      knownTimestamp = snapshot.timestamp;
+      debounceTimer = undefined;
+    }, AUTOSAVE_DEBOUNCE_MS);
+  });
+
+  // `storage` fires in every OTHER tab/window sharing this origin when one of them writes the
+  // key — never in the writing tab itself. Multi-tab last-writer-wins is real (both tabs share
+  // one snapshot slot); this is the non-blocking heads-up, not a lock.
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== AUTOSAVE_STORAGE_KEY) return;
+    const incoming = parseAutosaveSnapshot(event.newValue);
+    if (isForeignNewerWrite(incoming, tabId, knownTimestamp)) {
+      foreignUpdateNotice.value = { timestamp: incoming.timestamp };
+      knownTimestamp = incoming.timestamp;
+    }
+  };
+  window.addEventListener("storage", onStorage);
+
+  // Guards two windows autosave itself never covers: the last (at most AUTOSAVE_DEBOUNCE_MS-old)
+  // unflushed keystroke — everything before that is already durably in localStorage — AND an
+  // open cell/prose editor's draft, which the effect above deliberately never writes at all (a
+  // Cancel-in-progress edit shouldn't get persisted, but an open editor closed by a reload is
+  // still a real, unwarned loss without this). Not a general "you have unsaved work" warning
+  // otherwise — autosave means there mostly isn't any.
+  const onBeforeUnload = (event: BeforeUnloadEvent) => {
+    if (debounceTimer === undefined && !blocksLocked()) return;
+    event.preventDefault();
+    event.returnValue = "";
+  };
+  window.addEventListener("beforeunload", onBeforeUnload);
+
+  return () => {
+    disposeAutosave();
+    clearTimeout(debounceTimer);
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener("beforeunload", onBeforeUnload);
+  };
+}
+
 export interface GrimoireNotebookIslandProps {
   // A build-time-precomputed response (site/scripts/prerender-notebook.mjs), so a page can embed
   // this component already showing real cells/diagrams instead of the "Building the first
@@ -1749,75 +1922,10 @@ export function GrimoireNotebookIsland(
     if (!props.initial) scheduleEvaluate();
     if (props.initial) return () => labWorker.dispose();
 
-    // Session autosave — standalone page only, never the homepage's seeded embed (a visitor
-    // idly clicking the homepage preview must never overwrite the real page's saved session, and
-    // must never be offered someone else's restore prompt). Persists ONLY the serialized TEXT —
-    // see notebookPersistence.ts's own header for why a `DocBlock[]` structure is never persisted.
-    const storage = window.localStorage;
-    const tabId = getTabId();
-    let knownTimestamp = 0;
-    let pendingWrite = false;
-
-    const existing = readAutosaveSnapshot(storage);
-    if (shouldOfferRestore(existing, NOTEBOOK_DEFAULT_SOURCE)) {
-      restoreOffer.value = existing;
-      knownTimestamp = existing.timestamp;
-    }
-
-    let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-    // Nested inside this client-only effect (not at module scope, unlike the two effects above) —
-    // it touches `window.localStorage`, which doesn't exist during Astro's server-side render of
-    // this module; a module-scope effect runs immediately at import time and would crash the
-    // build the instant it read `storage`.
-    const disposeAutosave = effect(() => {
-      const text = serializeDocument(blocks.value);
-      // Skip while a cell/prose editor is open — not for safety (the committed state this reads
-      // is always coherent; see this module's header) but so a draft the user is about to Cancel
-      // never gets written even for the debounce window's duration.
-      if (editingCell.value !== null || editingProse.value !== null) return;
-      pendingWrite = true;
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        const snapshot: AutosaveSnapshot = {
-          text,
-          timestamp: Date.now(),
-          tabId,
-        };
-        writeAutosaveSnapshot(storage, snapshot);
-        knownTimestamp = snapshot.timestamp;
-        pendingWrite = false;
-      }, AUTOSAVE_DEBOUNCE_MS);
-    });
-
-    // `storage` fires in every OTHER tab/window sharing this origin when one of them writes the
-    // key — never in the writing tab itself. Multi-tab last-writer-wins is real (both tabs share
-    // one snapshot slot); this is the non-blocking heads-up, not a lock.
-    const onStorage = (event: StorageEvent) => {
-      if (event.key !== AUTOSAVE_STORAGE_KEY) return;
-      const incoming = parseAutosaveSnapshot(event.newValue);
-      if (isForeignNewerWrite(incoming, tabId, knownTimestamp)) {
-        foreignUpdateNotice.value = { timestamp: incoming.timestamp };
-        knownTimestamp = incoming.timestamp;
-      }
-    };
-    window.addEventListener("storage", onStorage);
-
-    // Guards only the last (at most AUTOSAVE_DEBOUNCE_MS-old) unflushed keystroke — everything
-    // before that is already durably in localStorage, so this is a small, honestly-scoped safety
-    // net, not a general "you have unsaved work" warning (autosave means there mostly isn't any).
-    const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!pendingWrite) return;
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-
+    const disposeAutosave = setupSessionAutosave();
     return () => {
       labWorker.dispose();
       disposeAutosave();
-      clearTimeout(debounceTimer);
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("beforeunload", onBeforeUnload);
     };
   }, []);
 
@@ -1825,6 +1933,7 @@ export function GrimoireNotebookIsland(
     <div class="grimoire">
       <RestoreBanner />
       <ForeignUpdateNotice />
+      <SaveErrorBanner />
       <DiagnosticsPanel />
       <div class="grimoire__body">
         <div
@@ -1843,6 +1952,12 @@ export function GrimoireNotebookIsland(
           }}
         >
           {viewMode.value === "source" ? (
+            // Deliberately no `onEscape` here, unlike the per-cell editors: there's no safe way
+            // to "revert to last entry" for this one without either feeding a draft back into
+            // `value` while the editor is live (the exact ping-pong race CodeMirrorEditor's own
+            // header comment warns against) or force-remounting it. Escape here now correctly
+            // falls through to CodeMirror's own default handling instead of being silently
+            // swallowed (see CodeMirrorEditor.tsx's own keydown handler).
             <CodeMirrorEditor
               className="grimoire__source-editor"
               value={sourceViewBase.value}
@@ -1886,10 +2001,17 @@ export function GrimoireNotebookIsland(
                 value={serializeDocument(blocks.value)}
                 onInput={(e) => {
                   // No fence data to slice with while the notebook itself isn't showing — one
-                  // mega prose block, matching what buildDocument(text, []) would produce.
+                  // mega prose block, matching what buildDocument(text, []) would produce. Reuses
+                  // the existing single block's own id across keystrokes (rather than minting a
+                  // fresh UUID on every character) — this placeholder block's identity has nowhere
+                  // to go and no editor open against it, so a per-keystroke id would just be
+                  // wasted `crypto.randomUUID()` calls with no observable benefit.
+                  const existing = blocks.value;
+                  const id =
+                    existing.length === 1 ? existing[0].id : makeBlockId();
                   blocks.value = [
                     {
-                      id: makeBlockId(),
+                      id,
                       kind: "prose",
                       text: (e.target as HTMLTextAreaElement).value,
                       nonterminal: null,

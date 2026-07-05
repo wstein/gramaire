@@ -16,6 +16,8 @@
 // text at any moment — even mid-edit — can never bake in structural corruption, only ever the
 // text itself.
 
+import { randomId } from "./randomId";
+
 /** Versioned so a future, incompatible snapshot shape is never misread as this one. */
 export const AUTOSAVE_STORAGE_KEY = "grimoire-notebook:autosave:v1";
 
@@ -62,21 +64,39 @@ export function parseAutosaveSnapshot(
   };
 }
 
+// All three storage calls below can throw — Safari private browsing (and some locked-down
+// enterprise/embedded contexts) makes `localStorage` throw on ANY access, not just when full —
+// matching the same try/catch convention gramark-topbar.mjs's own `_mode`/`_setMode` already use
+// for exactly this reason ("storage unavailable (private mode)"). Autosave degrades to "this
+// session just isn't persisted," never an uncaught exception out of the mount effect.
+
 export function readAutosaveSnapshot(
   storage: Storage,
 ): AutosaveSnapshot | null {
-  return parseAutosaveSnapshot(storage.getItem(AUTOSAVE_STORAGE_KEY));
+  try {
+    return parseAutosaveSnapshot(storage.getItem(AUTOSAVE_STORAGE_KEY));
+  } catch {
+    return null;
+  }
 }
 
 export function writeAutosaveSnapshot(
   storage: Storage,
   snapshot: AutosaveSnapshot,
 ): void {
-  storage.setItem(AUTOSAVE_STORAGE_KEY, JSON.stringify(snapshot));
+  try {
+    storage.setItem(AUTOSAVE_STORAGE_KEY, JSON.stringify(snapshot));
+  } catch {
+    /* storage unavailable (private mode, quota exceeded, disabled) — nothing to persist to */
+  }
 }
 
 export function clearAutosaveSnapshot(storage: Storage): void {
-  storage.removeItem(AUTOSAVE_STORAGE_KEY);
+  try {
+    storage.removeItem(AUTOSAVE_STORAGE_KEY);
+  } catch {
+    /* storage unavailable — nothing was persisted to clear anyway */
+  }
 }
 
 /** Whether a freshly-loaded standalone session should offer to restore a prior one: a snapshot
@@ -112,15 +132,7 @@ export function isForeignNewerWrite(
   );
 }
 
-/** A per-page-load identifier for this browser tab. `crypto.randomUUID` is universally available
- * in the browser environments this site targets; the fallback only matters for this module's own
- * unit tests running under plain Node without a Web Crypto global. */
+/** A per-page-load identifier for this browser tab. */
 export function makeTabId(): string {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return crypto.randomUUID();
-  }
-  return `tab-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+  return randomId("tab");
 }
