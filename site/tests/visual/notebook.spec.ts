@@ -2330,3 +2330,108 @@ test("the outline shows an empty-state message when the document has no headings
     "Nothing to outline yet.",
   );
 });
+
+function undoButton(page: import("@playwright/test").Page) {
+  return page.locator("gramaire-topbar .gramaire__download-btn", {
+    hasText: "Undo",
+  });
+}
+
+test("the Undo button is disabled until an edit happens, and again once the stack is exhausted", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await expect(undoButton(page)).toBeDisabled();
+
+  const before = await ruleNonterminals(page);
+  const factorCell = page.locator('.gramaire__cell[data-kind="rule"]').last();
+  await factorCell.hover();
+  await factorCell.locator(".gramaire__cell-action--delete").click();
+  await expect.poll(() => ruleNonterminals(page)).toEqual(before.slice(0, -1));
+  await expect(undoButton(page)).toBeEnabled();
+
+  await undoButton(page).click();
+  await expect.poll(() => ruleNonterminals(page)).toEqual(before);
+  await expect(undoButton(page)).toBeDisabled();
+});
+
+test("Ctrl/Cmd+Z reverses the most recent block move", async ({ page }) => {
+  await gotoNotebookReady(page);
+  const cellOrder = () =>
+    page
+      .locator(".gramaire__prose, .gramaire__cell[data-kind]")
+      .evaluateAll((els) =>
+        els.map((el) =>
+          el.classList.contains("gramaire__prose")
+            ? "prose"
+            : el.getAttribute("data-nonterminal") ||
+              el.getAttribute("data-kind"),
+        ),
+      );
+  const before = await cellOrder();
+
+  const settingsCell = page.locator('.gramaire__cell[data-kind="settings"]');
+  await settingsCell.hover();
+  await settingsCell.locator(".gramaire__cell-action").nth(1).click(); // Down
+  await expect.poll(cellOrder).not.toEqual(before);
+
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect.poll(cellOrder).toEqual(before);
+});
+
+test("Ctrl/Cmd+Z reverses a committed cell edit's railroad diagram", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const ruleCell = ruleCellLocator(page);
+  const svgBefore = await ruleCell.locator("svg").innerHTML();
+
+  await ruleCell.locator(".gramaire__cell-rendered").click();
+  await ruleCell.locator(".cm-content").click();
+  await page.keyboard.press("End");
+  await page.keyboard.type("\n  | 'qqq'");
+  await ruleCell.locator(".gramaire__toolbar-btn--save").click();
+  await expect(async () => {
+    const svgAfter = await ruleCell.locator("svg").innerHTML();
+    expect(svgAfter).not.toBe(svgBefore);
+  }).toPass({ timeout: 5000 });
+
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(async () => {
+    const svgAfter = await ruleCellLocator(page).locator("svg").innerHTML();
+    expect(svgAfter).toBe(svgBefore);
+  }).toPass({ timeout: 5000 });
+});
+
+test("while a cell editor is open, Ctrl/Cmd+Z reaches CodeMirror's own undo, not the document-level one", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  // Give the document-level undo stack something real to (not) revert, so its being untouched
+  // below can't be mistaken for "there was nothing to undo anyway."
+  const before = await ruleNonterminals(page);
+  const factorCell = page.locator('.gramaire__cell[data-kind="rule"]').last();
+  await factorCell.hover();
+  await factorCell.locator(".gramaire__cell-action--delete").click();
+  await expect.poll(() => ruleNonterminals(page)).toEqual(before.slice(0, -1));
+
+  const ruleCell = ruleCellLocator(page);
+  await ruleCell.locator(".gramaire__cell-rendered").click();
+  const textBefore = await ruleCell.locator(".cm-content").innerText();
+  await ruleCell.locator(".cm-content").click();
+  await page.keyboard.press("End");
+  await page.keyboard.type("zzz");
+  await expect(ruleCell.locator(".cm-content")).toContainText("zzz");
+
+  // basicSetup's own history keymap owns Mod-z inside the editor — it undoes the "zzz" keystroke
+  // rather than the document-level stack reverting the earlier delete out from under the open
+  // editor (setupUndoShortcut's own blocksLocked() guard is what keeps the two from colliding).
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(ruleCell.locator(".cm-content")).toHaveText(textBefore);
+
+  // The document-level stack is untouched too — closing the editor still leaves the earlier
+  // delete in place.
+  await ruleCell.locator(".gramaire__toolbar-btn--cancel").click();
+  await expect(ruleNonterminals(page)).resolves.toEqual(before.slice(0, -1));
+});
