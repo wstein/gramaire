@@ -10,7 +10,7 @@ import { expect } from "@playwright/test";
 // reads "accepted") — every lab.spec.ts test needs this same readiness
 // barrier before making its own assertions or interacting further.
 export async function gotoLabReady(page: Page) {
-  await page.goto("/lab/");
+  await page.goto("lab/");
   await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
     timeout: 5000,
   });

@@ -258,7 +258,7 @@ test("the Lab has no search box, but does have its own Example/Engine/Start-rule
   // already went through), so the divider next to it shows again (the
   // same generic "something's there" logic Search relies on elsewhere, not
   // a Lab-specific case).
-  await page.goto("/lab/");
+  await page.goto("lab/");
   const topbar = page.locator("gramark-topbar");
   await topbar.waitFor();
   // LabTopbarTools' Start-rule control only appears once the engine's first evaluate() response
@@ -294,7 +294,7 @@ test("the Lab has no search box, but does have its own Example/Engine/Start-rule
 test("the Notebook highlights itself in the nav, has no search box, but does have its view toggle", async ({
   page,
 }) => {
-  await page.goto("/notebook/");
+  await page.goto("notebook/");
   const topbar = page.locator("gramark-topbar");
   await topbar.waitFor();
   const info = await topbar.evaluate((el) => {
@@ -340,7 +340,7 @@ test("the Notebook's page-tools row sits right-aligned, immediately left of the 
   // the two gaps to differ meaningfully regardless of which side margin-left:auto pushes toward
   // (confirmed empirically: both gaps measured ~36px at 1100px, only diverging at wider widths).
   await page.setViewportSize({ width: 1600, height: 400 });
-  await page.goto("/notebook/");
+  await page.goto("notebook/");
   const toggle = page.locator(".grimoire__view-toggle");
   const downloads = page.locator(".grimoire__download-actions");
   await toggle.waitFor();

@@ -430,7 +430,7 @@ test("a successful build still surfaces warnings in Output and the status bar", 
 test("the status bar's build state and parse-match state are independent axes", async ({
   page,
 }) => {
-  await page.goto("/lab/");
+  await page.goto("lab/");
   // Default grammar + default input "1+2*3": the grammar builds (lab__status "ok") AND the input
   // matches (a separate lab__parsestatus badge, "accepted"). Output never shows a bare "Accepted"
   // banner for this case — the status bar is the one place that confirmation lives now; Output
