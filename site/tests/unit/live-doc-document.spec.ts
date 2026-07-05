@@ -294,6 +294,36 @@ test("serializeDocument: a fence with exactly one blank content line collapses t
   expect(serializeDocument(reparsed)).toBe(serialized); // stable from here on
 });
 
+// Regression: blockCharSpans used to compute a fence's own `end` assuming the full 3-line
+// `OPEN\ntext\nCLOSE` form UNCONDITIONALLY, never special-casing `text === ""` the way
+// serializeDocument's own fixed-point choice does (the test above) — so every block AFTER an
+// empty fence got a `start`/`contentStart` one character past where `serializeDocument(blocks)`
+// actually places it. Caught by comparing blockCharSpans' own claims against what
+// serializeDocument genuinely produces, not by re-deriving the arithmetic by hand (a second,
+// independently-wrong derivation could easily agree with the bug).
+test("blockCharSpans: a later block's contentStart isn't inflated by an earlier empty fence's collapsed line", () => {
+  const source = ["```gramaire", "", "```", "```gramaire", "Foo Bar", "```"].join(
+    "\n",
+  );
+  const fences = [
+    fence(0, "rule", "Empty", 1, 3),
+    fence(1, "rule", "Foo", 4, 6),
+  ];
+  const blocks = buildDocument(source, fences);
+  expect(blocks[0].text).toBe(""); // the one-blank-line fence, collapsing per document.ts
+  expect(blocks[1].text).toBe("Foo Bar");
+
+  const serialized = serializeDocument(blocks);
+  const spans = blockCharSpans(blocks);
+  // The universal contract blockCharSpans documents: every block's own text sits exactly at its
+  // reported contentStart..contentEnd in what serializeDocument actually produced.
+  blocks.forEach((b, i) => {
+    expect(serialized.slice(spans[i].contentStart, spans[i].contentEnd)).toBe(
+      b.text,
+    );
+  });
+});
+
 test("withLineNumbers: an empty fence spans exactly 2 lines (its own markers), not 3", () => {
   const source = "```gramaire\n```\n";
   const fences = [fence(0, "rule", "Empty", 1, 2)];

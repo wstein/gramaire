@@ -912,6 +912,69 @@ test("toggling to Source view and back with no edits leaves the document unchang
   await expect.poll(() => ruleNonterminals(page)).toEqual(namesBefore);
 });
 
+// Regression: document.ts's own round-trip contract admits one exception — a fence with exactly
+// one blank content line (` ```gramaire\n\n``` `) collapses to the same zero-content-line fixed
+// point as a fence with NO content at all, so re-serializing the rebuilt blocks can come out ONE
+// BYTE SHORTER than the text a fresh response's diagnostics were computed against. Without
+// re-requesting evaluate() when that happens, every diagnostic after the collapsed fence would be
+// attributed using stale, now off-by-one offsets until some LATER, unrelated edit happened to
+// trigger a fresh response — reachable purely by typing this shape in Source view, no mistake of
+// the user's own. Verified against the real engine (not assumed): a genuinely blank-line
+// ` ```gramaire ` fence classifies as an empty `rule` cell, confirming this scenario is reachable
+// through ordinary Source-view editing, not a hypothetical fence shape.
+test("a blank-line fence that collapses on rebuild doesn't leave a later diagnostic misattributed by one character", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await viewToggleButton(page, "Source").click();
+
+  const editor = page.locator(".gramaire__source-editor .cm-content");
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Delete");
+  await page.keyboard.insertText(
+    [
+      "```gramaire",
+      "%name Empty",
+      "```",
+      "",
+      "```gramaire",
+      "",
+      "```",
+      "",
+      "```gramaire",
+      "Foo Bar",
+      "```",
+      "",
+    ].join("\n"),
+  );
+
+  await viewToggleButton(page, "Notebook").click(); // commits the Source rewrite
+  // Settles in TWO rounds: the commit's own evaluate() (whose response still describes the
+  // pre-collapse text), then the fixed-point convergence re-evaluate() this fix adds once the
+  // rebuilt blocks reserialize shorter than that. `toHaveText`'s own auto-retry below isn't
+  // enough on its own to prove convergence — the FIRST round's squiggle happens to land on "Bar"
+  // by coincidence too (both its diagnostic offset and, pre-fix, `blockCharSpans`'s arithmetic
+  // shared the same stale, pre-collapse coordinate system), so an assertion that stops at the
+  // first match it sees could pass without ever observing the truly-settled round. An explicit
+  // wait for the second round forces the check onto the STABLE final state.
+  await page.waitForTimeout(2000);
+
+  await expect(page.locator(".gramaire__status")).toContainText("1 error");
+  const erroredCell = page.locator(
+    ".gramaire__cell:has(.gramaire__cell-diag--error)",
+  );
+  await expect(erroredCell).toHaveCount(1);
+  await expect(erroredCell).toHaveAttribute("data-nonterminal", "Foo");
+
+  await erroredCell.locator(".gramaire__cell-rendered").click();
+  // Layer 3's squiggle wraps the exact offending substring — "Bar" landing here, rather than
+  // shifted by a character in either direction, is the direct, observable proof that the
+  // diagnostic's offset and the cell's own content are still in agreement after the collapse.
+  const squiggle = erroredCell.locator(".cm-content .cm-lintRange-error");
+  await expect(squiggle.first()).toHaveText("Bar");
+});
+
 // Paper — a third, fully read-only view mode (serif type, narrow centered measure, numbered
 // figure/captions for railroad diagrams), independent of the Livebook-style editing affordances
 // every other view has.
@@ -1160,7 +1223,7 @@ test("Link on a prose block copies a fragment URL that resolves to a real elemen
   const firstProse = page.locator(".gramaire__prose").first();
   await firstProse.hover();
   const cellId = await firstProse.getAttribute("id");
-  expect(cellId).toBeTruthy();
+  if (!cellId) throw new Error("expected .gramaire__prose to carry an id");
 
   const linkBtn = firstProse.locator(".gramaire__cell-action").nth(2);
   await linkBtn.click();

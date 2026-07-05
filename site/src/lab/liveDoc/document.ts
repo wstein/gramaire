@@ -211,8 +211,14 @@ export interface BlockCharSpan {
  * Character ranges for each block in `serializeDocument(blocks)` — the inverse view of
  * `serializeDocument`'s own layout, so a diagnostic whose span is an offset into that serialized
  * text (`LabResponse.diagnostics[].span`, which `LabApi` computes relative to the exact source it
- * was handed) can be mapped back to the cell it belongs to. Kept in exact lockstep with
- * `serializeDocument` (same FENCE_OPEN/CLOSE markers, same "\n" join) so the two never drift.
+ * was handed) can be mapped back to the cell it belongs to. Must match `serializeDocument`'s
+ * layout EXACTLY, including its empty-fence fixed-point special case just below — verified
+ * empirically that this had drifted (blockCharSpans previously always assumed a fence's 3-line
+ * `OPEN\ntext\nCLOSE` form, even when `serializeDocument` collapses `text === ""` to the shorter
+ * 2-line `OPEN\nCLOSE` form): every block after an empty fence got a `start`/`contentStart` one
+ * character past where `serializeDocument(blocks)` actually places it, which is exactly the kind
+ * of stale-offset drift `attributedDiagnostics`/`GrammarCell`'s squiggle math (GramaireNotebookIsland.tsx) depend on this
+ * function to never produce.
  */
 export function blockCharSpans(blocks: readonly DocBlock[]): BlockCharSpan[] {
   const spans: BlockCharSpan[] = [];
@@ -223,6 +229,13 @@ export function blockCharSpans(blocks: readonly DocBlock[]): BlockCharSpan[] {
     if (b.kind === "prose") {
       const end = start + b.text.length;
       spans.push({ start, end, contentStart: start, contentEnd: end });
+      pos = end;
+    } else if (b.text === "") {
+      // serializeDocument's own fixed-point choice: `${FENCE_OPEN}\n${FENCE_CLOSE}`, no middle
+      // newline at all (document.ts's own header comment on this collapse).
+      const contentStart = start + FENCE_OPEN.length + 1;
+      const end = contentStart + FENCE_CLOSE.length;
+      spans.push({ start, end, contentStart, contentEnd: contentStart });
       pos = end;
     } else {
       // `${FENCE_OPEN}\n${text}\n${FENCE_CLOSE}` — content begins after the opening marker + its
