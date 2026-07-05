@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { PDFDocument, PDFName, PDFDict, PDFRawStream } from "pdf-lib";
 
 // Grimoire Notebook (src/pages/notebook.astro + src/lab/liveDoc/GrimoireNotebookIsland.tsx) —
 // evaluates against the REAL Scala engine, same as lab.spec.ts (see that file's own comment on
@@ -1114,6 +1115,32 @@ test("Paper is fully read-only — nothing in it is clickable/editable, unlike e
   await expect(page.locator(".grimoire__paper")).toBeVisible();
 });
 
+// Regression: Paper's own <table> used to explicitly opt back into --font-ui, breaking from the
+// serif every other prose element in Paper already used; the Notebook's own prose never set a
+// font-family at all, silently inheriting --font-ui instead of matching Paper/PDF. One consistent
+// prose font (IBM Plex Serif) now applies everywhere a document's own markdown content is read —
+// Notebook, Paper, and (see the PDF test above) the exported PDF alike.
+test("the Notebook and Paper views use the same serif prose font, including table cells", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const fontFamily = (locator: import("@playwright/test").Locator) =>
+    locator.evaluate((el) => getComputedStyle(el).fontFamily);
+
+  await expect(
+    fontFamily(page.locator(".grimoire__prose").first()),
+  ).resolves.toContain("IBM Plex Serif");
+
+  await viewToggleButton(page, "Paper").click();
+  await expect(page.locator(".grimoire__paper")).toBeVisible();
+  await expect(
+    fontFamily(page.locator(".grimoire__paper").first()),
+  ).resolves.toContain("IBM Plex Serif");
+  await expect(
+    fontFamily(page.locator(".grimoire-prose-table td").first()),
+  ).resolves.toContain("IBM Plex Serif");
+});
+
 test("round-tripping Source → Paper → Notebook (never having visited Source's own commit path from Paper) leaves the document unchanged", async ({
   page,
 }) => {
@@ -1182,10 +1209,69 @@ test("↓ PDF downloads a real PDF file, named from the document's own %name dir
   for await (const chunk of stream) chunks.push(chunk as Buffer);
   const bytes = Buffer.concat(chunks);
   // A real PDF, not an empty/corrupt file — the magic header every valid PDF starts with, and a
-  // plausible size (this document's own vector text + 3 vector railroad diagrams — no rasterized
-  // image data, so this is a small file, unlike an earlier PNG-embedding version of this feature).
+  // plausible minimum size (this document's own vector text + 3 vector railroad diagrams + 3
+  // embedded IBM Plex Serif weights — no rasterized image data, unlike an earlier PNG-embedding
+  // version of this feature, even though embedding real font files makes this bigger than a
+  // StandardFonts-only PDF would be).
   expect(bytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
   expect(bytes.length).toBeGreaterThan(2_000);
+});
+
+// Regression: paperPdf.ts used to embed pdf-lib's built-in StandardFonts (Times-Roman/-Bold/
+// -Italic) for prose — Type1 fonts, the ONLY kind of font every PDF reader already has built in.
+// Switching to a real embedded IBM Plex Serif (matching Paper/Notebook's own CSS) makes prose text
+// Type0 (composite) fonts too, same as the pre-existing embedded Fira Code figure-text font — a
+// downstream ToUnicode-patch step used to assume Fira Code was the ONLY Type0 font in the whole
+// document (filtering by Subtype alone), which would now non-deterministically grab whichever of
+// the 4 Type0 fonts happened to enumerate first instead. This proves both halves: the serif prose
+// fonts are genuinely embedded (not falling back to a standard font), and the patch still lands on
+// Fira Code specifically, not one of the three new serif fonts.
+test("the PDF embeds real IBM Plex Serif for prose, and the Fira Code ToUnicode patch still targets the right font", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const [download] = await Promise.all([
+    page.waitForEvent("download", { timeout: 15000 }),
+    downloadButton(page, "PDF").click(),
+  ]);
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  const bytes = Buffer.concat(chunks);
+
+  const doc = await PDFDocument.load(bytes);
+  const type0Fonts: { baseFont: string | undefined; toUnicodeSize: number }[] =
+    [];
+  for (const [, obj] of doc.context.enumerateIndirectObjects()) {
+    if (!(obj instanceof PDFDict)) continue;
+    if (obj.lookup(PDFName.of("Subtype"))?.toString() !== "/Type0") continue;
+    const toUnicode = doc.context.lookup(obj.get(PDFName.of("ToUnicode")));
+    type0Fonts.push({
+      baseFont: obj.lookup(PDFName.of("BaseFont"))?.toString(),
+      toUnicodeSize:
+        toUnicode instanceof PDFRawStream ? toUnicode.contents.length : -1,
+    });
+  }
+
+  const serifFonts = type0Fonts.filter((f) =>
+    f.baseFont?.includes("IBMPlexSerif"),
+  );
+  const monoFonts = type0Fonts.filter((f) => f.baseFont?.includes("FiraCode"));
+  // Regular + SemiBold + Italic — genuinely embedded, not a StandardFonts fallback (which would
+  // never show up as a Type0/BaseFont entry with this name at all).
+  expect(serifFonts.length).toBe(3);
+  expect(monoFonts.length).toBe(1);
+  // Every embedded custom font gets SOME ToUnicode by default (pdf-lib's own auto-generated one,
+  // covering the font's entire cmap — hundreds of glyphs for a full serif face). Fira Code's own
+  // gets OVERWRITTEN with a custom one scoped to only the handful of glyphs this document actually
+  // draws in figure captions — reliably much smaller than any untouched full-font default, which
+  // is exactly the signal that proves the patch landed on Fira Code and not one of the three serif
+  // fonts (the real, previously-possible failure mode this test exists to catch).
+  const smallestSerifToUnicode = Math.min(
+    ...serifFonts.map((f) => f.toUnicodeSize),
+  );
+  expect(monoFonts[0].toUnicodeSize).toBeGreaterThan(0);
+  expect(monoFonts[0].toUnicodeSize).toBeLessThan(smallestSerifToUnicode);
 });
 
 // File open/save/examples — the document's entrance, and (via a real File System Access handle)
