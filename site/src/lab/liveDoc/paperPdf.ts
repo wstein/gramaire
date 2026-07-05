@@ -20,7 +20,7 @@
 // measurement; inline bold/code/image formatting within a paragraph flattens to plain text (an
 // inline image becomes a bracketed "[image: alt]" fallback, never embedded).
 import type { DocBlock } from "./document";
-import { isPaperBlock } from "./document";
+import { isPaperBlock, serializeDocument } from "./document";
 import type { GrammarAnalysis } from "../protocol";
 import { parseMarkdownLite, isRailroadPlaceholder } from "./markdown";
 import type { MdBlock, MdInline } from "./markdown";
@@ -37,6 +37,44 @@ const CONTENT_HEIGHT = PAGE_HEIGHT - MARGIN * 2;
 // breathing room below it, and — combined with the width cap already in place — guarantees ANY
 // diagram fits within one fresh page's content area regardless of its own aspect ratio.
 const MAX_FIGURE_HEIGHT = CONTENT_HEIGHT * 0.7;
+// The railroad SVGs' own width/height attributes are authored in CSS pixels (confirmed directly:
+// the live page's rendered .getBoundingClientRect() matches the SVG's own width/height attribute
+// exactly, the standard 96-CSS-pixels-per-inch convention) — but a PDF page's coordinate space is
+// POINTS, 72 per inch. Treating "480" (pixels) as "480" (points) draws everything ~33% larger
+// than intended before any capping even applies — confirmed as the actual bug, not a guess: the
+// calc-js example's own Expr diagram (480×138px) still looked page-spanningly large in a
+// generated PDF even though it's a plain 3-alternative diagram, nowhere near complex enough to
+// need the width/height caps below on its own. This conversion is what makes a SMALL diagram
+// print at a proportionate, expected size — the width/height caps further down remain a real,
+// separate safety net for a genuinely large diagram that's still too big even after this.
+const PX_TO_PT = 72 / 96;
+// Even after the pixel→point correction, a railroad diagram authored for on-screen reading still
+// prints larger than a book figure typically would relative to its surrounding body text (the
+// on-screen convention favors legibility at arm's length from a monitor; a printed page is read
+// closer and has less room per figure) — shrunk further by default, on top of the DPI fix, not
+// instead of it. A document can override this via its own %pdf-figure-scale directive (client-side
+// only — this is a PDF-export presentational concern, not a grammar-semantic one, so it's scanned
+// directly from the raw serialized text, the same blocks.filter(isPaperBlock) loop below never
+// sees it). MUST be written as its own line in PROSE, never inside a ```gramark fence: confirmed
+// directly (reproduces with any unrecognized directive, not just this one) that the real engine's
+// fence classifier currently misclassifies a Settings fence containing an unrecognized %-line as a
+// "rule" fence, corrupting the whole document (drops a trailing rule, mislabels the Settings block
+// itself as a rule named after its first directive) — a real, pre-existing engine defect, not
+// something this directive's design can route around from inside the fence. Scanning the whole
+// document's text rather than only fence content is what makes prose placement work at all.
+const DEFAULT_FIGURE_SCALE = 0.65;
+
+// `%pdf-figure-scale 0.4` as its own line anywhere in the document's PROSE (never inside a
+// ```gramark fence — see the comment above) — a plain multiplier on top of DEFAULT_FIGURE_SCALE
+// (not a replacement for it), so `%pdf-figure-scale 1` means "the DPI-corrected natural size, no
+// further shrinking" rather than "some other unrelated default." Ignores a non-finite or
+// non-positive value (a typo'd directive falls back silently to the default rather than producing
+// a zero-size or inverted figure).
+function figureScale(text: string): number {
+  const match = /^%pdf-figure-scale\s+([\d.]+)/m.exec(text);
+  const value = match ? parseFloat(match[1]) : NaN;
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_FIGURE_SCALE;
+}
 
 function flattenInline(parts: MdInline[]): string {
   return parts
@@ -133,6 +171,7 @@ export async function buildPaperPdf(
   blocks: readonly DocBlock[],
   analysis: GrammarAnalysis | null,
 ): Promise<Uint8Array> {
+  const scale = figureScale(serializeDocument(blocks));
   const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
 
   const pdfDoc = await PDFDocument.create();
@@ -241,14 +280,19 @@ export async function buildPaperPdf(
     if (svg) {
       const raster = await rasterizeSvgToPng(svg);
       const png = await pdfDoc.embedPng(raster.bytes);
-      // The MORE restrictive of the two caps wins, regardless of the diagram's own aspect ratio —
-      // a wide-but-short diagram is capped by width, a narrow-but-tall one by height, and either
-      // way the final size never exceeds what one fresh page can actually hold.
-      const widthScale = CONTENT_WIDTH / raster.width;
-      const heightScale = MAX_FIGURE_HEIGHT / raster.height;
+      // Pixels → points (PX_TO_PT), then the document's own figure-scale multiplier (DEFAULT_
+      // FIGURE_SCALE, or a %pdf-figure-scale override) — THEN cap by whichever of width or height
+      // is more restrictive, regardless of the diagram's own aspect ratio. A wide-but-short
+      // diagram is capped by width, a narrow-but-tall one by height, and either way the final size
+      // never exceeds what one fresh page can actually hold — the caps stay a real safety net
+      // even for a document-supplied scale, not just the default.
+      const naturalWidth = raster.width * PX_TO_PT * scale;
+      const naturalHeight = raster.height * PX_TO_PT * scale;
+      const widthScale = CONTENT_WIDTH / naturalWidth;
+      const heightScale = MAX_FIGURE_HEIGHT / naturalHeight;
       const drawScale = Math.min(1, widthScale, heightScale);
-      const drawWidth = raster.width * drawScale;
-      const drawHeight = raster.height * drawScale;
+      const drawWidth = naturalWidth * drawScale;
+      const drawHeight = naturalHeight * drawScale;
       // A big figure starts on its own fresh page rather than a small sliver of room left on the
       // current one — ensureRoom alone would still have technically fit it (the height cap
       // guarantees that), but a diagram sharing a page with only a few leftover points of
