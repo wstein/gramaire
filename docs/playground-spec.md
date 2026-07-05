@@ -958,14 +958,39 @@ shadow-DOM-scoped fallbacks) — whichever button is pressed is unambiguously
 the active view, and the same shape already accommodates a third button
 (the planned Paper view) with no further redesign.
 
-Also moved: the toggle used to live at the tail end of the bottom status bar
-— the LAST thing the whole document renders, meaning reaching it on any
-document taller than one screen meant scrolling all the way down. It's now
-inside `.grimoire__topbar`, a `position: sticky; top: 0` wrapper that's the
-first child of `.grimoire` and also holds `DiagnosticsPanel` beneath it (one
-shared sticky anchor, not two independently-sticky siblings needing their own
-stacked offsets kept in sync as either child's height changes) — always
-reachable, no scrolling required.
+Also moved, twice: the toggle used to live at the tail end of the bottom
+status bar — the LAST thing the whole document renders, meaning reaching it
+on any document taller than one screen meant scrolling all the way down. An
+intermediate iteration moved it to a `position: sticky; top: 0` wrapper
+inside `.grimoire` itself, alongside `DiagnosticsPanel`. It now lives one
+level further up still: in the SHARED site topbar's own `tools` slot
+(`gramark-topbar.mjs`) — the same slot Search occupies on content pages —
+via `AppShell.astro`'s `page-tools` slot (`notebook.astro` passes
+`<ViewToggle slot="page-tools" client:load />`). `ViewToggle` is exported
+from `GrimoireNotebookIsland.tsx` and mounted as its OWN separate `client:load`
+island, distinct from the main `GrimoireNotebookIsland` island that renders
+the document body — the two share the exact same module-scope signals
+(`viewMode`, `blocks`, `sourceViewBase`, `sourceDraft`) because they're two
+islands importing the same module, which Vite dedupes into one shared chunk
+both bundles reference, rather than two independent copies. This is strictly
+simpler than the sticky-wrapper iteration it replaces: the shared topbar
+already sits entirely outside the page's own scrolling region
+(`notebook.astro`'s `.shell`/`.content` split), so anything placed there is
+inherently always visible with no sticky CSS of its own needed —
+`.grimoire__diagnostics` went back to being independently sticky on its own,
+the second sticky sibling it used to share that anchor with having moved out
+entirely.
+
+`AppShell.astro`'s own tools-slot logic used to be a rigid Search-or-nothing
+binary (`showSearch = active !== "lab" && active !== "notebook"`); it now
+checks `Astro.slots.has("page-tools")` first, letting a specific page
+(currently only the Notebook) supply its own tools-slot content instead of
+that default — a genuinely per-page "dynamic" section, not a
+Notebook-specific carve-out. `gramark-topbar.mjs` itself needed no changes
+at all: its `tools` slot was already slotted-content-agnostic (the
+`::slotted([slot="tools"])` sizing rules aren't Search-specific), and the
+divider beside it already auto-shows/hides generically based on
+`assignedElements().length`, not on what's actually there.
 
 Entering source view snapshots a stable base text for CodeMirror's own
 `value` prop (never the live draft — the same race `CodeMirrorEditor`'s own

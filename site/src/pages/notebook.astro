@@ -4,7 +4,10 @@
 // header comment for why this isn't a mode bolted onto the existing Lab). Bare Astro page
 // outside the Starlight shell, same reasoning as lab.astro/index.astro.
 import AppShell from "../components/AppShell.astro";
-import { GrimoireNotebookIsland } from "../lab/liveDoc/GrimoireNotebookIsland";
+import {
+  GrimoireNotebookIsland,
+  ViewToggle,
+} from "../lab/liveDoc/GrimoireNotebookIsland";
 import { pageHeadTags } from "../shared/page-head.mjs";
 import "../styles/tokens.css";
 import "../styles/starlight-bridge.css";
@@ -43,7 +46,9 @@ const headTags = pageHeadTags(base);
   </head>
   <body>
     <div class="shell">
-      <AppShell />
+      <AppShell>
+        <ViewToggle slot="page-tools" client:load />
+      </AppShell>
       <main class="content">
         <GrimoireNotebookIsland client:load />
       </main>

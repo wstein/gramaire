@@ -278,7 +278,7 @@ test("the Lab has no search box, and no orphaned divider in its place", async ({
 // to no active nav section at all — meaning showSearch's `active !== "lab"` check saw a null
 // active and defaulted to showing search, on a page just as content-free (Pagefind-wise) as the
 // Lab.
-test("the Notebook highlights itself in the nav and has no search box", async ({
+test("the Notebook highlights itself in the nav, has no search box, but does have its view toggle", async ({
   page,
 }) => {
   await page.goto("/notebook/");
@@ -287,13 +287,24 @@ test("the Notebook highlights itself in the nav and has no search box", async ({
   const info = await topbar.evaluate((el) => {
     const current = el.shadowRoot.querySelector('a[aria-current="page"]');
     const slot = el.shadowRoot.querySelector('slot[name="tools"]');
+    const assigned = slot.assignedElements();
     return {
       currentLabel: current?.textContent?.trim() ?? null,
-      assignedCount: slot.assignedElements().length,
+      assignedCount: assigned.length,
+      hasSearch: assigned.some((el) => el.querySelector("site-search")),
+      hasViewToggle: assigned.some((el) =>
+        el.querySelector(".grimoire__view-toggle"),
+      ),
+      dividerHidden: el.shadowRoot.getElementById("tools-divider").hidden,
     };
   });
   expect(info.currentLabel).toBe("Notebook");
-  expect(info.assignedCount, "Notebook should have no slotted search box").toBe(
-    0,
-  );
+  // AppShell's `page-tools` slot gives the Notebook its OWN tools-slot content (the
+  // Notebook/Source view toggle) instead of the default Search-or-nothing — genuinely slotted,
+  // not absent, so the divider next to it shows too (the same generic "something's there" logic
+  // Search relies on elsewhere, not a Notebook-specific case).
+  expect(info.assignedCount).toBe(1);
+  expect(info.hasSearch).toBe(false);
+  expect(info.hasViewToggle).toBe(true);
+  expect(info.dividerHidden).toBe(false);
 });
