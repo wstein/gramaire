@@ -922,8 +922,27 @@
   outline: none;
 }
 
+/* A real <figure> (its own accessible group, named by the sr-only <figcaption> at its end) — the
+   railroad diagram and FIRST/FOLLOW chips read as one unit to assistive tech, not two unrelated
+   pieces of content that happen to sit next to each other. `margin: 0` overrides the UA default
+   <figure> indent (`1em 40px`), which this class never wanted even back when it was a plain div. */
 .grimoire__output {
+  margin: 0;
   padding: 12px 16px;
+}
+/* Visually hidden but present for assistive tech — the standard clip-based pattern (kept on-screen
+   at a 1x1px, unclipped-by-overflow position rather than `display: none`/`visibility: hidden`,
+   both of which screen readers also skip). */
+.grimoire__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 .grimoire__output-railroad {
   display: flex;
@@ -1165,4 +1184,13 @@
   font-style: italic;
   color: var(--fg-muted);
   text-align: center;
+}
+/* Reuses .grimoire__output-ff/-group/-chips verbatim (GrammarCell's own FIRST/FOLLOW markup) so a
+   rule's FIRST/FOLLOW reads identically in Paper and Notebook; only the spacing above it is
+   Paper-specific, since Paper's own diagram wrapper (a bare div, centered via
+   `.grimoire__paper-figure > div` below) carries no margin of its own the way
+   `.grimoire__output-railroad` does in Notebook. */
+.grimoire__paper-figure .grimoire__output-ff {
+  margin-top: 12px;
+  justify-content: center;
 }
