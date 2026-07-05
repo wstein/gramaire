@@ -38,6 +38,40 @@ class DocCommentsSuite extends munit.FunSuite:
     assertEquals(Lr.docCommentsOf(bare), Map.empty[String, String])
   }
 
+  // Regression: `fmt`'s default source-collapsing puts a rule's image link, then
+  // `<details><summary>Source</summary>`, before the fence itself — none of those three lines is
+  // inside a markdown fence (they're raw HTML/an image link, not ` ``` `-delimited), so nothing
+  // previously stopped `sectionLeadingProse` from folding them straight into the "prose" it kept.
+  // Caught via `BackendGoldenSuite`'s Bison golden once every checked-in example started using
+  // this layout by default, not by this suite — added here directly so the underlying extraction
+  // bug has its own minimal, fast repro instead of relying on a backend-specific golden diff.
+  test(
+    "docCommentsOf skips a collapsed rule's image link and <details>/<summary>/</details> lines, keeping only the real prose"
+  ) {
+    val collapsed =
+      """## Expr
+        |
+        |This rule parses arithmetic expressions.
+        |
+        |![Railroad diagram for the Expr rule](diagrams-t/expr.svg)
+        |
+        |<details>
+        |<summary>Source</summary>
+        |
+        |```gramark
+        |Expr
+        |  : Expr '+' Term
+        |  | Term
+        |```
+        |
+        |</details>
+        |""".stripMargin
+    assertEquals(
+      Lr.docCommentsOf(collapsed),
+      Map("Expr" -> "This rule parses arithmetic expressions.")
+    )
+  }
+
   test(
     "docCommentsOf still finds a rule's own name past a leading `#[attr]` tag (ADR D28), " +
       "not just a bare rule name"

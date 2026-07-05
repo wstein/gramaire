@@ -246,9 +246,20 @@ object Lr:
     def dropBlank(v: Vector[String]): Vector[String] = v.dropWhile(_.trim == "")
     dropBlank(dropBlank(ls).reverse).reverse
 
+  // Blank, an image link, or one of the three raw-HTML lines `fmt`'s source-collapsing wraps a
+  // fence in (`<details>`, `<summary>...</summary>`, `</details>`) — none of these are prose, but
+  // none of them open a FENCE either (they're plain text, not ` ``` `-delimited), so nothing else
+  // here would otherwise skip them: a rule's leading prose extraction (`sectionLeadingProse`) and
+  // `strip`'s prose-to-`///`-comment walk (`walk`) both call this, and both used to fold the
+  // disclosure markup straight into the "prose" they kept when a collapsed rule's image sat before
+  // its own fence — caught by `BackendGoldenSuite`'s Bison golden once collapsing became the
+  // default `fmt` layout for every checked-in example, not by either round-trip-only test that was
+  // already exercising `strip` on a collapsed file.
   private def keepProse(line: String): Boolean =
     val t = line.trim
-    t != "" && !t.startsWith("![")
+    t != "" && !t.startsWith("![") && t != "<details>" && t != "</details>" && !t.startsWith(
+      "<summary>"
+    )
 
   private def keepableOpen(line: String): Boolean = line.trim == "```gramark"
 
