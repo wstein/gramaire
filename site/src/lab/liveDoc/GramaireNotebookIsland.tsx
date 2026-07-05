@@ -78,7 +78,7 @@ const cellDraft = signal("");
 // the empirically-confirmed race CodeMirrorEditor's own comment warns about). `sourceDraft` holds
 // the latest typed text; `commitSourceEdit` (below `scheduleEvaluate`) is what actually reparses it
 // back into `blocks`, on blur or on toggling back to Notebook view.
-const viewMode = signal<"notebook" | "source" | "paper">("notebook");
+const viewMode = signal<"source" | "notebook" | "paper">("notebook");
 const sourceViewBase = signal("");
 const sourceDraft = signal("");
 // The document diagnostics panel (Layer 1) collapse toggle — clicking the status bar flips it.
@@ -1195,41 +1195,40 @@ export function NotebookTopbarTools() {
 // <figure>/<figcaption> instead of GrammarCell's plain div; Tokens/Settings/Precedence reuse
 // GrammarCell's own no-rendering fallback (a plain <pre> of the raw text). No click handlers, no
 // CellActions, no InsertZone, no TryIt — nothing here is editable or interactive.
+// Prose and rule blocks only — Tokens/Settings/Precedence are deliberately left out of Paper
+// entirely (not merely styled differently): this is a reading/printing surface, and the raw
+// declarations those fence kinds hold aren't part of the "document" a reader or a printed page
+// wants, unlike a rule's own railroad diagram.
+function isPaperBlock(
+  block: DocBlock,
+): block is DocBlock & { kind: "prose" | "rule" } {
+  return block.kind === "prose" || block.kind === "rule";
+}
+
 function PaperBlock({
   block,
   figureNumber,
 }: {
-  block: DocBlock;
+  block: DocBlock & { kind: "prose" | "rule" };
   figureNumber: number | null;
 }) {
   if (block.kind === "prose") {
     const parsed = useMemo(() => parseMarkdownLite(block.text), [block.text]);
     return <MarkdownBlocks blocks={parsed} />;
   }
-  if (block.kind === "rule") {
-    const freshAnalysis = response.value?.analysis;
-    const analysis = freshAnalysis ?? lastAnalysis.value;
-    const svg =
-      block.nonterminal && analysis
-        ? (analysis.railroad[block.nonterminal] ?? "")
-        : "";
-    return (
-      <figure class="gramaire__paper-figure">
-        {svg && <div dangerouslySetInnerHTML={{ __html: svg }} />}
-        <figcaption>
-          Figure {figureNumber} — {block.nonterminal}
-        </figcaption>
-      </figure>
-    );
-  }
-  // Tokens/Settings/Precedence: kept in the monospace font even inside this serif reading view —
-  // code stays code, matching ordinary book typesetting (prose serif, code mono), not a special
-  // case invented for this feature.
+  const freshAnalysis = response.value?.analysis;
+  const analysis = freshAnalysis ?? lastAnalysis.value;
+  const svg =
+    block.nonterminal && analysis
+      ? (analysis.railroad[block.nonterminal] ?? "")
+      : "";
   return (
-    <div class="gramaire__paper-source">
-      <div class="gramaire__paper-source-label">{cellLabel(block)}</div>
-      <pre>{block.text}</pre>
-    </div>
+    <figure class="gramaire__paper-figure">
+      {svg && <div dangerouslySetInnerHTML={{ __html: svg }} />}
+      <figcaption>
+        Figure {figureNumber} — {block.nonterminal}
+      </figcaption>
+    </figure>
   );
 }
 
@@ -1237,7 +1236,7 @@ function PaperView() {
   let ruleCount = 0;
   return (
     <div class="gramaire__paper">
-      {blocks.value.map((block, index) => {
+      {blocks.value.filter(isPaperBlock).map((block, index) => {
         const figureNumber = block.kind === "rule" ? ++ruleCount : null;
         return (
           <PaperBlock

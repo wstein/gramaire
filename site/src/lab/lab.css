@@ -31,13 +31,13 @@
   --rr-action-stroke: var(--rr-track);
 }
 
-.lab__toolbar {
+/* LabTopbarTools — mounted in the shared topbar's page-tools slot (AppShell.astro), not the
+   page body, so no full-width bar/border/padding chrome here (that was `.lab__toolbar`'s job,
+   before this moved); just enough to lay the same three `.lab__method` controls out in a row. */
+.lab__topbar-tools {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 10px 20px;
-  border-bottom: 1px solid var(--border);
-  flex: none;
 }
 
 .lab__method {

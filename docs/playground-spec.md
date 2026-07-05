@@ -984,37 +984,55 @@ entirely.
 `AppShell.astro`'s own tools-slot logic used to be a rigid Search-or-nothing
 binary (`showSearch = active !== "lab" && active !== "notebook"`); it now
 checks `Astro.slots.has("page-tools")` first, letting a specific page
-(currently only the Notebook) supply its own tools-slot content instead of
-that default — a genuinely per-page "dynamic" section, not a
-Notebook-specific carve-out. `gramaire-topbar.mjs`'s `tools` slot needed no
-changes for the relocation itself: it was already slotted-content-agnostic
-(the `::slotted([slot="tools"])` sizing rules aren't Search-specific), and
-the divider beside it already auto-shows/hides generically based on
-`assignedElements().length`, not on what's actually there.
+supply its own tools-slot content instead of that default — a genuinely
+per-page "dynamic" section, not a Notebook-specific carve-out. The Lab uses
+the exact same mechanism for its own Example/Engine/Start-rule row
+(`LabTopbarTools`, `LabIsland.tsx`, mounted via `lab.astro`'s
+`<AppShell><LabTopbarTools slot="page-tools" client:load /></AppShell>`,
+the same relocation the Notebook's own toolbar went through first — that
+inline `.lab__toolbar` block moved out of `LabIsland`'s own render entirely,
+replaced by the leaner `.lab__topbar-tools` styling for its new home).
+`gramaire-topbar.mjs`'s `tools` slot needed no changes for the relocation
+itself: it was already slotted-content-agnostic (the `::slotted([slot=
+"tools"])` sizing rules aren't Search-specific), and the divider beside it
+already auto-shows/hides generically based on `assignedElements().length`,
+not on what's actually there.
 
-It DOES carry one small, deliberately scoped addition since: the toggle sits
-right-aligned, flush against the nav links, rather than flush against the
-logo where Search's fixed-width box sits — `AppShell.astro` stamps
-`data-page-tools={hasPageTools}` onto `<gramaire-topbar>` itself, and its own
-shadow CSS uses `:host([data-page-tools="true"])` to both neutralize
-`.spacer`'s `flex:1` and give `.tools` `margin-left:auto`, scoped to the
-Notebook alone — Search's own position on every other page is untouched.
-The two rules are both needed together: `margin-left:auto` on `.tools` alone
-measured 0px (confirmed empirically, not assumed) — flex-grow gets first
-claim on a flex line's free space, resolved BEFORE auto margins get
-whatever's left over, so `.spacer`'s pre-existing `flex:1` was always
-winning that space first until its own flex-grow was neutralized too, for
-this one case. Matched against the literal string `"true"`, not bare
-attribute presence: Astro renders the attribute as `data-page-tools="false"`
-when its value is false, not an omitted attribute — confirmed against the
-built HTML, since a bare presence check would have matched every page.
+It DOES carry small, deliberately scoped additions since — both pages'
+page-tools content sits right-aligned, flush against the nav links, rather
+than flush against the logo where Search's fixed-width box sits:
+`AppShell.astro` stamps `data-page-tools={hasPageTools}` onto
+`<gramaire-topbar>` itself, and its own shadow CSS uses
+`:host([data-page-tools="true"])` to neutralize `.spacer`'s `flex:1`, give
+`.tools` `margin-left:auto`, and widen `.tools`'s own slotted box past
+Search's fixed 200px (`width: auto`, no min-width floor) — scoped to a page
+with its own page-tools content, whichever page that is; Search's own
+position on every other page is untouched. All three rules were tuned
+empirically, not assumed correct on the first attempt: `margin-left:auto`
+on `.tools` alone measured 0px (flex-grow gets first claim on a flex line's
+free space, resolved BEFORE auto margins get whatever's left over, so
+`.spacer`'s pre-existing `flex:1` always won that space first until its own
+flex-grow was neutralized too); and a first attempt at widening used a
+guessed `min-width: 420px` floor, which measured a 79px dead gap between
+the Notebook's controls and Home — the Notebook's actual content (~366px)
+was narrower than the guessed floor, and content left-aligns by default
+inside an oversized box rather than filling or centering within it, so the
+leftover space landed as a gap before Home instead of closing it. Plain
+`width: auto` (no floor at all) sizes the box exactly to whichever page's
+real content is inside, correct for the Notebook's five controls and the
+Lab's three dropdowns alike, with nothing to tune per page.
+`data-page-tools`'s value is matched against the literal string `"true"`,
+not bare attribute presence: Astro renders the attribute as
+`data-page-tools="false"` when its value is false, not an omitted
+attribute — confirmed against the built HTML, since a bare presence check
+would have matched every page.
 
 **Paper view** (`PaperView`/`PaperBlock`, `.gramaire__paper`,
 `GramaireNotebookIsland.tsx`) — a third, fully read-only reading/printing
 surface: serif type, a narrow centered reading measure, and numbered
 figure/captions for railroad diagrams. Modeled directly on the exact
-rendering every other view already does for each block kind, not reinvented:
-prose reuses `ProseBlock`'s own collapsed-view call
+rendering every other view already does for each block kind it keeps, not
+reinvented: prose reuses `ProseBlock`'s own collapsed-view call
 (`parseMarkdownLite`/`MarkdownBlocks`) — that component already produces
 plain semantic tags (`h1`-`h6`, `p`, `table`) with no Notebook-specific
 classes, so the serif/measure styling applies purely via the wrapping
@@ -1023,13 +1041,19 @@ classes, so the serif/measure styling applies purely via the wrapping
 (`analysis.railroad[block.nonterminal]`, the same raw HTML string via
 `dangerouslySetInnerHTML`), wrapped in a real `<figure>`/`<figcaption>Figure
 N — {nonterminal}</figcaption>` instead of a bare div (N is a running
-counter over rule-kind blocks only, computed once per `PaperView` render);
-Tokens/Settings/Precedence reuse `GrammarCell`'s own no-rendering fallback
-(a plain `<pre>` of the raw text), labeled via the existing
-`BADGE_LABEL`/`cellLabel` helpers, and kept in the monospace font even
-inside this serif reading view — code stays code, matching ordinary book
-typesetting (prose serif, code mono), not a special case invented for this
-feature.
+counter over rule-kind blocks only, computed once per `PaperView` render).
+
+Tokens/Settings/Precedence are left out of Paper entirely — not merely
+re-styled, genuinely absent (`isPaperBlock`, a type guard filtering
+`blocks.value` down to `"prose" | "rule"` before `PaperView` ever maps over
+it). This is a reading/printing surface; the raw declarations those three
+fence kinds hold aren't part of the "document" a reader or a printed page
+wants, unlike a rule's own railroad diagram — an earlier iteration DID
+render them (a labeled `<pre>` of the raw text, `.gramaire__paper-source`),
+removed on request once seen in practice. A prose heading that happens to
+be named e.g. "Tokens" (a `## Tokens` section intro before the actual
+Tokens fence) still shows — that's ordinary document narrative, a `"prose"`
+block, unrelated to the FENCE being filtered out.
 
 Fully read-only: no click handlers, no `CellActions`, no `InsertZone`, no
 `TryIt`. `DiagnosticsPanel`/`StatusBar` stay unconditional, same as they

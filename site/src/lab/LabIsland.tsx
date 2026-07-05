@@ -470,6 +470,86 @@ function gutterWidth(lineCount: number): number {
   return digits * GUTTER_DIGIT_WIDTH + GUTTER_BASE_WIDTH;
 }
 
+// Mounted as its own separate `client:load` island, slotted into the shared topbar
+// (AppShell.astro's `page-tools` slot, `lab.astro`) rather than living in the Lab page's own
+// body — the same relocation the Notebook's `ViewToggle`/`DownloadActions` already went through
+// (`NotebookTopbarTools`, `GramaireNotebookIsland.tsx`). Reads/writes the exact same module-scope
+// `strategy`/`method`/`startRule`/`ruleNames` signals `LabIsland`'s own island uses below — two
+// `client:load` islands importing the same module share the same signal instances (Vite dedupes
+// the shared module into one chunk both islands' bundles import from), so this and the main
+// island stay in lockstep despite being two separate Preact roots.
+export function LabTopbarTools() {
+  return (
+    <div class="lab__topbar-tools">
+      <label class="lab__method">
+        Example
+        <select
+          onChange={(e) => {
+            const name = (e.target as HTMLSelectElement).value;
+            const ex = EXAMPLES.find((x) => x.name === name);
+            if (ex) loadExample(ex);
+          }}
+        >
+          {EXAMPLES.map((ex) => (
+            <option key={ex.name} value={ex.name}>
+              {ex.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label class="lab__method">
+        Engine
+        <select
+          title="Which parsing engine builds the input parse (Output/Parse tree/Evaluate). All parses is always Canonical LR(1)-built and Grammar analysis always shows all three methods — neither depends on which Engine you pick."
+          value={strategy.value === "ll-star" ? "ll-star" : method.value}
+          onChange={(e) => {
+            const v = (e.target as HTMLSelectElement).value;
+            if (v === "ll-star") {
+              strategy.value = "ll-star";
+            } else {
+              strategy.value = "lr";
+              method.value = v as Method;
+            }
+            scheduleEvaluate();
+          }}
+        >
+          {/* The option's own visible text carries the value proposition, not just its title —
+              a title tooltip never fires on touch, and never fires while arrowing through an open
+              <select> with a keyboard either, so hover-only text left both audiences with nothing.
+              This is real, always-readable content instead. */}
+          <option
+            value="ll-star"
+            title="Adaptive LL(*): still produces a parse — resolving ties by declaration order — even when the grammar has real LR conflicts the methods below would refuse to build at all."
+          >
+            ALL(*)
+          </option>
+          <option value="Canonical">Canonical LR(1)</option>
+          <option value="LALR">LALR(1)</option>
+          <option value="IELR">IELR(1)</option>
+        </select>
+      </label>
+      {ruleNames.value.length > 0 && (
+        <label class="lab__method">
+          Start rule
+          <select
+            value={startRule.value ?? ruleNames.value[0]}
+            onChange={(e) => {
+              startRule.value = (e.target as HTMLSelectElement).value;
+              scheduleEvaluate();
+            }}
+          >
+            {ruleNames.value.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+    </div>
+  );
+}
+
 export default function LabIsland() {
   const initialized = useRef(false);
   const editorOverlayRef = useRef<HTMLDivElement>(null);
@@ -499,74 +579,6 @@ export default function LabIsland() {
 
   return (
     <div class="lab" ref={labRef}>
-      <div class="lab__toolbar">
-        <label class="lab__method">
-          Example
-          <select
-            onChange={(e) => {
-              const name = (e.target as HTMLSelectElement).value;
-              const ex = EXAMPLES.find((x) => x.name === name);
-              if (ex) loadExample(ex);
-            }}
-          >
-            {EXAMPLES.map((ex) => (
-              <option key={ex.name} value={ex.name}>
-                {ex.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label class="lab__method">
-          Engine
-          <select
-            title="Which parsing engine builds the input parse (Output/Parse tree/Evaluate). All parses is always Canonical LR(1)-built and Grammar analysis always shows all three methods — neither depends on which Engine you pick."
-            value={strategy.value === "ll-star" ? "ll-star" : method.value}
-            onChange={(e) => {
-              const v = (e.target as HTMLSelectElement).value;
-              if (v === "ll-star") {
-                strategy.value = "ll-star";
-              } else {
-                strategy.value = "lr";
-                method.value = v as Method;
-              }
-              scheduleEvaluate();
-            }}
-          >
-            {/* The option's own visible text carries the value proposition, not just its title —
-                a title tooltip never fires on touch, and never fires while arrowing through an open
-                <select> with a keyboard either, so hover-only text left both audiences with nothing.
-                This is real, always-readable content instead. */}
-            <option
-              value="ll-star"
-              title="Adaptive LL(*): still produces a parse — resolving ties by declaration order — even when the grammar has real LR conflicts the methods below would refuse to build at all."
-            >
-              ALL(*)
-            </option>
-            <option value="Canonical">Canonical LR(1)</option>
-            <option value="LALR">LALR(1)</option>
-            <option value="IELR">IELR(1)</option>
-          </select>
-        </label>
-        {ruleNames.value.length > 0 && (
-          <label class="lab__method">
-            Start rule
-            <select
-              value={startRule.value ?? ruleNames.value[0]}
-              onChange={(e) => {
-                startRule.value = (e.target as HTMLSelectElement).value;
-                scheduleEvaluate();
-              }}
-            >
-              {ruleNames.value.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
-
       <div class="lab__panes" ref={panesRef}>
         <div
           class="lab__pane lab__pane--grammar"
