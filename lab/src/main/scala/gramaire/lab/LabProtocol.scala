@@ -273,20 +273,53 @@ object ParseResult:
       )
     )
 
+/** What kind of grammar symbol a `RenderedSymbol` is — a rule reference, a named token, a literal
+  * string terminal, or the end-of-input marker. `Literal`/`Token` are the one distinction
+  * `LabApi.renderSym`'s own string-only rendering (still used for `LrActionInfo`, unchanged) cannot
+  * make: both render backtick-quoted identically there, because `Table.scala`'s `GSym.Term` (the
+  * type both renderers read) already collapses that distinction into one untyped name before
+  * FIRST/FOLLOW or the LR tables are even built — recovering it for DISPLAY means classifying by
+  * name from the grammar's own pre-`GSym` `Sym` tree instead (`LabApi.classifyTerminals`), never
+  * touching `Table.scala`'s own symbol type or the algorithm built on it.
+  */
+enum SymbolKind:
+  case Literal, Token, Nonterminal, Eof
+
+object SymbolKind:
+  def toJson(k: SymbolKind): Json = Json.JString(k match
+    case SymbolKind.Literal     => "literal"
+    case SymbolKind.Token       => "token"
+    case SymbolKind.Nonterminal => "nonterminal"
+    case SymbolKind.Eof         => "eof"
+  )
+
+/** One grammar symbol as it appears in a production's RHS or a rule's FIRST/FOLLOW set — `text` is
+  * the same display spelling `ProductionInfo`'s own rendering always used (a terminal's own
+  * spelling with no surrounding backticks, a nonterminal's own bare name, `$` for `Eof`), now
+  * paired with `kind` so a client can style each symbol by category (e.g. matching
+  * `Railroad.scala`'s own terminal/nonterminal visual split) without re-deriving it from `text`'s
+  * shape.
+  */
+final case class RenderedSymbol(text: String, kind: SymbolKind)
+
+object RenderedSymbol:
+  def toJson(s: RenderedSymbol): Json =
+    Json.JObject(Vector("text" -> Json.JString(s.text), "kind" -> SymbolKind.toJson(s.kind)))
+
 /** One flattened production of the compiled (already-desugared) grammar — the Lowered Core tab's
   * row shape, and the per-production `{% %}` action text the Evaluate tab's reductions list looks
-  * up by index (M5+, avoiding a second copy of the same action text in the wire format).
-  * `lhs`/`rhs` are already display-rendered (a terminal is backtick-quoted, e.g. `` `+` ``; a
-  * nonterminal is bare) — see `LabApi.renderSym`.
+  * up by index (M5+, avoiding a second copy of the same action text in the wire format). `lhs` is
+  * always a nonterminal's own bare name (a production's LHS, by construction); `rhs` is each
+  * symbol's own display rendering plus its kind — see `RenderedSymbol`.
   */
-final case class ProductionInfo(lhs: String, rhs: Vector[String], action: Option[String])
+final case class ProductionInfo(lhs: String, rhs: Vector[RenderedSymbol], action: Option[String])
 
 object ProductionInfo:
   def toJson(p: ProductionInfo): Json =
     Json.JObject(
       Vector(
         "lhs" -> Json.JString(p.lhs),
-        "rhs" -> Json.JArray(p.rhs.map(Json.JString.apply)),
+        "rhs" -> Json.JArray(p.rhs.map(RenderedSymbol.toJson)),
         "action" -> p.action.map(Json.JString.apply).getOrElse(Json.JNull)
       )
     )
@@ -338,16 +371,24 @@ object MethodStatsInfo:
   def toJson(m: MethodStatsInfo): Json =
     Json.JObject(Vector("states" -> Json.JInt(m.states), "conflicts" -> Json.JInt(m.conflicts)))
 
-/** One nonterminal's FIRST/FOLLOW sets, already display-rendered like `ProductionInfo.rhs`. */
-final case class RuleFirstFollow(name: String, first: Vector[String], follow: Vector[String])
+/** One nonterminal's FIRST/FOLLOW sets, each symbol rendered the same way as `ProductionInfo.rhs`
+  * (text + kind — see `RenderedSymbol`). `kind` here is only ever `Literal`/`Token`/`Eof`, never
+  * `Nonterminal`: a FIRST/FOLLOW set describes which real input tokens can appear, never which
+  * rules can.
+  */
+final case class RuleFirstFollow(
+    name: String,
+    first: Vector[RenderedSymbol],
+    follow: Vector[RenderedSymbol]
+)
 
 object RuleFirstFollow:
   def toJson(r: RuleFirstFollow): Json =
     Json.JObject(
       Vector(
         "name" -> Json.JString(r.name),
-        "first" -> Json.JArray(r.first.map(Json.JString.apply)),
-        "follow" -> Json.JArray(r.follow.map(Json.JString.apply))
+        "first" -> Json.JArray(r.first.map(RenderedSymbol.toJson)),
+        "follow" -> Json.JArray(r.follow.map(RenderedSymbol.toJson))
       )
     )
 

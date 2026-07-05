@@ -208,7 +208,14 @@ class LabApiSuite extends munit.FunSuite:
         // 8 flattened alternatives: Expr(+,-,pass-through), Term(*,/,pass-through), Factor(paren,NUMBER)
         assertEquals(ps.length, 8)
         assertEquals(ps.head.lhs, "Expr")
-        assertEquals(ps.head.rhs, Vector("Expr", "`+`", "Term"))
+        assertEquals(
+          ps.head.rhs,
+          Vector(
+            RenderedSymbol("Expr", SymbolKind.Nonterminal),
+            RenderedSymbol("+", SymbolKind.Literal),
+            RenderedSymbol("Term", SymbolKind.Nonterminal)
+          )
+        )
         assert(
           ps.head.action.exists(_.contains("Add")),
           s"expected an Add action, got ${ps.head.action}"
@@ -223,7 +230,7 @@ class LabApiSuite extends munit.FunSuite:
         )
         assertEquals(ps.head.action, Some("(c) => ({ tag: \"Add\", left: c.expr, right: c.term })"))
         // Expr -> Term (the third alt) has no {% %} action
-        assertEquals(ps(2).rhs, Vector("Term"))
+        assertEquals(ps(2).rhs, Vector(RenderedSymbol("Term", SymbolKind.Nonterminal)))
         assertEquals(ps(2).action, None)
   }
 
@@ -308,10 +315,27 @@ class LabApiSuite extends munit.FunSuite:
         assertEquals(a.firstFollow.map(_.name), Vector("Expr", "Term", "Factor"))
         val exprFirstFollow = a.firstFollow.head
         // Same FIRST/FOLLOW content as examples/calc.gram.md's own Generated Tables section
-        // (`(` `NUMBER` / `+` `-` `)` `$`), rendered via `renderSym`'s own sort (GSym's Ordering:
-        // nonterminal < terminal < EOF, alphabetical within terminals) rather than that doc's.
-        assertEquals(exprFirstFollow.first, Vector("`(`", "`NUMBER`"))
-        assertEquals(exprFirstFollow.follow, Vector("`)`", "`+`", "`-`", "$"))
+        // (`(` `NUMBER` / `+` `-` `)` `$`), rendered via `renderSymStructured`'s own sort (GSym's
+        // Ordering: nonterminal < terminal < EOF, alphabetical within terminals) rather than that
+        // doc's. `(` and `)` are literal terminals (used directly in Factor's own rule body);
+        // NUMBER is a named token (declared in the Tokens fence) — the exact distinction
+        // RenderedSymbol's own `kind` exists to carry.
+        assertEquals(
+          exprFirstFollow.first,
+          Vector(
+            RenderedSymbol("(", SymbolKind.Literal),
+            RenderedSymbol("NUMBER", SymbolKind.Token)
+          )
+        )
+        assertEquals(
+          exprFirstFollow.follow,
+          Vector(
+            RenderedSymbol(")", SymbolKind.Literal),
+            RenderedSymbol("+", SymbolKind.Literal),
+            RenderedSymbol("-", SymbolKind.Literal),
+            RenderedSymbol("$", SymbolKind.Eof)
+          )
+        )
 
         assertEquals(a.railroad.keySet, Set("Expr", "Term", "Factor"))
         assert(
@@ -440,8 +464,11 @@ class LabApiSuite extends munit.FunSuite:
             assert(steps.nonEmpty)
             assertEquals(steps.last.action, LrActionInfo.Accept)
             assertEquals(steps.map(_.index), steps.indices.toVector)
-            // Every reduce step's rhs is already display-rendered, same convention as
-            // ProductionInfo.rhs (a terminal backtick-quoted).
+            // Every reduce step's rhs is already display-rendered via LabApi's own (unchanged,
+            // string-only) renderSym — a terminal backtick-quoted, same spelling convention
+            // ProductionInfo.rhs's now-structured RenderedSymbol.text values use, minus the
+            // backticks (LrActionInfo never needed the literal-vs-token distinction the switch to
+            // RenderedSymbol was for).
             val firstReduce = steps.collectFirst {
               case s if s.action.isInstanceOf[LrActionInfo.Reduce] => s
             }
