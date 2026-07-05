@@ -1582,6 +1582,115 @@ reason). The embedded Notebook's own rule cells show
 `(c) => c.expr + c.term`/`(c) => c.expr - c.term` — byte-identical to
 `examples/calc-js.grmk.md`'s own `Expr` rule.
 
+**Session autosave, keyboard accessibility, file management, and stable
+block ids (shipped).** A six-part follow-up closing the biggest gaps an
+internal review of the shipped Notebook surfaced: no persistence across a
+reload, a mouse-only editing loop, a diagnostic-attribution bug reachable
+through ordinary Source-view editing, and no way to open or save a document
+as a real file.
+
+- **Session autosave** (`site/src/lab/liveDoc/notebookPersistence.ts`).
+  Persists the document's serialized TEXT only — never `DocBlock[]`
+  structure, which would bake in a classification guess that goes stale the
+  moment the engine's own rules change; restoring always re-earns
+  classification from a fresh `evaluate()` (D43). Debounced ~500ms, skipped
+  while a cell/prose editor is open. On mount (standalone `/notebook` only,
+  never the homepage's seeded `initial` embed), a prior snapshot offers a
+  Restore/Discard banner if it differs from the default document. A
+  `storage` event listener shows a non-blocking notice when another tab has
+  since overwritten the shared snapshot (multi-tab is last-writer-wins, with
+  a warning, not a lock). A `beforeunload` guard fires only while the last
+  debounced write is still in flight — a small, honestly-scoped safety net
+  for the last few keystrokes, not a general "you have unsaved work"
+  warning, since autosave means there mostly isn't any.
+- **Safari commit-path fix + Escape-to-cancel.** Clicking a `<button>`
+  doesn't move focus to it on Safari, so an editor's `onBlur` fired with a
+  null `relatedTarget` and committed the draft BEFORE Cancel's own click
+  handler ran — Cancel silently became Save, and the same race broke every
+  prose formatting button. Fixed with `onMouseDown` `preventDefault()` on
+  `EditorToolbar` (suppresses the browser's default focus-shift entirely, so
+  no blur fires on a mouse click there at all) alongside the existing
+  `relatedTarget` check, which is still what makes Tab-to-toolbar-then-Enter
+  work. Escape now closes an editor the same way Cancel does, for both the
+  prose textarea and the grammar cell's CodeMirror editor (`onEscape` prop,
+  wired through `EditorView.domEventHandlers`'s `keydown`); `endEditCell`/
+  `endEditProse` gained a reentrancy guard (`if (editingCell.peek() !==
+  index) return`) so a DOM-removal blur firing after Escape already closed
+  the editor can't re-commit a stale draft.
+- **Keyboard-accessible cells.** Every cell's click-to-edit affordance was a
+  bare `<div onClick>` — unreachable by keyboard at all. `.grimoire__cell-
+  rendered` and `.grimoire__prose` are now `role="button"` with `tabIndex`,
+  an `aria-label`, and Enter/Space activation (`handleCellActivateKey`); the
+  status bar's diagnostics toggle is a real `<button>` with `aria-expanded`/
+  `aria-live` instead of a clickable span; a railroad diagram's own
+  `.grimoire__output-railroad` wrapper gets `role="img"` + `aria-label`;
+  hover-reveal cell actions and insert-zone buttons also reveal on
+  `:focus-within`, not just `:hover`, so tabbing to them doesn't land on
+  invisible controls. Closing an editor (Save/Cancel/Escape) now returns
+  focus to the cell it belongs to (`focusCellAfterEdit`, deferred one
+  `requestAnimationFrame` so the collapsed view exists in the DOM first)
+  instead of dropping the user at the top of the tab order. `ProseBlock`
+  also gained the DOM `id` `GrammarCell` always had — its "Copy link" and
+  diagnostic jump-to-cell previously pointed at nothing.
+- **Diagnostic misattribution after an empty-fence collapse.** Two
+  independent bugs, both required to reproduce and both required to fix:
+  (1) `blockCharSpans` always assumed a fence's full 3-line `OPEN\ntext\n
+  CLOSE` form, never special-casing an empty fence's `text` the way
+  `serializeDocument`'s own fixed-point choice does (a fence with exactly
+  one blank content line collapses to the same zero-content-line form as an
+  empty one) — so every block after an empty fence got a `start`/
+  `contentStart` one character past where `serializeDocument(blocks)`
+  actually places it, independent of any response timing. (2) The reshape
+  effect rebuilt `blocks` from a fresh response without checking whether the
+  rebuild's own reserialization still matched the text that response's
+  diagnostics were computed against — reachable purely by typing a
+  blank-line fence in Source view and toggling back, no mistake of the
+  user's own. Fixed: `blockCharSpans` mirrors `serializeDocument`'s
+  empty-fence special case, and the reshape effect re-requests `evaluate()`
+  whenever `serializeDocument(next) !== current`, converging in exactly one
+  more response. Regression-tested at both the pure `document.ts` level and
+  end-to-end (a real Source-view edit, checking the exact squiggle
+  substring) — each fix verified independently to confirm both are actually
+  required together, not just one masking the other.
+- **File open, drag-drop, an Examples picker, and save-in-place.** The
+  Notebook had a way out (download) but no way in besides pasting over the
+  whole document in Source view. An "Open" button prefers the File System
+  Access API (`showOpenFilePicker`) — which returns a reusable handle,
+  unlocking a "Save" button that writes straight back to the source file —
+  falling back to a hidden `<input type=file>` on browsers without it
+  (Firefox, Safari); either path loads raw text through the exact same
+  `fences: []` → `evaluate()` route the fallback textarea already used,
+  never attempting client-side classification. Drag-and-drop of a
+  `.grmk.md` file onto the document works the same way. An Examples picker
+  reuses the Lab's own curated `EXAMPLES` list (`site/src/lab/examples.ts`)
+  — the same conformance-tested grammars, never a duplicated approximation.
+  Replacing a document the user has already touched asks for confirmation
+  first (`confirmReplace`, a native `window.confirm`); replacing an
+  untouched default does not. Loading a document while on Source view
+  forces `viewMode` back to Notebook — `sourceViewBase` (the Source editor's
+  own mounted value) only refreshes when TOGGLING into Source, never
+  reactively, so replacing `blocks` while already there would leave the
+  visible editor showing the OLD text and blurring it would silently
+  overwrite the fresh document via `commitSourceEdit`.
+- **Stable block ids.** A `DocBlock`'s only identity was its array index,
+  which shifts under every insert/delete/move — "Copy link" and diagnostic
+  jump-to-cell fragments rotted the moment anything before the target cell
+  changed, and `CellActions`' own per-block UI state (the "Copied" flash)
+  could stick to whatever block slid into a moved cell's old slot. `DocBlock`
+  gained an opaque `id: string` (`makeBlockId`), carried forward by
+  `buildDocument`'s new optional `prev` parameter whenever a caller can
+  prove — via its own guard, not a guess — that `prev` and the fresh
+  `fences` partition the exact same bytes (`source === serializeDocument
+  (prev)`, the reshape effect's own existing precondition): a block
+  occupying the identical character span (via `blockCharSpans`) in both is
+  deterministically the same block. A rebuild with no matching span (a
+  genuinely new block, or a raw Source-view rewrite, which never passes
+  `prev` at all) mints a fresh id — nothing here re-identifies a block by
+  content or fuzzy matching, which would be the client re-inferring
+  structure the engine alone owns (D43). DOM anchors, `copyCellLink`,
+  `jumpToCell`, and each cell's own render `key` all use this id instead of
+  its index now.
+
 ---
 
 ## 6. UX & layout
