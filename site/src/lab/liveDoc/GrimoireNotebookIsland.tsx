@@ -29,6 +29,18 @@ import { buildPaperPdf } from "./paperPdf";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
 import type { EditorDiagnostic } from "./CodeMirrorEditor";
 import { createLabWorker } from "./useLabWorker";
+import {
+  readAutosaveSnapshot,
+  writeAutosaveSnapshot,
+  clearAutosaveSnapshot,
+  parseAutosaveSnapshot,
+  shouldOfferRestore,
+  isForeignNewerWrite,
+  makeTabId,
+  AUTOSAVE_STORAGE_KEY,
+  AUTOSAVE_DEBOUNCE_MS,
+  type AutosaveSnapshot,
+} from "./notebookPersistence";
 import "./grimoireNotebook.css";
 
 // Grimoire Notebook — a standalone live-editing document view for `.grmk.md`: prose renders
@@ -93,6 +105,24 @@ const diagPanelCollapsed = signal(false);
 // analysis lets untouched cells keep showing their (now stale) railroad/FIRST-FOLLOW, dimmed and
 // labelled, so only the actually-broken cell loses its rendered view (Layer 2).
 const lastAnalysis = signal<GrammarAnalysis | null>(null);
+
+// Session autosave (notebookPersistence.ts holds the pure decision logic) — a prior session's
+// snapshot offered for restore on mount, and a notice when ANOTHER tab has since overwritten it.
+// Both null at rest; both scoped to the standalone page only (see the mount effect below), never
+// the homepage's seeded `initial` embed.
+const restoreOffer = signal<AutosaveSnapshot | null>(null);
+const foreignUpdateNotice = signal<{ timestamp: number } | null>(null);
+
+// Lazily computed (not at module scope) so `crypto.randomUUID()` is never reached during Astro's
+// server-side render of this module — only from inside the client-only mount effect below, the
+// same SSR-safety boundary `scheduleEvaluate()`'s own Worker creation already relies on. Shared by
+// both of this page's islands (GrimoireNotebookIsland and NotebookTopbarTools) the same way every
+// other module-level signal here is, though only this island currently reads it.
+let tabIdValue: string | null = null;
+function getTabId(): string {
+  if (tabIdValue === null) tabIdValue = makeTabId();
+  return tabIdValue;
+}
 
 function scheduleEvaluate() {
   labWorker.evaluate(
@@ -458,6 +488,23 @@ function endEditProse(index: number) {
 
 function cancelEditProse() {
   editingProse.value = null;
+}
+
+// RestoreBanner's own Restore/Discard actions — module-level like every other block-mutating
+// function here (endEditCell et al.), not component-local, so they can be wired from a top-level
+// component (RestoreBanner) that only ever reads `restoreOffer`, the same signals-module
+// convention this whole file already follows.
+function acceptRestore() {
+  const offer = restoreOffer.value;
+  if (!offer) return;
+  restoreOffer.value = null;
+  blocks.value = buildDocument(offer.text, []);
+  scheduleEvaluate();
+}
+
+function discardRestore() {
+  restoreOffer.value = null;
+  if (typeof window !== "undefined") clearAutosaveSnapshot(window.localStorage);
 }
 
 // Grows a textarea to fit its content — collapsing to `auto` first so a paste that REMOVES lines
@@ -832,6 +879,69 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
         </div>
       )}
       <CellDiagnostics diags={cellDiags} />
+    </div>
+  );
+}
+
+// Offered once, on mount, when a prior standalone session's autosaved text differs from the
+// document currently shown (shouldOfferRestore) — Restore replaces the document and re-evaluates;
+// Discard clears the stale snapshot and keeps browsing the default. Neither button appears once
+// dismissed (both set `restoreOffer.value = null`).
+function RestoreBanner() {
+  const offer = restoreOffer.value;
+  if (!offer) return null;
+  return (
+    <div class="grimoire__autosave-banner" role="status">
+      <span>
+        Restore your unsaved session from{" "}
+        {new Date(offer.timestamp).toLocaleString()}?
+      </span>
+      <div class="grimoire__autosave-banner-actions">
+        <button
+          type="button"
+          class="grimoire__toolbar-btn grimoire__toolbar-btn--save"
+          onClick={acceptRestore}
+        >
+          Restore
+        </button>
+        <button
+          type="button"
+          class="grimoire__toolbar-btn grimoire__toolbar-btn--cancel"
+          onClick={discardRestore}
+        >
+          Discard
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// A non-blocking heads-up that another tab has since overwritten the shared autosave slot — see
+// this file's own mount-effect comment on why this is "last writer wins, with a warning," not a
+// lock. Dismissible; dismissing doesn't touch the document or the stored snapshot, only the
+// notice itself.
+function ForeignUpdateNotice() {
+  const notice = foreignUpdateNotice.value;
+  if (!notice) return null;
+  return (
+    <div
+      class="grimoire__autosave-banner grimoire__autosave-banner--notice"
+      role="status"
+    >
+      <span>
+        This document was edited in another tab at{" "}
+        {new Date(notice.timestamp).toLocaleTimeString()}. Continuing here will
+        overwrite that version the next time this tab autosaves.
+      </span>
+      <button
+        type="button"
+        class="grimoire__toolbar-btn grimoire__toolbar-btn--cancel"
+        onClick={() => {
+          foreignUpdateNotice.value = null;
+        }}
+      >
+        Dismiss
+      </button>
     </div>
   );
 }
@@ -1335,11 +1445,84 @@ export function GrimoireNotebookIsland(
     // reload the engine/worker to reproduce the exact same thing. The engine only actually loads
     // the first time a visitor commits a real edit (scheduleEvaluate()'s other call sites).
     if (!props.initial) scheduleEvaluate();
-    return () => labWorker.dispose();
+    if (props.initial) return () => labWorker.dispose();
+
+    // Session autosave — standalone page only, never the homepage's seeded embed (a visitor
+    // idly clicking the homepage preview must never overwrite the real page's saved session, and
+    // must never be offered someone else's restore prompt). Persists ONLY the serialized TEXT —
+    // see notebookPersistence.ts's own header for why a `DocBlock[]` structure is never persisted.
+    const storage = window.localStorage;
+    const tabId = getTabId();
+    let knownTimestamp = 0;
+    let pendingWrite = false;
+
+    const existing = readAutosaveSnapshot(storage);
+    if (shouldOfferRestore(existing, NOTEBOOK_DEFAULT_SOURCE)) {
+      restoreOffer.value = existing;
+      knownTimestamp = existing.timestamp;
+    }
+
+    let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+    // Nested inside this client-only effect (not at module scope, unlike the two effects above) —
+    // it touches `window.localStorage`, which doesn't exist during Astro's server-side render of
+    // this module; a module-scope effect runs immediately at import time and would crash the
+    // build the instant it read `storage`.
+    const disposeAutosave = effect(() => {
+      const text = serializeDocument(blocks.value);
+      // Skip while a cell/prose editor is open — not for safety (the committed state this reads
+      // is always coherent; see this module's header) but so a draft the user is about to Cancel
+      // never gets written even for the debounce window's duration.
+      if (editingCell.value !== null || editingProse.value !== null) return;
+      pendingWrite = true;
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        const snapshot: AutosaveSnapshot = {
+          text,
+          timestamp: Date.now(),
+          tabId,
+        };
+        writeAutosaveSnapshot(storage, snapshot);
+        knownTimestamp = snapshot.timestamp;
+        pendingWrite = false;
+      }, AUTOSAVE_DEBOUNCE_MS);
+    });
+
+    // `storage` fires in every OTHER tab/window sharing this origin when one of them writes the
+    // key — never in the writing tab itself. Multi-tab last-writer-wins is real (both tabs share
+    // one snapshot slot); this is the non-blocking heads-up, not a lock.
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== AUTOSAVE_STORAGE_KEY) return;
+      const incoming = parseAutosaveSnapshot(event.newValue);
+      if (isForeignNewerWrite(incoming, tabId, knownTimestamp)) {
+        foreignUpdateNotice.value = { timestamp: incoming.timestamp };
+        knownTimestamp = incoming.timestamp;
+      }
+    };
+    window.addEventListener("storage", onStorage);
+
+    // Guards only the last (at most AUTOSAVE_DEBOUNCE_MS-old) unflushed keystroke — everything
+    // before that is already durably in localStorage, so this is a small, honestly-scoped safety
+    // net, not a general "you have unsaved work" warning (autosave means there mostly isn't any).
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!pendingWrite) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+
+    return () => {
+      labWorker.dispose();
+      disposeAutosave();
+      clearTimeout(debounceTimer);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
   }, []);
 
   return (
     <div class="grimoire">
+      <RestoreBanner />
+      <ForeignUpdateNotice />
       <DiagnosticsPanel />
       <div class="grimoire__body">
         <div class="grimoire__doc">
