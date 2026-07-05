@@ -163,17 +163,17 @@ object Railroad:
     ".rr-track{fill:none;stroke:#6B7280;stroke-width:2}" +
       ".rr-term{fill:#fff;stroke:#15B879;stroke-width:2}" +
       ".rr-nonterm{fill:#F5F6F3;stroke:#16181D;stroke-width:2}" +
-      ".rr-action-box{fill:none;stroke:#8B5CF6;stroke-width:1.5;stroke-dasharray:3 2}" +
       s".rr-text{fill:#16181D;font:$font;$ligatures}" +
-      s".rr-action-text{fill:#8B5CF6;font:$font;font-style:italic;$ligatures}" +
+      // Muted, matching `.rr-track`'s own gray — a plain textbook-figure caption, not a colorful
+      // callout (no box/dashed border to draw the eye anymore either, see renderSvg above).
+      s".rr-action-text{fill:#6B7280;font:$font;font-style:italic;$ligatures}" +
       ".rr-cap{fill:#16181D}"
   private val styleThemed =
     ".rr-track{fill:none;stroke:var(--rr-track,#6B7280);stroke-width:2}" +
       ".rr-term{fill:var(--rr-term-fill,#fff);stroke:var(--rr-term-stroke,#15B879);stroke-width:2}" +
       ".rr-nonterm{fill:var(--rr-nonterm-fill,#F5F6F3);stroke:var(--rr-ink,#16181D);stroke-width:2}" +
-      ".rr-action-box{fill:none;stroke:var(--rr-action-stroke,#8B5CF6);stroke-width:1.5;stroke-dasharray:3 2}" +
       s".rr-text{fill:var(--rr-ink,#16181D);font:$font;$ligatures}" +
-      s".rr-action-text{fill:var(--rr-action-stroke,#8B5CF6);font:$font;font-style:italic;$ligatures}" +
+      s".rr-action-text{fill:var(--rr-action-stroke,#6B7280);font:$font;font-style:italic;$ligatures}" +
       ".rr-cap{fill:var(--rr-ink,#16181D)}"
 
   // ---- SVG renderer -------------------------------------------------------
@@ -261,18 +261,18 @@ object Railroad:
             mainY
           )} ${endX + R} ${fmtNum(mainY)}"/>"""
 
-      // The alternative's own `{% %}` action, boxed like every other symbol in this diagram's
-      // vocabulary (dashed, not solid — this app's established "annotation, not structural
-      // grammar" convention, e.g. .gramaire__prose-editor) — past the diagram's own track
-      // entirely (never part of the fork/join geometry) but aligned with this arm's own row. A
+      // The alternative's own `{% %}` action — a plain, muted italic caption past the diagram's
+      // own track entirely (never part of the fork/join geometry) but aligned with this arm's own
+      // row, textbook-figure style rather than a callout box (no `<rect>`, no dashed border; see
+      // `ligatures`/`font`/the `.rr-action-text` color for the rest of this treatment). A
       // `<title>` still carries the full, untruncated source as a native hover tooltip (no
-      // frontend JS needed: the caller injects this SVG string as raw markup).
+      // frontend JS needed: the caller injects this SVG string as raw markup). `boxWidth` (the
+      // same helper every term/nonterm box sizes itself with) still reserves this row's own
+      // horizontal space even though nothing is drawn around the text — it still needs the room.
       alt.action.foreach { action =>
         val ad = actionDisplay(action)
         val ax = exitX + ACTIONGAP
         val bw = boxWidth(ad.shown)
-        val top = rowTop(i)
-        p += s"""<rect class="rr-action-box" x="$ax" y="$top" width="$bw" height="$BOXH" rx="4"/>"""
         p += s"""<text class="rr-action-text" x="${fmtNum(ax + bw / 2.0)}" y="${fmtNum(
             yi
           )}" text-anchor="middle" dominant-baseline="central"><title>${escXml(

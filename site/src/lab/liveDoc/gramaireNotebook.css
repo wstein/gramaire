@@ -29,9 +29,9 @@
   --rr-term-fill: var(--bg);
   --rr-term-stroke: var(--accent);
   --rr-nonterm-fill: var(--bg-1);
-  /* The railroad's `{% %}` action label color — see Railroad.scala's own `ligatures`/font
-     comment for the current (muted, textbook-caption) treatment. */
-  --rr-action-stroke: var(--t-action);
+  /* The railroad's `{% %}` action label — a muted textbook-figure caption, matching the track's
+     own gray rather than a colored callout (Railroad.scala's own comment on `.rr-action-text`). */
+  --rr-action-stroke: var(--rr-track);
 }
 
 /* The bottom status bar — matches .lab__statusbar's visual pattern (a flat, dense strip pinned to
