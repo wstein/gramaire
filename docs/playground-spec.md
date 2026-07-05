@@ -986,11 +986,28 @@ binary (`showSearch = active !== "lab" && active !== "notebook"`); it now
 checks `Astro.slots.has("page-tools")` first, letting a specific page
 (currently only the Notebook) supply its own tools-slot content instead of
 that default — a genuinely per-page "dynamic" section, not a
-Notebook-specific carve-out. `gramark-topbar.mjs` itself needed no changes
-at all: its `tools` slot was already slotted-content-agnostic (the
-`::slotted([slot="tools"])` sizing rules aren't Search-specific), and the
-divider beside it already auto-shows/hides generically based on
+Notebook-specific carve-out. `gramark-topbar.mjs`'s `tools` slot needed no
+changes for the relocation itself: it was already slotted-content-agnostic
+(the `::slotted([slot="tools"])` sizing rules aren't Search-specific), and
+the divider beside it already auto-shows/hides generically based on
 `assignedElements().length`, not on what's actually there.
+
+It DOES carry one small, deliberately scoped addition since: the toggle sits
+right-aligned, flush against the nav links, rather than flush against the
+logo where Search's fixed-width box sits — `AppShell.astro` stamps
+`data-page-tools={hasPageTools}` onto `<gramark-topbar>` itself, and its own
+shadow CSS uses `:host([data-page-tools="true"])` to both neutralize
+`.spacer`'s `flex:1` and give `.tools` `margin-left:auto`, scoped to the
+Notebook alone — Search's own position on every other page is untouched.
+The two rules are both needed together: `margin-left:auto` on `.tools` alone
+measured 0px (confirmed empirically, not assumed) — flex-grow gets first
+claim on a flex line's free space, resolved BEFORE auto margins get
+whatever's left over, so `.spacer`'s pre-existing `flex:1` was always
+winning that space first until its own flex-grow was neutralized too, for
+this one case. Matched against the literal string `"true"`, not bare
+attribute presence: Astro renders the attribute as `data-page-tools="false"`
+when its value is false, not an omitted attribute — confirmed against the
+built HTML, since a bare presence check would have matched every page.
 
 Entering source view snapshots a stable base text for CodeMirror's own
 `value` prop (never the live draft — the same race `CodeMirrorEditor`'s own
