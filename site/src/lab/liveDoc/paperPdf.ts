@@ -61,7 +61,7 @@
 // formatting within a paragraph flattens to plain text (an inline image becomes a bracketed
 // "[image: alt]" fallback, never embedded).
 import type { DocBlock } from "./document";
-import { isPaperBlock, serializeDocument } from "./document";
+import { isPaperBlock, paperFontScale, serializeDocument } from "./document";
 import type { GrammarAnalysis } from "../protocol";
 import { parseMarkdownLite, isRailroadPlaceholder } from "./markdown";
 import type { MdBlock, MdInline } from "./markdown";
@@ -124,6 +124,14 @@ const DEFAULT_FIGURE_SCALE = 0.65;
 // `totalScale` (which already folds in PX_TO_PT + the figure-scale) alongside every other
 // coordinate in `drawVectorRailroad`, rather than pre-converted to points on its own.
 const FS_PT = 13;
+// Print-tuned leading (line-to-line spacing, as a multiple of the font's own size) — deliberately
+// tighter than Paper's on-screen `line-height` (1.3 for headings, 1.75 for body;
+// grimoireNotebook.css's `.grimoire__paper`). A paginated, arm's-length-closer printed page has
+// less need for the extra vertical breathing room that benefits on-screen scrolling — the exact
+// same screen-vs-print divergence `DEFAULT_FIGURE_SCALE` above already applies to diagrams, just
+// for text leading instead of figure size.
+const HEADING_LEADING_RATIO = 1.3;
+const BODY_LEADING_RATIO = 1.4;
 
 // `%pdf-figure-scale 0.4` as its own line anywhere in the document's PROSE (never inside a
 // ```gramark fence — see the comment above) — a plain multiplier on top of DEFAULT_FIGURE_SCALE
@@ -281,6 +289,7 @@ export async function buildPaperPdf(
   analysis: GrammarAnalysis | null,
 ): Promise<Uint8Array> {
   const scale = figureScale(serializeDocument(blocks));
+  const fontScale = paperFontScale(serializeDocument(blocks));
   const [
     {
       PDFDocument,
@@ -345,6 +354,24 @@ export async function buildPaperPdf(
     actionText: muted,
     cap: ink,
   };
+
+  // Paper's own reading-prose scale (tokens.css's `--prose-reading-*` custom properties), read
+  // live rather than duplicated as literals here — the exact same reasoning `isPaperBlock` living
+  // in document.ts already applies: one source, read by both Paper and this export, so the two can
+  // never silently drift apart the way they used to (Paper had no explicit heading sizes at all;
+  // this file had its own, independently-guessed point values). Safe to call here: `buildPaperPdf`
+  // only ever runs client-side, on the same page whose stylesheet already defines these.
+  const readPxVar = (name: string, fallback: number): number => {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue(
+      name,
+    );
+    const value = parseFloat(raw);
+    return Number.isFinite(value) ? value : fallback;
+  };
+  const h2Size = readPxVar("--prose-reading-h2", 24) * PX_TO_PT * fontScale;
+  const h3Size = readPxVar("--prose-reading-h3", 19) * PX_TO_PT * fontScale;
+  const h4Size = readPxVar("--prose-reading-h4", 16) * PX_TO_PT * fontScale;
+  const bodySize = readPxVar("--prose-reading-body", 17) * PX_TO_PT * fontScale;
 
   let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   let y = PAGE_HEIGHT - MARGIN;
@@ -544,18 +571,18 @@ export async function buildPaperPdf(
     if (!text) return;
     if (b.tag === "h2") {
       y -= 6;
-      drawLines(text, serifBold, 17, 21);
+      drawLines(text, serifBold, h2Size, h2Size * HEADING_LEADING_RATIO);
       y -= 6;
     } else if (b.tag === "h3") {
       y -= 4;
-      drawLines(text, serifBold, 14, 18);
+      drawLines(text, serifBold, h3Size, h3Size * HEADING_LEADING_RATIO);
       y -= 4;
     } else if (b.tag === "h4") {
       y -= 2;
-      drawLines(text, serifBold, 12, 16);
+      drawLines(text, serifBold, h4Size, h4Size * HEADING_LEADING_RATIO);
       y -= 2;
     } else {
-      drawLines(text, serif, 11, 15);
+      drawLines(text, serif, bodySize, bodySize * BODY_LEADING_RATIO);
       y -= 8;
     }
   };

@@ -1399,6 +1399,57 @@ fixed. That engine-side defect (Lr.scala's fence classification not
 tolerating an unrecognized Settings-fence directive) is tracked separately,
 out of scope for this PDF-export feature.
 
+**Prose typography: Notebook/Paper/PDF used three independently-drifting
+scales, and `%paper-font-scale`.** The `cee2215` commit unified prose
+_font-family_ (IBM Plex Serif) across Notebook, Paper, and the PDF export,
+but never audited _size_ or _weight_ — reported directly (Paper and
+Notebook rendered the same document's headings/paragraphs at visibly
+different sizes and weights). Two distinct root causes, not one:
+
+1. `.grimoire__prose`'s own h2/h3/h4 (Notebook) never set `font-weight` —
+   they fell back to the browser's default heading weight (`bold`/700), a
+   weight IBM Plex Serif has no real glyph file for (`page-head.mjs` only
+   requests `wght@400;600`), forcing a synthesized, visibly
+   heavier/blurrier fake-bold. `.grimoire__paper` (Paper) and `paperPdf.ts`
+   (the PDF's `serifBold`) already correctly pinned 600.
+2. `.grimoire__paper`'s h2/h3/h4 never set an explicit `font-size` at all
+   — they fell back to the browser's UA default heading multipliers
+   (`1.5em`/`1.17em`/`1em`) against Paper's 17px base, an accidental scale
+   nobody chose, independently drifting from both Notebook's own compact
+   scale AND the PDF's own hand-picked point literals (17/14/12/11pt).
+
+Fixed with shared design tokens (`tokens.css`): `--prose-heading-weight:
+600` (consumed by both `.grimoire__prose` and `.grimoire__paper`) and
+`--prose-reading-h2/h3/h4/body` (24/19/16/17px — Paper and the PDF export's
+shared scale). Notebook's own compact scale (21/16.5/14/14.5px) is
+deliberately its own, separate scale, not unified with Paper/PDF's: a
+dense inline-editing surface and a "read/print this document" surface
+warrant different type sizes, the same reasoning Paper's own 42rem reading
+width already applies to line length — only the _weight_ token is shared
+across all three, not the size scale. `paperPdf.ts` reads
+`--prose-reading-*` live via `getComputedStyle(document.documentElement)`
+rather than duplicating the numbers as literals (`readPxVar`, converted
+through the existing `PX_TO_PT`), so Paper and the PDF it exports can never
+silently drift apart from each other again the way they just did.
+
+A document can override the shared reading scale via its own
+`%paper-font-scale <n>` line (`document.ts`'s `paperFontScale`) — a plain
+multiplier over `--prose-reading-*`, `1` meaning "the scale as authored."
+Applied as `PaperView`'s own inline `--paper-font-scale` custom property
+(consumed by `.grimoire__paper`'s `calc()` rules) and read by `paperPdf.ts`
+via the identical `paperFontScale` call against the identical serialized
+text, so Paper and the PDF can never read the directive differently from
+each other. Lives in `document.ts`, not `paperPdf.ts` or
+`GrimoireNotebookIsland.tsx`, for the same reason `isPaperBlock` does (see
+above) — one function, imported by both, no cycle. Same placement
+restriction as `%pdf-figure-scale`: its own line in prose, never inside a
+` ```gramark ` fence (the Settings-fence misclassification defect noted
+above applies identically here). Deliberately scoped to Paper/PDF's prose
+headings/paragraphs only — tables keep their own fixed size in both
+surfaces, and Notebook's compact scale is untouched, since the directive's
+whole purpose is controlling the _reading/printing_ presentation, not the
+editing one.
+
 **Hover-reveal per-cell actions** (Livebook-style — `CellActions`,
 `GrimoireNotebookIsland.tsx`): a small floating row (↑/↓/Link/Delete) in a
 block's top-right corner, `opacity: 0` at rest and `1` on the block's own

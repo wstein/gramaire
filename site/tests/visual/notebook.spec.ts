@@ -1185,6 +1185,112 @@ test("the Notebook and Paper views use the same serif prose font, including tabl
   ).resolves.toContain("IBM Plex Serif");
 });
 
+// Regression: `.grimoire__prose`'s own h2/h3/h4 never set `font-weight`, so they fell back to the
+// browser's default heading weight (`bold`/700) — a weight IBM Plex Serif has no real glyph file
+// for (only 400/600 load, page-head.mjs), forcing a synthesized, visibly heavier/blurrier fake-bold
+// that Paper's headings (already pinned to the real SemiBold 600) never showed. Both now read the
+// same `--prose-heading-weight` token (tokens.css).
+test("Notebook and Paper prose headings render at the same font-weight (the loaded SemiBold, not a synthesized bold)", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await page.locator(".grimoire__prose").first().click();
+  await page
+    .locator(".grimoire__prose-editor")
+    .fill("# An h2\n\nBody text.\n\n## An h3\n\n### An h4\n");
+  await page.locator(".grimoire__statusbar").click(); // blur, commits the edit
+
+  const weight = (locator: import("@playwright/test").Locator) =>
+    locator.evaluate((el) => getComputedStyle(el).fontWeight);
+
+  await expect(
+    weight(page.locator(".grimoire__prose h2").first()),
+  ).resolves.toBe("600");
+  await expect(
+    weight(page.locator(".grimoire__prose h3").first()),
+  ).resolves.toBe("600");
+  await expect(
+    weight(page.locator(".grimoire__prose h4").first()),
+  ).resolves.toBe("600");
+
+  await viewToggleButton(page, "Paper").click();
+  await expect(
+    weight(page.locator(".grimoire__paper h2").first()),
+  ).resolves.toBe("600");
+});
+
+// Regression: Paper's h2/h3/h4 never set an explicit `font-size` at all, so they fell back to the
+// browser's UA default heading multipliers against Paper's 17px base — an unrelated, accidental
+// scale nobody chose, independently drifting from both Notebook's own compact scale AND the PDF
+// export's own hand-picked point values. All three heading levels (plus the paragraph base) now
+// read the same explicit `--prose-reading-*` tokens (tokens.css) Paper and the PDF export share.
+test("Paper's headings and paragraphs render at the shared explicit reading-prose scale, not a browser UA default", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await page.locator(".grimoire__prose").first().click();
+  await page
+    .locator(".grimoire__prose-editor")
+    .fill("# An h2\n\nBody text.\n\n## An h3\n\n### An h4\n");
+  await page.locator(".grimoire__statusbar").click();
+
+  await viewToggleButton(page, "Paper").click();
+  await expect(page.locator(".grimoire__paper")).toBeVisible();
+
+  const fontSize = (locator: import("@playwright/test").Locator) =>
+    locator.evaluate((el) => getComputedStyle(el).fontSize);
+
+  await expect(
+    fontSize(page.locator(".grimoire__paper h2").first()),
+  ).resolves.toBe("24px");
+  await expect(
+    fontSize(page.locator(".grimoire__paper h3").first()),
+  ).resolves.toBe("19px");
+  await expect(
+    fontSize(page.locator(".grimoire__paper h4").first()),
+  ).resolves.toBe("16px");
+  await expect(
+    fontSize(page.locator(".grimoire__paper p").first()),
+  ).resolves.toBe("17px");
+});
+
+// `%paper-font-scale` (document.ts's `paperFontScale`) — a document-level multiplier over the
+// shared reading-prose scale, read live by both Paper's own `--paper-font-scale` inline custom
+// property (PaperView, GrimoireNotebookIsland.tsx) and the PDF export (paperPdf.ts). Deliberately
+// scoped to Paper/PDF alone: the Notebook's own compact inline-editor scale is a distinct context
+// (a dense editing surface, not a reading/printing one) and stays untouched by this directive.
+test("%paper-font-scale scales Paper's reading-prose type uniformly, leaving Notebook's own scale untouched", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await page.locator(".grimoire__prose").first().click();
+  await page
+    .locator(".grimoire__prose-editor")
+    .fill("%paper-font-scale 2\n\n# An h2\n\nBody text.\n");
+  await page.locator(".grimoire__statusbar").click();
+
+  const fontSize = (locator: import("@playwright/test").Locator) =>
+    locator.evaluate((el) => getComputedStyle(el).fontSize);
+
+  // Notebook's own compact scale is a flat, unscaled 21px — the directive never reaches it.
+  await expect(
+    fontSize(page.locator(".grimoire__prose h2").first()),
+  ).resolves.toBe("21px");
+
+  await viewToggleButton(page, "Paper").click();
+  await expect(page.locator(".grimoire__paper")).toBeVisible();
+  await expect(
+    fontSize(page.locator(".grimoire__paper h2").first()),
+  ).resolves.toBe(
+    "48px", // 24px base * 2
+  );
+  await expect(
+    fontSize(page.locator(".grimoire__paper p").first()),
+  ).resolves.toBe(
+    "34px", // 17px base * 2
+  );
+});
+
 test("round-tripping Source → Paper → Notebook (never having visited Source's own commit path from Paper) leaves the document unchanged", async ({
   page,
 }) => {
