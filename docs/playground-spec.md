@@ -1197,14 +1197,63 @@ rounded-rect primitive) is synthesized into an equivalent arc-cornered path
 string and drawn the same way; `<circle>` becomes `drawEllipse`; `<text>`
 becomes `drawText`, manually centered both axes (pdf-lib has no
 `dominant-baseline` equivalent — approximated with a `0.32×size` baseline
-offset) in a standard monospace PDF font (Courier/Courier-Oblique, no
-ligature substitution — a separate, deliberately-deferred gap, see below).
-Verified against both the simple 3-alternative `Calc-js` example and the
-project's own self-hosting grammar's 19-alternative `Sym` rule (rendered to
-PNG via `pdftoppm` and inspected directly): shapes, colors, track routing,
-and text all match the on-screen rendering, and the file shrank
-dramatically (a full `Calc-js` PDF: ~57KB rasterized → ~4.7KB vector) now
-that there's no embedded PNG image data.
+offset). Verified against both the simple 3-alternative `Calc-js` example
+and the project's own self-hosting grammar's 19-alternative `Sym` rule
+(rendered to PNG via `pdftoppm` and inspected directly): shapes, colors,
+track routing, and text all match the on-screen rendering, and the file
+shrank dramatically (a full `Calc-js` PDF: ~57KB rasterized → ~4.7KB
+vector) now that there's no embedded PNG image data.
+
+**Figure text: embedding the real Fira Code font, and the `%pdf-figure-scale`-adjacent
+"unwanted ligature" trap.** Figure text initially drew in a standard PDF
+Courier/Courier-Oblique font — the right SHAPE (monospace) but the wrong
+FONT (not what the notebook itself renders). Fixing this properly means
+embedding a real TrueType font, which raised the actual question behind
+the "PDF does not use TrueType ligatures" request: can pdf-lib reproduce
+Fira Code's `=>`/`->`/`!=`-style connected ligature glyphs? Researched
+directly rather than assumed: pdf-lib has no OpenType GSUB shaping engine
+at all (true ligature fusion would need a HarfBuzz-class dependency), and
+— contrary to an initial, incorrect assumption — Fira Code does NOT ship a
+Private-Use-Area ligature fallback variant the way some other coding fonts
+do, so there's no shortcut either. Presented as an explicit choice (embed
+the real font only vs. full HarfBuzz shaping vs. leave it as Courier);
+chose to embed the real font only, accepting that a fused ligature glyph
+won't reproduce — a bounded, honest partial fix rather than either
+over-engineering a caption-only cosmetic detail or leaving a wrong font in
+place.
+
+Sourcing the actual font bytes had its own dead end: `@fontsource/fira-code`
+(already a natural candidate, small, OFL-licensed) only ships `.woff2` —
+`@pdf-lib/fontkit` parses that fine in-memory, but pdf-lib's `FontFile3`
+embeds the exact bytes handed to `embedFont` verbatim rather than
+re-encoding them, and a WOFF2 container isn't valid embedded font-program
+data — confirmed directly (poppler rejected the resulting PDF with
+"Embedded font file may be invalid" and refused to render the font at
+all). Fixed by switching to the `firacode` npm package (the font's own
+upstream distribution), which ships genuine `.ttf` files directly.
+
+Embedding the real font surfaced a second, sharper bug: "parseFloat"
+rendered as "parseFl oat" — a bogus gap, but only after the specific
+letter pair "Fl" (capital-F, lowercase-l); "fl", "FL", and "lF" all render
+fine, isolated and confirmed with a standalone reproduction script before
+touching any real code. Traced to a documented pdf-lib issue (#490,
+"Unwanted ligatures"): `@pdf-lib/fontkit`'s text-layout step auto-applies
+whatever GSUB features a custom font's table defines during encoding, and
+Fira Code has a `calt`/contextual rule that fires on that exact pair and
+substitutes a wrong-metric glyph — nothing to do with programming
+ligatures, and by design nothing this document ever wants applied anyway
+(real ligature shaping is the explicitly-deferred gap above). Fixed by
+passing `features: { liga: false, clig: false, dlig: false, calt: false,
+rlig: false }` to `embedFont`, turning off every GSUB substitution path
+rather than guessing which single tag was responsible.
+
+Fira Code also has no italic member (`styles: ["normal"]` in its own
+metadata) — a browser synthesizes `.rr-action-text`'s `font-style: italic`
+by slanting the regular face automatically; an initial attempt mirrored
+that with pdf-lib's own `xSkew` on `drawText`, then dropped entirely on
+request (action captions read as distracting when angled) — action text
+now draws upright, distinguished from a rule/token label by color alone,
+matching how every other view in this document treats it.
 
 A figure capped by WIDTH alone (the original v1 attempt) still let a
 naturally tall diagram (many stacked alternatives) draw at an enormous,
