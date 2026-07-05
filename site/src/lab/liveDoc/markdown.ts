@@ -153,6 +153,17 @@ export function parseMarkdownLite(md: string): MdBlock[] {
       i++;
       continue;
     }
+    // `%paper-font-scale <n>` (document.ts's `paperFontScale`, paperPdf.ts) — a presentational
+    // directive for Paper/PDF, not real document prose. Same rationale as the HTML-comment skip
+    // just above: author-facing housekeeping a reader was never meant to see as a literal
+    // paragraph. Matched by keyword prefix alone (not the full `%paper-font-scale <n>` shape
+    // `paperFontScale` itself requires) so a malformed value still hides, rather than surfacing
+    // internal directive syntax as prose either way.
+    if (/^%paper-font-scale\b/.test(line)) {
+      flush();
+      i++;
+      continue;
+    }
     const heading = line.match(/^(#{1,3})\s+(.*)/);
     if (heading) {
       flush();

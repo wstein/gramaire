@@ -285,6 +285,19 @@ test("parseMarkdownLite: an HTML comment line doesn't get swallowed into an adja
   ]);
 });
 
+test("parseMarkdownLite: a %paper-font-scale directive line is skipped entirely, not rendered as literal text", () => {
+  const md = ["Before.", "%paper-font-scale 1.5", "After."].join("\n");
+  expect(parseMarkdownLite(md)).toEqual([
+    { tag: "p", parts: [{ kind: "text", text: "Before." }] },
+    { tag: "p", parts: [{ kind: "text", text: "After." }] },
+  ]);
+});
+
+test("parseMarkdownLite: a %paper-font-scale directive is hidden even with a malformed (non-numeric) value", () => {
+  const md = "%paper-font-scale not-a-number";
+  expect(parseMarkdownLite(md)).toEqual([]);
+});
+
 test("leadingHeading: a lone heading is found at index 0", () => {
   const parsed = parseMarkdownLite("## Tokens");
   expect(leadingHeading(parsed)).toEqual({
