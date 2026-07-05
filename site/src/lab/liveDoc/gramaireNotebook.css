@@ -479,6 +479,10 @@
   border-radius: 8px;
   padding: 2px 10px;
   margin: 0 -10px;
+  /* Same prose font as the Paper view and the PDF export (paperPdf.ts's own embedded IBM Plex
+     Serif) — one consistent typeface for a document's own markdown content, wherever it's read,
+     distinct from --font-ui (the surrounding app chrome) and --font-mono (grammar/code). */
+  font-family: var(--font-serif);
 }
 .gramaire__prose:hover {
   background: var(--bg-1);
@@ -1068,7 +1072,11 @@
   margin: 0 0 1.1em;
 }
 .gramaire__paper table {
-  font-family: var(--font-ui);
+  /* No font-family override — inherits var(--font-serif) from .gramaire__paper itself, same as
+     every other prose element here (this used to explicitly opt back into --font-ui, breaking
+     from the rest of the page's own serif for no real reason). `th`'s own uppercase mono label
+     style (.gramaire-prose-table, shared with the Notebook and the Lab's own tables) is a
+     deliberate, separate convention and is untouched by this. */
   font-size: 14px;
   margin: 1.2em 0;
 }

@@ -70,6 +70,16 @@ import type { MdBlock, MdInline } from "./markdown";
 // only, not a type; `obj is PDFDict` below needs an actual type reference to narrow against.
 import type { PDFDict as PDFDictType } from "pdf-lib";
 import firaCodeUrl from "firacode/distr/ttf/FiraCode-Regular.ttf?url";
+// Vendored directly (not via an `@ibm/plex-serif` npm install) to avoid pulling in
+// `@ibm/telemetry-js` as a transitive dependency — these are the exact same OFL-licensed
+// IBM Plex Serif v3.006 .ttf files that package ships, fetched once from IBM's own
+// github.com/IBM/plex releases (see fonts/LICENSE.txt alongside these). SemiBold, not the
+// standard "Bold" member, matches the ONLY two weights tokens.css's own Google Fonts request
+// actually loads for `--font-serif` on screen (400/600) — using true Bold here would make the
+// PDF's own headings a visibly heavier weight than the same headings ever render in the browser.
+import ibmPlexSerifRegularUrl from "./fonts/IBMPlexSerif-Regular.ttf?url";
+import ibmPlexSerifSemiBoldUrl from "./fonts/IBMPlexSerif-SemiBold.ttf?url";
+import ibmPlexSerifItalicUrl from "./fonts/IBMPlexSerif-Italic.ttf?url";
 
 const PAGE_WIDTH = 612; // US Letter, points (72pt/inch)
 const PAGE_HEIGHT = 792;
@@ -274,7 +284,6 @@ export async function buildPaperPdf(
   const [
     {
       PDFDocument,
-      StandardFonts,
       rgb,
       pushGraphicsState,
       popGraphicsState,
@@ -299,9 +308,14 @@ export async function buildPaperPdf(
 
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
-  const serif = await pdfDoc.embedFont(StandardFonts.TimesRoman);
-  const serifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
-  const serifItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+  const [serifBytes, serifBoldBytes, serifItalicBytes] = await Promise.all([
+    fetch(ibmPlexSerifRegularUrl).then((r) => r.arrayBuffer()),
+    fetch(ibmPlexSerifSemiBoldUrl).then((r) => r.arrayBuffer()),
+    fetch(ibmPlexSerifItalicUrl).then((r) => r.arrayBuffer()),
+  ]);
+  const serif = await pdfDoc.embedFont(serifBytes);
+  const serifBold = await pdfDoc.embedFont(serifBoldBytes);
+  const serifItalic = await pdfDoc.embedFont(serifItalicBytes);
   // The real on-screen font, not a generic monospace substitute. Figure text is short
   // (identifiers, truncated action captions) and ASCII/Latin — the whole font embeds, not a
   // hand-picked subset. `subset` is left at its default (`false`) deliberately — a non-subsetted
@@ -610,17 +624,29 @@ export async function buildPaperPdf(
   // cover every glyph this document actually drew (see `glyphToText`'s own comment) — reload the
   // just-saved bytes and overwrite the embedded Fira Code font's `/ToUnicode` stream with one that
   // does, so copy/pasting figure text back out of the exported PDF reads correctly (e.g. "=>",
-  // not garbled mojibake) rather than just looking right on screen. `mono` is the only Type0
-  // (custom, non-standard) font this document ever embeds — the standard serif fonts are Type1,
-  // so filtering by Subtype alone is enough to find it, no name-matching needed.
+  // not garbled mojibake) rather than just looking right on screen. `mono` USED to be the only
+  // Type0 (custom, non-standard) font this document ever embedded — filtering by Subtype alone was
+  // enough to find it — but the serif trio (embedded from real IBM Plex Serif .ttf bytes, not
+  // `StandardFonts`, now that Paper/PDF/Notebook share one prose font) are Type0 too, so Subtype
+  // alone would non-deterministically match whichever of the four the reload happens to enumerate
+  // first. `mono.name` is fontkit's own `postscriptName` for the embedded font (pdf-lib's
+  // `CustomFontEmbedder`), and pdf-lib's `/BaseFont` is always `${mono.name}-<random suffix>` (its
+  // own `addRandomSuffix`, prefix first) — that prefix survives the save/reload untouched (real
+  // font metadata, not pdf-lib bookkeeping, unlike `mono.ref`'s own object number, which doesn't:
+  // `.save()` renumbers/compacts indirect objects, so the ORIGINAL `pdfDoc`'s reference can't be
+  // looked up directly in the reloaded `patchedDoc`).
   const patchedDoc = await PDFDocument.load(rawBytes);
+  const monoBaseFontPrefix = `/${mono.name}`;
   const fontDict = patchedDoc.context
     .enumerateIndirectObjects()
     .map(([, obj]) => obj)
     .find(
       (obj): obj is PDFDictType =>
         obj instanceof PDFDict &&
-        obj.lookup(PDFName.of("Subtype"))?.toString() === "/Type0",
+        obj.lookup(PDFName.of("Subtype"))?.toString() === "/Type0" &&
+        (obj.lookup(PDFName.of("BaseFont"))?.toString() ?? "").startsWith(
+          monoBaseFontPrefix,
+        ),
     );
   if (!fontDict) return rawBytes; // defensive — should always be found when glyphToText isn't empty
   const cmapStream = patchedDoc.context.flateStream(
