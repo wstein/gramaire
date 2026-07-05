@@ -12,15 +12,10 @@ definition names is enforced by the fold, matching `Tokens.validateName`.
 Semantic actions build tagged JavaScript objects mirroring the current sidecar
 parsers and production AST.
 
-<details>
-<summary>Declarations</summary>
-
 ```gramaire
 %name Gramaire
 %lang javascript
 ```
-
-</details>
 
 ## Tokens
 
@@ -76,11 +71,6 @@ File
 
 ## Preamble
 
-![Railroad diagram for the Preamble rule](diagrams-Gramaire/preamble.svg)
-
-<details>
-<summary>Source</summary>
-
 ```gramaire
 Preamble
   : SettingList                 {% (c) => ({ tag: "Preamble", settings: c[0], tokens: [] }) %}
@@ -88,14 +78,9 @@ Preamble
   | SettingList TokenDeclList   {% (c) => ({ tag: "Preamble", settings: c[0], tokens: c[1] }) %}
 ```
 
-</details>
+![Railroad diagram for the Preamble rule](diagrams-Gramaire/preamble.svg)
 
 ## SettingList
-
-![Railroad diagram for the SettingList rule](diagrams-Gramaire/settinglist.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 SettingList
@@ -103,14 +88,9 @@ SettingList
   | SettingList SettingDecl   {% (c) => [...c[0], c[1]] %}
 ```
 
-</details>
+![Railroad diagram for the SettingList rule](diagrams-Gramaire/settinglist.svg)
 
 ## SettingDecl
-
-![Railroad diagram for the SettingDecl rule](diagrams-Gramaire/settingdecl.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 SettingDecl
@@ -118,14 +98,9 @@ SettingDecl
   | '%lang' IDENT   {% (c) => ({ tag: "Lang", value: c[1] }) %}
 ```
 
-</details>
+![Railroad diagram for the SettingDecl rule](diagrams-Gramaire/settingdecl.svg)
 
 ## TokenDeclList
-
-![Railroad diagram for the TokenDeclList rule](diagrams-Gramaire/tokendecllist.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 TokenDeclList
@@ -133,14 +108,9 @@ TokenDeclList
   | TokenDeclList TokenDecl   {% (c) => [...c[0], c[1]] %}
 ```
 
-</details>
+![Railroad diagram for the TokenDeclList rule](diagrams-Gramaire/tokendecllist.svg)
 
 ## TokenDecl
-
-![Railroad diagram for the TokenDecl rule](diagrams-Gramaire/tokendecl.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 TokenDecl
@@ -148,14 +118,9 @@ TokenDecl
   | IDENT ':' TokenPattern ModList   {% (c) => ({ tag: "TokenDecl", name: c[0], pattern: c[2], modifiers: c[3] }) %}
 ```
 
-</details>
+![Railroad diagram for the TokenDecl rule](diagrams-Gramaire/tokendecl.svg)
 
 ## TokenPattern
-
-![Railroad diagram for the TokenPattern rule](diagrams-Gramaire/tokenpattern.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 TokenPattern
@@ -163,14 +128,9 @@ TokenPattern
   | TERM_LIT    {% (c) => ({ tag: "ExactPat", source: c[0] }) %}
 ```
 
-</details>
+![Railroad diagram for the TokenPattern rule](diagrams-Gramaire/tokenpattern.svg)
 
 ## ModList
-
-![Railroad diagram for the ModList rule](diagrams-Gramaire/modlist.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 ModList
@@ -178,14 +138,9 @@ ModList
   | ModList Modifier       {% (c) => [...c[0], c[1]] %}
 ```
 
-</details>
+![Railroad diagram for the ModList rule](diagrams-Gramaire/modlist.svg)
 
 ## Modifier
-
-![Railroad diagram for the Modifier rule](diagrams-Gramaire/modifier.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 Modifier
@@ -195,14 +150,9 @@ Modifier
   | EXTERNAL      {% (c) => ({ tag: "External", value: c[0] }) %}
 ```
 
-</details>
+![Railroad diagram for the Modifier rule](diagrams-Gramaire/modifier.svg)
 
 ## PrecList
-
-![Railroad diagram for the PrecList rule](diagrams-Gramaire/preclist.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 PrecList
@@ -210,14 +160,9 @@ PrecList
   | PrecList PrecDecl    {% (c) => [...c[0], c[1]] %}
 ```
 
-</details>
+![Railroad diagram for the PrecList rule](diagrams-Gramaire/preclist.svg)
 
 ## PrecDecl
-
-![Railroad diagram for the PrecDecl rule](diagrams-Gramaire/precdecl.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 PrecDecl
@@ -226,14 +171,9 @@ PrecDecl
   | '%nonassoc' PrecTermList  {% (c) => ({ tag: "PrecDecl", assoc: "nonassoc", terms: c[1] }) %}
 ```
 
-</details>
+![Railroad diagram for the PrecDecl rule](diagrams-Gramaire/precdecl.svg)
 
 ## PrecTermList
-
-![Railroad diagram for the PrecTermList rule](diagrams-Gramaire/prectermlist.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 PrecTermList
@@ -241,14 +181,9 @@ PrecTermList
   | PrecTermList PrecTerm   {% (c) => [...c[0], c[1]] %}
 ```
 
-</details>
+![Railroad diagram for the PrecTermList rule](diagrams-Gramaire/prectermlist.svg)
 
 ## PrecTerm
-
-![Railroad diagram for the PrecTerm rule](diagrams-Gramaire/precterm.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 PrecTerm
@@ -256,7 +191,7 @@ PrecTerm
   | IDENT      {% (c) => ({ tag: "Ref", name: c[0] }) %}
 ```
 
-</details>
+![Railroad diagram for the PrecTerm rule](diagrams-Gramaire/precterm.svg)
 
 ## RuleList
 
@@ -297,25 +232,15 @@ Rule
 
 ## Body
 
-![Railroad diagram for the Body rule](diagrams-Gramaire/body.svg)
-
-<details>
-<summary>Source</summary>
-
 ```gramaire
 Body
   : Alt            {% (c) => [c[0]] %}
   | Body '|' Alt   {% (c) => [...c[0], c[2]] %}
 ```
 
-</details>
+![Railroad diagram for the Body rule](diagrams-Gramaire/body.svg)
 
 ## Alt
-
-![Railroad diagram for the Alt rule](diagrams-Gramaire/alt.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 Alt
@@ -325,14 +250,9 @@ Alt
   | SymList                {% (c) => ({ tag: "Alt", syms: c[0], label: null, action: null }) %}
 ```
 
-</details>
+![Railroad diagram for the Alt rule](diagrams-Gramaire/alt.svg)
 
 ## SymList
-
-![Railroad diagram for the SymList rule](diagrams-Gramaire/symlist.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 SymList
@@ -340,14 +260,9 @@ SymList
   | SymList Sym   {% (c) => [...c[0], c[1]] %}
 ```
 
-</details>
+![Railroad diagram for the SymList rule](diagrams-Gramaire/symlist.svg)
 
 ## Sym
-
-![Railroad diagram for the Sym rule](diagrams-Gramaire/sym.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 Sym
@@ -371,14 +286,9 @@ Sym
   | Atom QUESTION   {% (c) => ({ tag: "Opt", sym: c[0] }) %}
 ```
 
-</details>
+![Railroad diagram for the Sym rule](diagrams-Gramaire/sym.svg)
 
 ## Args
-
-![Railroad diagram for the Args rule](diagrams-Gramaire/args.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 Args
@@ -386,42 +296,27 @@ Args
   | Args COMMA Sym   {% (c) => [...c[0], c[2]] %}
 ```
 
-</details>
+![Railroad diagram for the Args rule](diagrams-Gramaire/args.svg)
 
 ## Action
-
-![Railroad diagram for the Action rule](diagrams-Gramaire/action.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 Action
   : ACTION   {% (c) => c[0] %}
 ```
 
-</details>
+![Railroad diagram for the Action rule](diagrams-Gramaire/action.svg)
 
 ## Label
-
-![Railroad diagram for the Label rule](diagrams-Gramaire/label.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 Label
   : LABEL   {% (c) => c[0] %}
 ```
 
-</details>
+![Railroad diagram for the Label rule](diagrams-Gramaire/label.svg)
 
 ## GroupBody
-
-![Railroad diagram for the GroupBody rule](diagrams-Gramaire/groupbody.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 GroupBody
@@ -429,14 +324,9 @@ GroupBody
   | GroupBody '|' SymList   {% (c) => [...c[0], c[2]] %}
 ```
 
-</details>
+![Railroad diagram for the GroupBody rule](diagrams-Gramaire/groupbody.svg)
 
 ## Atom
-
-![Railroad diagram for the Atom rule](diagrams-Gramaire/atom.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 Atom
@@ -444,14 +334,9 @@ Atom
   | '~' NotArg   {% (c) => ({ tag: "Not", set: c[1] }) %}
 ```
 
-</details>
+![Railroad diagram for the Atom rule](diagrams-Gramaire/atom.svg)
 
 ## NotArg
-
-![Railroad diagram for the NotArg rule](diagrams-Gramaire/notarg.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 NotArg
@@ -459,14 +344,9 @@ NotArg
   | '(' SetBody ')'   {% (c) => c[1] %}
 ```
 
-</details>
+![Railroad diagram for the NotArg rule](diagrams-Gramaire/notarg.svg)
 
 ## SetBody
-
-![Railroad diagram for the SetBody rule](diagrams-Gramaire/setbody.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 SetBody
@@ -474,14 +354,9 @@ SetBody
   | SetBody '|' SetItem  {% (c) => [...c[0], c[2]] %}
 ```
 
-</details>
+![Railroad diagram for the SetBody rule](diagrams-Gramaire/setbody.svg)
 
 ## SetItem
-
-![Railroad diagram for the SetItem rule](diagrams-Gramaire/setitem.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 SetItem
@@ -489,7 +364,7 @@ SetItem
   | TERM_LIT   {% (c) => ({ tag: "Lit", text: c[0] }) %}
 ```
 
-</details>
+![Railroad diagram for the SetItem rule](diagrams-Gramaire/setitem.svg)
 
 ## Error messages
 

@@ -49,15 +49,10 @@ action }` (`label`/`action` are `null` when absent), and one tagged object per
 `Any`, `Not` — mirroring the real Scala types in
 [`Syntax.scala`](../core/src/main/scala/gramaire/Syntax.scala).
 
-<details>
-<summary>Declarations</summary>
-
 ```gramaire
 %name Productions
 %lang javascript
 ```
-
-</details>
 
 ## Tokens
 
@@ -89,27 +84,17 @@ COMMA    : ","
 
 A grammar is a non-empty list of rules.
 
-![Railroad diagram for the Grammar rule](diagrams-Productions/grammar.svg)
-
-<details>
-<summary>Source</summary>
-
 ```gramaire
 Grammar
   : RuleList   {% (c) => ({ tag: "Grammar", rules: c[0] }) %}
 ```
 
-</details>
+![Railroad diagram for the Grammar rule](diagrams-Productions/grammar.svg)
 
 ## RuleList
 
 Left recursion accumulates rules in source order. The `NL` between two rules is
 the one boundary newline the normalization pass keeps (see the intro).
-
-![Railroad diagram for the RuleList rule](diagrams-Productions/rulelist.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 RuleList
@@ -117,7 +102,7 @@ RuleList
   | RuleList NL Rule   {% (c) => [...c[0], c[2]] %}
 ```
 
-</details>
+![Railroad diagram for the RuleList rule](diagrams-Productions/rulelist.svg)
 
 ## Rule
 
@@ -129,18 +114,13 @@ head form is fixed and never written inline.
 A rule may carry `#[attr]` attributes (e.g. `#[inline]`, which `Gramaire.Desugar`
 folds into use sites) before its name.
 
-![Railroad diagram for the Rule rule](diagrams-Productions/rule.svg)
-
-<details>
-<summary>Source</summary>
-
 ```gramaire
 Rule
   : ATTR IDENT NL ':' Body   {% (c) => ({ tag: "Rule", name: c[1], attrs: [c[0]], alts: c[4] }) %}
   | IDENT NL ':' Body        {% (c) => ({ tag: "Rule", name: c[0], attrs: [], alts: c[3] }) %}
 ```
 
-</details>
+![Railroad diagram for the Rule rule](diagrams-Productions/rule.svg)
 
 ## Body
 
@@ -148,28 +128,18 @@ The body is a `|`-separated list of alternatives. `|` is the only separator; a
 line break inside an alternative is insignificant, so an alternative may wrap
 across physical lines.
 
-![Railroad diagram for the Body rule](diagrams-Productions/body.svg)
-
-<details>
-<summary>Source</summary>
-
 ```gramaire
 Body
   : Alt            {% (c) => [c[0]] %}
   | Body '|' Alt   {% (c) => [...c[0], c[2]] %}
 ```
 
-</details>
+![Railroad diagram for the Body rule](diagrams-Productions/body.svg)
 
 ## Alt
 
 An alternative is a list of symbols, an optional `# Label` naming it, and an
 optional trailing action.
-
-![Railroad diagram for the Alt rule](diagrams-Productions/alt.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 Alt
@@ -179,14 +149,9 @@ Alt
   | SymList                {% (c) => ({ tag: "Alt", syms: c[0], label: null, action: null }) %}
 ```
 
-</details>
+![Railroad diagram for the Alt rule](diagrams-Productions/alt.svg)
 
 ## SymList
-
-![Railroad diagram for the SymList rule](diagrams-Productions/symlist.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 SymList
@@ -194,7 +159,7 @@ SymList
   | SymList Sym   {% (c) => [...c[0], c[1]] %}
 ```
 
-</details>
+![Railroad diagram for the SymList rule](diagrams-Productions/symlist.svg)
 
 ## Sym
 
@@ -212,11 +177,6 @@ A parenthesised group `( a | b )` — its own `|`-separated alternatives are the
 `GroupBody` — may carry the same `+`/`*`/`?` postfix as any symbol.
 `Gramaire.Desugar` hoists each group to a fresh `__group_N` rule, so `( A B )* C`
 becomes `__group_0* C` with `__group_0 : A B`.
-
-![Railroad diagram for the Sym rule](diagrams-Productions/sym.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 Sym
@@ -240,16 +200,11 @@ Sym
   | Atom QUESTION                 {% (c) => ({ tag: "Opt", sym: c[0] }) %}
 ```
 
-</details>
+![Railroad diagram for the Sym rule](diagrams-Productions/sym.svg)
 
 ## Args
 
 The comma-separated argument list of a macro call.
-
-![Railroad diagram for the Args rule](diagrams-Productions/args.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 Args
@@ -257,38 +212,28 @@ Args
   | Args COMMA Sym    {% (c) => [...c[0], c[2]] %}
 ```
 
-</details>
+![Railroad diagram for the Args rule](diagrams-Productions/args.svg)
 
 ## Action
-
-![Railroad diagram for the Action rule](diagrams-Productions/action.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 Action
   : ACTION   {% (c) => c[0] %}
 ```
 
-</details>
+![Railroad diagram for the Action rule](diagrams-Productions/action.svg)
 
 ## Label
 
 A `# Name` label names an alternative, for per-alternative visitor methods and
 CST accessors.
 
-![Railroad diagram for the Label rule](diagrams-Productions/label.svg)
-
-<details>
-<summary>Source</summary>
-
 ```gramaire
 Label
   : LABEL   {% (c) => c[0] %}
 ```
 
-</details>
+![Railroad diagram for the Label rule](diagrams-Productions/label.svg)
 
 ## GroupBody
 
@@ -296,18 +241,13 @@ A parenthesised group's `|`-separated alternatives — symbol lists only, with n
 label or action. `Gramaire.Desugar` hoists each `( … )` group to a fresh rule
 with these alternatives.
 
-![Railroad diagram for the GroupBody rule](diagrams-Productions/groupbody.svg)
-
-<details>
-<summary>Source</summary>
-
 ```gramaire
 GroupBody
   : SymList                  {% (c) => [c[0]] %}
   | GroupBody '|' SymList    {% (c) => [...c[0], c[2]] %}
 ```
 
-</details>
+![Railroad diagram for the GroupBody rule](diagrams-Productions/groupbody.svg)
 
 ## Atom
 
@@ -315,25 +255,15 @@ The token-set atoms: `.` matches any one terminal, `~X` (or `~( a | b )`) any
 terminal not in the set. `Gramaire.Desugar` lowers both to a group over the
 grammar's closed terminal alphabet (D-token-ops).
 
-![Railroad diagram for the Atom rule](diagrams-Productions/atom.svg)
-
-<details>
-<summary>Source</summary>
-
 ```gramaire
 Atom
   : '.'             {% (c) => ({ tag: "Any" }) %}
   | '~' NotArg      {% (c) => ({ tag: "Not", set: c[1] }) %}
 ```
 
-</details>
+![Railroad diagram for the Atom rule](diagrams-Productions/atom.svg)
 
 ## NotArg
-
-![Railroad diagram for the NotArg rule](diagrams-Productions/notarg.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 NotArg
@@ -341,14 +271,9 @@ NotArg
   | '(' SetBody ')'    {% (c) => c[1] %}
 ```
 
-</details>
+![Railroad diagram for the NotArg rule](diagrams-Productions/notarg.svg)
 
 ## SetBody
-
-![Railroad diagram for the SetBody rule](diagrams-Productions/setbody.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 SetBody
@@ -356,16 +281,11 @@ SetBody
   | SetBody '|' SetItem   {% (c) => [...c[0], c[2]] %}
 ```
 
-</details>
+![Railroad diagram for the SetBody rule](diagrams-Productions/setbody.svg)
 
 ## SetItem
 
 A set element is a single terminal — a token class or a literal.
-
-![Railroad diagram for the SetItem rule](diagrams-Productions/setitem.svg)
-
-<details>
-<summary>Source</summary>
 
 ```gramaire
 SetItem
@@ -373,7 +293,7 @@ SetItem
   | TERM_LIT   {% (c) => ({ tag: "Lit", text: c[0] }) %}
 ```
 
-</details>
+![Railroad diagram for the SetItem rule](diagrams-Productions/setitem.svg)
 
 ## Error messages
 
