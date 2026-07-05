@@ -1007,3 +1007,50 @@ test("insert-zone buttons are disabled while any editor is open, anywhere in the
     await expect(buttons.nth(i)).toBeDisabled();
   }
 });
+
+// Livebook-style simultaneous source+preview: the read-only view shows either raw source OR the
+// rendered markdown, never both — while EDITING a prose block, both the raw-markdown editor and
+// a live-updating rendered preview are visible together, no engine round-trip needed
+// (parseMarkdownLite is a pure client-side function).
+test("editing a prose block shows a live-updating preview below the editor, not instead of it", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await page.locator(".grimoire__prose").first().click();
+
+  await expect(page.locator(".grimoire__prose-editor")).toBeVisible();
+  const preview = page.locator(".grimoire__prose-preview");
+  await expect(preview).toBeVisible();
+
+  await page
+    .locator(".grimoire__prose-editor")
+    .fill("## A live heading\n\nSome **bold** text.");
+
+  // "##" maps one level down to h3 (markdown.ts's own convention — a prose block never carries
+  // the document's own top-level h1/h2, so its own headings start one level lower).
+  await expect(preview.locator("h3")).toHaveText("A live heading");
+  await expect(preview.locator("strong")).toHaveText("bold");
+});
+
+test("the live preview updates on every keystroke, without needing blur/commit", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await page.locator(".grimoire__prose").first().click();
+  const editor = page.locator(".grimoire__prose-editor");
+  const preview = page.locator(".grimoire__prose-preview");
+
+  await editor.fill("First version.");
+  await expect(preview).toContainText("First version.");
+
+  await editor.fill("Second version.");
+  await expect(preview).not.toContainText("First version.");
+  await expect(preview).toContainText("Second version.");
+
+  // Still just a draft — canceling (not Save) discards it, proving the preview never committed
+  // anything to the document on its own.
+  await page.locator(".grimoire__toolbar-btn--cancel").click();
+  await expect(page.locator(".grimoire__prose").first()).not.toContainText(
+    "Second version.",
+  );
+});

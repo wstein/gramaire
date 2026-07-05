@@ -1008,6 +1008,21 @@ real analysis, not a stubbed response).
 Same disabled-while-editing guard as the hover-reveal actions above —
 inserting is exactly as index-sensitive as reordering/deleting.
 
+**Simultaneous source+live-preview for prose** (Livebook-style —
+`ProseBlock`'s editing branch, `GrimoireNotebookIsland.tsx`). Editing a
+prose block used to show either the raw-markdown editor OR the rendered
+view, never both; now the rendered preview appears directly below the
+editor while it's open, recomputed from the CURRENT draft
+(`parseMarkdownLite(proseDraft.value)`, not the last-committed
+`block.text`) on every keystroke — cheap enough to do unconditionally
+because `parseMarkdownLite` is a pure client-side function, no engine
+round-trip involved. This is exactly why the same idea was rated well for
+prose and poorly for a rule cell: a rule's own "preview" is a compiled
+railroad diagram from the real engine, not a markdown render, so it stays
+out of scope here. A muted "Preview" label + a lighter background
+distinguish it from the read-only rendered view a click normally collapses
+to, so it doesn't read as "two copies of the same text by accident."
+
 **Ligature font in railroad SVG text (`Railroad.scala`'s shared `font`/
 `ligatures` vals).** `=>`/`!=`/`<=`/etc. now render as their single-glyph
 ligature forms via **Fira Code** (prepended to the font stack, loaded the
