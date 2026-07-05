@@ -69,6 +69,15 @@ const proseDraft = signal("");
 // only changes once, on blur/commit.
 const editingCell = signal<number | null>(null);
 const cellDraft = signal("");
+// The status bar's Notebook/Source toggle. `sourceViewBase` is the STABLE text CodeMirror mounts
+// with — snapshotted once when entering source view, never updated reactively while typing (same
+// reasoning as `cellDraft` above: feeding a live draft back into CodeMirror's own `value` prop is
+// the empirically-confirmed race CodeMirrorEditor's own comment warns about). `sourceDraft` holds
+// the latest typed text; `commitSourceEdit` (below `scheduleEvaluate`) is what actually reparses it
+// back into `blocks`, on blur or on toggling back to Notebook view.
+const viewMode = signal<"notebook" | "source">("notebook");
+const sourceViewBase = signal("");
+const sourceDraft = signal("");
 // The document diagnostics panel (Layer 1) collapse toggle — clicking the status bar flips it.
 // Errors/warnings still show as a count in the status bar when collapsed, so this only hides the
 // detail, never the fact that something is wrong.
@@ -86,6 +95,15 @@ function scheduleEvaluate() {
     tryItInput.value,
     "ll-star",
   );
+}
+
+// Reparses the source view's latest typed text back into `blocks` — a raw edit invalidates the
+// last response's fence positions, so this rebuilds with `fences: []` (one mega prose block, same
+// degenerate shape the no-fences fallback textarea already produces) and lets the next real
+// response (scheduleEvaluate, below) restore proper cell structure once the engine catches up.
+function commitSourceEdit() {
+  blocks.value = buildDocument(sourceDraft.value, []);
+  scheduleEvaluate();
 }
 
 // Retain the most recent NON-null analysis (see `lastAnalysis`). Reacts only to `response`.
@@ -813,6 +831,33 @@ function StatusBar() {
           </span>
         )}
       </span>
+      <label
+        class="grimoire__view-toggle"
+        title="Switch between the rendered Notebook and its raw source"
+      >
+        <span class="grimoire__view-toggle-label">Notebook</span>
+        <input
+          type="checkbox"
+          class="grimoire__view-toggle-input"
+          checked={viewMode.value === "source"}
+          onChange={(e) => {
+            const toSource = (e.target as HTMLInputElement).checked;
+            if (toSource) {
+              const text = serializeDocument(blocks.value);
+              sourceViewBase.value = text;
+              sourceDraft.value = text;
+              viewMode.value = "source";
+            } else {
+              commitSourceEdit();
+              viewMode.value = "notebook";
+            }
+          }}
+        />
+        <span class="grimoire__view-toggle-track">
+          <span class="grimoire__view-toggle-thumb" />
+        </span>
+        <span class="grimoire__view-toggle-label">Source</span>
+      </label>
       <span class="grimoire__statusbar-stats">
         {stats
           ? `Canonical(1) · ${stats.states} state${stats.states === 1 ? "" : "s"} · ${stats.conflicts} conflict${stats.conflicts === 1 ? "" : "s"}`
@@ -860,7 +905,17 @@ export function GrimoireNotebookIsland(
       <DiagnosticsPanel />
       <div class="grimoire__body">
         <div class="grimoire__doc">
-          {showNotebook.value ? (
+          {viewMode.value === "source" ? (
+            <CodeMirrorEditor
+              className="grimoire__source-editor"
+              value={sourceViewBase.value}
+              autoFocus
+              onChange={(text) => {
+                sourceDraft.value = text;
+              }}
+              onBlur={commitSourceEdit}
+            />
+          ) : showNotebook.value ? (
             <>
               {blocks.value.map((block, index) =>
                 block.kind === "prose" ? (
