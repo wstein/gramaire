@@ -1208,6 +1208,46 @@ the file's top level — its ~19MB unpacked size (mostly AFM font-metric
 tables) never reaches the page's initial bundle, the same lazy-load
 convention this codebase already uses for the Scala engine/worker.
 
+**Figure sizing: the px→pt unit bug, and `%pdf-figure-scale`.** After the
+width/height capping above shipped, a real generated PDF (`Calc-js`, whose
+diagrams are far simpler than `Sym`'s 19 alternatives) still printed
+page-dominatingly large figures — reported directly against a real PDF, not
+a hypothetical. Root cause: the railroad SVGs' own `width`/`height`
+attributes are authored in CSS pixels (confirmed empirically —
+`svg.getBoundingClientRect().width` matches the SVG's own `width` attribute
+exactly, the standard 96-px/inch convention), but a PDF page's coordinate
+space is points, 72/inch — treating "480" (px) as "480" (pt) drew
+everything ~33% larger than intended, before either cap ever kicked in
+(small diagrams never got big enough to trigger the width/height caps, so
+nothing masked the error). Fixed with `PX_TO_PT = 72/96`, applied before
+scaling/capping. On top of that DPI fix, a diagram sized for on-screen
+reading (arm's-length monitor legibility) still reads oversized relative to
+body text on a printed page — shrunk further by a `DEFAULT_FIGURE_SCALE =
+0.65` multiplier, applied after `PX_TO_PT` and before the width/height caps
+(the caps remain a real safety net for a genuinely large diagram
+regardless of scale).
+
+A document can override the default via its own `%pdf-figure-scale <n>`
+line — a plain multiplier on top of `DEFAULT_FIGURE_SCALE`, so
+`%pdf-figure-scale 1` means "DPI-corrected natural size, no further
+shrinking." Client-side only (a PDF-export presentational concern, not a
+grammar-semantic one) — scanned with a plain regex over the whole
+serialized document text, never sent to or validated by the engine.
+**Must be written as its own line in prose, never inside a ```gramaire
+fence** — confirmed directly, this is not a theoretical concern: the real
+engine's fence classifier currently misclassifies a Settings fence
+containing ANY unrecognized `%`-directive as a `rule` fence instead
+(reproduces with `%pdf-figure-scale` and with an unrelated made-up
+directive equally, so it's a general, pre-existing engine defect, not
+something specific to this feature) — corrupting the whole document (the
+Settings block renders as a bogus rule cell named after its own first
+directive, and a trailing rule silently drops). Scanning the entire
+document's raw text rather than only fence content is what makes prose
+placement work safely today without waiting on that engine bug to be
+fixed. That engine-side defect (Lr.scala's fence classification not
+tolerating an unrecognized Settings-fence directive) is tracked separately,
+out of scope for this PDF-export feature.
+
 **Hover-reveal per-cell actions** (Livebook-style — `CellActions`,
 `GramaireNotebookIsland.tsx`): a small floating row (↑/↓/Link/Delete) in a
 block's top-right corner, `opacity: 0` at rest and `1` on the block's own
