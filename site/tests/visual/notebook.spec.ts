@@ -2217,3 +2217,116 @@ test("the beforeunload guard also warns while a cell or prose editor is open, un
   });
   expect(preventedAfterClose).toBe(false);
 });
+
+function outlineToggleButton(page: import("@playwright/test").Page) {
+  return page.locator("gramark-topbar .grimoire__download-btn", {
+    hasText: "Outline",
+  });
+}
+
+test("the Outline toggle lives in the shared topbar and shows/hides the sidebar", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  await expect(page.locator(".grimoire__outline")).toHaveCount(0);
+  await expect(outlineToggleButton(page)).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+
+  await outlineToggleButton(page).click();
+  await expect(page.locator(".grimoire__outline")).toBeVisible();
+  await expect(outlineToggleButton(page)).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  await outlineToggleButton(page).click();
+  await expect(page.locator(".grimoire__outline")).toHaveCount(0);
+  await expect(outlineToggleButton(page)).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+});
+
+// The default document interleaves a heading before each rule ("## Expr" then the `Expr` rule
+// cell right after it), so the same name legitimately appears twice in a row — once as a
+// heading entry, once as the rule entry immediately below it. Asserting the full labelled+kinded
+// sequence (not just a set of names) is what would catch the outline silently losing document
+// order or conflating the two entry kinds.
+test("the outline lists rule cells and prose headings together, in document order", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  await outlineToggleButton(page).click();
+  const entries = page.locator(".grimoire__outline-item");
+  await expect(entries).toHaveCount(9);
+
+  const labelled = await entries.evaluateAll((els) =>
+    els.map((el) => ({
+      label: el.textContent,
+      isRule: el.classList.contains("grimoire__outline-item--rule"),
+      isHeading: el.classList.contains("grimoire__outline-item--heading"),
+    })),
+  );
+  expect(labelled).toEqual([
+    { label: "Calc-js", isRule: false, isHeading: true },
+    { label: "Tokens", isRule: false, isHeading: true },
+    { label: "Expr", isRule: false, isHeading: true },
+    { label: "Expr", isRule: true, isHeading: false },
+    { label: "Term", isRule: false, isHeading: true },
+    { label: "Term", isRule: true, isHeading: false },
+    { label: "Factor", isRule: false, isHeading: true },
+    { label: "Factor", isRule: true, isHeading: false },
+    { label: "Generated tables", isRule: false, isHeading: true },
+  ]);
+});
+
+test("clicking an outline entry scrolls to the corresponding cell without opening its editor", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await page
+    .locator(".grimoire__body")
+    .evaluate((el) => el.scrollTo(0, el.scrollHeight));
+
+  await outlineToggleButton(page).click();
+  await page
+    .locator(".grimoire__outline-item--rule", { hasText: "Term" })
+    .click();
+
+  await expect(ruleNonterminals(page)).resolves.toContain("Term");
+  const termCell = page.locator('.grimoire__cell[data-nonterminal="Term"]');
+  await expect(termCell).toBeInViewport();
+  await expect(page.locator(".cm-content")).toHaveCount(0);
+  await expect(page.locator(".grimoire__prose-editor")).toHaveCount(0);
+});
+
+test("the outline shows an empty-state message when the document has no headings or rule cells", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  const dataTransfer = await page.evaluateHandle(
+    ({ name, mime, content }) => {
+      const dt = new DataTransfer();
+      dt.items.add(new File([content], name, { type: mime }));
+      return dt;
+    },
+    {
+      name: "no-outline.grmk.md",
+      mime: "text/markdown",
+      content: ["```gramark", "%name NoOutline", "```"].join("\n"),
+    },
+  );
+  await page.locator(".grimoire__doc").dispatchEvent("drop", { dataTransfer });
+  await expect(page.locator(".grimoire__cell")).toHaveCount(1);
+
+  await outlineToggleButton(page).click();
+  await expect(page.locator(".grimoire__outline-item")).toHaveCount(0);
+  await expect(page.locator(".grimoire__outline-empty")).toContainText(
+    "Nothing to outline yet.",
+  );
+});

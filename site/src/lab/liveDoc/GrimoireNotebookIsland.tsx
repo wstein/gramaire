@@ -29,6 +29,7 @@ import {
 } from "./document";
 import type { DocBlock, DocBlockKind } from "./document";
 import { parseMarkdownLite } from "./markdown";
+import type { MdBlock, MdInline } from "./markdown";
 import { MarkdownBlocks } from "./MarkdownBlock";
 import { buildPaperPdf } from "./paperPdf";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
@@ -210,6 +211,51 @@ const warningCount = computed(
       .length,
 );
 
+// The outline sidebar's own collapse toggle — off by default, matching every other secondary
+// panel this document has (the diagnostics panel starts open, but that one has something to say
+// immediately; an empty/short document's outline usually doesn't).
+const outlineOpen = signal(false);
+
+/** Concatenates a heading's inline parts back to plain text — good enough for a navigation label
+ * (unlike MarkdownBlock.tsx's own renderInline, this never needs to become real markup). */
+function inlineText(parts: MdInline[]): string {
+  return parts.map((p) => (p.kind === "image" ? p.alt : p.text)).join("");
+}
+
+export interface OutlineEntry {
+  index: number;
+  label: string;
+  kind: "heading" | "rule";
+}
+
+// One entry per rule cell (labelled by its own nonterminal) and per prose block that opens with an
+// h2/h3 heading (labelled by that heading's own text) — Tokens/Settings/Precedence cells and
+// heading-less prose contribute nothing: neither is a meaningful place to navigate BACK to. Only
+// the FIRST heading in a given prose block becomes an entry (a block with multiple headings is
+// rare in practice, and one entry per block keeps this a true outline, not a wall of entries).
+const outlineEntries = computed<OutlineEntry[]>(() => {
+  const entries: OutlineEntry[] = [];
+  blocks.value.forEach((block, index) => {
+    if (block.kind === "rule" && block.nonterminal) {
+      entries.push({ index, label: block.nonterminal, kind: "rule" });
+      return;
+    }
+    if (block.kind !== "prose") return;
+    const heading = parseMarkdownLite(block.text).find(
+      (b): b is MdBlock & { tag: "h2" | "h3" } =>
+        b.tag === "h2" || b.tag === "h3",
+    );
+    if (heading) {
+      entries.push({
+        index,
+        label: inlineText(heading.parts),
+        kind: "heading",
+      });
+    }
+  });
+  return entries;
+});
+
 // Re-derive block structure from the CURRENT document text whenever a fresh response arrives —
 // `blocks.peek()` (not `.value`) so this effect reacts only to `response` changing, never to
 // `blocks` itself (which would make it re-run on every local edit too, fighting the direct
@@ -283,11 +329,11 @@ function cellLabel(block: DocBlock): string {
   return block.nonterminal ?? BADGE_LABEL[block.kind];
 }
 
-// Scroll a diagnostic's owning cell into view and open its editor — the "click the error, land on
-// the offending source" affordance from the diagnostics panel.
-function jumpToCell(index: number) {
+// Shared by the diagnostics panel's "jump to it" and the outline sidebar's own entries — both
+// need "scroll this cell into view," only the diagnostics panel also opens the editor.
+function scrollToCell(index: number): DocBlock | undefined {
   const block = blocks.value[index];
-  if (!block) return;
+  if (!block) return undefined;
   try {
     document
       .getElementById(`grimoire-cell-${block.id}`)
@@ -295,8 +341,22 @@ function jumpToCell(index: number) {
   } catch {
     /* jsdom / no-DOM contexts: scrolling is a nice-to-have, not load-bearing */
   }
+  return block;
+}
+
+// Scroll a diagnostic's owning cell into view and open its editor — the "click the error, land on
+// the offending source" affordance from the diagnostics panel.
+function jumpToCell(index: number) {
+  const block = scrollToCell(index);
+  if (!block) return;
   if (block.kind === "prose") beginEditProse(index, block.text);
   else beginEditCell(index, block.text);
+}
+
+// The outline sidebar's own click handler — scroll only, never opens an editor (unlike
+// jumpToCell): the outline is a reading/navigation aid, not another way to trigger editing.
+function jumpToOutlineEntry(index: number) {
+  scrollToCell(index);
 }
 
 // Returns focus to the cell a just-closed editor belongs to (Save/Cancel/Escape/blur-commit all
@@ -1115,6 +1175,36 @@ function SaveErrorBanner() {
   );
 }
 
+// A navigation aid, not another editing surface — every entry only scrolls (jumpToOutlineEntry,
+// never jumpToCell's own auto-open-the-editor half). Off by default (see `outlineOpen`'s own
+// comment); rendered as a sibling of `.grimoire__doc` inside `.grimoire__body`, which switches to
+// a row layout the moment this is present (grimoireNotebook.css).
+function OutlineSidebar() {
+  if (!outlineOpen.value) return null;
+  const entries = outlineEntries.value;
+  return (
+    <nav class="grimoire__outline" aria-label="Document outline">
+      {entries.length === 0 ? (
+        <div class="grimoire__outline-empty">Nothing to outline yet.</div>
+      ) : (
+        <ul class="grimoire__outline-list">
+          {entries.map((entry) => (
+            <li key={`${entry.kind}-${entry.index}`}>
+              <button
+                type="button"
+                class={`grimoire__outline-item grimoire__outline-item--${entry.kind}`}
+                onClick={() => jumpToOutlineEntry(entry.index)}
+              >
+                {entry.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </nav>
+  );
+}
+
 // Layer 1: the document-level diagnostics panel — every diagnostic the engine returned, rendered
 // with its message + note lines (and, when its span maps to a cell, that cell's name as a
 // clickable "jump to it" location). Sticky under the topbar so it stays in view while scrolling
@@ -1739,6 +1829,24 @@ function DownloadActions() {
   );
 }
 
+// A toggle, not a one-shot action — same `aria-pressed` convention as `ViewToggle`'s own buttons,
+// just a single lone button rather than a segmented group (there's no third state to reflect).
+function OutlineToggle() {
+  return (
+    <button
+      type="button"
+      class="grimoire__download-btn"
+      aria-pressed={outlineOpen.value}
+      title="Show or hide the document outline"
+      onClick={() => {
+        outlineOpen.value = !outlineOpen.value;
+      }}
+    >
+      Outline
+    </button>
+  );
+}
+
 // The one combined topbar-tools island `notebook.astro` mounts — `ViewToggle` and
 // `DownloadActions` both belong in the same page-tools slot, so one shared `client:load` island
 // for both avoids a second Preact root/hydration entry for controls that are never meaningfully
@@ -1748,6 +1856,7 @@ export function NotebookTopbarTools() {
     <>
       <OpenActions />
       <DownloadActions />
+      <OutlineToggle />
       <ViewToggle />
     </>
   );
@@ -1944,6 +2053,7 @@ export function GrimoireNotebookIsland(
       <SaveErrorBanner />
       <DiagnosticsPanel />
       <div class="grimoire__body">
+        <OutlineSidebar />
         <div
           class={`grimoire__doc${isDraggingFile.value ? " grimoire__doc--dragover" : ""}`}
           onDragOver={(e) => {
