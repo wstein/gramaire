@@ -898,6 +898,34 @@ test("editing the raw source and toggling back updates the corresponding cell's 
   ).toContainText("c.expr + c.term + 1");
 });
 
+// Regression: CodeMirrorEditor's shared keydown handler used to claim the Escape key
+// unconditionally (`return true`) even on an instance with no `onEscape` prop — the Source-view
+// editor has none (there's no safe "revert to last entry" for a whole-document editor without
+// risking the exact stale-`value` race the component's own header comment warns about), so every
+// Escape press there was silently swallowed instead of falling through to CodeMirror's own
+// keymap-driven behavior. Verified here as "Escape does nothing to the draft" — it must not be
+// mistaken for a commit/discard action either.
+test("pressing Escape in Source view does not commit, discard, or otherwise touch the draft", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await viewToggleButton(page, "Source").click();
+
+  const editor = page.locator(".gramaire__source-editor .cm-content");
+  await editor.click();
+  await page.keyboard.press("End");
+  await page.keyboard.type("\n<!-- escape test -->");
+  await page.keyboard.press("Escape");
+
+  // Still on Source view, and the just-typed (uncommitted) text is still right there — Escape
+  // was neither a commit nor a discard, it simply didn't do anything to this editor's own state.
+  await expect(viewToggleButton(page, "Source")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(editor).toContainText("escape test");
+});
+
 test("toggling to Source view and back with no edits leaves the document unchanged", async ({
   page,
 }) => {
@@ -910,6 +938,34 @@ test("toggling to Source view and back with no edits leaves the document unchang
   // ruleNonterminals reads plain attributes (no Playwright auto-wait) — poll since the toggle's
   // own commit + re-derive round-trip settles a moment after the click, not synchronously with it.
   await expect.poll(() => ruleNonterminals(page)).toEqual(namesBefore);
+});
+
+// Regression: commitSourceEdit used to unconditionally rebuild `blocks` from scratch on every
+// Source-view round trip, even with zero edits — collapsing every block into one fresh-id mega
+// prose block and back, discarding every cell's stable `id` for no reason. Since cells are
+// Preact-keyed by `id`, this also remounted every cell/prose component, losing whatever local
+// state it held. A previously-copied "Link" URL would resolve to nothing (or to whatever cell
+// coincidentally reused the fragment later) the moment a user so much as glanced at Source view —
+// reproducing exactly the "link rot" bug stable ids were built to fix.
+test("toggling to Source view and back with no edits does not change any cell's stable id", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const idsBefore = await page
+    .locator(".gramaire__prose, .gramaire__cell[data-kind]")
+    .evaluateAll((els) => els.map((el) => el.id));
+  expect(idsBefore.every((id) => id.length > 0)).toBe(true);
+
+  await viewToggleButton(page, "Source").click();
+  await viewToggleButton(page, "Notebook").click();
+
+  await expect
+    .poll(() =>
+      page
+        .locator(".gramaire__prose, .gramaire__cell[data-kind]")
+        .evaluateAll((els) => els.map((el) => el.id)),
+    )
+    .toEqual(idsBefore);
 });
 
 // Regression: document.ts's own round-trip contract admits one exception — a fence with exactly
@@ -1207,6 +1263,54 @@ test("Open does not prompt for confirmation when the document is still the prist
   expect(dialogSeen).toBe(false);
 });
 
+// Regression: openFile() and loadFromFileInput() each independently called confirmReplace() — on
+// a browser without the File System Access API (or when it throws), accepting the FIRST
+// confirmation and picking a real file through the legacy <input> immediately showed the SAME
+// confirmation a second time before the file actually loaded. The hidden input is now unreachable
+// except via openFile()'s own click (`tabIndex={-1}`), so loadFromFileInput can trust
+// confirmReplace() already ran.
+test("Open through the legacy fallback shows exactly one confirmation, not two, for an edited document", async ({
+  page,
+}) => {
+  await withoutFileSystemAccess(page);
+  await gotoNotebookReady(page);
+
+  await page.locator(".gramaire__prose").first().click();
+  await page.locator(".gramaire__prose-editor").fill("## Edited already");
+  await page.locator(".gramaire__statusbar").click();
+  await expect(page.locator(".gramaire__prose h3").first()).toHaveText(
+    "Edited already",
+  );
+
+  let dialogCount = 0;
+  page.on("dialog", (dialog) => {
+    dialogCount++;
+    void dialog.accept();
+  });
+  const fileChooserPromise = page.waitForEvent("filechooser");
+  await openButton(page).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles({
+    name: "custom.gram.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      [
+        "```gramaire",
+        "%name Loaded",
+        "```",
+        "",
+        "```gramaire",
+        "Go",
+        "  : 'x'",
+        "```",
+      ].join("\n"),
+    ),
+  });
+
+  await expect.poll(() => ruleNonterminals(page)).toEqual(["Go"]);
+  expect(dialogCount).toBe(1);
+});
+
 test("dropping a .gram.md file onto the document loads it", async ({
   page,
 }) => {
@@ -1344,6 +1448,53 @@ test("Open via a File System Access handle enables Save, which writes straight b
   );
   expect(written).toContain("%name Mocked");
   expect(written).toContain("Start");
+});
+
+// Regression: saveInPlace() had no error handling at all — a failed write (permission revoked,
+// the file deleted/moved on disk, the volume unmounted) surfaced only as an unhandled promise
+// rejection in the console, with the Save button giving no indication anything went wrong. A user
+// would reasonably believe their edits were written to disk when they were not.
+async function mockFailingFileSystemAccess(
+  page: import("@playwright/test").Page,
+) {
+  await page.addInitScript(() => {
+    const handle = {
+      async getFile() {
+        return { text: async () => "```gramaire\n%name Mocked\n```" };
+      },
+      async createWritable() {
+        throw new Error("permission denied");
+      },
+    };
+    (
+      window as unknown as {
+        showOpenFilePicker: () => Promise<(typeof handle)[]>;
+      }
+    ).showOpenFilePicker = async () => [handle];
+  });
+}
+
+test("a failed Save shows a dismissible error instead of failing silently", async ({
+  page,
+}) => {
+  await mockFailingFileSystemAccess(page);
+  await gotoNotebookReady(page);
+
+  await openButton(page).click();
+  const saveButton = page.locator(".gramaire__download-btn", {
+    hasText: "Save",
+  });
+  await expect(saveButton).toBeVisible();
+  await saveButton.click();
+
+  const banner = page.locator(".gramaire__autosave-banner", {
+    hasText: "Save failed",
+  });
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText("permission denied");
+
+  await banner.getByRole("button", { name: "Dismiss" }).click();
+  await expect(banner).toHaveCount(0);
 });
 
 // Livebook-style hover-reveal per-cell actions (reorder/link/delete) — a small floating row, not
@@ -1879,6 +2030,42 @@ test("reloading after an edit offers to restore the autosaved session; Restore l
   );
 });
 
+// Regression: the autosave effect used to fire immediately on mount against the still-default
+// `blocks.value`, with no gate on a pending restore offer — ~500ms later it silently overwrote a
+// prior session's real snapshot in localStorage with the default document, before the user had
+// even seen (let alone clicked) the "Restore your unsaved session?" banner. A user who took longer
+// than the debounce window to decide would find their real session permanently gone on the NEXT
+// reload, even though `acceptRestore()` still looked like it worked in the moment (it reads from
+// the in-memory `restoreOffer` signal, not storage, masking the loss until later).
+test("the autosave effect never overwrites a pending restore offer before the user decides", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await page.locator(".gramaire__prose").first().click();
+  await page.locator(".gramaire__prose-editor").fill("## Real session");
+  await page.locator(".gramaire__statusbar").click();
+  await expect(async () => {
+    const raw = await page.evaluate(
+      (key) => localStorage.getItem(key),
+      AUTOSAVE_KEY,
+    );
+    expect(raw).toContain("Real session");
+  }).toPass({ timeout: 3000 });
+
+  await page.reload();
+  await expect(page.locator(".gramaire__autosave-banner")).toBeVisible();
+
+  // Wait well past the autosave debounce window (500ms) WITHOUT clicking Restore or Discard —
+  // the snapshot must still be the real session, not silently replaced by the default document
+  // the page reloaded showing underneath the still-undecided banner.
+  await page.waitForTimeout(1500);
+  const raw = await page.evaluate(
+    (key) => localStorage.getItem(key),
+    AUTOSAVE_KEY,
+  );
+  expect(raw).toContain("Real session");
+});
+
 test("Discard dismisses the restore banner and clears the stale snapshot", async ({
   page,
 }) => {
@@ -1967,4 +2154,42 @@ test("the beforeunload guard prevents unload only while an autosave write is sti
     return event.defaultPrevented;
   });
   expect(preventedAfterFlush).toBe(false);
+});
+
+// Regression: the autosave effect deliberately never writes while a cell/prose editor is open
+// (drafts live in cellDraft/proseDraft, not blocks, until Save/blur) — but the beforeunload guard
+// used to only ever check the debounced-write flag, so an open, uncommitted editor was protected
+// by neither mechanism: closing the tab mid-edit lost the draft with no warning at all.
+test("the beforeunload guard also warns while a cell or prose editor is open, uncommitted", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  // No pending debounced write, and no prior edit — the guard's only signal is "an editor is
+  // currently open."
+  await page.locator(".gramaire__prose").first().click();
+  await expect(page.locator(".gramaire__prose-editor")).toBeVisible();
+
+  const preventedWhileOpen = await page.evaluate(() => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(preventedWhileOpen).toBe(true);
+
+  // Cancelling closes the editor — but the autosave effect itself reads `blocksLocked()`, so
+  // editingProse clearing is its own reactive trigger: the effect re-runs, is no longer locked,
+  // and schedules one more (redundant, since the text never actually changed) debounced write —
+  // briefly keeping the guard armed for another AUTOSAVE_DEBOUNCE_MS. Wait past that window
+  // before expecting the guard to actually clear.
+  await page.locator(".gramaire__toolbar-btn--cancel").click();
+  await expect(page.locator(".gramaire__prose-editor")).not.toBeVisible();
+  await page.waitForTimeout(700);
+
+  const preventedAfterClose = await page.evaluate(() => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(preventedAfterClose).toBe(false);
 });

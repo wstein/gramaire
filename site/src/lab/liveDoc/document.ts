@@ -1,4 +1,5 @@
 import type { FenceInfo } from "../protocol";
+import { randomId } from "./randomId";
 
 // The Live Document notebook's block model. All fence classification (role,
 // nonterminal name) comes from `LabResponse.fences` — computed by the Scala
@@ -12,6 +13,20 @@ import type { FenceInfo } from "../protocol";
 
 const FENCE_OPEN = "```gramaire";
 const FENCE_CLOSE = "```";
+
+/** The ONE place that knows how a fence block's `text` becomes bytes in `serializeDocument`'s
+ * output, including the empty-fence fixed-point special case (an empty fence collapses to the
+ * shorter 2-line `OPEN\nCLOSE` form, no middle blank line — see `serializeDocument`'s own header
+ * for why). `serializeDocument`, `withLineNumbers`, and `blockCharSpans` all derive their own
+ * length/line-count arithmetic from this SAME string instead of each re-deriving the `text === ""`
+ * special case independently — the three had already drifted out of sync once (a real,
+ * previously-shipped bug: `blockCharSpans` assumed the 3-line form unconditionally), which is
+ * exactly the class of mistake a single shared source of truth forecloses. */
+function fenceWrap(text: string): string {
+  return text === ""
+    ? `${FENCE_OPEN}\n${FENCE_CLOSE}`
+    : `${FENCE_OPEN}\n${text}\n${FENCE_CLOSE}`;
+}
 
 /** A block's role: `"prose"` for the markdown between/around fences, or a fence's own
  * `FenceInfo.kind`. */
@@ -49,13 +64,7 @@ export interface DocBlock {
 /** Mints a fresh, opaque block id. Exported so callers that construct a `DocBlock` outside
  * `buildDocument` (inserting a brand-new cell) can mint one the same way. */
 export function makeBlockId(): string {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return crypto.randomUUID();
-  }
-  return `block-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+  return randomId("block");
 }
 
 /**
@@ -113,13 +122,24 @@ export function buildDocument(
 
   if (!prev) return blocks;
   const prevSpans = blockCharSpans(prev);
+  // Keyed by span (not content): a byte-identical span in `prev` is what makes carrying the id
+  // forward deterministic bookkeeping rather than a guess (see this function's own doc comment).
+  // O(1) lookup per block instead of an O(prev.length) scan — matters once a document has dozens
+  // of cells, since this runs on every settled reshape, not just once.
+  const prevBySpan = new Map(
+    prevSpans.map((s, i) => [`${s.start}:${s.end}`, prev[i]]),
+  );
   const nextSpans = blockCharSpans(blocks);
   return blocks.map((b, i) => {
     const span = nextSpans[i];
-    const matchIndex = prevSpans.findIndex(
-      (s) => s.start === span.start && s.end === span.end,
-    );
-    return matchIndex === -1 ? b : { ...b, id: prev[matchIndex].id };
+    const match = prevBySpan.get(`${span.start}:${span.end}`);
+    // Also require the SAME kind: two spans landing on identical bytes is only possible when
+    // `source` itself didn't change (this function's own precondition for `prev`), so in the
+    // ordinary case a span match already implies the same classification — this guard is a
+    // defensive belt or a fail-safe against a future caller weakening that precondition, not a
+    // path this function expects to actually take today. Fail toward a fresh id, never toward
+    // silently carrying identity onto a block the engine now classifies differently.
+    return match && match.kind === b.kind ? { ...b, id: match.id } : b;
   });
 }
 
@@ -140,13 +160,7 @@ export function buildDocument(
  */
 export function serializeDocument(blocks: readonly DocBlock[]): string {
   return blocks
-    .map((b) =>
-      b.kind === "prose"
-        ? b.text
-        : b.text === ""
-          ? `${FENCE_OPEN}\n${FENCE_CLOSE}`
-          : `${FENCE_OPEN}\n${b.text}\n${FENCE_CLOSE}`,
-    )
+    .map((b) => (b.kind === "prose" ? b.text : fenceWrap(b.text)))
     .join("\n");
 }
 
@@ -225,12 +239,10 @@ export function withLineNumbers(
 ): NumberedDocBlock[] {
   let line = 1;
   return blocks.map((b) => {
-    // A fence's own empty `text` means ZERO content lines (see `serializeDocument`'s matching
-    // fixed-point choice), unlike a prose block's empty `text`, which is one genuine blank line —
-    // `"".split("\n").length` is 1 either way, so the fence case is corrected explicitly here.
-    const contentLines =
-      b.kind !== "prose" && b.text === "" ? 0 : b.text.split("\n").length;
-    const lineCount = b.kind === "prose" ? contentLines : contentLines + 2;
+    const lineCount =
+      b.kind === "prose"
+        ? b.text.split("\n").length
+        : fenceWrap(b.text).split("\n").length;
     const startLine = line;
     const endLine = line + lineCount - 1;
     line = endLine + 1;
@@ -272,19 +284,14 @@ export function blockCharSpans(blocks: readonly DocBlock[]): BlockCharSpan[] {
       const end = start + b.text.length;
       spans.push({ start, end, contentStart: start, contentEnd: end });
       pos = end;
-    } else if (b.text === "") {
-      // serializeDocument's own fixed-point choice: `${FENCE_OPEN}\n${FENCE_CLOSE}`, no middle
-      // newline at all (document.ts's own header comment on this collapse).
-      const contentStart = start + FENCE_OPEN.length + 1;
-      const end = contentStart + FENCE_CLOSE.length;
-      spans.push({ start, end, contentStart, contentEnd: contentStart });
-      pos = end;
     } else {
-      // `${FENCE_OPEN}\n${text}\n${FENCE_CLOSE}` — content begins after the opening marker + its
-      // newline, and ends before the closing newline + marker.
+      // `fenceWrap(b.text).length` is exactly `end - start` for either shape (empty-fence
+      // fixed-point collapse included) — content begins after the opening marker + its newline,
+      // regardless of whether a middle newline + closing marker follow it or the fixed point's
+      // closing marker follows immediately.
       const contentStart = start + FENCE_OPEN.length + 1;
       const contentEnd = contentStart + b.text.length;
-      const end = contentEnd + 1 + FENCE_CLOSE.length;
+      const end = start + fenceWrap(b.text).length;
       spans.push({ start, end, contentStart, contentEnd });
       pos = end;
     }

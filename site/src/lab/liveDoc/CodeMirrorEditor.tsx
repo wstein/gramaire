@@ -91,8 +91,12 @@ export function CodeMirrorEditor({
           EditorView.domEventHandlers({
             blur: (event) => onBlurRef.current?.(event),
             keydown: (event) => {
-              if (event.key !== "Escape") return false;
-              onEscapeRef.current?.();
+              // Only claim the keystroke when there's actually a handler to call — an instance
+              // with no `onEscape` (the Source-view editor has none) must let Escape fall through
+              // to CodeMirror's own keymap-driven behavior (e.g. dismissing an autocomplete
+              // tooltip) instead of silently swallowing it every time.
+              if (event.key !== "Escape" || !onEscapeRef.current) return false;
+              onEscapeRef.current();
               return true;
             },
           }),
