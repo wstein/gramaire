@@ -166,6 +166,30 @@
   outline-offset: 2px;
 }
 
+/* Session-autosave banners (RestoreBanner/ForeignUpdateNotice, GramaireNotebookIsland.tsx) — sit
+   above the diagnostics panel so a restore offer is the very first thing a returning visitor
+   sees, before any diagnostic about the (not yet loaded) default document. */
+.gramaire__autosave-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 18px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-1));
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--fg);
+}
+.gramaire__autosave-banner--notice {
+  background: var(--bg-1);
+}
+.gramaire__autosave-banner-actions {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+
 /* Layer 1 — the document diagnostics panel. Sticky on its own again — the ViewToggle that used
    to share this sticky anchor moved out into the shared site topbar's own `tools` slot (always
    visible regardless of scroll already, since the topbar sits outside this page's own scrolling

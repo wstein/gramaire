@@ -1286,3 +1286,152 @@ test("the live preview updates on every keystroke, without needing blur/commit",
     "Second version.",
   );
 });
+
+// Session autosave (notebookPersistence.ts + GramaireNotebookIsland.tsx's mount effect) — a
+// reload used to destroy the whole document with no trace at all. These regression tests exercise
+// the real localStorage-backed round trip through the actual page, not just the pure-logic unit
+// suite (notebook-persistence.spec.ts).
+const AUTOSAVE_KEY = "gramaire-notebook:autosave:v1";
+
+test("editing the document autosaves it to localStorage within the debounce window", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await expect(async () => {
+    const raw = await page.evaluate(
+      (key) => localStorage.getItem(key),
+      AUTOSAVE_KEY,
+    );
+    expect(raw).not.toBeNull();
+  }).toPass({ timeout: 3000 });
+
+  await page.locator(".gramaire__prose").first().click();
+  await page.locator(".gramaire__prose-editor").fill("Autosaved paragraph.");
+  await page.locator(".gramaire__statusbar").click(); // blur, commits
+
+  await expect(async () => {
+    const raw = await page.evaluate(
+      (key) => localStorage.getItem(key),
+      AUTOSAVE_KEY,
+    );
+    expect(raw).toContain("Autosaved paragraph.");
+  }).toPass({ timeout: 3000 });
+});
+
+test("reloading after an edit offers to restore the autosaved session; Restore loads it", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await page.locator(".gramaire__prose").first().click();
+  await page.locator(".gramaire__prose-editor").fill("## Restored heading");
+  await page.locator(".gramaire__statusbar").click();
+  await expect(async () => {
+    const raw = await page.evaluate(
+      (key) => localStorage.getItem(key),
+      AUTOSAVE_KEY,
+    );
+    expect(raw).toContain("Restored heading");
+  }).toPass({ timeout: 3000 });
+
+  await page.reload();
+  await expect(page.locator(".gramaire__autosave-banner")).toBeVisible();
+  await page
+    .locator(".gramaire__autosave-banner", { hasText: "Restore your unsaved" })
+    .getByRole("button", { name: "Restore" })
+    .click();
+
+  await expect(page.locator(".gramaire__autosave-banner")).toHaveCount(0);
+  await expect(page.locator(".gramaire__prose h3").first()).toHaveText(
+    "Restored heading",
+  );
+});
+
+test("Discard dismisses the restore banner and clears the stale snapshot", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await page.locator(".gramaire__prose").first().click();
+  await page.locator(".gramaire__prose-editor").fill("## Discard me");
+  await page.locator(".gramaire__statusbar").click();
+  await expect(async () => {
+    const raw = await page.evaluate(
+      (key) => localStorage.getItem(key),
+      AUTOSAVE_KEY,
+    );
+    expect(raw).toContain("Discard me");
+  }).toPass({ timeout: 3000 });
+
+  await page.reload();
+  await expect(page.locator(".gramaire__autosave-banner")).toBeVisible();
+  await page.locator(".gramaire__toolbar-btn--cancel").click(); // Discard
+
+  await expect(page.locator(".gramaire__autosave-banner")).toHaveCount(0);
+  const raw = await page.evaluate(
+    (key) => localStorage.getItem(key),
+    AUTOSAVE_KEY,
+  );
+  expect(raw).toBeNull();
+  // The document itself is untouched — the pristine default, not the discarded draft.
+  await expect(page.locator(".gramaire__prose h3")).toHaveCount(0);
+});
+
+test("editing in one tab shows a non-blocking notice in another tab open to the same session", async ({
+  page,
+  context,
+}) => {
+  await gotoNotebookReady(page);
+  const otherPage = await context.newPage();
+  await otherPage.goto("notebook/");
+  await expect(otherPage.locator(".gramaire__cell").first()).toBeVisible();
+
+  await page.locator(".gramaire__prose").first().click();
+  await page.locator(".gramaire__prose-editor").fill("## Edited elsewhere");
+  await page.locator(".gramaire__statusbar").click();
+
+  await expect(
+    otherPage.locator(".gramaire__autosave-banner--notice"),
+  ).toBeVisible({ timeout: 3000 });
+  await expect(
+    otherPage.locator(".gramaire__autosave-banner--notice"),
+  ).toContainText("edited in another tab");
+  await otherPage.close();
+});
+
+// The `beforeunload` guard only protects the last (at most ~500ms-old) unflushed keystroke — a
+// small, honestly-scoped safety net, not a general "you have unsaved work" warning. Dispatching
+// the event directly and reading `defaultPrevented` tests the handler's own logic without
+// depending on any particular browser's beforeunload-dialog UI (notoriously inconsistent across
+// engines).
+test("the beforeunload guard prevents unload only while an autosave write is still pending", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  // Immediately after an edit, a write is debounced but not yet flushed.
+  await page.locator(".gramaire__prose").first().click();
+  await page.locator(".gramaire__prose-editor").fill("## About to unload");
+  await page.locator(".gramaire__statusbar").click();
+
+  const preventedWhilePending = await page.evaluate(() => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(preventedWhilePending).toBe(true);
+
+  // Once the debounced write has flushed, there is nothing left to lose.
+  await expect(async () => {
+    const raw = await page.evaluate(
+      (key) => localStorage.getItem(key),
+      AUTOSAVE_KEY,
+    );
+    expect(raw).toContain("About to unload");
+  }).toPass({ timeout: 3000 });
+
+  const preventedAfterFlush = await page.evaluate(() => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(preventedAfterFlush).toBe(false);
+});
