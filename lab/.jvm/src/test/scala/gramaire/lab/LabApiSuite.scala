@@ -230,19 +230,20 @@ class LabApiSuite extends munit.FunSuite:
   test("evaluate: fences reports every ```gramaire fence's role and 1-based line span") {
     val resp = LabApi.evaluate(LabRequest(calcMd, None, Method.Canonical))
     assert(resp.buildOk)
-    // examples/calc.gram.md's own ```gramaire fences, in document order: Settings (6-9), Tokens
-    // (13-16), Expr/Term/Factor rules, Precedence (60-63). "## Error messages" uses a ```text
-    // fence, never ```gramaire, so it's correctly absent here.
+    // examples/calc.gram.md's own ```gramaire fences, in document order: Settings, Tokens,
+    // Expr/Term/Factor rules (each collapsed behind <details><summary>Source</summary> by
+    // default `fmt`, per the fence's own committed line numbers), Precedence. "## Error messages"
+    // uses a ```text fence, never ```gramaire, so it's correctly absent here.
     assertEquals(resp.fences.map(_.index), Vector(0, 1, 2, 3, 4, 5))
     assertEquals(
       resp.fences.map(f => (f.kind, f.nonterminal, f.startLine, f.endLine)),
       Vector(
-        ("settings", None, 6, 9),
-        ("tokens", None, 13, 16),
-        ("rule", Some("Expr"), 22, 27),
-        ("rule", Some("Term"), 35, 40),
-        ("rule", Some("Factor"), 48, 52),
-        ("precedence", None, 60, 63)
+        ("settings", None, 9, 12),
+        ("tokens", None, 18, 21),
+        ("rule", Some("Expr"), 32, 37),
+        ("rule", Some("Term"), 50, 55),
+        ("rule", Some("Factor"), 68, 72),
+        ("precedence", None, 80, 83)
       )
     )
   }

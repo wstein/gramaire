@@ -3,10 +3,15 @@
 A small arithmetic grammar demonstrating the Gramaire fenced envelope.
 Operators are left-associative; `*` and `/` bind tighter than `+` and `-`.
 
+<details>
+<summary>Declarations</summary>
+
 ```gramaire
 %name Calc
 %lang javascript
 ```
+
+</details>
 
 ## Tokens
 
@@ -19,6 +24,11 @@ WS     : /[ \t\r\n]+/   %skip
 
 An expression is a sum or difference of terms.
 
+![Railroad diagram for the Expr rule](diagrams-calc/expr.svg)
+
+<details>
+<summary>Source</summary>
+
 ```gramaire
 Expr
   : Expr '+' Term   {% (c) => ({ tag: "Add", left: c.expr, right: c.term }) %}
@@ -26,11 +36,16 @@ Expr
   | Term
 ```
 
-![Railroad diagram for the Expr rule](diagrams-calc/expr.svg)
+</details>
 
 ## Term
 
 A term is a product or quotient of factors.
+
+![Railroad diagram for the Term rule](diagrams-calc/term.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramaire
 Term
@@ -39,11 +54,16 @@ Term
   | Factor
 ```
 
-![Railroad diagram for the Term rule](diagrams-calc/term.svg)
+</details>
 
 ## Factor
 
 A factor is a number or a parenthesised expression.
+
+![Railroad diagram for the Factor rule](diagrams-calc/factor.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramaire
 Factor
@@ -51,7 +71,7 @@ Factor
   | NUMBER          {% (c) => ({ tag: "Lit", value: Number(c.number) }) %}
 ```
 
-![Railroad diagram for the Factor rule](diagrams-calc/factor.svg)
+</details>
 
 ## Precedence
 

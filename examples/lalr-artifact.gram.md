@@ -11,11 +11,21 @@ grammar that was never actually ambiguous.
 Pick **Canonical** or **IELR** in the Engine picker to see it build cleanly;
 **LALR** reports a conflict the language doesn't actually have.
 
+<details>
+<summary>Declarations</summary>
+
 ```gramaire
 %name LalrArtifact
 ```
 
+</details>
+
 ## S
+
+![Railroad diagram for the S rule](diagrams-lalr-artifact/s.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramaire
 S
@@ -25,25 +35,35 @@ S
   | 'b' A 'e'
 ```
 
-![Railroad diagram for the S rule](diagrams-lalr-artifact/s.svg)
+</details>
 
 ## A
+
+![Railroad diagram for the A rule](diagrams-lalr-artifact/a.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramaire
 A
   : 'c'
 ```
 
-![Railroad diagram for the A rule](diagrams-lalr-artifact/a.svg)
+</details>
 
 ## B
+
+![Railroad diagram for the B rule](diagrams-lalr-artifact/b.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramaire
 B
   : 'c'
 ```
 
-![Railroad diagram for the B rule](diagrams-lalr-artifact/b.svg)
+</details>
 
 ## Generated tables
 
