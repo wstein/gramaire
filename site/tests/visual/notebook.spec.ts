@@ -1453,6 +1453,54 @@ test("Link copies a URL fragment to this cell and shows brief feedback", async (
   await expect(linkBtn).toHaveText("Link", { timeout: 3000 });
 });
 
+// Stable block ids (document.ts's own `id`/`prev` carryover) are the concrete fix for a link that
+// used to rot the moment anything shifted: the fragment was `#grimoire-cell-${index}`, an array
+// POSITION, so inserting anything before the cell it named repointed the same URL at whatever
+// cell now happened to slide into its old slot. The id travels WITH the block instead.
+//
+// Uses "+ Rule" (not "+ Prose") to force the shift: a prose insertion right before a fence gets
+// re-absorbed into the SAME merged prose region once the reshape effect rebuilds from the
+// engine's own fences (buildDocument treats the entire gap between two fences as one block,
+// regardless of how many separate client-side inserts produced its text) — Expr's own array
+// index would end up right back where it started, defeating the point of this test. A rule
+// fence is never merged; inserting one permanently and unambiguously shifts everything after it.
+test("a cell's link keeps pointing at the same cell after a new block is inserted before it", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const exprCell = page.locator('.grimoire__cell[data-nonterminal="Expr"]');
+  const idBefore = await exprCell.getAttribute("id");
+
+  const zoneIndex = await firstRuleZoneIndex(page);
+  const zone = page.locator(".grimoire__insert-zone").nth(zoneIndex);
+  await zone.hover();
+  await zone
+    .locator(".grimoire__insert-btn")
+    .filter({ hasText: "Rule" })
+    .click();
+  const editor = page.locator(".cm-content").first();
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type("Inserted\n  : 'x'");
+  await page.locator(".grimoire__statusbar").click(); // blur, commits
+  await page.waitForTimeout(1500);
+
+  await expect(
+    page.locator('.grimoire__cell[data-nonterminal="Inserted"]'),
+  ).toHaveCount(1);
+
+  const idAfter = await exprCell.getAttribute("id");
+  expect(idAfter).toBe(idBefore); // same id, even though its array position shifted
+
+  // The id in the DOM is still owned by the Expr cell specifically, not by whichever cell now
+  // sits at Expr's OLD array position.
+  const ownerNonterminal = await page.evaluate(
+    (id) => document.getElementById(id!)?.getAttribute("data-nonterminal"),
+    idAfter,
+  );
+  expect(ownerNonterminal).toBe("Expr");
+});
+
 // Regression: ProseBlock's rendered div never carried its own `id` — only GrammarCell's did — so
 // copying a prose block's link produced a fragment URL pointing at nothing in the DOM, and
 // jumpToCell's scrollIntoView silently no-opped for a prose-attributed diagnostic.

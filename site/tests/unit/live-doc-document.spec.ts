@@ -4,6 +4,7 @@ import path from "node:path";
 import { test, expect } from "@playwright/test";
 import {
   buildDocument,
+  makeBlockId,
   serializeDocument,
   replaceBlockText,
   removeBlock,
@@ -89,10 +90,64 @@ test("buildDocument produces prose blocks for the gaps between/around fences", (
 test("buildDocument: no fences (native .grmk) yields one prose block, still round-trips", () => {
   const source = "%name Foo\n%lang javascript\n\nFoo\n: 'x'\n";
   const blocks = buildDocument(source, []);
-  expect(blocks).toEqual([
+  expect(blocks).toMatchObject([
     { kind: "prose", text: source, nonterminal: null, fenceIndex: null },
   ]);
+  expect(typeof blocks[0].id).toBe("string");
+  expect(blocks[0].id.length).toBeGreaterThan(0);
   expect(serializeDocument(blocks)).toBe(source);
+});
+
+test("buildDocument: without `prev`, every block gets a fresh, distinct id", () => {
+  const source = readCalcMd();
+  const blocks = buildDocument(source, calcFences);
+  const ids = blocks.map((b) => b.id);
+  expect(new Set(ids).size).toBe(ids.length); // no duplicates
+  ids.forEach((id) => {
+    expect(typeof id).toBe("string");
+    expect(id.length).toBeGreaterThan(0);
+  });
+});
+
+// The core of the id-carryover contract: `prev` is only ever passed when `source ===
+// serializeDocument(prev)` (GrimoireNotebookIsland.tsx's own reshape effect enforces this before
+// calling), so a block occupying the EXACT SAME character span in both `prev` and the freshly
+// built blocks is deterministically the same block — its id carries forward. A response that
+// reclassifies the SAME text differently (settings → rule, say) still carries the id forward:
+// identity here tracks POSITION in agreed-upon-identical bytes, not the engine's own label.
+test("buildDocument: passing `prev` carries a block's id forward when its span is unchanged", () => {
+  const source = readCalcMd();
+  const prev = buildDocument(source, calcFences);
+  // Same fences, freshly re-requested (e.g. a second evaluate() of otherwise-untouched text) —
+  // every block's span is identical to `prev`'s own.
+  const next = buildDocument(source, calcFences, prev);
+
+  expect(next.map((b) => b.id)).toEqual(prev.map((b) => b.id));
+});
+
+test("buildDocument: passing `prev` mints a fresh id for a block whose span has no match in `prev`", () => {
+  const source = [
+    "```gramark",
+    "%name A",
+    "```",
+    "```gramark",
+    "TOK : /x/",
+    "```",
+  ].join("\n");
+  const prevFences: FenceInfo[] = [fence(0, "settings", null, 1, 3)];
+  const prev = buildDocument("```gramark\n%name A\n```", prevFences);
+
+  const nextFences: FenceInfo[] = [
+    fence(0, "settings", null, 1, 3),
+    fence(1, "tokens", null, 4, 6),
+  ];
+  const next = buildDocument(source, nextFences, prev);
+
+  // The settings block's span is unchanged (same leading bytes) — id carries over.
+  expect(next[0].id).toBe(prev[0].id);
+  // The tokens block has no counterpart in `prev` at all — a genuinely fresh id, never equal to
+  // anything `prev` held.
+  expect(prev.some((b) => b.id === next[1].id)).toBe(false);
 });
 
 test("buildDocument: adjacent fences with no gap produce no spurious empty prose block", () => {
@@ -367,6 +422,7 @@ test("insertBlock: inserts at the given index, shifting every later block by one
   const blocks = buildDocument(readCalcMd(), calcFences);
   const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
   const newBlock = {
+    id: makeBlockId(),
     kind: "prose" as const,
     text: "",
     nonterminal: null,
@@ -383,6 +439,7 @@ test("insertBlock: inserts at the given index, shifting every later block by one
 test("insertBlock: index === blocks.length appends at the very end", () => {
   const blocks = buildDocument(readCalcMd(), calcFences);
   const newBlock = {
+    id: makeBlockId(),
     kind: "prose" as const,
     text: "the end",
     nonterminal: null,
