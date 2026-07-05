@@ -7,6 +7,7 @@ import calcJsSource from "../../../examples/calc-js.grmk.md?raw";
 import jsonSource from "../../../examples/json.grmk.md?raw";
 import danglingElseSource from "../../../examples/dangling-else.grmk.md?raw";
 import lalrArtifactSource from "../../../examples/lalr-artifact.grmk.md?raw";
+import predicateGuardSource from "../../../examples/predicate-guard.grmk.md?raw";
 
 export interface LabExample {
   name: string;
@@ -84,5 +85,13 @@ export const EXAMPLES: LabExample[] = [
     name: "LALR artifact (needs Canonical/IELR)",
     source: lalrArtifactSource,
     input: "acd",
+  },
+  // `{%? %}` alongside ordinary `{% %}` actions in one grammar — combining both is why this one's
+  // `Try it` never computes a live result (a predicate anywhere suppresses the whole evaluator;
+  // see the grammar's own prose for why).
+  {
+    name: "Predicate guard (no live evaluator)",
+    source: predicateGuardSource,
+    input: "let x = 2 + 3",
   },
 ];
