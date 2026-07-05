@@ -12,10 +12,15 @@ definition names is enforced by the fold, matching `Tokens.validateName`.
 Semantic actions build tagged JavaScript objects mirroring the current sidecar
 parsers and production AST.
 
+<details>
+<summary>Declarations</summary>
+
 ```gramark
 %name Gramark
 %lang javascript
 ```
+
+</details>
 
 ## Tokens
 
@@ -71,6 +76,11 @@ File
 
 ## Preamble
 
+![Railroad diagram for the Preamble rule](diagrams-Gramark/preamble.svg)
+
+<details>
+<summary>Source</summary>
+
 ```gramark
 Preamble
   : SettingList                 {% (c) => ({ tag: "Preamble", settings: c[0], tokens: [] }) %}
@@ -78,9 +88,14 @@ Preamble
   | SettingList TokenDeclList   {% (c) => ({ tag: "Preamble", settings: c[0], tokens: c[1] }) %}
 ```
 
-![Railroad diagram for the Preamble rule](diagrams-Gramark/preamble.svg)
+</details>
 
 ## SettingList
+
+![Railroad diagram for the SettingList rule](diagrams-Gramark/settinglist.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 SettingList
@@ -88,9 +103,14 @@ SettingList
   | SettingList SettingDecl   {% (c) => [...c[0], c[1]] %}
 ```
 
-![Railroad diagram for the SettingList rule](diagrams-Gramark/settinglist.svg)
+</details>
 
 ## SettingDecl
+
+![Railroad diagram for the SettingDecl rule](diagrams-Gramark/settingdecl.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 SettingDecl
@@ -98,9 +118,14 @@ SettingDecl
   | '%lang' IDENT   {% (c) => ({ tag: "Lang", value: c[1] }) %}
 ```
 
-![Railroad diagram for the SettingDecl rule](diagrams-Gramark/settingdecl.svg)
+</details>
 
 ## TokenDeclList
+
+![Railroad diagram for the TokenDeclList rule](diagrams-Gramark/tokendecllist.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 TokenDeclList
@@ -108,9 +133,14 @@ TokenDeclList
   | TokenDeclList TokenDecl   {% (c) => [...c[0], c[1]] %}
 ```
 
-![Railroad diagram for the TokenDeclList rule](diagrams-Gramark/tokendecllist.svg)
+</details>
 
 ## TokenDecl
+
+![Railroad diagram for the TokenDecl rule](diagrams-Gramark/tokendecl.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 TokenDecl
@@ -118,9 +148,14 @@ TokenDecl
   | IDENT ':' TokenPattern ModList   {% (c) => ({ tag: "TokenDecl", name: c[0], pattern: c[2], modifiers: c[3] }) %}
 ```
 
-![Railroad diagram for the TokenDecl rule](diagrams-Gramark/tokendecl.svg)
+</details>
 
 ## TokenPattern
+
+![Railroad diagram for the TokenPattern rule](diagrams-Gramark/tokenpattern.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 TokenPattern
@@ -128,9 +163,14 @@ TokenPattern
   | TERM_LIT    {% (c) => ({ tag: "ExactPat", source: c[0] }) %}
 ```
 
-![Railroad diagram for the TokenPattern rule](diagrams-Gramark/tokenpattern.svg)
+</details>
 
 ## ModList
+
+![Railroad diagram for the ModList rule](diagrams-Gramark/modlist.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 ModList
@@ -138,9 +178,14 @@ ModList
   | ModList Modifier       {% (c) => [...c[0], c[1]] %}
 ```
 
-![Railroad diagram for the ModList rule](diagrams-Gramark/modlist.svg)
+</details>
 
 ## Modifier
+
+![Railroad diagram for the Modifier rule](diagrams-Gramark/modifier.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Modifier
@@ -150,9 +195,14 @@ Modifier
   | EXTERNAL      {% (c) => ({ tag: "External", value: c[0] }) %}
 ```
 
-![Railroad diagram for the Modifier rule](diagrams-Gramark/modifier.svg)
+</details>
 
 ## PrecList
+
+![Railroad diagram for the PrecList rule](diagrams-Gramark/preclist.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 PrecList
@@ -160,9 +210,14 @@ PrecList
   | PrecList PrecDecl    {% (c) => [...c[0], c[1]] %}
 ```
 
-![Railroad diagram for the PrecList rule](diagrams-Gramark/preclist.svg)
+</details>
 
 ## PrecDecl
+
+![Railroad diagram for the PrecDecl rule](diagrams-Gramark/precdecl.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 PrecDecl
@@ -171,9 +226,14 @@ PrecDecl
   | '%nonassoc' PrecTermList  {% (c) => ({ tag: "PrecDecl", assoc: "nonassoc", terms: c[1] }) %}
 ```
 
-![Railroad diagram for the PrecDecl rule](diagrams-Gramark/precdecl.svg)
+</details>
 
 ## PrecTermList
+
+![Railroad diagram for the PrecTermList rule](diagrams-Gramark/prectermlist.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 PrecTermList
@@ -181,9 +241,14 @@ PrecTermList
   | PrecTermList PrecTerm   {% (c) => [...c[0], c[1]] %}
 ```
 
-![Railroad diagram for the PrecTermList rule](diagrams-Gramark/prectermlist.svg)
+</details>
 
 ## PrecTerm
+
+![Railroad diagram for the PrecTerm rule](diagrams-Gramark/precterm.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 PrecTerm
@@ -191,7 +256,7 @@ PrecTerm
   | IDENT      {% (c) => ({ tag: "Ref", name: c[0] }) %}
 ```
 
-![Railroad diagram for the PrecTerm rule](diagrams-Gramark/precterm.svg)
+</details>
 
 ## RuleList
 
@@ -232,15 +297,25 @@ Rule
 
 ## Body
 
+![Railroad diagram for the Body rule](diagrams-Gramark/body.svg)
+
+<details>
+<summary>Source</summary>
+
 ```gramark
 Body
   : Alt            {% (c) => [c[0]] %}
   | Body '|' Alt   {% (c) => [...c[0], c[2]] %}
 ```
 
-![Railroad diagram for the Body rule](diagrams-Gramark/body.svg)
+</details>
 
 ## Alt
+
+![Railroad diagram for the Alt rule](diagrams-Gramark/alt.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Alt
@@ -250,9 +325,14 @@ Alt
   | SymList                {% (c) => ({ tag: "Alt", syms: c[0], label: null, action: null }) %}
 ```
 
-![Railroad diagram for the Alt rule](diagrams-Gramark/alt.svg)
+</details>
 
 ## SymList
+
+![Railroad diagram for the SymList rule](diagrams-Gramark/symlist.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 SymList
@@ -260,9 +340,14 @@ SymList
   | SymList Sym   {% (c) => [...c[0], c[1]] %}
 ```
 
-![Railroad diagram for the SymList rule](diagrams-Gramark/symlist.svg)
+</details>
 
 ## Sym
+
+![Railroad diagram for the Sym rule](diagrams-Gramark/sym.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Sym
@@ -286,9 +371,14 @@ Sym
   | Atom QUESTION   {% (c) => ({ tag: "Opt", sym: c[0] }) %}
 ```
 
-![Railroad diagram for the Sym rule](diagrams-Gramark/sym.svg)
+</details>
 
 ## Args
+
+![Railroad diagram for the Args rule](diagrams-Gramark/args.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Args
@@ -296,27 +386,42 @@ Args
   | Args COMMA Sym   {% (c) => [...c[0], c[2]] %}
 ```
 
-![Railroad diagram for the Args rule](diagrams-Gramark/args.svg)
+</details>
 
 ## Action
+
+![Railroad diagram for the Action rule](diagrams-Gramark/action.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Action
   : ACTION   {% (c) => c[0] %}
 ```
 
-![Railroad diagram for the Action rule](diagrams-Gramark/action.svg)
+</details>
 
 ## Label
+
+![Railroad diagram for the Label rule](diagrams-Gramark/label.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Label
   : LABEL   {% (c) => c[0] %}
 ```
 
-![Railroad diagram for the Label rule](diagrams-Gramark/label.svg)
+</details>
 
 ## GroupBody
+
+![Railroad diagram for the GroupBody rule](diagrams-Gramark/groupbody.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 GroupBody
@@ -324,9 +429,14 @@ GroupBody
   | GroupBody '|' SymList   {% (c) => [...c[0], c[2]] %}
 ```
 
-![Railroad diagram for the GroupBody rule](diagrams-Gramark/groupbody.svg)
+</details>
 
 ## Atom
+
+![Railroad diagram for the Atom rule](diagrams-Gramark/atom.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Atom
@@ -334,9 +444,14 @@ Atom
   | '~' NotArg   {% (c) => ({ tag: "Not", set: c[1] }) %}
 ```
 
-![Railroad diagram for the Atom rule](diagrams-Gramark/atom.svg)
+</details>
 
 ## NotArg
+
+![Railroad diagram for the NotArg rule](diagrams-Gramark/notarg.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 NotArg
@@ -344,9 +459,14 @@ NotArg
   | '(' SetBody ')'   {% (c) => c[1] %}
 ```
 
-![Railroad diagram for the NotArg rule](diagrams-Gramark/notarg.svg)
+</details>
 
 ## SetBody
+
+![Railroad diagram for the SetBody rule](diagrams-Gramark/setbody.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 SetBody
@@ -354,9 +474,14 @@ SetBody
   | SetBody '|' SetItem  {% (c) => [...c[0], c[2]] %}
 ```
 
-![Railroad diagram for the SetBody rule](diagrams-Gramark/setbody.svg)
+</details>
 
 ## SetItem
+
+![Railroad diagram for the SetItem rule](diagrams-Gramark/setitem.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 SetItem
@@ -364,7 +489,7 @@ SetItem
   | TERM_LIT   {% (c) => ({ tag: "Lit", text: c[0] }) %}
 ```
 
-![Railroad diagram for the SetItem rule](diagrams-Gramark/setitem.svg)
+</details>
 
 ## Error messages
 
@@ -384,3 +509,33 @@ after Alt, lookahead is '%left':
 ## Generated tables
 
 <!-- Generated by Gramark — do not edit; run `gramark fmt` to refresh. -->
+
+| Nonterminal     | FIRST                                  | FOLLOW                                                                                                                                   |
+| --------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `File`          | `NL` `%name` `IDENT` `%lang` `ATTR`    | `$`                                                                                                                                      |
+| `Preamble`      | `%name` `IDENT` `%lang`                | `NL`                                                                                                                                     |
+| `SettingList`   | `%name` `%lang`                        | `NL` `%name` `IDENT` `%lang`                                                                                                             |
+| `SettingDecl`   | `%name` `%lang`                        | `NL` `%name` `IDENT` `%lang`                                                                                                             |
+| `TokenDeclList` | `IDENT`                                | `NL` `IDENT`                                                                                                                             |
+| `TokenDecl`     | `IDENT`                                | `NL` `IDENT`                                                                                                                             |
+| `TokenPattern`  | `REGEX_LIT` `TERM_LIT`                 | `NL` `IDENT` `%skip` `%caseless` `%prec` `EXTERNAL`                                                                                      |
+| `ModList`       | `%skip` `%caseless` `%prec` `EXTERNAL` | `NL` `IDENT` `%skip` `%caseless` `%prec` `EXTERNAL`                                                                                      |
+| `Modifier`      | `%skip` `%caseless` `%prec` `EXTERNAL` | `NL` `IDENT` `%skip` `%caseless` `%prec` `EXTERNAL`                                                                                      |
+| `PrecList`      | `%left` `%right` `%nonassoc`           | `%left` `%right` `%nonassoc` `$`                                                                                                         |
+| `PrecDecl`      | `%left` `%right` `%nonassoc`           | `%left` `%right` `%nonassoc` `$`                                                                                                         |
+| `PrecTermList`  | `IDENT` `TERM_LIT`                     | `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `$`                                                                                      |
+| `PrecTerm`      | `IDENT` `TERM_LIT`                     | `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `$`                                                                                      |
+| `RuleList`      | `IDENT` `ATTR`                         | `NL` `%left` `%right` `%nonassoc` `$`                                                                                                    |
+| `Rule`          | `IDENT` `ATTR`                         | `NL` `%left` `%right` `%nonassoc` `$`                                                                                                    |
+| `Body`          | `IDENT` `TERM_LIT` `(` `.` `~`         | `NL` `%left` `%right` `%nonassoc` `\|` `$`                                                                                               |
+| `Alt`           | `IDENT` `TERM_LIT` `(` `.` `~`         | `NL` `%left` `%right` `%nonassoc` `\|` `$`                                                                                               |
+| `SymList`       | `IDENT` `TERM_LIT` `(` `.` `~`         | `NL` `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `\|` `(` `)` `ACTION` `LABEL` `.` `~` `$`                                           |
+| `Sym`           | `IDENT` `TERM_LIT` `(` `.` `~`         | `NL` `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `\|` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` `$`                          |
+| `Args`          | `IDENT` `TERM_LIT` `(` `.` `~`         | `RANGLE` `COMMA`                                                                                                                         |
+| `Action`        | `ACTION`                               | `NL` `%left` `%right` `%nonassoc` `\|` `$`                                                                                               |
+| `Label`         | `LABEL`                                | `NL` `%left` `%right` `%nonassoc` `\|` `ACTION` `$`                                                                                      |
+| `GroupBody`     | `IDENT` `TERM_LIT` `(` `.` `~`         | `\|` `)`                                                                                                                                 |
+| `Atom`          | `.` `~`                                | `NL` `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `\|` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` `$` |
+| `NotArg`        | `IDENT` `TERM_LIT` `(`                 | `NL` `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `\|` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` `$` |
+| `SetBody`       | `IDENT` `TERM_LIT`                     | `\|` `)`                                                                                                                                 |
+| `SetItem`       | `IDENT` `TERM_LIT`                     | `NL` `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `\|` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` `$` |

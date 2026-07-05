@@ -23,9 +23,14 @@ a precedence declaration; this grammar deliberately omits one, to isolate
 the ambiguity itself), but that's this fixture's luck, not a guarantee. See
 `docs/playground-spec.md` §9 for the fuller finding.
 
+<details>
+<summary>Declarations</summary>
+
 ```gramark
 %name DanglingElse
 ```
+
+</details>
 
 ## Tokens
 
@@ -35,6 +40,11 @@ WS : /[ \t\r\n]+/   %skip
 
 ## Stmt
 
+![Railroad diagram for the Stmt rule](diagrams-dangling-else/stmt.svg)
+
+<details>
+<summary>Source</summary>
+
 ```gramark
 Stmt
   : 'if' 'c' 'then' Stmt
@@ -42,7 +52,7 @@ Stmt
   | 's'
 ```
 
-![Railroad diagram for the Stmt rule](diagrams-dangling-else/stmt.svg)
+</details>
 
 ## Generated tables
 

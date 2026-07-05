@@ -3,10 +3,15 @@
 An arithmetic calculator that evaluates its own input — a demonstration
 of inline `{% … %}` actions.
 
+<details>
+<summary>Declarations</summary>
+
 ```gramark
 %name Calc-js
 %lang javascript
 ```
+
+</details>
 
 ## Tokens
 
@@ -17,6 +22,11 @@ WS     : /[ \t\r\n]+/   %skip
 
 ## Expr
 
+![Railroad diagram for the Expr rule](diagrams-calc-js/expr.svg)
+
+<details>
+<summary>Source</summary>
+
 ```gramark
 Expr
   : Expr '+' Term   {% (c) => c.expr + c.term %}
@@ -24,9 +34,14 @@ Expr
   | Term
 ```
 
-![Railroad diagram for the Expr rule](diagrams-calc-js/expr.svg)
+</details>
 
 ## Term
+
+![Railroad diagram for the Term rule](diagrams-calc-js/term.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Term
@@ -35,9 +50,14 @@ Term
   | Factor
 ```
 
-![Railroad diagram for the Term rule](diagrams-calc-js/term.svg)
+</details>
 
 ## Factor
+
+![Railroad diagram for the Factor rule](diagrams-calc-js/factor.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Factor
@@ -45,7 +65,7 @@ Factor
   | NUMBER        {% (c) => parseFloat(c.number) %}
 ```
 
-![Railroad diagram for the Factor rule](diagrams-calc-js/factor.svg)
+</details>
 
 ## Generated tables
 

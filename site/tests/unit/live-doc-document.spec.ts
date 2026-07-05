@@ -45,12 +45,12 @@ function fence(
 // unit test with no Scala.js build dependency; a drift between the two would mean calc.grmk.md's
 // structure changed and only one of the two suites was updated.
 const calcFences: FenceInfo[] = [
-  fence(0, "settings", null, 6, 9),
-  fence(1, "tokens", null, 13, 16),
-  fence(2, "rule", "Expr", 22, 27),
-  fence(3, "rule", "Term", 35, 40),
-  fence(4, "rule", "Factor", 48, 52),
-  fence(5, "precedence", null, 60, 63),
+  fence(0, "settings", null, 9, 12),
+  fence(1, "tokens", null, 18, 21),
+  fence(2, "rule", "Expr", 32, 37),
+  fence(3, "rule", "Term", 50, 55),
+  fence(4, "rule", "Factor", 68, 72),
+  fence(5, "precedence", null, 80, 83),
 ];
 
 function readCalcMd(): string {

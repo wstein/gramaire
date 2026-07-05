@@ -19,10 +19,15 @@ members }`, `{ tag: "Arr", elements }`, `{ tag: "Str", value }`, `{ tag:
 "Num", value }`, `{ tag: "Bool", value }`, `{ tag: "Null" }` — each entry of
 `members` a plain `{ key, value }` pair, in source order.
 
+<details>
+<summary>Declarations</summary>
+
 ```gramark
 %name Json
 %lang javascript
 ```
+
+</details>
 
 ## Tokens
 
@@ -41,6 +46,11 @@ WS     : /[ \t\r\n]+/    %skip
 
 A JSON value is an object, an array, or one of the five primitive forms.
 
+![Railroad diagram for the Value rule](diagrams-json/value.svg)
+
+<details>
+<summary>Source</summary>
+
 ```gramark
 Value
   : Object
@@ -52,7 +62,7 @@ Value
   | 'null'    {% (c) => ({ tag: "Null" }) %}
 ```
 
-![Railroad diagram for the Value rule](diagrams-json/value.svg)
+</details>
 
 ## Object
 
@@ -60,17 +70,27 @@ An object is brace-delimited and either empty or a list of members. The
 empty case is its own alternative so that a `}` immediately after `{`
 needs no member to reduce — one token of lookahead settles it.
 
+![Railroad diagram for the Object rule](diagrams-json/object.svg)
+
+<details>
+<summary>Source</summary>
+
 ```gramark
 Object
   : '{' '}'            {% (c) => ({ tag: "Obj", members: [] }) %}
   | '{' Members '}'    {% (c) => ({ tag: "Obj", members: c.members }) %}
 ```
 
-![Railroad diagram for the Object rule](diagrams-json/object.svg)
+</details>
 
 ## Members
 
 Left recursion accumulates members in source order.
+
+![Railroad diagram for the Members rule](diagrams-json/members.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Members
@@ -78,23 +98,33 @@ Members
   | Members ',' Member    {% (c) => [...c.members, c.member] %}
 ```
 
-![Railroad diagram for the Members rule](diagrams-json/members.svg)
+</details>
 
 ## Member
 
 A member is a string key, a colon, and a value.
+
+![Railroad diagram for the Member rule](diagrams-json/member.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Member
   : STRING ':' Value    {% (c) => ({ key: JSON.parse(c.string), value: c.value }) %}
 ```
 
-![Railroad diagram for the Member rule](diagrams-json/member.svg)
+</details>
 
 ## Array
 
 An array mirrors an object: bracket-delimited, empty or a list of
 elements, with the empty case split out for the same lookahead reason.
+
+![Railroad diagram for the Array rule](diagrams-json/array.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Array
@@ -102,11 +132,16 @@ Array
   | '[' Elements ']'    {% (c) => ({ tag: "Arr", elements: c.elements }) %}
 ```
 
-![Railroad diagram for the Array rule](diagrams-json/array.svg)
+</details>
 
 ## Elements
 
 Left recursion accumulates elements in source order.
+
+![Railroad diagram for the Elements rule](diagrams-json/elements.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Elements
@@ -114,7 +149,7 @@ Elements
   | Elements ',' Value    {% (c) => [...c.elements, c.value] %}
 ```
 
-![Railroad diagram for the Elements rule](diagrams-json/elements.svg)
+</details>
 
 ## Error messages
 

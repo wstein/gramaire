@@ -35,10 +35,15 @@ desugared-productions table is where `Stmt`'s real action is visible
 instead. `gramark emit` also refuses to generate code under `lr` (the
 default) once a predicate is present — `--strategy ll-star` is required.
 
+<details>
+<summary>Declarations</summary>
+
 ```gramark
 %name PredicateGuard
 %lang javascript
 ```
+
+</details>
 
 ## Tokens
 
@@ -50,15 +55,25 @@ WS     : /[ \t\r\n]+/   %skip
 
 ## Stmt
 
+![Railroad diagram for the Stmt rule](diagrams-predicate-guard/stmt.svg)
+
+<details>
+<summary>Source</summary>
+
 ```gramark
 Stmt
   : 'let' Name '=' Expr   {% (c) => ({ name: c.name, value: c.expr }) %}
   | Expr
 ```
 
-![Railroad diagram for the Stmt rule](diagrams-predicate-guard/stmt.svg)
+</details>
 
 ## Expr
+
+![Railroad diagram for the Expr rule](diagrams-predicate-guard/expr.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Expr
@@ -66,9 +81,14 @@ Expr
   | Term
 ```
 
-![Railroad diagram for the Expr rule](diagrams-predicate-guard/expr.svg)
+</details>
 
 ## Term
+
+![Railroad diagram for the Term rule](diagrams-predicate-guard/term.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Term
@@ -76,16 +96,21 @@ Term
   | Name
 ```
 
-![Railroad diagram for the Term rule](diagrams-predicate-guard/term.svg)
+</details>
 
 ## Name
+
+![Railroad diagram for the Name rule](diagrams-predicate-guard/name.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Name
   : IDENT {%? (c) => c.ident !== "if" %}
 ```
 
-![Railroad diagram for the Name rule](diagrams-predicate-guard/name.svg)
+</details>
 
 ## Generated tables
 

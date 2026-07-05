@@ -20,25 +20,40 @@ Semantic actions build this AST as plain tagged JS objects: `{ tag:
 "Readme", sentences }`, `{ tag: "Sentence", words }` — each a plain array,
 in reading order.
 
+<details>
+<summary>Declarations</summary>
+
 ```gramark
 %name Readme
 %lang javascript
 ```
 
+</details>
+
 ## Readme
 
 A readme is the whole pitch: a non-empty run of sentences.
+
+![Railroad diagram for the Readme rule](diagrams-readme/readme.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Readme
   : SentenceList    {% (c) => ({ tag: "Readme", sentences: c.sentencelist }) %}
 ```
 
-![Railroad diagram for the Readme rule](diagrams-readme/readme.svg)
+</details>
 
 ## SentenceList
 
 Left recursion accumulates sentences in reading order.
+
+![Railroad diagram for the SentenceList rule](diagrams-readme/sentencelist.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 SentenceList
@@ -46,7 +61,7 @@ SentenceList
   | SentenceList Sentence     {% (c) => [...c.sentencelist, c.sentence] %}
 ```
 
-![Railroad diagram for the SentenceList rule](diagrams-readme/sentencelist.svg)
+</details>
 
 ## Sentence
 
@@ -54,14 +69,24 @@ A sentence is one or more words terminated by a period. The `.` is what
 lets one token of lookahead tell a finished sentence from a continuing
 one.
 
+![Railroad diagram for the Sentence rule](diagrams-readme/sentence.svg)
+
+<details>
+<summary>Source</summary>
+
 ```gramark
 Sentence
   : Words '.'    {% (c) => ({ tag: "Sentence", words: c.words }) %}
 ```
 
-![Railroad diagram for the Sentence rule](diagrams-readme/sentence.svg)
+</details>
 
 ## Words
+
+![Railroad diagram for the Words rule](diagrams-readme/words.svg)
+
+<details>
+<summary>Source</summary>
 
 ```gramark
 Words
@@ -69,7 +94,7 @@ Words
   | Words WORD    {% (c) => [...c.words, c.word] %}
 ```
 
-![Railroad diagram for the Words rule](diagrams-readme/words.svg)
+</details>
 
 ## Error messages
 
