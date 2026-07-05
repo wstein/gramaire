@@ -61,4 +61,15 @@ export default defineConfig({
     }),
     preact(),
   ],
+  vite: {
+    build: {
+      // GramaireNotebookIsland (CodeMirror + the document/worker glue) is one
+      // cohesive, already-lazy-loaded island (~590 kB minified) — comfortably
+      // past Vite's generic 500 kB default, but a real split would mean
+      // breaking apart an actively-tested, single-purpose component for no
+      // measured perf win. Raised past its current size so the build stays
+      // quiet; still low enough to flag a genuine future regression.
+      chunkSizeWarningLimit: 700,
+    },
+  },
 });
