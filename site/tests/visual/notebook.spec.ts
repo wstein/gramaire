@@ -1104,6 +1104,248 @@ test("↓ PDF downloads a real PDF file, named from the document's own %name dir
   expect(bytes.length).toBeGreaterThan(2_000);
 });
 
+// File open/save/examples — the document's entrance, and (via a real File System Access handle)
+// a second way out besides the download-a-copy flow. `showOpenFilePicker`'s own native dialog
+// can't be driven by Playwright at all, so these tests exercise the two paths that CAN be driven
+// directly: the universal `<input type=file>` fallback (via a real `filechooser` event, forced by
+// deleting `showOpenFilePicker` so the button deterministically takes that branch — matching what
+// Firefox/Safari users actually experience) and a mocked File System Access handle (a stub object
+// shaped like the real one, so `openFile`/`saveInPlace`'s own logic runs unmodified).
+
+function openButton(page: import("@playwright/test").Page) {
+  return page.locator(".gramaire__download-btn", { hasText: "Open" });
+}
+
+async function withoutFileSystemAccess(page: import("@playwright/test").Page) {
+  await page.addInitScript(() => {
+    // @ts-expect-error — deleting a real global to force the universal <input type=file> fallback
+    delete window.showOpenFilePicker;
+  });
+}
+
+test("Open loads a .gram.md file through the <input type=file> fallback", async ({
+  page,
+}) => {
+  await withoutFileSystemAccess(page);
+  await gotoNotebookReady(page);
+
+  const fileChooserPromise = page.waitForEvent("filechooser");
+  await openButton(page).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles({
+    name: "custom.gram.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      [
+        "```gramaire",
+        "%name CustomDoc",
+        "```",
+        "",
+        "```gramaire",
+        "Greeting",
+        "  : 'hi'",
+        "```",
+      ].join("\n"),
+    ),
+  });
+
+  await expect.poll(() => ruleNonterminals(page)).toEqual(["Greeting"]);
+  // The <input> fallback never yields a handle — Save (in-place) never appears, only the
+  // pre-existing download actions.
+  await expect(
+    page.locator(".gramaire__download-btn", { hasText: "Save" }),
+  ).toHaveCount(0);
+});
+
+test("Open shows a confirmation before replacing a document that's already been edited", async ({
+  page,
+}) => {
+  await withoutFileSystemAccess(page);
+  await gotoNotebookReady(page);
+
+  await page.locator(".gramaire__prose").first().click();
+  await page.locator(".gramaire__prose-editor").fill("## Edited already");
+  await page.locator(".gramaire__statusbar").click();
+  await expect(page.locator(".gramaire__prose h3").first()).toHaveText(
+    "Edited already",
+  );
+
+  let dialogSeen = false;
+  page.once("dialog", (dialog) => {
+    dialogSeen = true;
+    void dialog.dismiss();
+  });
+  await openButton(page).click();
+  await expect.poll(() => dialogSeen).toBe(true);
+  // Dismissed — the edited document is untouched.
+  await expect(page.locator(".gramaire__prose h3").first()).toHaveText(
+    "Edited already",
+  );
+});
+
+test("Open does not prompt for confirmation when the document is still the pristine default", async ({
+  page,
+}) => {
+  await withoutFileSystemAccess(page);
+  await gotoNotebookReady(page);
+
+  let dialogSeen = false;
+  page.once("dialog", (dialog) => {
+    dialogSeen = true;
+    void dialog.dismiss();
+  });
+  const fileChooserPromise = page.waitForEvent("filechooser");
+  await openButton(page).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles({
+    name: "custom.gram.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("```gramaire\n%name Fresh\n```\n"),
+  });
+
+  await page.waitForTimeout(500);
+  expect(dialogSeen).toBe(false);
+});
+
+test("dropping a .gram.md file onto the document loads it", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  // A real DataTransfer carrying a real File — built in-page via evaluateHandle, since
+  // dispatchEvent's own `dataTransfer` option only accepts a JSHandle, not a plain object shape
+  // (unlike setInputFiles, which does its own File construction for a plain <input>).
+  const dataTransfer = await page.evaluateHandle(
+    ({ name, mime, content }) => {
+      const dt = new DataTransfer();
+      dt.items.add(new File([content], name, { type: mime }));
+      return dt;
+    },
+    {
+      name: "dropped.gram.md",
+      mime: "text/markdown",
+      content: [
+        "```gramaire",
+        "%name Dropped",
+        "```",
+        "",
+        "```gramaire",
+        "Start",
+        "  : 'go'",
+        "```",
+      ].join("\n"),
+    },
+  );
+
+  await page.locator(".gramaire__doc").dispatchEvent("drop", { dataTransfer });
+
+  await expect.poll(() => ruleNonterminals(page)).toEqual(["Start"]);
+});
+
+test("the drag-over state shows a visual cue and clears again on drop/dragleave", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const doc = page.locator(".gramaire__doc");
+
+  await doc.dispatchEvent("dragover");
+  await expect(doc).toHaveClass(/gramaire__doc--dragover/);
+  await doc.dispatchEvent("dragleave");
+  await expect(doc).not.toHaveClass(/gramaire__doc--dragover/);
+});
+
+test("the Examples picker loads a curated example, replacing the current document", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const namesBefore = await ruleNonterminals(page);
+
+  await page.locator(".gramaire__examples-select").selectOption("JSON");
+
+  await expect.poll(() => ruleNonterminals(page)).not.toEqual(namesBefore);
+  // JSON's own Try-it default input round-trips through the same picker (examples.ts's own list).
+  await expect(page.locator(".gramaire__tryit-input")).toHaveValue(
+    '{"a": 1, "b": [true, false, null]}',
+  );
+});
+
+// A mocked File System Access handle — shaped exactly like the real API's, so openFile/
+// saveInPlace's own logic runs completely unmodified; only the native picker itself (which
+// Playwright cannot drive at all) is replaced.
+async function mockFileSystemAccess(
+  page: import("@playwright/test").Page,
+  initialText: string,
+) {
+  await page.addInitScript((text) => {
+    let currentText = text;
+    let lastWritten: string | null = null;
+    (window as unknown as Record<string, unknown>).__testWrites = [];
+    const handle = {
+      async getFile() {
+        return { text: async () => currentText };
+      },
+      async createWritable() {
+        return {
+          async write(data: string) {
+            lastWritten = data;
+          },
+          async close() {
+            currentText = lastWritten ?? currentText;
+            (window as unknown as { __testWrites: string[] }).__testWrites.push(
+              currentText,
+            );
+          },
+        };
+      },
+    };
+    (
+      window as unknown as {
+        showOpenFilePicker: () => Promise<(typeof handle)[]>;
+      }
+    ).showOpenFilePicker = async () => [handle];
+  }, initialText);
+}
+
+test("Open via a File System Access handle enables Save, which writes straight back to it", async ({
+  page,
+}) => {
+  const initial = [
+    "```gramaire",
+    "%name Mocked",
+    "```",
+    "",
+    "```gramaire",
+    "Start",
+    "  : 'go'",
+    "```",
+  ].join("\n");
+  await mockFileSystemAccess(page, initial);
+  await gotoNotebookReady(page);
+
+  await openButton(page).click();
+  await expect.poll(() => ruleNonterminals(page)).toEqual(["Start"]);
+
+  const saveButton = page.locator(".gramaire__download-btn", {
+    hasText: "Save",
+  });
+  await expect(saveButton).toBeVisible();
+  await saveButton.click();
+
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __testWrites: string[] }).__testWrites.length,
+      ),
+    )
+    .toBeGreaterThan(0);
+  const written = await page.evaluate(
+    () => (window as unknown as { __testWrites: string[] }).__testWrites[0],
+  );
+  expect(written).toContain("%name Mocked");
+  expect(written).toContain("Start");
+});
+
 // Livebook-style hover-reveal per-cell actions (reorder/link/delete) — a small floating row, not
 // a header bar, so it doesn't reintroduce the border/badge chrome the de-boxed cell design
 // dropped. No "Edit" button: clicking the cell body already does that.
