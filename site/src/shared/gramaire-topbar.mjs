@@ -190,22 +190,29 @@ const TEMPLATE = `
     gap: 2px;
     flex: none;
   }
+  /* Icon-only (sun/monitor/moon) — title gives sighted mouse users a native
+     tooltip, aria-label carries the same word to assistive tech, since
+     nothing here is visible text for either to read otherwise. The icon's
+     currentColor stroke inherits the button's own color for free, so
+     pressed/hover state needs no separate icon-color rule of its own — just
+     the existing text-color rules below. */
   .seg button {
-    font: 500 0.75em/1 var(--font-ui, sans-serif);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     color: var(--fg-muted, #5b4d92);
     background: none;
     border: none;
-    padding: 0.3125em 0.625em;
+    padding: 0.375em;
     border-radius: 6px;
     cursor: pointer;
-    white-space: nowrap;
   }
+  .seg button svg { width: 1em; height: 1em; display: block; }
   .seg button:hover { color: var(--fg, #16181d); }
   .seg button:focus-visible { outline: 2px solid var(--accent, #0a8f63); outline-offset: 2px; }
   .seg button[aria-pressed="true"] {
     background: var(--bg, #fff);
     color: var(--accent, #0a8f63);
-    font-weight: 600;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), 0 0 0 1px var(--border, #ddd6f8);
   }
 
@@ -238,7 +245,7 @@ const TEMPLATE = `
 
   @media (max-width: 460px) {
     .bar { gap: 0.625em; padding-inline: 0.875em; }
-    .seg button { padding: 0.25em 0.5em; font-size: 0.6875em; }
+    .seg button { padding: 0.25em; }
     /* Brand's wordmark alone is wider than the search box's own min-width
        floor. On a Starlight page, this width band is also where its
        sidebar-toggle hamburger's reserved space (see the comment above)
@@ -274,9 +281,23 @@ const TEMPLATE = `
 
   <div class="divider"></div>
   <div class="seg" id="theme" role="group" aria-label="Theme">
-    <button type="button" data-val="light" aria-pressed="false">Light</button>
-    <button type="button" data-val="auto" aria-pressed="true">Auto</button>
-    <button type="button" data-val="dark" aria-pressed="false">Dark</button>
+    <button type="button" data-val="light" aria-pressed="false" aria-label="Light" title="Light">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="8" cy="8" r="3"></circle>
+        <path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1M12.9 12.9l-1.1-1.1M4.2 4.2 3.1 3.1"></path>
+      </svg>
+    </button>
+    <button type="button" data-val="auto" aria-pressed="true" aria-label="Auto" title="Auto">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="1.5" y="2.5" width="13" height="9" rx="1.5"></rect>
+        <path d="M5.5 14.5h5M8 11.5v3"></path>
+      </svg>
+    </button>
+    <button type="button" data-val="dark" aria-pressed="false" aria-label="Dark" title="Dark">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M13.5 9.5A5.5 5.5 0 1 1 6.5 2.5a4.25 4.25 0 0 0 7 7Z"></path>
+      </svg>
+    </button>
   </div>
 </div>
 `;
