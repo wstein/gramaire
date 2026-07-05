@@ -14,7 +14,7 @@ test("the homepage's static HTML already contains real Notebook cells, before an
   // build-time SSR, not a script that ran after the page loaded.
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
-  await page.goto("/");
+  await page.goto("");
 
   // Cells render inline with no visible badge/name header — `data-kind`/`data-nonterminal` are
   // invisible test hooks (GramaireNotebookIsland.tsx).
@@ -40,7 +40,7 @@ test("the homepage loads no worker/engine bundle merely from being viewed — on
     if (/worker|engine/.test(req.url())) requests.push(req.url());
   });
 
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("", { waitUntil: "networkidle" });
   await expect(page.locator(".gramaire__cell").first()).toBeVisible();
   expect(
     requests,
@@ -62,7 +62,7 @@ test("the homepage loads no worker/engine bundle merely from being viewed — on
 test("a rule cell inside the embedded Notebook is clickable, same as the standalone page", async ({
   page,
 }) => {
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("", { waitUntil: "domcontentloaded" });
   const ruleCell = page.locator('.gramaire__cell[data-kind="rule"]').first();
   await expect(
     ruleCell.locator(".gramaire__output-railroad svg"),
@@ -75,7 +75,7 @@ test("a rule cell inside the embedded Notebook is clickable, same as the standal
 test("the showcase header links to the standalone Notebook page", async ({
   page,
 }) => {
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("", { waitUntil: "domcontentloaded" });
   await expect(
     page.getByRole("link", { name: "Open in Notebook ↗" }),
   ).toHaveAttribute("href", /\/notebook\/$/);

@@ -6,7 +6,7 @@ import { test, expect } from "@playwright/test";
 // to have run first.
 
 async function gotoNotebookReady(page: import("@playwright/test").Page) {
-  await page.goto("/notebook/");
+  await page.goto("notebook/");
   await expect(page.locator(".gramaire__cell").first()).toBeVisible({
     timeout: 5000,
   });
