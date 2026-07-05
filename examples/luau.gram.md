@@ -66,6 +66,8 @@ chunk
   : block
 ```
 
+![Railroad diagram for the chunk rule](diagrams-luau/chunk.svg)
+
 ## block
 
 `{stat [';']} [laststat [';']]` — zero or more statements (each optionally
@@ -88,6 +90,8 @@ block
   | LastStatWithSemi
 ```
 
+![Railroad diagram for the block rule](diagrams-luau/block.svg)
+
 ## StatWithSemi
 
 Helper for `stat [';']`.
@@ -97,6 +101,8 @@ StatWithSemi
   : stat ';'?
 ```
 
+![Railroad diagram for the StatWithSemi rule](diagrams-luau/statwithsemi.svg)
+
 ## LastStatWithSemi
 
 Helper for `laststat [';']`.
@@ -105,6 +111,8 @@ Helper for `laststat [';']`.
 LastStatWithSemi
   : laststat ';'?
 ```
+
+![Railroad diagram for the LastStatWithSemi rule](diagrams-luau/laststatwithsemi.svg)
 
 ## stat
 
@@ -128,6 +136,8 @@ stat
   | 'export'? 'type' 'function' NAME funcbody
 ```
 
+![Railroad diagram for the stat rule](diagrams-luau/stat.svg)
+
 ## ElseifBlock
 
 Helper for the repeated `{'elseif' exp 'then' block}` group.
@@ -136,6 +146,8 @@ Helper for the repeated `{'elseif' exp 'then' block}` group.
 ElseifBlock
   : 'elseif' exp 'then' block?
 ```
+
+![Railroad diagram for the ElseifBlock rule](diagrams-luau/elseifblock.svg)
 
 ## ElseBlock
 
@@ -146,6 +158,8 @@ ElseBlock
   : 'else' block?
 ```
 
+![Railroad diagram for the ElseBlock rule](diagrams-luau/elseblock.svg)
+
 ## ForStep
 
 Helper for the optional `[',' exp]` step in a numeric `for`.
@@ -155,6 +169,8 @@ ForStep
   : ',' exp
 ```
 
+![Railroad diagram for the ForStep rule](diagrams-luau/forstep.svg)
+
 ## LocalInit
 
 Helper for the optional `['=' explist]` initializer in a `local` declaration.
@@ -163,6 +179,8 @@ Helper for the optional `['=' explist]` initializer in a `local` declaration.
 LocalInit
   : '=' explist
 ```
+
+![Railroad diagram for the LocalInit rule](diagrams-luau/localinit.svg)
 
 ## TypeParamsWithDefaults
 
@@ -174,6 +192,8 @@ TypeParamsWithDefaults
   : '<' GenericTypeListWithDefaults '>'
 ```
 
+![Railroad diagram for the TypeParamsWithDefaults rule](diagrams-luau/typeparamswithdefaults.svg)
+
 ## laststat
 
 ```gramaire
@@ -183,12 +203,16 @@ laststat
   | 'continue'
 ```
 
+![Railroad diagram for the laststat rule](diagrams-luau/laststat.svg)
+
 ## funcname
 
 ```gramaire
 funcname
   : NAME DotName* MethodName?
 ```
+
+![Railroad diagram for the funcname rule](diagrams-luau/funcname.svg)
 
 ## DotName
 
@@ -200,6 +224,8 @@ DotName
   : '.' NAME
 ```
 
+![Railroad diagram for the DotName rule](diagrams-luau/dotname.svg)
+
 ## MethodName
 
 Helper for the optional `[':' NAME]` group (a method name in `function
@@ -210,12 +236,16 @@ MethodName
   : ':' NAME
 ```
 
+![Railroad diagram for the MethodName rule](diagrams-luau/methodname.svg)
+
 ## funcbody
 
 ```gramaire
 funcbody
   : GenericTypeParams? '(' parlist? ')' ReturnAnnotation? block? 'end'
 ```
+
+![Railroad diagram for the funcbody rule](diagrams-luau/funcbody.svg)
 
 ## GenericTypeParams
 
@@ -228,6 +258,8 @@ GenericTypeParams
   : '<' GenericTypeList '>'
 ```
 
+![Railroad diagram for the GenericTypeParams rule](diagrams-luau/generictypeparams.svg)
+
 ## ReturnAnnotation
 
 Helper for the optional `[':' ReturnType]` group.
@@ -237,6 +269,8 @@ ReturnAnnotation
   : ':' ReturnType
 ```
 
+![Railroad diagram for the ReturnAnnotation rule](diagrams-luau/returnannotation.svg)
+
 ## parlist
 
 ```gramaire
@@ -244,6 +278,8 @@ parlist
   : bindinglist TrailingVararg?
   | '...' VarargAnnotation?
 ```
+
+![Railroad diagram for the parlist rule](diagrams-luau/parlist.svg)
 
 ## TrailingVararg
 
@@ -255,6 +291,8 @@ TrailingVararg
   : ',' '...' VarargAnnotation?
 ```
 
+![Railroad diagram for the TrailingVararg rule](diagrams-luau/trailingvararg.svg)
+
 ## VarargAnnotation
 
 Helper for the optional `[':' (GenericTypePack | Type)]` group.
@@ -263,6 +301,8 @@ Helper for the optional `[':' (GenericTypePack | Type)]` group.
 VarargAnnotation
   : ':' VarargType
 ```
+
+![Railroad diagram for the VarargAnnotation rule](diagrams-luau/varargannotation.svg)
 
 ## VarargType
 
@@ -274,6 +314,8 @@ VarargType
   | Type
 ```
 
+![Railroad diagram for the VarargType rule](diagrams-luau/varargtype.svg)
+
 ## explist
 
 `{exp ','} exp` is the `X (s X)*` list idiom.
@@ -283,12 +325,16 @@ explist
   : Sep<exp, ','>
 ```
 
+![Railroad diagram for the explist rule](diagrams-luau/explist.svg)
+
 ## binding
 
 ```gramaire
 binding
   : NAME TypeAnnotation?
 ```
+
+![Railroad diagram for the binding rule](diagrams-luau/binding.svg)
 
 ## TypeAnnotation
 
@@ -300,6 +346,8 @@ TypeAnnotation
   : ':' Type
 ```
 
+![Railroad diagram for the TypeAnnotation rule](diagrams-luau/typeannotation.svg)
+
 ## bindinglist
 
 `binding [',' bindinglist]` is right-recursive `binding (',' binding)*` —
@@ -310,6 +358,8 @@ bindinglist
   : Sep<binding, ','>
 ```
 
+![Railroad diagram for the bindinglist rule](diagrams-luau/bindinglist.svg)
+
 ## var
 
 ```gramaire
@@ -319,12 +369,16 @@ var
   | prefixexp '.' NAME
 ```
 
+![Railroad diagram for the var rule](diagrams-luau/var.svg)
+
 ## varlist
 
 ```gramaire
 varlist
   : Sep<var, ','>
 ```
+
+![Railroad diagram for the varlist rule](diagrams-luau/varlist.svg)
 
 ## prefixexp
 
@@ -335,6 +389,8 @@ prefixexp
   | '(' exp ')'
 ```
 
+![Railroad diagram for the prefixexp rule](diagrams-luau/prefixexp.svg)
+
 ## functioncall
 
 ```gramaire
@@ -342,6 +398,8 @@ functioncall
   : prefixexp funcargs
   | prefixexp ':' NAME funcargs
 ```
+
+![Railroad diagram for the functioncall rule](diagrams-luau/functioncall.svg)
 
 ## exp
 
@@ -366,6 +424,8 @@ exp
   | AndExpr
 ```
 
+![Railroad diagram for the exp rule](diagrams-luau/exp.svg)
+
 ## AndExpr
 
 ```gramaire
@@ -374,6 +434,8 @@ AndExpr
   | CmpExpr
 ```
 
+![Railroad diagram for the AndExpr rule](diagrams-luau/andexpr.svg)
+
 ## CmpExpr
 
 ```gramaire
@@ -381,6 +443,8 @@ CmpExpr
   : CmpExpr cmpop ConcatExpr
   | ConcatExpr
 ```
+
+![Railroad diagram for the CmpExpr rule](diagrams-luau/cmpexpr.svg)
 
 ## cmpop
 
@@ -396,6 +460,8 @@ cmpop
   | '~='
 ```
 
+![Railroad diagram for the cmpop rule](diagrams-luau/cmpop.svg)
+
 ## ConcatExpr
 
 `..` is right-associative.
@@ -406,6 +472,8 @@ ConcatExpr
   | AddExpr
 ```
 
+![Railroad diagram for the ConcatExpr rule](diagrams-luau/concatexpr.svg)
+
 ## AddExpr
 
 ```gramaire
@@ -414,6 +482,8 @@ AddExpr
   | AddExpr '-' MulExpr
   | MulExpr
 ```
+
+![Railroad diagram for the AddExpr rule](diagrams-luau/addexpr.svg)
 
 ## MulExpr
 
@@ -425,6 +495,8 @@ MulExpr
   | MulExpr '%' UnaryExpr
   | UnaryExpr
 ```
+
+![Railroad diagram for the MulExpr rule](diagrams-luau/mulexpr.svg)
 
 ## UnaryExpr
 
@@ -439,6 +511,8 @@ UnaryExpr
   | PowExpr
 ```
 
+![Railroad diagram for the UnaryExpr rule](diagrams-luau/unaryexpr.svg)
+
 ## PowExpr
 
 `^` is right-associative and binds tighter than unary; its right operand
@@ -451,12 +525,16 @@ PowExpr
   | asexp
 ```
 
+![Railroad diagram for the PowExpr rule](diagrams-luau/powexpr.svg)
+
 ## ifelseexp
 
 ```gramaire
 ifelseexp
   : 'if' exp 'then' exp ElseifExpClause* 'else' exp
 ```
+
+![Railroad diagram for the ifelseexp rule](diagrams-luau/ifelseexp.svg)
 
 ## ElseifExpClause
 
@@ -467,6 +545,8 @@ ElseifExpClause
   : 'elseif' exp 'then' exp
 ```
 
+![Railroad diagram for the ElseifExpClause rule](diagrams-luau/elseifexpclause.svg)
+
 ## asexp
 
 ```gramaire
@@ -474,6 +554,8 @@ asexp
   : simpleexp
   | simpleexp '::' Type
 ```
+
+![Railroad diagram for the asexp rule](diagrams-luau/asexp.svg)
 
 ## stringinterp
 
@@ -485,6 +567,8 @@ stringinterp
   : INTERP_BEGIN exp InterpMidPart* INTERP_END
 ```
 
+![Railroad diagram for the stringinterp rule](diagrams-luau/stringinterp.svg)
+
 ## InterpMidPart
 
 Helper for the repeated `{INTERP_MID exp}` group.
@@ -493,6 +577,8 @@ Helper for the repeated `{INTERP_MID exp}` group.
 InterpMidPart
   : INTERP_MID exp
 ```
+
+![Railroad diagram for the InterpMidPart rule](diagrams-luau/interpmidpart.svg)
 
 ## simpleexp
 
@@ -511,6 +597,8 @@ simpleexp
   | stringinterp
 ```
 
+![Railroad diagram for the simpleexp rule](diagrams-luau/simpleexp.svg)
+
 ## funcargs
 
 ```gramaire
@@ -520,12 +608,16 @@ funcargs
   | STRING
 ```
 
+![Railroad diagram for the funcargs rule](diagrams-luau/funcargs.svg)
+
 ## tableconstructor
 
 ```gramaire
 tableconstructor
   : '{' fieldlist? '}'
 ```
+
+![Railroad diagram for the tableconstructor rule](diagrams-luau/tableconstructor.svg)
 
 ## fieldlist
 
@@ -537,6 +629,8 @@ fieldlist
   : Sep<field, fieldsep> fieldsep?
 ```
 
+![Railroad diagram for the fieldlist rule](diagrams-luau/fieldlist.svg)
+
 ## field
 
 ```gramaire
@@ -546,6 +640,8 @@ field
   | exp
 ```
 
+![Railroad diagram for the field rule](diagrams-luau/field.svg)
+
 ## fieldsep
 
 ```gramaire
@@ -553,6 +649,8 @@ fieldsep
   : ','
   | ';'
 ```
+
+![Railroad diagram for the fieldsep rule](diagrams-luau/fieldsep.svg)
 
 ## compoundop
 
@@ -568,12 +666,16 @@ compoundop
   | '..='
 ```
 
+![Railroad diagram for the compoundop rule](diagrams-luau/compoundop.svg)
+
 ## littable
 
 ```gramaire
 littable
   : '{' litfieldlist? '}'
 ```
+
+![Railroad diagram for the littable rule](diagrams-luau/littable.svg)
 
 ## litfieldlist
 
@@ -582,12 +684,16 @@ litfieldlist
   : Sep<litfield, fieldsep> fieldsep?
 ```
 
+![Railroad diagram for the litfieldlist rule](diagrams-luau/litfieldlist.svg)
+
 ## litfield
 
 ```gramaire
 litfield
   : LitFieldKey? literal
 ```
+
+![Railroad diagram for the litfield rule](diagrams-luau/litfield.svg)
 
 ## LitFieldKey
 
@@ -597,6 +703,8 @@ Helper for the optional `[NAME '=']` group.
 LitFieldKey
   : NAME '='
 ```
+
+![Railroad diagram for the LitFieldKey rule](diagrams-luau/litfieldkey.svg)
 
 ## literal
 
@@ -610,12 +718,16 @@ literal
   | littable
 ```
 
+![Railroad diagram for the literal rule](diagrams-luau/literal.svg)
+
 ## litlist
 
 ```gramaire
 litlist
   : Sep<literal, ','>
 ```
+
+![Railroad diagram for the litlist rule](diagrams-luau/litlist.svg)
 
 ## pars
 
@@ -626,12 +738,16 @@ pars
   | STRING
 ```
 
+![Railroad diagram for the pars rule](diagrams-luau/pars.svg)
+
 ## parattr
 
 ```gramaire
 parattr
   : NAME pars?
 ```
+
+![Railroad diagram for the parattr rule](diagrams-luau/parattr.svg)
 
 ## attribute
 
@@ -640,6 +756,8 @@ attribute
   : '@' NAME
   | '@[' Sep<parattr, ','> ']'
 ```
+
+![Railroad diagram for the attribute rule](diagrams-luau/attribute.svg)
 
 ## attributes
 
@@ -654,6 +772,8 @@ function) mark it `attributes?` instead, since each already has a required
 attributes
   : attribute+
 ```
+
+![Railroad diagram for the attributes rule](diagrams-luau/attributes.svg)
 
 ## SimpleType
 
@@ -685,6 +805,8 @@ SimpleType
   | ParenTypeOrFunctionType
 ```
 
+![Railroad diagram for the SimpleType rule](diagrams-luau/simpletype.svg)
+
 ## GenericFunctionType
 
 The explicit-generics half of the source's `FunctionType`; see
@@ -694,6 +816,8 @@ The explicit-generics half of the source's `FunctionType`; see
 GenericFunctionType
   : GenericTypeParams '(' BoundTypeList? ')' '->' ReturnType
 ```
+
+![Railroad diagram for the GenericFunctionType rule](diagrams-luau/genericfunctiontype.svg)
 
 ## ParenTypeOrFunctionType
 
@@ -718,6 +842,8 @@ ParenTypeOrFunctionType
   | '(' ')' FunctionArrow
 ```
 
+![Railroad diagram for the ParenTypeOrFunctionType rule](diagrams-luau/parentypeorfunctiontype.svg)
+
 ## FunctionArrow
 
 Helper for the optional `'->' ReturnType` suffix that turns a
@@ -729,6 +855,8 @@ FunctionArrow
   : '->' ReturnType
 ```
 
+![Railroad diagram for the FunctionArrow rule](diagrams-luau/functionarrow.svg)
+
 ## QualifiedTypeName
 
 Helper for the optional `['.' NAME]` group (a type imported from another
@@ -739,6 +867,8 @@ QualifiedTypeName
   : '.' NAME
 ```
 
+![Railroad diagram for the QualifiedTypeName rule](diagrams-luau/qualifiedtypename.svg)
+
 ## TypeArgs
 
 Helper for the optional `['<' [TypeParams] '>']` group.
@@ -748,6 +878,8 @@ TypeArgs
   : '<' TypeParams? '>'
 ```
 
+![Railroad diagram for the TypeArgs rule](diagrams-luau/typeargs.svg)
+
 ## SingletonType
 
 ```gramaire
@@ -756,6 +888,8 @@ SingletonType
   | 'true'
   | 'false'
 ```
+
+![Railroad diagram for the SingletonType rule](diagrams-luau/singletontype.svg)
 
 ## Type
 
@@ -793,6 +927,8 @@ Type
   : Union
 ```
 
+![Railroad diagram for the Type rule](diagrams-luau/type.svg)
+
 ## Union
 
 ```gramaire
@@ -801,6 +937,8 @@ Union
   | Intersection
 ```
 
+![Railroad diagram for the Union rule](diagrams-luau/union.svg)
+
 ## Intersection
 
 ```gramaire
@@ -808,6 +946,8 @@ Intersection
   : Intersection '&' QuestionedType
   | QuestionedType
 ```
+
+![Railroad diagram for the Intersection rule](diagrams-luau/intersection.svg)
 
 ## QuestionedType
 
@@ -821,12 +961,16 @@ QuestionedType
   | SimpleType
 ```
 
+![Railroad diagram for the QuestionedType rule](diagrams-luau/questionedtype.svg)
+
 ## GenericTypePackParameter
 
 ```gramaire
 GenericTypePackParameter
   : NAME '...'
 ```
+
+![Railroad diagram for the GenericTypePackParameter rule](diagrams-luau/generictypepackparameter.svg)
 
 ## GenericTypeList
 
@@ -835,6 +979,8 @@ GenericTypeList
   : NAME GenericTypeListTail?
   | Sep<GenericTypePackParameter, ','>
 ```
+
+![Railroad diagram for the GenericTypeList rule](diagrams-luau/generictypelist.svg)
 
 ## GenericTypeListTail
 
@@ -845,12 +991,16 @@ GenericTypeListTail
   : ',' GenericTypeList
 ```
 
+![Railroad diagram for the GenericTypeListTail rule](diagrams-luau/generictypelisttail.svg)
+
 ## GenericTypePackParameterWithDefault
 
 ```gramaire
 GenericTypePackParameterWithDefault
   : NAME '...' '=' TypePackDefault
 ```
+
+![Railroad diagram for the GenericTypePackParameterWithDefault rule](diagrams-luau/generictypepackparameterwithdefault.svg)
 
 ## TypePackDefault
 
@@ -864,6 +1014,8 @@ TypePackDefault
   | GenericTypePack
 ```
 
+![Railroad diagram for the TypePackDefault rule](diagrams-luau/typepackdefault.svg)
+
 ## GenericTypeListWithDefaults
 
 ```gramaire
@@ -871,6 +1023,8 @@ GenericTypeListWithDefaults
   : NAME TypeDefault? GenericTypeListWithDefaultsTail?
   | Sep<GenericTypePackParameterWithDefault, ','>
 ```
+
+![Railroad diagram for the GenericTypeListWithDefaults rule](diagrams-luau/generictypelistwithdefaults.svg)
 
 ## TypeDefault
 
@@ -881,6 +1035,8 @@ TypeDefault
   : '=' Type
 ```
 
+![Railroad diagram for the TypeDefault rule](diagrams-luau/typedefault.svg)
+
 ## GenericTypeListWithDefaultsTail
 
 Helper for the optional `[',' GenericTypeListWithDefaults]` group.
@@ -889,6 +1045,8 @@ Helper for the optional `[',' GenericTypeListWithDefaults]` group.
 GenericTypeListWithDefaultsTail
   : ',' GenericTypeListWithDefaults
 ```
+
+![Railroad diagram for the GenericTypeListWithDefaultsTail rule](diagrams-luau/generictypelistwithdefaultstail.svg)
 
 ## TypeList
 
@@ -911,6 +1069,8 @@ TypeList
   | '...' Type
 ```
 
+![Railroad diagram for the TypeList rule](diagrams-luau/typelist.svg)
+
 ## TypeListVarargTail
 
 Helper for the trailing `[',' '...' Type]` marker.
@@ -919,6 +1079,8 @@ Helper for the trailing `[',' '...' Type]` marker.
 TypeListVarargTail
   : ',' '...' Type
 ```
+
+![Railroad diagram for the TypeListVarargTail rule](diagrams-luau/typelistvarargtail.svg)
 
 ## BoundTypeList
 
@@ -934,6 +1096,8 @@ BoundTypeList
   | VariadicTypePack
 ```
 
+![Railroad diagram for the BoundTypeList rule](diagrams-luau/boundtypelist.svg)
+
 ## BoundTypeItem
 
 Helper for a single `[NAME ':'] Type` list element.
@@ -942,6 +1106,8 @@ Helper for a single `[NAME ':'] Type` list element.
 BoundTypeItem
   : BoundName? Type
 ```
+
+![Railroad diagram for the BoundTypeItem rule](diagrams-luau/boundtypeitem.svg)
 
 ## BoundName
 
@@ -953,6 +1119,8 @@ BoundName
   : NAME ':'
 ```
 
+![Railroad diagram for the BoundName rule](diagrams-luau/boundname.svg)
+
 ## BoundTypeListPackTail
 
 Helper for a trailing `,`-separated `GenericTypePack`/`VariadicTypePack`
@@ -963,6 +1131,8 @@ BoundTypeListPackTail
   : ',' BoundTypeListPack
 ```
 
+![Railroad diagram for the BoundTypeListPackTail rule](diagrams-luau/boundtypelistpacktail.svg)
+
 ## BoundTypeListPack
 
 ```gramaire
@@ -971,12 +1141,16 @@ BoundTypeListPack
   | VariadicTypePack
 ```
 
+![Railroad diagram for the BoundTypeListPack rule](diagrams-luau/boundtypelistpack.svg)
+
 ## TypeParams
 
 ```gramaire
 TypeParams
   : TypeParamItem TypeParamsTail?
 ```
+
+![Railroad diagram for the TypeParams rule](diagrams-luau/typeparams.svg)
 
 ## TypeParamItem
 
@@ -995,6 +1169,8 @@ TypeParamItem
   | GenericTypePack
 ```
 
+![Railroad diagram for the TypeParamItem rule](diagrams-luau/typeparamitem.svg)
+
 ## TypeParamsTail
 
 Helper for the optional `[',' TypeParams]` group.
@@ -1004,12 +1180,16 @@ TypeParamsTail
   : ',' TypeParams
 ```
 
+![Railroad diagram for the TypeParamsTail rule](diagrams-luau/typeparamstail.svg)
+
 ## TypePack
 
 ```gramaire
 TypePack
   : '(' TypeList? ')'
 ```
+
+![Railroad diagram for the TypePack rule](diagrams-luau/typepack.svg)
 
 ## GenericTypePack
 
@@ -1018,12 +1198,16 @@ GenericTypePack
   : NAME '...'
 ```
 
+![Railroad diagram for the GenericTypePack rule](diagrams-luau/generictypepack.svg)
+
 ## VariadicTypePack
 
 ```gramaire
 VariadicTypePack
   : '...' Type
 ```
+
+![Railroad diagram for the VariadicTypePack rule](diagrams-luau/variadictypepack.svg)
 
 ## ReturnType
 
@@ -1035,12 +1219,16 @@ ReturnType
   | VariadicTypePack
 ```
 
+![Railroad diagram for the ReturnType rule](diagrams-luau/returntype.svg)
+
 ## TableIndexer
 
 ```gramaire
 TableIndexer
   : AccessMod? '[' Type ']' ':' Type
 ```
+
+![Railroad diagram for the TableIndexer rule](diagrams-luau/tableindexer.svg)
 
 ## AccessMod
 
@@ -1053,12 +1241,16 @@ AccessMod
   | 'write'
 ```
 
+![Railroad diagram for the AccessMod rule](diagrams-luau/accessmod.svg)
+
 ## TableProp
 
 ```gramaire
 TableProp
   : AccessMod? NAME ':' Type
 ```
+
+![Railroad diagram for the TableProp rule](diagrams-luau/tableprop.svg)
 
 ## PropList
 
@@ -1067,6 +1259,8 @@ PropList
   : TableProp PropListTail?
   | TableIndexer TablePropItem*
 ```
+
+![Railroad diagram for the PropList rule](diagrams-luau/proplist.svg)
 
 ## PropListTail
 
@@ -1077,6 +1271,8 @@ PropListTail
   : fieldsep PropList
 ```
 
+![Railroad diagram for the PropListTail rule](diagrams-luau/proplisttail.svg)
+
 ## TablePropItem
 
 Helper for the repeated `{fieldsep TableProp}` group.
@@ -1086,6 +1282,8 @@ TablePropItem
   : fieldsep TableProp
 ```
 
+![Railroad diagram for the TablePropItem rule](diagrams-luau/tablepropitem.svg)
+
 ## TableType
 
 ```gramaire
@@ -1093,6 +1291,8 @@ TableType
   : '{' Type '}'
   | '{' PropList? '}'
 ```
+
+![Railroad diagram for the TableType rule](diagrams-luau/tabletype.svg)
 
 ### Lexer constructs Gramaire cannot model
 
