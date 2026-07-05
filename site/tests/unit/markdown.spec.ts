@@ -223,3 +223,31 @@ test("isRailroadPlaceholder: false for an ordinary image, mixed content, or non-
   const [table] = parseMarkdownLite("| A |\n| - |\n| 1 |");
   expect(isRailroadPlaceholder(table)).toBe(false);
 });
+
+// Regression: GFM's own collapsible-section wrapper — used throughout this project's own
+// .gram.md files (grammar/Gramaire.gram.md and others) to make a rule's source collapsible on
+// GitHub — rendered as literal text (a paragraph literally reading "<details>") in both the
+// Notebook and Paper views, since this parser has no real HTML awareness at all. Every
+// occurrence sits on its own line in practice, so these lines are skipped entirely, not turned
+// into their own block or joined into a surrounding paragraph.
+test("parseMarkdownLite: <details>/<summary>/</details> lines are skipped entirely, not rendered as literal text", () => {
+  const md = [
+    "<details>",
+    "<summary>Source</summary>",
+    "",
+    "Some real prose inside.",
+    "",
+    "</details>",
+  ].join("\n");
+  expect(parseMarkdownLite(md)).toEqual([
+    { tag: "p", parts: [{ kind: "text", text: "Some real prose inside." }] },
+  ]);
+});
+
+test("parseMarkdownLite: a <details> line doesn't get swallowed into an adjacent paragraph", () => {
+  const md = ["Before.", "<details>", "After."].join("\n");
+  expect(parseMarkdownLite(md)).toEqual([
+    { tag: "p", parts: [{ kind: "text", text: "Before." }] },
+    { tag: "p", parts: [{ kind: "text", text: "After." }] },
+  ]);
+});
