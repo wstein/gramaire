@@ -21,9 +21,20 @@
 // rounded `<rect>` is synthesized into an equivalent arc-cornered path (pdf-lib has no native
 // rounded-rect primitive), `<circle>` becomes `drawEllipse`, `<text>` becomes `drawText` with a
 // manually-approximated vertical-centering offset (pdf-lib has no `dominant-baseline`). Figure text
-// draws in a standard monospace PDF font (Courier/Courier-Oblique) with no ligature substitution —
-// that's a separate, not-yet-addressed gap (see the `%pdf-figure-scale`-adjacent TrueType-ligatures
-// follow-up), not something this vector pass attempts to solve. Known limitations, accepted on
+// embeds the REAL Fira Code TrueType font (via `@pdf-lib/fontkit` + the `firacode` npm package's
+// own raw `.ttf` — pdf-lib's FontFile3 embeds the exact bytes handed to `embedFont` verbatim, not
+// a re-encoded copy, so it must be genuine sfnt data; `@fontsource/fira-code`'s `.woff2` parses
+// fine in-memory but produces a PDF poppler/most strict readers reject as "invalid font file",
+// confirmed directly, since WOFF2's compressed container isn't valid embedded FontFile3 data),
+// matching the on-screen letterforms exactly. This does NOT reproduce true GSUB ligature substitution
+// (`=>` still draws as two adjacent glyphs, not one fused shape) — pdf-lib has no OpenType shaping
+// engine, and unlike some coding fonts, Fira Code has no Private-Use-Area ligature fallback variant
+// to substitute in instead (confirmed by research, not assumed); real shaping would need a
+// HarfBuzz-class dependency, judged not worth it for a caption-only cosmetic detail. Fira Code also
+// has no italic member (`styles: ["normal"]` in its own metadata) — unlike a browser, which
+// synthesizes `.rr-action-text`'s `font-style: italic` by slanting the regular face, this draws it
+// upright instead (an angled caption read as distracting, on request) — distinguished from a
+// rule/token label by color alone. Known limitations, accepted on
 // purpose rather than discovered later: simple top-to-bottom flow, no smart page-break avoidance
 // around a figure straddling a page boundary; tables render as plain ruled text rows, columns at
 // fixed fractions of the content width, no per-column text measurement; inline bold/code/image
@@ -34,6 +45,7 @@ import { isPaperBlock, serializeDocument } from "./document";
 import type { GrammarAnalysis } from "../protocol";
 import { parseMarkdownLite, isRailroadPlaceholder } from "./markdown";
 import type { MdBlock, MdInline } from "./markdown";
+import firaCodeUrl from "firacode/distr/ttf/FiraCode-Regular.ttf?url";
 
 const PAGE_WIDTH = 612; // US Letter, points (72pt/inch)
 const PAGE_HEIGHT = 792;
@@ -190,14 +202,34 @@ export async function buildPaperPdf(
   analysis: GrammarAnalysis | null,
 ): Promise<Uint8Array> {
   const scale = figureScale(serializeDocument(blocks));
-  const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+  const [{ PDFDocument, StandardFonts, rgb }, { default: fontkit }] =
+    await Promise.all([import("pdf-lib"), import("@pdf-lib/fontkit")]);
 
   const pdfDoc = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
   const serif = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const serifBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
   const serifItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
-  const mono = await pdfDoc.embedFont(StandardFonts.Courier);
-  const monoItalic = await pdfDoc.embedFont(StandardFonts.CourierOblique);
+  // The real on-screen font, not a generic monospace substitute. Figure text is short
+  // (identifiers, truncated action captions) and ASCII/Latin — the whole font embeds, not a
+  // hand-picked subset. Ligature/contextual features explicitly disabled — pdf-lib's fontkit-based
+  // custom-font layout auto-applies a font's GSUB features during encoding (a documented pdf-lib
+  // issue, #490 "Unwanted ligatures"), and Fira Code's own table has a `calt`/`liga` rule that
+  // fires on a plain "Fl" letter pair (nothing to do with programming ligatures), reproduced
+  // directly: it silently substituted a wrong-width glyph, rendering "parseFloat" as "parseFl
+  // oat" with a bogus gap. This document never wants any GSUB substitution anyway (real ligature
+  // shaping is the separate, deliberately-not-attempted gap noted above) — off entirely avoids
+  // relying on the specific feature-tag list pdf-lib happens to default to.
+  const firaBytes = await fetch(firaCodeUrl).then((r) => r.arrayBuffer());
+  const mono = await pdfDoc.embedFont(firaBytes, {
+    features: {
+      liga: false,
+      clig: false,
+      dlig: false,
+      calt: false,
+      rlig: false,
+    },
+  });
   const ink = rgb(0.09, 0.09, 0.11);
   const muted = rgb(0.42, 0.42, 0.46);
   // Matches Railroad.scala's own `styleFixed` (the same light-theme hex palette the notebook's
@@ -277,18 +309,20 @@ export async function buildPaperPdf(
         });
       } else if (el.tag === "text" && el.text) {
         const isAction = el.cls.includes("rr-action-text");
-        const font = isAction ? monoItalic : mono;
         const size = FS_PT * totalScale;
         const cx = parseFloat(el.attrs.x ?? "0");
         const cy = parseFloat(el.attrs.y ?? "0");
-        const textWidth = font.widthOfTextAtSize(el.text, size);
+        const textWidth = mono.widthOfTextAtSize(el.text, size);
         page.drawText(el.text, {
           x: toX(cx) - textWidth / 2,
           // `dominant-baseline: central` has no pdf-lib equivalent — 0.32×size approximates a
           // typical font's visual center above its baseline closely enough for a figure label.
           y: toY(cy) - size * 0.32,
           size,
-          font,
+          font: mono,
+          // Action text is upright, not slanted — Fira Code has no italic member anyway
+          // (`styles: ["normal"]`), and a synthetic skew read as distracting in a figure caption;
+          // distinguished from a rule/token label by color alone, same as everywhere else in Paper.
           color: isAction ? rrColors.actionText : rrColors.text,
         });
       }
