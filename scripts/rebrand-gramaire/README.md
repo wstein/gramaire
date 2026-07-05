@@ -1,7 +1,9 @@
 # Gramaire → Gramaire rebrand mirror script
 
-Renames `.gram`/`.gram.md` → `.gram`/`.gram.md` and rebrands `Gramaire`/`gramaire` →
-`Gramaire`/`gramaire` across an entire git history, via `git-filter-repo`, operating only on a
+Renames `.gram`/`.gram.md` → `.gram`/`.gram.md` and rebrands both `Gramaire`/`gramaire` (the
+project's real current name) and `Gramaire`/`gramaire` (the project's OLD target name, left over
+in the shipped "Gramaire Notebook" feature naming from before the 2026-07-05 collision-risk pivot)
+→ `Gramaire`/`gramaire`, across an entire git history, via `git-filter-repo`, operating only on a
 disposable `--mirror` clone — the source repo (and your real working checkout) is never touched.
 
 ## Files
@@ -42,6 +44,16 @@ git -C <mirror-or-checkout> grep -l '\*\*\*REMOVED\*\*\*' -- . || echo "clean"
 
 - Casings of `gramaire` that actually occur in tracked content: `Gramaire`, `gramaire` only (no
   `GRAMARK`). Re-check: `git grep -ohiE 'gramaire' | sort -u`.
+- Casings of `gramaire` that actually occur in tracked content: `Gramaire`, `gramaire`, **and one
+  `GRIMOIRE`** — but that all-caps hit is inside `docs/rebrand-gramaire-plan.md`'s own prose,
+  quoting a THIRD PARTY's trademark listing name ("a live Trademarkia listing exists for a
+  'GRIMOIRE' mark") from the collision-risk research, not one of our own identifiers — deliberately
+  **not** covered by a rule (an `GRIMOIRE==>GRAMAIRE` rule would corrupt that quote's accuracy).
+  Re-check before reusing: `git grep -ohiE 'gramaire' | sort -u`, and re-inspect any new
+  all-caps hit the same way before deciding whether it needs its own rule.
+- Only two paths are named after "Gramaire": `site/src/lab/liveDoc/GramaireNotebookIsland.tsx` and
+  `site/src/lab/liveDoc/gramaireNotebook.css` — both the shipped notebook feature, both handled by
+  `rename_paths_callback.py`'s `Gramaire`/`gramaire` replace, same as the text-content rules.
 - Casings of the bare `gram` identifier fragment (e.g. `gramLit`, `isNativeGram`): `Gram`, `gram`
   only. Re-check: `git grep -ohE '[A-Za-z_]*[Gg]rmk[A-Za-z_]*' | sort -u`.
 - `.gram`/`.gram.md`/`.gram.lock` are the only extension shapes in use (12 `.gram`/`.gram.md`

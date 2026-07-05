@@ -20,6 +20,11 @@ if name == "design/gramark-site-handoff" or name.startswith("design/gramark-site
 name = name.replace(".gram.md", ".gram.md").replace(".gram", ".gram")
 
 # Brand rename in any path segment (directory or file name) -- both casings actually used.
+# "Gramaire" is also rewritten here, not just "Gramaire": the shipped notebook feature was named
+# after the project's OLD target name ("Gramaire Notebook", GramaireNotebookIsland.tsx,
+# gramaireNotebook.css) before it changed to "Gramaire" -- both source names collapse onto the
+# same final target, matching replace-text-rules.txt's own two brand-rename rule pairs.
+name = name.replace("Gramaire", "Gramaire").replace("gramaire", "gramaire")
 name = name.replace("Gramaire", "Gramaire").replace("gramaire", "gramaire")
 
 return name.encode("utf-8", "surrogateescape")

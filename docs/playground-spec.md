@@ -706,7 +706,11 @@ existing Lab: an earlier prototype integrated as a toggle inside
 `LabIsland.tsx`, reusing its module-level signals directly, was reverted
 mid-review in favor of this standalone shape (see this session's feedback
 memory). Named "Gramaire Notebook" per `docs/rebrand-gramaire-plan.md` — the
-feature-level name ships now, ahead of any project-wide rebrand.
+feature-level name shipped ahead of any project-wide rebrand. The project's
+own target name later changed from "Gramaire" to "Gramaire" (collision-risk
+audit, 2026-07-05) — this page's name is now stale and will need renaming
+when the full rebrand executes; see that doc's "Status of the notebook
+feature" section.
 
 Linked from the shared site nav (`gramaire-topbar.mjs`'s `SECTIONS`/`LABELS`,
 `AppShell.astro`'s `detectActive` — before this it was an orphaned page,
