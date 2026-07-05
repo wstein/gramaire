@@ -1769,6 +1769,73 @@ as a real file.
   structure the engine alone owns (D43). DOM anchors, `copyCellLink`,
   `jumpToCell`, and each cell's own render `key` all use this id instead of
   its index now.
+- **FIRST/FOLLOW as per-rule chips, not a plain-text set.** A rule's own
+  FIRST/FOLLOW used to render as one space-joined string
+  (``{ `(` `NUMBER` }``) — hard to scan once a FOLLOW set grows past a
+  couple of tokens, and visually inconsistent with the Generated-tables
+  table's own per-token markdown `code` spans a few scrolls down. Each
+  member of `RuleFirstFollow.first`/`.follow` now renders as its own chip
+  (`.gramaire__output-ff-chips code`, `GramaireNotebookIsland.tsx`), reusing
+  exactly the shape the table already gave for free. Kept, not replaced by
+  the chips: an internal debate first considered dropping the
+  Generated-tables table entirely now that the live per-rule view exists,
+  but converged on keeping both — the table is the durable, diffable
+  artifact `gramaire fmt` commits to source control; the chips are the
+  live, in-context view while editing. A collapse-by-default toggle for the
+  Generated-tables table (mirroring `diagPanelCollapsed`) was scoped out of
+  this round, tracked as a follow-up, not implemented.
+- **Literal / token / nonterminal / EOF symbol classification
+  (`SymbolKind`/`RenderedSymbol`, `LabProtocol.scala`).** A plain string
+  chip couldn't answer a real question the FIRST/FOLLOW/production views
+  raise once you actually try to read them: is `NUMBER` a token and `(` a
+  literal, or are both just "terminals"? `ProductionInfo.rhs` and
+  `RuleFirstFollow.first`/`.follow` changed from `Vector[String]` to
+  `Vector[RenderedSymbol]` (`{text, kind}`, `kind` one of `literal | token |
+  nonterminal | eof`). Classification is computed by `LabApi.scala`'s
+  `classifyTerminals` — a name-keyed `Map[String, SymbolKind]` built once
+  from the pre-`GSym` `Sym` tree (a `Sym.Lit` is `literal`, a `Sym.Ref` not
+  naming a declared rule is `token`) — deliberately kept separate from
+  `GSym` itself: `GSym.Term`'s own `equals`/`hashCode`/ordering are load-
+  bearing for `Table.scala`'s LR construction (that module's own header
+  warns it's "ported closely, not creatively"), so adding a `kind` field
+  there risked silently changing state-merging behavior in a rare symbol-
+  name-collision case. `LrActionInfo` (the Parse trace/Walk tab's step
+  stack) deliberately keeps the old string-only `renderSym` — no client
+  need for kind there yet, and every LrStepInfo consumer already treats it
+  as opaque display text. `site/src/lab/symbolDisplay.tsx` (`SymbolChip`/
+  `SymbolChips`) is the one shared rendering surface both `LabIsland.tsx`
+  (Productions/FIRST-FOLLOW tables) and the Notebook consume, coloring each
+  chip by `data-kind` — literal/token/nonterminal/EOF read as four visually
+  distinct colors (`--t-op`/`--t-term`/`--t-nonterm`/`--fg-muted`) instead
+  of one flat terminal color, matching (but not reusing — see below)
+  `Railroad.scala`'s own `DiaSym` convention.
+  `spec/lab-protocol-schema.json` gained matching `symbolKind`/
+  `renderedSymbol` `$defs`; `site/src/lab/protocol.ts` is regenerated from
+  it (`npm run gen:lab-types`), and the JVM↔JS conformance gate
+  (`check:lab-parity`) confirms both engines still produce byte-identical,
+  schema-valid responses under the new shape.
+- **One figure across Notebook, Paper, and PDF, not diagram-only.** The
+  railroad diagram and its FIRST/FOLLOW sets used to be two unrelated
+  pieces of content that happened to sit near each other, and Paper/PDF
+  showed the diagram alone — a rule's FIRST/FOLLOW was Notebook-only. Every
+  rule's figure now carries both, on every read surface: the Notebook's own
+  `.gramaire__output` div became a real `<figure>`, named by an sr-only
+  `<figcaption>` ("Railroad diagram and FIRST/FOLLOW sets for the {name}
+  rule") so assistive tech gets one accessible group instead of a labeled
+  diagram next to an unlabeled chip cluster; Paper's `PaperBlock` gained the
+  same `.gramaire__output-ff` markup inside its existing
+  `<figure>`/`<figcaption>Figure N — {name}</figcaption>`; the PDF export
+  (`paperPdf.ts`) draws FIRST/FOLLOW as kind-colored chip pills (a rounded
+  background via the existing `roundedRectPath` + plain `page.drawText`,
+  not `shapeLabel`'s HarfBuzz path — these are short plain identifiers with
+  no Fira Code ligature to worry about) below each rule's vector railroad,
+  wrapping within the content width exactly like body text already does.
+  `Railroad.scala`'s own `DiaSym` stays a two-way terminal/nonterminal
+  split, unchanged — a railroad diagram was never asked to distinguish
+  literal from token, and doing so would mean re-deriving the classifier
+  inside the diagram-construction path for no reader-facing benefit; the
+  new `ffColors`/`rrColors` in `paperPdf.ts` are intentionally two separate
+  palettes for this reason, not one merged one.
 
 ---
 
