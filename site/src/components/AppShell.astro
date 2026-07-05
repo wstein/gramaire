@@ -59,11 +59,25 @@ const showSearch = active !== "lab" && active !== "notebook";
 // gramaire-topbar.mjs's `tools` slot already generically supports, right
 // down to the divider next to it auto-showing once anything real is
 // slotted in). No caller passes one today except Notebook, so every other
-// page's rendering is unaffected.
+// page's rendering is unaffected. Also stamped onto `<gramaire-topbar>` as
+// `data-page-tools` — its own shadow CSS uses `:host([data-page-tools="true"])`
+// to right-align just THIS content (flush against the nav links), without
+// touching the shared `.tools`/`.spacer` layout Search also relies on (a
+// `::slotted()` selector can't reach up to move `.tools` itself within its
+// OWN parent's flex line — the host attribute is what makes this a targeted
+// per-page rule instead of a change to shared layout). Matched against the
+// literal string "true": Astro renders this as `data-page-tools="false"`
+// when false, not an omitted attribute, so a bare presence check would
+// incorrectly match every page — confirmed against the built HTML output,
+// not assumed.
 const hasPageTools = Astro.slots.has("page-tools");
 ---
 
-<gramaire-topbar active={active} base={import.meta.env.BASE_URL}>
+<gramaire-topbar
+  active={active}
+  base={import.meta.env.BASE_URL}
+  data-page-tools={hasPageTools}
+>
   {
     hasPageTools ? (
       /*

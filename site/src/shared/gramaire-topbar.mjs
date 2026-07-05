@@ -126,6 +126,22 @@ const TEMPLATE = `
 
   .tools { display: flex; align-items: center; flex: none; }
   ::slotted([slot="tools"]) { width: 200px; }
+  /* A page-supplied page-tools slot (AppShell.astro's own slot, distinct from THIS native
+     tools slot) right-aligns flush against the nav links instead of sitting flush left next
+     to the brand, where Search's fixed-width box is meant to sit. margin-left:auto on .tools
+     ALONE is not enough: flex-grow gets first claim on a flex line's free space, resolved
+     BEFORE auto margins get whatever's left over — since .spacer already has flex:1, it
+     always wins that space first, leaving auto margins elsewhere permanently at 0 (confirmed
+     empirically: margin-left:auto on .tools alone measured 0px). Neutralizing .spacer's own
+     flex-grow, scoped to the same case, frees that space for .tools's auto margin to actually
+     consume instead. :host([data-page-tools="true"]) scopes both rules to the Notebook
+     specifically, without touching .tools/.spacer for every other page Search still uses —
+     matched against the literal string "true", not just attribute PRESENCE: Astro renders the
+     data-page-tools attribute as the literal string "false" when its value is false (confirmed
+     against the built HTML), not an omitted attribute, so a bare presence check would
+     incorrectly match every page. */
+  :host([data-page-tools="true"]) .spacer { flex: none; }
+  :host([data-page-tools="true"]) .tools { margin-left: auto; }
 
   .spacer { flex: 1; }
 

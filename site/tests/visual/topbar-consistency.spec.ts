@@ -308,3 +308,36 @@ test("the Notebook highlights itself in the nav, has no search box, but does hav
   expect(info.hasViewToggle).toBe(true);
   expect(info.dividerHidden).toBe(false);
 });
+
+// The toggle sits flush against the nav links (right-aligned within the tools/spacer region),
+// not flush against the logo where Search sits on content pages — a `:host([data-page-tools=
+// "true"])`-scoped rule in gramaire-topbar.mjs, so this doesn't move Search's own position on any
+// other page (verified separately by the search-box tests elsewhere in this file still passing).
+test("the Notebook's view toggle sits right-aligned, immediately left of Home — not flush against the logo", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1100, height: 400 });
+  await page.goto("/notebook/");
+  const toggle = page.locator(".gramaire__view-toggle");
+  await toggle.waitFor();
+
+  const topbar = page.locator("gramaire-topbar");
+  const homeLinkBox: number = await topbar.evaluate((el: Element) => {
+    const home = [...el.shadowRoot!.querySelectorAll("nav.ctx a")].find(
+      (a) => a.textContent?.trim() === "Home",
+    );
+    return home!.getBoundingClientRect().left;
+  });
+  const logoBox: number = await topbar.evaluate(
+    (el: Element) =>
+      el.shadowRoot!.querySelector(".brand")!.getBoundingClientRect().right,
+  );
+  const toggleBox = (await toggle.boundingBox())!;
+
+  // Closer to Home's left edge than to the logo's right edge — compared relatively rather than
+  // against an exact pixel count, since the gap to Home includes the nav's own internal
+  // padding/divider spacing, unrelated to this alignment rule itself.
+  const distanceToHome = homeLinkBox - toggleBox.x - toggleBox.width;
+  const distanceToLogo = toggleBox.x - logoBox;
+  expect(distanceToHome).toBeLessThan(distanceToLogo);
+});
