@@ -580,12 +580,23 @@ test("the prose editor opens tall enough for its content and grows as more lines
 }) => {
   await gotoNotebookReady(page);
 
+  // A fresh, genuinely-empty block via + Prose — not the document's own first real prose block,
+  // whose length is an implementation detail of the current example (calc-js.grmk.md now wraps
+  // its own Declarations fence in a collapsed <details>, making that block considerably longer
+  // than the 6 short lines this test types below, which broke the "grows as MORE is typed"
+  // premise for a block that didn't start short).
+  const zone = page.locator(".grimoire__insert-zone").first();
+  await zone.hover();
+  await zone
+    .locator(".grimoire__insert-btn")
+    .filter({ hasText: "Prose" })
+    .click();
+
   const editor = page.locator(".grimoire__prose-editor");
-  await page.locator(".grimoire__prose").first().click();
   const initialHeight = await editor.evaluate(
     (el) => el.getBoundingClientRect().height,
   );
-  // Taller than the old fixed 70px floor, even for a short block.
+  // Taller than the old fixed 70px floor, even for a short (here, empty) block.
   expect(initialHeight).toBeGreaterThan(100);
 
   await editor.fill(
@@ -822,6 +833,39 @@ test("a rule's railroad diagram has an accessible name for screen readers", asyn
   const railroad = ruleCellLocator(page).locator(".grimoire__output-railroad");
   await expect(railroad).toHaveAttribute("role", "img");
   await expect(railroad).toHaveAttribute("aria-label", /Railroad diagram for/);
+});
+
+// Regression: a rule's own FIRST/FOLLOW used to render as one plain-text, space-joined string
+// (`{ \`(\` \`NUMBER\` }`) — hard to scan once a FOLLOW set has more than a couple of tokens, and
+// visually inconsistent with the Generated-tables table's own per-token styling a few scrolls
+// down. Each token is now its own chip, matching the table exactly: no literal backticks (the
+// chip's own background already says "this is a terminal"), `$` (no backticks in the engine's own
+// formatting) rendered exactly as received.
+test("a rule's FIRST/FOLLOW renders each token as its own chip, matching the Generated-tables table's own styling", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const factorCell = page.locator('.grimoire__cell[data-nonterminal="Factor"]');
+
+  const firstChips = await factorCell
+    .locator(".grimoire__output-ff-group")
+    .first()
+    .locator(".grimoire__output-ff-chips code")
+    .allTextContents();
+  expect(firstChips).toEqual(["(", "NUMBER"]);
+
+  const followChips = await factorCell
+    .locator(".grimoire__output-ff-group")
+    .nth(1)
+    .locator(".grimoire__output-ff-chips code")
+    .allTextContents();
+  expect(followChips).toEqual([")", "*", "+", "-", "/", "$"]);
+
+  // No chip's own text still carries the raw backtick delimiters.
+  for (const chip of [...firstChips, ...followChips]) {
+    expect(chip.startsWith("`")).toBe(false);
+    expect(chip.endsWith("`")).toBe(false);
+  }
 });
 
 // The Notebook/Source view switch — an aria-pressed segmented pair sticky at the top of the
