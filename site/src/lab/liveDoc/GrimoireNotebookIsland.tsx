@@ -83,7 +83,23 @@ const { response, responseSource, pending, evaluation } = labWorker;
 // as literal text). Editing a block never needs a fresh `fences` — the block being edited is
 // still exactly the block being edited regardless of how many lines it now spans; only a genuine
 // server round-trip can tell us anything new about role/classification.
+// buildDocument now normalizes away leading/multi-blank-line prose (see document.ts's own
+// `normalizeProseText`), applied per PROSE GAP — so it depends on where the real fences fall, not
+// just on the raw text. This approximation (computed with no fences at all, the whole file as one
+// blob) is close but NOT always byte-identical to what the real, fence-aware split produces (a
+// blank line sitting exactly where a fence boundary falls normalizes differently depending on
+// whether that boundary is known yet) — good enough for `shouldOfferRestore`'s own "is there
+// plausibly a different prior session" check below, whose worst failure mode is one unnecessary
+// restore offer for a session that never actually changed, not silent data loss.
+const NOTEBOOK_DEFAULT_TEXT = serializeDocument(
+  buildDocument(NOTEBOOK_DEFAULT_SOURCE, []),
+);
 const blocks = signal<DocBlock[]>(buildDocument(NOTEBOOK_DEFAULT_SOURCE, []));
+// `hasUnsavedWork` (below) needs to be exact, unlike `shouldOfferRestore` above — a false positive
+// there just means an unnecessary confirm() before replacing a document that was never actually at
+// risk. Captured from the reshape effect's own FIRST successful real (fence-aware) classification,
+// the moment it's actually known, rather than approximated up front.
+let pristineDefaultText: string | null = null;
 const tryItInput = signal(NOTEBOOK_DEFAULT_INPUT);
 const editingProse = signal<number | null>(null);
 const proseDraft = signal("");
@@ -301,6 +317,13 @@ effect(() => {
   // the exact same bytes, so a same-span match is exact bookkeeping, never a guess at content.
   const next = buildDocument(current, resp.fences, prev);
   blocks.value = next;
+  // The FIRST time this ever fires is the standalone page's own automatic initial evaluate() of
+  // the still-untouched default document — captured once, here, as the exact (fence-aware)
+  // pristine baseline `hasUnsavedWork` needs. Every later firing (after a real edit, or after
+  // loading something else entirely) leaves this alone; comparing against the ORIGINAL default
+  // forever is exactly what "has this session diverged from the default" is supposed to mean.
+  if (pristineDefaultText === null)
+    pristineDefaultText = serializeDocument(next);
   // document.ts's own round-trip contract admits ONE exception: a fence with exactly one blank
   // content line (` ```gramark\n\n``` `) collapses to the same zero-content-line fixed point as a
   // fence with NO content line at all, so `serializeDocument(next)` can come out one byte SHORTER
@@ -1712,9 +1735,14 @@ function ViewToggle() {
 // True once the document has diverged from the pristine default — the only state a fresh
 // replacement (Open/drag-drop/an example) can silently discard without asking first. Checked
 // against `blocks.peek()`, not `.value`: this never runs inside a render, so there's nothing to
-// subscribe to.
+// subscribe to. `pristineDefaultText === null` (the real classification hasn't landed yet — a
+// narrow race only a user acting within milliseconds of page load could hit) reads as "nothing
+// meaningful could have diverged yet," not as "everything has."
 function hasUnsavedWork(): boolean {
-  return serializeDocument(blocks.peek()) !== NOTEBOOK_DEFAULT_SOURCE;
+  return (
+    pristineDefaultText !== null &&
+    serializeDocument(blocks.peek()) !== pristineDefaultText
+  );
 }
 
 // A native confirm() before any action that REPLACES the whole document (Open, drag-drop, an
@@ -2171,7 +2199,7 @@ function setupSessionAutosave(): () => void {
   let knownTimestamp = 0;
 
   const existing = readAutosaveSnapshot(storage);
-  if (shouldOfferRestore(existing, NOTEBOOK_DEFAULT_SOURCE)) {
+  if (shouldOfferRestore(existing, NOTEBOOK_DEFAULT_TEXT)) {
     restoreOffer.value = existing;
     knownTimestamp = existing.timestamp;
   }

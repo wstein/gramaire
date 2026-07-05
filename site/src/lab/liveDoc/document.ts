@@ -67,6 +67,32 @@ export function makeBlockId(): string {
   return randomId("block");
 }
 
+/** A prose block's own leading blank line is really the PRECEDING block's trailing whitespace,
+ * misfiled — a cell opened for raw editing should never show an empty first line. Strips every
+ * leading blank line entirely (there's no earlier block to hand them back to once split into
+ * separate blocks, so they're just dropped, not relocated) and collapses any run of 2+ blank
+ * lines — leading, interior, or trailing — down to at most 1, so a block may still end with a
+ * single blank line (its own gap before whatever comes next) but never opens with one and never
+ * contains a run of several. Applied both when `buildDocument` slices a fresh prose gap and
+ * whenever `replaceBlockText` commits a prose edit, so the invariant holds whether text arrives
+ * from a fresh engine round-trip or a direct local edit. Like the empty-fence collapse
+ * `fenceWrap`/`serializeDocument` already document, this makes the round trip a NORMALIZING fixed
+ * point rather than a byte-identical restoration on the very first pass over text that doesn't
+ * already conform — idempotent from then on, since normalizing already-normalized text is a
+ * no-op. */
+function normalizeProseText(text: string): string {
+  const lines = text.split("\n");
+  const out: string[] = [];
+  for (const line of lines) {
+    const isBlank = line.trim() === "";
+    if (isBlank && (out.length === 0 || out[out.length - 1].trim() === "")) {
+      continue;
+    }
+    out.push(line);
+  }
+  return out.join("\n");
+}
+
 /**
  * Split `source` into ordered prose/fence blocks using `fences` (`LabResponse.fences`).
  * `fences` must describe `source` itself — the same text a `LabResponse` was computed for.
@@ -99,7 +125,7 @@ export function buildDocument(
     blocks.push({
       id: makeBlockId(),
       kind: "prose",
-      text: lines.slice(fromLine - 1, toLine).join("\n"),
+      text: normalizeProseText(lines.slice(fromLine - 1, toLine).join("\n")),
       nonterminal: null,
       fenceIndex: null,
     });
@@ -168,14 +194,24 @@ export function serializeDocument(blocks: readonly DocBlock[]): string {
  * Replace one block's text in place, leaving every other block's `text` untouched — an edit to
  * `index` produces a diff scoped to that block's own line range once re-serialized, never a
  * reflow of a prose paragraph or another cell. For a fence block, `newText` is the INNER content
- * only (no markers) — exactly what a cell's editor holds.
+ * only (no markers) — exactly what a cell's editor holds. A prose commit runs through
+ * `normalizeProseText` (same as a fresh `buildDocument` slice) so the "no leading/multi-blank
+ * line" invariant holds after a direct edit too, not just on first parse — never applied while
+ * the user is still typing (only at commit), so a live draft is never fought mid-edit.
  */
 export function replaceBlockText(
   blocks: readonly DocBlock[],
   index: number,
   newText: string,
 ): DocBlock[] {
-  return blocks.map((b, i) => (i === index ? { ...b, text: newText } : b));
+  return blocks.map((b, i) =>
+    i === index
+      ? {
+          ...b,
+          text: b.kind === "prose" ? normalizeProseText(newText) : newText,
+        }
+      : b,
+  );
 }
 
 /** Remove the block at `index`. Every later block's own position shifts down by one — callers

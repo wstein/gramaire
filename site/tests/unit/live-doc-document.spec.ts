@@ -73,10 +73,19 @@ test("buildDocument: every fence block carries its kind/nonterminal/fenceIndex",
   );
 });
 
-test("buildDocument + serializeDocument round-trips to the exact original source", () => {
+// Same "normalizing fixed point, not always byte-identical on the first pass" contract
+// serializeDocument's own header already documents for an empty fence — calc.grmk.md's own
+// headings each open with a real blank line (ordinary markdown style), which normalizeProseText
+// now strips (a prose block never opens with blank space; see buildDocument's own comment), so
+// this round-trip is intentionally NOT byte-identical for this fixture. Re-normalizing the result
+// is a no-op, which is what actually matters (see normalizeProseText's own idempotency tests).
+test("buildDocument + serializeDocument: normalizes away calc.grmk.md's own leading blank lines, not byte-identical", () => {
   const source = readCalcMd();
   const blocks = buildDocument(source, calcFences);
-  expect(serializeDocument(blocks)).toBe(source);
+  const serialized = serializeDocument(blocks);
+  expect(serialized).not.toBe(source);
+  expect(serialized).not.toContain("\n\n\n"); // no run of 2+ blank lines anywhere
+  expect(serialized.startsWith("\n")).toBe(false); // the file itself never opens with a blank line
 });
 
 test("buildDocument produces prose blocks for the gaps between/around fences", () => {
@@ -101,6 +110,126 @@ test("buildDocument: no fences (native .grmk) yields one prose block, still roun
   expect(typeof blocks[0].id).toBe("string");
   expect(blocks[0].id.length).toBeGreaterThan(0);
   expect(serializeDocument(blocks)).toBe(source);
+});
+
+// normalizeProseText (private to document.ts) — exercised indirectly through buildDocument with
+// small hand-authored fixtures, same style as the "no fences" test just above, rather than the
+// large calc.grmk.md fixture (whose exact byte layout the round-trip/span tests above already
+// cover for the general case).
+test("buildDocument: a prose gap's leading blank lines are stripped entirely", () => {
+  const source = [
+    "```gramark",
+    "%name A",
+    "```",
+    "",
+    "",
+    "## Tokens",
+    "```gramark",
+    "T : /x/",
+    "```",
+  ].join("\n");
+  const fences: FenceInfo[] = [
+    fence(0, "settings", null, 1, 3),
+    fence(1, "tokens", null, 7, 9),
+  ];
+  const blocks = buildDocument(source, fences);
+  const prose = blocks.find((b) => b.kind === "prose")!;
+  expect(prose.text).toBe("## Tokens");
+});
+
+test("buildDocument: a run of 2+ blank lines anywhere in a prose gap collapses to exactly 1", () => {
+  const source = [
+    "```gramark",
+    "%name A",
+    "```",
+    "Intro.",
+    "",
+    "",
+    "",
+    "More text.",
+    "",
+    "```gramark",
+    "T : /x/",
+    "```",
+  ].join("\n");
+  const fences: FenceInfo[] = [
+    fence(0, "settings", null, 1, 3),
+    fence(1, "tokens", null, 10, 12),
+  ];
+  const blocks = buildDocument(source, fences);
+  const prose = blocks.find((b) => b.kind === "prose")!;
+  // The interior run collapses to 1 blank line; the ORIGINAL single trailing blank line (before
+  // the next fence) survives too — a block may still end with one blank line of its own.
+  expect(prose.text).toBe("Intro.\n\nMore text.\n");
+});
+
+test("buildDocument: a prose gap that's only blank lines collapses to an empty block, not a lone blank line", () => {
+  const source = [
+    "```gramark",
+    "%name A",
+    "```",
+    "",
+    "",
+    "```gramark",
+    "T : /x/",
+    "```",
+  ].join("\n");
+  const fences: FenceInfo[] = [
+    fence(0, "settings", null, 1, 3),
+    fence(1, "tokens", null, 6, 8),
+  ];
+  const blocks = buildDocument(source, fences);
+  const prose = blocks.find((b) => b.kind === "prose")!;
+  expect(prose.text).toBe("");
+});
+
+test("buildDocument: the document's own leading blank lines (before the first fence) are stripped too", () => {
+  const source = ["", "", "# Title", "", "```gramark", "%name A", "```"].join(
+    "\n",
+  );
+  const fences: FenceInfo[] = [fence(0, "settings", null, 5, 7)];
+  const blocks = buildDocument(source, fences);
+  expect(blocks[0].kind).toBe("prose");
+  // The leading blanks are gone; the single ORIGINAL blank line before the fence survives as this
+  // block's own trailing gap.
+  expect(blocks[0].text).toBe("# Title\n");
+  expect(serializeDocument(blocks).startsWith("\n")).toBe(false);
+});
+
+test("replaceBlockText: committing a prose edit normalizes it the same way a fresh parse does", () => {
+  const blocks = buildDocument("Intro.", []);
+  const edited = replaceBlockText(blocks, 0, "\n\nIntro.\n\n\nMore.\n\n\n");
+  expect(edited[0].text).toBe("Intro.\n\nMore.\n");
+});
+
+test("replaceBlockText: a fence block's own text is never normalized (blank lines are real content there)", () => {
+  const blocks = buildDocument("```gramark\nT : /x/\n```", [
+    fence(0, "tokens", null, 1, 3),
+  ]);
+  const edited = replaceBlockText(blocks, 0, "\n\nT : /x/\n\n\n");
+  expect(edited[0].text).toBe("\n\nT : /x/\n\n\n");
+});
+
+test("buildDocument: normalizing already-normalized prose text is a no-op (idempotent)", () => {
+  const once = buildDocument(
+    [
+      "```gramark",
+      "%name A",
+      "```",
+      "",
+      "",
+      "## T",
+      "",
+      "",
+      "```gramark",
+      "T : /x/",
+      "```",
+    ].join("\n"),
+    [fence(0, "settings", null, 1, 3), fence(1, "tokens", null, 9, 11)],
+  );
+  const normalizedText = once.find((b) => b.kind === "prose")!.text;
+  const twice = buildDocument(normalizedText, []);
+  expect(twice[0].text).toBe(normalizedText);
 });
 
 test("buildDocument: without `prev`, every block gets a fresh, distinct id", () => {
@@ -214,6 +343,10 @@ test("replaceBlockText: no edit to a fence block's content can ever corrupt its 
 test("replaceBlockText: editing one block changes only that block's own line range", () => {
   const source = readCalcMd();
   const blocks = buildDocument(source, calcFences);
+  // The normalized baseline (buildDocument strips calc.grmk.md's own leading blank lines — see
+  // the round-trip test above) is what every other block's own bytes are scoped against here, not
+  // the raw fixture `source` itself.
+  const baseline = serializeDocument(blocks);
   const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
   const original = blocks[exprIndex].text;
   const edited = replaceBlockText(
@@ -228,7 +361,7 @@ test("replaceBlockText: editing one block changes only that block's own line ran
   );
   const result = serializeDocument(edited2);
 
-  const originalLines = source.split("\n");
+  const baselineLines = baseline.split("\n");
   const resultLines = result.split("\n");
   const before = blocks.slice(0, exprIndex);
   const after = blocks.slice(exprIndex + 1);
@@ -239,20 +372,31 @@ test("replaceBlockText: editing one block changes only that block's own line ran
 
   // Every line before the edited block is untouched, byte-for-byte.
   expect(resultLines.slice(0, beforeLineCount)).toEqual(
-    originalLines.slice(0, beforeLineCount),
+    baselineLines.slice(0, beforeLineCount),
   );
   // Everything after the edited block (shifted by the one extra line) is untouched too.
   expect(result.endsWith(serializeDocument(after))).toBe(true);
 });
 
-test("withLineNumbers: matches the original FenceInfo spans before any edit", () => {
+// Not calcFences' own original line numbers (buildDocument now strips calc.grmk.md's own leading
+// blank lines, shifting every fence earlier — see the round-trip test above); instead, each
+// block's own [startLine, endLine] must index into that SAME block's own serialized bytes in
+// serializeDocument(blocks), which is the invariant this actually needs to hold.
+test("withLineNumbers: each block's own line span indexes into its own serialized bytes", () => {
   const source = readCalcMd();
   const blocks = buildDocument(source, calcFences);
   const numbered = withLineNumbers(blocks);
-  const fenceSpans = numbered
-    .filter((b) => b.fenceIndex !== null)
-    .map((b) => [b.startLine, b.endLine]);
-  expect(fenceSpans).toEqual(calcFences.map((f) => [f.startLine, f.endLine]));
+  const lines = serializeDocument(blocks).split("\n");
+  numbered.forEach((b) => {
+    const ownLines = lines.slice(b.startLine - 1, b.endLine);
+    if (b.kind === "prose") {
+      expect(ownLines.join("\n")).toBe(b.text);
+    } else {
+      expect(ownLines[0]).toBe("```gramark");
+      expect(ownLines[ownLines.length - 1]).toBe("```");
+      expect(ownLines.slice(1, -1).join("\n")).toBe(b.text);
+    }
+  });
 });
 
 test("withLineNumbers: a shorter/longer edit shifts every later block's line numbers", () => {
@@ -278,8 +422,7 @@ test("withLineNumbers: a shorter/longer edit shifts every later block's line num
 test("blockCharSpans: content ranges point at the exact editable text in the serialized document", () => {
   const source = readCalcMd();
   const blocks = buildDocument(source, calcFences);
-  const serialized = serializeDocument(blocks);
-  expect(serialized).toBe(source); // precondition: spans are into `source` itself
+  const serialized = serializeDocument(blocks); // spans are into THIS (the normalized baseline)
   const spans = blockCharSpans(blocks);
 
   blocks.forEach((b, i) => {
