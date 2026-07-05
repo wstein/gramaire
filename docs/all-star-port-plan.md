@@ -804,6 +804,81 @@ surface is reached by **conversion**, not syntax expansion (§4).
   `ParserSuite`/`LlSuite`/`ConformanceSuite` regression suites (unchanged
   externally-observable behavior, verified byte-for-byte).
 
+### Phase 7 — Predicate evaluation during prediction 🔲 scoping only, not built
+
+D-predicates (§9) and `IRPredicateEffect` (ADR D42) describe `{%? %}` as
+something "the ALL(\*) predictor **evaluates** ... during prediction" —
+aspirational language written before any of the machinery existed. Today
+`{%? %}` is real, parseable, buildable notation (2026-07-05: a first native
+example, `examples/predicate-guard.grmk.md`, exercises it end-to-end) but
+is **inert**: nothing in `AtnSim`/`Ll` ever reads `IRRule.predicate`, so a
+predicate's body never runs and never gates anything.
+`cli/jvm/src/main/scala/gramark/cli/Main.scala`'s own
+`strategyIgnoresPredicates` diagnostic already says this outright
+("prediction doesn't evaluate predicates yet, so this only avoids silently
+discarding them"). This phase scopes what real evaluation would take,
+rather than build it speculatively — four separate, largely independent
+sub-problems, each its own design decision:
+
+1. **No predicate hook exists in the ATN.** `AtnSim.predict`
+   (`core/src/main/scala/gramark/AtnSim.scala`) is the single decision
+   point; its `Config` carries only a state, an alt index, and a
+   call-return stack — nothing that ties back to an `IRRule.id` or its
+   predicate — and `closure`/`move` walk `Transition.Epsilon`/`Atom`/
+   `RuleCall` only (`Atn.scala` has no `PredicateTransition`). Worse,
+   `AtnBuild.buildAtn` lowers the desugared `Grammar`, not the IR, so
+   `IRRule.predicate` and the ATN are two disconnected data models today.
+   Wiring this in means: a new transition/marker kind carrying a predicate
+   reference, threading it from IR (or front-end `Grammar`) through
+   `AtnBuild`, and teaching `closure` to filter a config whose predicate
+   evaluates false.
+2. **No JVM-side execution engine exists at all.** The only place any
+   action — value or predicate — ever actually _runs_ is the Lab's browser
+   Worker (`site/src/lab/worker.ts`), which takes `BackendJs.emitTraced`'s
+   generated JS text and does a real `import()` into the browser's own V8.
+   That only works because Scala.js output and a `%lang javascript` body
+   are both JS, executed by the same engine. `core`/`cli` on the JVM have
+   no `javax.script`, no GraalJS, nothing — there is no way to execute an
+   arbitrary predicate body there today. Real evaluation needs either an
+   embedded JVM JS engine (a new, non-trivial dependency) or a
+   deliberately narrower JVM-native predicate DSL instead of raw
+   host-language text (a language-design decision, not just an engineering
+   one).
+3. **Prediction has no access to the data a predicate would reference.**
+   Captured fields (`c.ident`, etc.) are only populated _after_ an
+   alternative is chosen and the CST for it exists, in `BackendJs`'s
+   bottom-up fold over the finished tree. `AtnSim.closure`/`move` see raw
+   token lookahead only — no CST, no fields, nothing a predicate referring
+   to an earlier sibling's captured value could read. Making that
+   coherently available during prediction (not after a reduce, a much
+   easier problem) means either speculatively running value actions early
+   and out of the normal bottom-up order, or maintaining an incremental
+   symbol-table-shaped side channel the walker doesn't have today — closer
+   to what ANTLR's generated-parser-object model gives predicates for
+   free, which has no direct analogue in Gramark's generic table/CST-driven
+   walker.
+4. **Execution is inherently I/O-shaped; `core` is not.** `core`/`lab` are
+   both `crossProject(JSPlatform, JVMPlatform)`, and CI enforces `core`
+   stays I/O-free (`.github/workflows/ci.yml`'s "Core stays I/O-free"
+   gate). Running arbitrary `%lang`-specific code — a JVM engine
+   invocation, or Scala.js's own dynamic `import`/`eval` trick — cannot
+   live in `core` under that constraint without breaking the gate or
+   JVM/JS parity. Any real implementation needs a narrow interface `core`
+   calls but never implements, with a JVM-only backend (behind whatever
+   new dependency §2 picks) and a JS-only backend (reusing the existing
+   browser-import trick) satisfying it separately.
+
+None of `spec/incremental-spec.md` (R22/R23 assume evaluation as a
+precondition they don't solve), this document's own §6 ("prediction-time
+predicates must be pure, mirroring ANTLR's guidance" — not enforced
+anywhere), or `docs/multi-backend-implementation-plan.md`'s D42 resolve
+any of the four. **Status: deferred, unscheduled.** Revisit only as a
+dedicated effort with its own design doc covering all four — not as a
+follow-on to an example or a display-bug fix, which is what surfaced this
+gap (`site/tests/visual/lab.spec.ts`'s "Predicate guard" test exists
+specifically to prove, honestly, that `{%? %}` is inert today rather than
+imply otherwise).
+
 ## 4. ANTLR ↔ Gramark converter (not syntax extensions)
 
 The original plan grew Gramark's grammar with ANTLR's surface (predicates,
