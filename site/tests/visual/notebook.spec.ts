@@ -946,9 +946,10 @@ test("↓ PDF downloads a real PDF file, named from the document's own %name dir
   for await (const chunk of stream) chunks.push(chunk as Buffer);
   const bytes = Buffer.concat(chunks);
   // A real PDF, not an empty/corrupt file — the magic header every valid PDF starts with, and a
-  // plausible size (this document's own vector text + 3 rasterized railroad diagrams).
+  // plausible size (this document's own vector text + 3 vector railroad diagrams — no rasterized
+  // image data, so this is a small file, unlike an earlier PNG-embedding version of this feature).
   expect(bytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
-  expect(bytes.length).toBeGreaterThan(10_000);
+  expect(bytes.length).toBeGreaterThan(2_000);
 });
 
 // Livebook-style hover-reveal per-cell actions (reorder/link/delete) — a small floating row, not

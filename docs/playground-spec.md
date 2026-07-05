@@ -1179,20 +1179,39 @@ a bracketed `[image: alt]` fallback). `buildPaperPdf` walks the exact same
 `document.ts`, shared by both — the PDF can never drift from what Paper
 displays on screen): prose reuses `parseMarkdownLite` as-is (pure data, no
 DOM dependency), word-wrapped against `pdf-lib`'s own
-`font.widthOfTextAtSize` (it has no built-in text wrapping); rule figures
-reuse the exact same `analysis.railroad[nonterminal]` SVG string every
-other view already renders, rasterized via an offscreen `<img>`+`<canvas>`
-(`SVG string → Blob → Image → canvas.toBlob("image/png") → pdfDoc.embedPng`)
-— verified the railroad SVGs' own `styleThemed` CSS already bakes real
-fallback colors into every `var(--x, #hex)` reference, so rasterizing the
-raw SVG string standalone (outside the live page's own CSS custom-property
-cascade) still renders correctly with no pre-processing needed.
+`font.widthOfTextAtSize` (it has no built-in text wrapping).
+
+Rule figures were rasterized in the original v1 (`SVG string → Blob → Image
+→ canvas.toBlob("image/png") → pdfDoc.embedPng`) — replaced with real
+vector output (`parseRailroadSvg` + `drawVectorRailroad`, `paperPdf.ts`)
+once it became clear the railroad SVGs use a small, fixed element
+vocabulary (confirmed directly against `Railroad.scala`'s own `renderSvg`:
+only `circle`/`path`/`rect`/`text`, never a `<g>` or a `transform`), making
+a one-for-one re-emission as `pdf-lib` primitives tractable rather than
+theoretical. `<path>` tracks pass straight through `pdf-lib`'s own
+`drawSvgPath` (it already parses M/H/V/Q/A path syntax and auto-flips the Y
+axis for SVG's own down-is-positive convention — raw SVG-space coordinates
+and stroke widths pass through unmodified, the auto-applied CTM scale
+handles unit conversion); a rounded `<rect>` (pdf-lib has no native
+rounded-rect primitive) is synthesized into an equivalent arc-cornered path
+string and drawn the same way; `<circle>` becomes `drawEllipse`; `<text>`
+becomes `drawText`, manually centered both axes (pdf-lib has no
+`dominant-baseline` equivalent — approximated with a `0.32×size` baseline
+offset) in a standard monospace PDF font (Courier/Courier-Oblique, no
+ligature substitution — a separate, deliberately-deferred gap, see below).
+Verified against both the simple 3-alternative `Calc-js` example and the
+project's own self-hosting grammar's 19-alternative `Sym` rule (rendered to
+PNG via `pdftoppm` and inspected directly): shapes, colors, track routing,
+and text all match the on-screen rendering, and the file shrank
+dramatically (a full `Calc-js` PDF: ~57KB rasterized → ~4.7KB vector) now
+that there's no embedded PNG image data.
 
 A figure capped by WIDTH alone (the original v1 attempt) still let a
 naturally tall diagram (many stacked alternatives) draw at an enormous,
 page-dominating size, or spill past the bottom of a fresh page entirely
-(`drawImage` doesn't clip) — caught against a real generated PDF from this
-project's own self-hosting grammar (`grammar/Gramark.grmk.md`), whose `Sym`
+(nothing clips a page's own drawing area) — caught against a real
+generated PDF from this project's own self-hosting grammar
+(`grammar/Gramark.grmk.md`), whose `Sym`
 rule has 19 alternatives. Fixed by capping the SHORTER of two scale factors
 (width against `CONTENT_WIDTH`, height against 70% of the page's content
 height) — the more restrictive of the two wins regardless of the diagram's
