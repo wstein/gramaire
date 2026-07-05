@@ -28,6 +28,9 @@ export interface CodeMirrorEditorProps {
    * the caller can inspect `relatedTarget` (e.g. to recognize "focus moved to this cell's own
    * Save/Cancel toolbar" and skip the auto-commit, letting the button's own click decide). */
   onBlur?: (event: FocusEvent) => void;
+  /** Fires on an Escape keypress inside the editor — the caller's own Cancel action, so Escape
+   * discards the draft the same way clicking the toolbar's Cancel button does. */
+  onEscape?: () => void;
   /** Grabs focus once, on mount — for a cell that just switched into edit mode. */
   autoFocus?: boolean;
   /** Squiggle underlines for located diagnostics, in cell-local coordinates. */
@@ -41,6 +44,7 @@ export function CodeMirrorEditor({
   value,
   onChange,
   onBlur,
+  onEscape,
   autoFocus,
   diagnostics,
   extensions,
@@ -67,6 +71,8 @@ export function CodeMirrorEditor({
   onChangeRef.current = onChange;
   const onBlurRef = useRef(onBlur);
   onBlurRef.current = onBlur;
+  const onEscapeRef = useRef(onEscape);
+  onEscapeRef.current = onEscape;
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -84,6 +90,11 @@ export function CodeMirrorEditor({
           }),
           EditorView.domEventHandlers({
             blur: (event) => onBlurRef.current?.(event),
+            keydown: (event) => {
+              if (event.key !== "Escape") return false;
+              onEscapeRef.current?.();
+              return true;
+            },
           }),
         ],
       }),
@@ -93,8 +104,8 @@ export function CodeMirrorEditor({
     if (autoFocus) view.focus();
     return () => view.destroy();
     // Deliberately mount-once for `extensions`/`value`/`autoFocus`: re-creating the EditorView on
-    // every prop change would reset cursor/undo history. `onChange`/`onBlur` are never stale (see
-    // the refs above).
+    // every prop change would reset cursor/undo history. `onChange`/`onBlur`/`onEscape` are never
+    // stale (see the refs above).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

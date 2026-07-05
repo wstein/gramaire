@@ -461,6 +461,12 @@ function beginEditCell(index: number, text: string) {
 }
 
 function endEditCell(index: number) {
+  // Cancel (and Escape, below) already closed this editor — a DOM-removal blur that fires as
+  // Preact unmounts the CodeMirror host (browsers blur a focused element synchronously when it's
+  // removed from the document, before this component's own cleanup runs) must not re-commit
+  // `cellDraft` a second time into a cell that's no longer open, or into whatever cell now
+  // happens to occupy this index.
+  if (editingCell.peek() !== index) return;
   blocks.value = replaceBlockText(blocks.value, index, cellDraft.value);
   editingCell.value = null;
   scheduleEvaluate();
@@ -481,6 +487,9 @@ function beginEditProse(index: number, text: string) {
 }
 
 function endEditProse(index: number) {
+  // Same reentrancy guard as endEditCell above, same reason: a DOM-removal blur after
+  // Cancel/Escape already cleared `editingProse` must not re-commit a stale draft.
+  if (editingProse.peek() !== index) return;
   blocks.value = replaceBlockText(blocks.value, index, proseDraft.value);
   editingProse.value = null;
   scheduleEvaluate();
@@ -603,7 +612,21 @@ function EditorToolbar({
   children?: ComponentChildren;
 }) {
   return (
-    <div class={`grimoire__toolbar${flush ? " grimoire__toolbar--flush" : ""}`}>
+    <div
+      class={`grimoire__toolbar${flush ? " grimoire__toolbar--flush" : ""}`}
+      // On Safari, clicking a <button> does NOT move focus to it — so a mouse click on Cancel
+      // fires the editor's onBlur with `relatedTarget: null` (never inside `.grimoire__toolbar`),
+      // and isOwnToolbar's check fails, letting the blur's own commit run BEFORE this button's
+      // own onClick — Cancel silently becomes Save on Safari, and the same race breaks every
+      // formatting button below (Bold/Heading/etc. commit-and-close instead of formatting the
+      // still-open draft). preventDefault on mousedown suppresses the browser's default
+      // focus-shift entirely, so no blur fires on a mouse click here at all — the click event
+      // (and this component's own onClick handlers) still fire normally. The existing
+      // isOwnToolbar/relatedTarget check in each editor's onBlur (below) stays: it's still the
+      // only thing that makes Tab-to-toolbar-then-Enter work, since keyboard focus genuinely
+      // moves and isn't preventable the same way.
+      onMouseDown={(e) => e.preventDefault()}
+    >
       <div class="grimoire__toolbar-group">{children}</div>
       <div class="grimoire__toolbar-actions">
         <button
@@ -708,6 +731,11 @@ function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
             const el = e.target as HTMLTextAreaElement;
             proseDraft.value = el.value;
             autosizeTextarea(el);
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== "Escape") return;
+            e.preventDefault();
+            cancelEditProse();
           }}
           onBlur={(e) => {
             if (isOwnToolbar(e.relatedTarget)) return;
@@ -829,6 +857,7 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
             onChange={(text) => {
               cellDraft.value = text;
             }}
+            onEscape={() => cancelEditCell()}
             onBlur={(e) => {
               if (isOwnToolbar(e.relatedTarget)) return;
               endEditCell(index);

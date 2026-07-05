@@ -488,6 +488,64 @@ test("the grammar cell's toolbar Save/Cancel work the same as the prose editor's
   }).toPass({ timeout: 5000 });
 });
 
+// Escape now discards a draft the same way clicking Cancel does — previously the only way out of
+// an open editor without saving was the mouse-only Cancel button.
+test("pressing Escape in a grammar cell's editor discards the edit, same as Cancel", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const ruleCell = ruleCellLocator(page);
+  const svgBefore = await ruleCell.locator("svg").innerHTML();
+
+  await ruleCell.locator(".grimoire__cell-rendered").click();
+  await ruleCell.locator(".cm-content").click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type("garbage that should never be saved");
+  await page.keyboard.press("Escape");
+
+  await expect(ruleCell.locator(".cm-content")).toHaveCount(0);
+  await expect(ruleCell.locator("svg").innerHTML()).resolves.toBe(svgBefore);
+});
+
+test("pressing Escape in the prose editor discards the edit, same as Cancel", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const firstProse = page.locator(".grimoire__prose").first();
+  const originalText = await firstProse.textContent();
+
+  await firstProse.click();
+  await page
+    .locator(".grimoire__prose-editor")
+    .fill("this should be thrown away");
+  await page.locator(".grimoire__prose-editor").press("Escape");
+
+  await expect(page.locator(".grimoire__prose-editor")).not.toBeVisible();
+  await expect(firstProse).toHaveText(originalText ?? "");
+});
+
+// Regression: on Safari, clicking a <button> doesn't move focus to it, so the editor's onBlur
+// used to fire (with `relatedTarget: null`) and commit the draft BEFORE Cancel's own click
+// handler ran — Cancel silently became Save. Chromium always focuses a clicked button, so this
+// can't reproduce the bug directly here, but it does confirm the fix (mousedown `preventDefault`
+// on the toolbar) doesn't regress the ordinary click-Cancel path this same suite already covers.
+test("clicking Cancel still discards the edit with the mousedown-preventDefault fix in place", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const ruleCell = ruleCellLocator(page);
+  const svgBefore = await ruleCell.locator("svg").innerHTML();
+
+  await ruleCell.locator(".grimoire__cell-rendered").click();
+  await ruleCell.locator(".cm-content").click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type("garbage");
+  await ruleCell.locator(".grimoire__toolbar-btn--cancel").click();
+
+  await expect(ruleCell.locator(".cm-content")).toHaveCount(0);
+  await expect(ruleCell.locator("svg").innerHTML()).resolves.toBe(svgBefore);
+});
+
 test("the prose editor opens tall enough for its content and grows as more lines are typed", async ({
   page,
 }) => {
