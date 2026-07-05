@@ -101,3 +101,17 @@ class BackendJsSuite extends munit.FunSuite:
     assertEquals(js.sliding(expected.length).count(_ == expected), 4, js)
     noPureScriptLeaks(js)
   }
+
+  // Regression: a `{%? %}` predicate's leading `?` (which the wrap step re-prepends outside the
+  // synthesized binder — Desugar.wrap/normalizeAction's own D42 comment) made the binder
+  // undetectable: `unwrapBinder`'s very first real case checked `trimmed.startsWith("\\")`, which
+  // is false when `?` is the first character, so the whole wrapped string fell through
+  // unstripped. The Lab's live railroad caption (LabApi.scala reuses this exact function to
+  // display a production's action) showed the raw internal binder (`? \_ -> (c) => ...`) instead
+  // of the real predicate body a grammar author actually wrote.
+  test("unwrapBinder strips the synthesized binder from a `{%? %}` predicate too") {
+    assertEquals(
+      BackendJs.unwrapBinder("""?\_ -> (c) => c.ident !== "let""""),
+      """?(c) => c.ident !== "let""""
+    )
+  }

@@ -66,28 +66,36 @@ object BackendJs:
   // the same "one place this transform is defined" reasoning as `tablesBlock`.
   private[gramark] def unwrapBinder(code: String): String =
     val trimmed = code.trim
-    trimmed match
-      case "\\x -> [x]"                   => "(c) => [c[0]]"
-      case "\\xs x -> snoc xs x"          => "(c) => [...c[0], c[1]]"
-      case "\\xs _ x -> snoc xs x"        => "(c) => [...c[0], c[2]]"
-      case _ if !trimmed.startsWith("\\") => trimmed
-      case _ =>
-        val i = code.indexOf(" -> ")
-        if i < 0 then trimmed
-        else
-          val params = code.substring(1, i).trim.split(" +").toVector.filter(_.nonEmpty)
-          val rest = code.substring(i + 4).trim
-          val isSyntheticParam = "^[pq][0-9]+$".r
-          if !params.forall(isSyntheticParam.matches) then
-            rest // NormalizedAction: body is final JS
-          else if !rest.startsWith("(") then rest // shape mismatch — leave as-is rather than guess
+    // A `{%? %}` predicate's leading `?` flag must survive this unwrap too, the same way
+    // `Desugar.wrap`/`normalizeAction` preserve it through their own recursion (D42): strip it,
+    // unwrap the rest, then re-prepend it. Without this, `?\_ -> (c) => ...` fails every case
+    // below (none start with `?`) and falls through unwrapped — `actionDisplay` (Railroad.scala)
+    // still needs to see the leading `?` survive, to render its own "? " caption prefix.
+    if trimmed.startsWith("?") then "?" + unwrapBinder(trimmed.drop(1))
+    else
+      trimmed match
+        case "\\x -> [x]"                   => "(c) => [c[0]]"
+        case "\\xs x -> snoc xs x"          => "(c) => [...c[0], c[1]]"
+        case "\\xs _ x -> snoc xs x"        => "(c) => [...c[0], c[2]]"
+        case _ if !trimmed.startsWith("\\") => trimmed
+        case _ =>
+          val i = trimmed.indexOf(" -> ")
+          if i < 0 then trimmed
           else
-            balancedParen(rest) match
-              case None => rest // shape mismatch — leave as-is rather than guess
-              case Some((inner, afterClose)) =>
-                // A genuine nested call in the trailing args (InlineWrappedAction folding a real
-                // computation) isn't redundant the way Just/Nothing/[] are — leave it untranslated.
-                if afterClose.contains("((") then rest else unwrapBinder(inner)
+            val params = trimmed.substring(1, i).trim.split(" +").toVector.filter(_.nonEmpty)
+            val rest = trimmed.substring(i + 4).trim
+            val isSyntheticParam = "^[pq][0-9]+$".r
+            if !params.forall(isSyntheticParam.matches) then
+              rest // NormalizedAction: body is final JS
+            else if !rest.startsWith("(") then
+              rest // shape mismatch — leave as-is rather than guess
+            else
+              balancedParen(rest) match
+                case None => rest // shape mismatch — leave as-is rather than guess
+                case Some((inner, afterClose)) =>
+                  // A genuine nested call in the trailing args (InlineWrappedAction folding a real
+                  // computation) isn't redundant the way Just/Nothing/[] are — leave it untranslated.
+                  if afterClose.contains("((") then rest else unwrapBinder(inner)
 
   // The substring strictly between the `(` at `text`'s start and its matching `)`, plus everything
   // after that close — a plain depth-counter scan, since the inner action's own body will contain
