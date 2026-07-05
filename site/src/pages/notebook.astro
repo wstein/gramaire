@@ -42,7 +42,11 @@ const headTags = pageHeadTags(base);
       name="description"
       content="Edit a Gramark grammar as a live document — prose and editable grammar cells inline, with railroad diagrams and FIRST/FOLLOW sets updating as you type."
     />
-    {headTags.map((t) => t.tag === "link" && <link {...t.attrs} />)}
+    {
+      headTags.map(({ tag: Tag, attrs, content }) => (
+        <Tag {...attrs} set:html={content} />
+      ))
+    }
   </head>
   <body>
     <div class="shell">
