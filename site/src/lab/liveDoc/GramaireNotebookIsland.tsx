@@ -1537,11 +1537,19 @@ async function loadFromDrop(dataTransfer: DataTransfer | null) {
 
 // Loads one of the Lab's own curated EXAMPLES (../examples) — the exact same conformance-tested
 // grammars the Lab page's own example switcher offers, never a duplicated/hand-copied approximation.
+//
+// `tryItInput` is set BEFORE `loadDocumentText`, not after: `loadDocumentText` calls
+// `scheduleEvaluate()` synchronously, which reads `tryItInput.value` at that exact moment — a real,
+// found-by-manual-verification bug had this the other way around, so the one and only evaluate()
+// call for a freshly-loaded example ran against the PREVIOUS example's Try-it input (e.g. loading
+// JSON right after the calc-js default evaluated it against "2 + 3 * 4", rejecting with
+// "unexpected character `+`" — nothing re-evaluates afterward just because `tryItInput.value`
+// changes on its own; only a real user keystroke or another `scheduleEvaluate()` call does).
 function loadExample(name: string) {
   const example = EXAMPLES.find((e) => e.name === name);
   if (!example || !confirmReplace()) return;
-  loadDocumentText(example.source);
   tryItInput.value = example.input;
+  loadDocumentText(example.source);
 }
 
 // Writes the current document straight back to the file it was opened from (only possible when

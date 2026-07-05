@@ -1373,6 +1373,30 @@ test("the Examples picker loads a curated example, replacing the current documen
   );
 });
 
+// Regression: loadExample() used to set `tryItInput.value` AFTER calling loadDocumentText (which
+// calls scheduleEvaluate() synchronously) — the one and only evaluate() call for a freshly-loaded
+// example ran against the PREVIOUS example's Try-it input, since nothing re-evaluates just because
+// `tryItInput.value` changes on its own afterward (only a real keystroke, or another explicit
+// scheduleEvaluate() call, does). Loading JSON right after the calc-js default (input "2 + 3 * 4")
+// evaluated the new JSON grammar against the OLD "2 + 3 * 4" text, rejecting with "unexpected
+// character `+`" even though the input BOX correctly showed the new JSON text — the bug was
+// invisible to a check that only reads the input field's own value, which is why this asserts the
+// actual Try-it result too.
+test("the Examples picker's evaluated Try-it result matches the NEW example, not the previous one", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page); // starts on calc-js, Try-it input "2 + 3 * 4"
+  await expect(page.locator(".gramaire__tryit-result")).toHaveText("= 14");
+
+  await page.locator(".gramaire__examples-select").selectOption("JSON");
+
+  await expect(page.locator(".gramaire__tryit-input")).toHaveValue(
+    '{"a": 1, "b": [true, false, null]}',
+  );
+  await expect(page.locator(".gramaire__tryit-error")).toHaveCount(0);
+  await expect(page.locator(".gramaire-cst-branch").first()).toBeVisible();
+});
+
 // A mocked File System Access handle — shaped exactly like the real API's, so openFile/
 // saveInPlace's own logic runs completely unmodified; only the native picker itself (which
 // Playwright cannot drive at all) is replaced.
