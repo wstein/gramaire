@@ -928,12 +928,32 @@
   flex-wrap: wrap;
   gap: 16px;
 }
+.gramaire__output-ff-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
 .gramaire__output-ff-label {
   color: var(--fg-faint);
-  margin-right: 7px;
 }
-.gramaire__output-ff-value {
+/* One chip per token — same "each token its own visually distinct pill" reading the Generated
+   tables section's own FIRST/FOLLOW columns already give for free (there, it's just backtick-quoted
+   markdown, each becoming its own inline `code` element via parseMarkdownLite/renderInline); this
+   is that same reading applied to the per-rule FIRST/FOLLOW line, which used to be one plain-text
+   string (`{ ... }`, space-joined) that a longer FOLLOW set turned into a hard-to-scan run-on. */
+.gramaire__output-ff-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.gramaire__output-ff-chips code {
+  background: var(--bg-2);
+  padding: 1px 5px;
+  border-radius: 4px;
   color: var(--t-term);
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 
 .gramaire__fallback {
