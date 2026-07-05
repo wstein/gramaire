@@ -470,7 +470,7 @@ test("the grammar cell's toolbar Save/Cancel work the same as the prose editor's
   await ruleCell.locator(".gramaire__cell-rendered").click();
   await expect(ruleCell.locator(".gramaire__toolbar--flush")).toBeVisible();
   await ruleCell.locator(".cm-content").click();
-  await page.keyboard.press("Control+A");
+  await page.keyboard.press("ControlOrMeta+a");
   await page.keyboard.type("garbage that should never be saved");
   await ruleCell.locator(".gramaire__toolbar-btn--cancel").click();
   await expect(ruleCell.locator(".cm-content")).toHaveCount(0);
@@ -543,7 +543,7 @@ async function breakFirstRule(
   const ruleCell = ruleCellLocator(page);
   await ruleCell.locator(".gramaire__cell-rendered").click();
   await ruleCell.locator(".cm-content").click();
-  await page.keyboard.press("Control+A");
+  await page.keyboard.press("ControlOrMeta+a");
   await page.keyboard.press("Delete");
   await page.keyboard.insertText(content);
   await page.locator(".gramaire__statusbar").click(); // blur, commits
@@ -564,8 +564,11 @@ test("an invalid grammar shows its diagnostic (message, note, location) in the d
   await expect(page.locator(".gramaire__diag-message").first()).toContainText(
     "unexpected",
   );
+  // The cell's name is classified unconditionally from its own current raw text (LabApi.scala's
+  // `fenceInfosOf`), independent of whether the grammar notation parses — replacing "Expr" with
+  // "Foo Bar" makes the cell's own name "Foo" now, not the pre-edit "Expr".
   await expect(page.locator(".gramaire__diag-loc").first()).toHaveText(
-    "in Expr",
+    "in Foo",
   );
   await expect(page.locator(".gramaire__diag-note").first()).toContainText(
     "note:",
@@ -633,7 +636,7 @@ test("a cell with only a warning is flagged the same way an error is, and its pa
   const settingsCell = page.locator('.gramaire__cell[data-kind="settings"]');
   await settingsCell.locator(".gramaire__cell-rendered").click();
   await settingsCell.locator(".cm-content").click();
-  await page.keyboard.press("Control+A");
+  await page.keyboard.press("ControlOrMeta+a");
   await page.keyboard.press("Delete");
   await page.keyboard.insertText("%naqme Calc-js\n%lang javascript");
   await settingsCell.locator(".gramaire__toolbar-btn--save").click();
