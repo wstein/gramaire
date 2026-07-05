@@ -873,7 +873,9 @@ the Notebook and the Lab read as the same family of tool — replacing the
 notebook's earlier in-page topbar. That topbar's only content was a
 "Grimoire Notebook" title span, pure duplication once the shared site nav
 (`gramark-topbar.mjs`) and the browser tab already say what page this is, so
-it was deleted outright rather than kept empty. The clean/error/warning
+it was deleted outright rather than kept empty. (A topbar returned later —
+see the view toggle below — but for an actual control, `ViewToggle`, not a
+revival of that empty title span.) The clean/error/warning
 indicator (still clickable, toggling the diagnostics panel) moved down into
 this bar, alongside a new aggregate-stats segment —
 `Canonical(1) · N states · M conflicts` from
@@ -941,20 +943,38 @@ span, so this alone is what made it clickable in the panel and gave its
 Settings cell the same inline `CellDiagnostics` message Layer 2 already
 gave errors.
 
-**Notebook/Source view toggle.** A sliding switch in the status bar
-(`.grimoire__view-toggle`, `GrimoireNotebookIsland.tsx`) flips between the
-per-cell rendering above and a single `CodeMirrorEditor` over the whole raw
-`.grmk.md` document (`serializeDocument(blocks.value)`, the same text every
-other evaluate() call already sends). A real sliding switch, not the topbar's
-segmented Light/Auto/Dark control (`gramark-topbar.mjs`) — that's a 3-way
-exclusive choice, this is a plain two-state one. Entering source view
-snapshots a stable base text for CodeMirror's own `value` prop (never the
-live draft — the same race `CodeMirrorEditor`'s own `[value]`-effect comment
-already documents for per-cell editors); leaving it (or blurring the editor)
-reparses the latest typed text with `fences: []` (the same degenerate
-one-prose-block shape the no-fences fallback textarea already produces) and
-re-evaluates — the next real response's `fences` restores proper cell
-structure once the engine catches up, exactly like any other edit.
+**Notebook/Source view toggle.** An `aria-pressed` segmented button pair
+(`ViewToggle`, `.grimoire__view-toggle`, `GrimoireNotebookIsland.tsx`) flips
+between the per-cell rendering above and a single `CodeMirrorEditor` over the
+whole raw `.grmk.md` document (`serializeDocument(blocks.value)`, the same
+text every other evaluate() call already sends). Originally a sliding
+switch — replaced because a switch reads as "is a feature on," not "which of
+two named views am I in," so there was no clean answer to which side should
+look active (both labels shared one static, state-blind CSS class). Now the
+exact same visual pattern as the shared topbar's Light/Auto/Dark control
+(`gramark-topbar.mjs`'s `.seg`/`.seg button[aria-pressed="true"]`, reusing
+this site's own `tokens.css` custom properties rather than that component's
+shadow-DOM-scoped fallbacks) — whichever button is pressed is unambiguously
+the active view, and the same shape already accommodates a third button
+(the planned Paper view) with no further redesign.
+
+Also moved: the toggle used to live at the tail end of the bottom status bar
+— the LAST thing the whole document renders, meaning reaching it on any
+document taller than one screen meant scrolling all the way down. It's now
+inside `.grimoire__topbar`, a `position: sticky; top: 0` wrapper that's the
+first child of `.grimoire` and also holds `DiagnosticsPanel` beneath it (one
+shared sticky anchor, not two independently-sticky siblings needing their own
+stacked offsets kept in sync as either child's height changes) — always
+reachable, no scrolling required.
+
+Entering source view snapshots a stable base text for CodeMirror's own
+`value` prop (never the live draft — the same race `CodeMirrorEditor`'s own
+`[value]`-effect comment already documents for per-cell editors); leaving it
+(or blurring the editor) reparses the latest typed text with `fences: []`
+(the same degenerate one-prose-block shape the no-fences fallback textarea
+already produces) and re-evaluates — the next real response's `fences`
+restores proper cell structure once the engine catches up, exactly like any
+other edit.
 
 **Hover-reveal per-cell actions** (Livebook-style — `CellActions`,
 `GrimoireNotebookIsland.tsx`): a small floating row (↑/↓/Link/Delete) in a

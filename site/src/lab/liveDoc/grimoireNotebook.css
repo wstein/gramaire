@@ -91,71 +91,69 @@
   font-size: 9px;
 }
 
-/* The Notebook/Source view switch — a real sliding toggle (track + thumb over a visually-hidden
-   checkbox), not the topbar's segmented button-group (gramark-topbar.mjs's Light/Auto/Dark
-   control): that's a 3-way exclusive-choice control, this is a plain two-state switch. */
+/* The sticky top strip — always the ViewToggle, plus the diagnostics panel beneath it when
+   there's anything to show. One shared sticky anchor rather than two independently-sticky
+   siblings, so there's no stacked-offset math to keep in sync as either child's height changes. */
+.grimoire__topbar {
+  flex: none;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+/* The Notebook/Source view switch — an aria-pressed segmented button pair, same visual language
+   as the shared topbar's Light/Auto/Dark control (gramark-topbar.mjs's `.seg`/`.seg
+   button[aria-pressed="true"]), reusing this site's own tokens.css custom properties rather than
+   that component's shadow-DOM-scoped hardcoded fallback colors. Deliberately NOT a switch: a
+   switch reads as "is a feature on," not "which of two named views am I in," so there was no
+   clean answer to which side should look active — a segmented control has no such ambiguity, and
+   is already the right shape to grow a third (Paper) button later with no redesign. */
 .grimoire__view-toggle {
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  user-select: none;
+  gap: 2px;
+  padding: 2px;
+  margin: 8px 20px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  width: fit-content;
 }
-.grimoire__view-toggle-label {
+.grimoire__view-toggle-btn {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--fg-faint);
+  color: var(--fg-muted);
+  background: none;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
 }
-.grimoire__view-toggle-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  opacity: 0;
+.grimoire__view-toggle-btn:hover {
+  color: var(--fg);
 }
-.grimoire__view-toggle-track {
-  position: relative;
-  flex: none;
-  width: 28px;
-  height: 16px;
-  border-radius: 999px;
-  background: var(--border-strong);
-  transition: background 0.15s ease;
-}
-.grimoire__view-toggle-thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--bg);
-  transition: transform 0.15s ease;
-}
-.grimoire__view-toggle-input:checked ~ .grimoire__view-toggle-track {
-  background: var(--accent);
-}
-.grimoire__view-toggle-input:checked
-  ~ .grimoire__view-toggle-track
-  .grimoire__view-toggle-thumb {
-  transform: translateX(12px);
-}
-.grimoire__view-toggle-input:focus-visible ~ .grimoire__view-toggle-track {
+.grimoire__view-toggle-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+.grimoire__view-toggle-btn[aria-pressed="true"] {
+  background: var(--bg);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.1),
+    0 0 0 1px var(--border-strong);
+}
 
-/* Layer 1 — the document diagnostics panel. */
+/* Layer 1 — the document diagnostics panel, now inside .grimoire__topbar rather than
+   independently sticky itself (see that rule's own comment). */
 .grimoire__diagnostics {
   flex: none;
-  position: sticky;
-  top: 0; /* the notebook's own topbar is gone — this is the first child now */
-  z-index: 4;
   max-height: 40vh;
   overflow-y: auto;
   background: var(--bg-1);
-  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
 }
 
 .grimoire__diag {
