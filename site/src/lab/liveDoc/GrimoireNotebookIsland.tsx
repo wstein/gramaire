@@ -1,5 +1,5 @@
 import { signal, computed, effect } from "@preact/signals";
-import { useEffect, useMemo, useRef } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import type {
   CstNode,
@@ -14,6 +14,8 @@ import { NOTEBOOK_DEFAULT_SOURCE, NOTEBOOK_DEFAULT_INPUT } from "../examples";
 import {
   buildDocument,
   replaceBlockText,
+  removeBlock,
+  swapBlocks,
   serializeDocument,
   blockIndexAtOffset,
   blockCharSpans,
@@ -207,6 +209,106 @@ function jumpToCell(index: number) {
   if (!block) return;
   if (block.kind === "prose") beginEditProse(index, block.text);
   else beginEditCell(index, block.text);
+}
+
+// Reorder/delete are exactly as index-sensitive as the fences-reshape effect's own deferral
+// (above) already documents: `editingCell`/`editingProse` are plain array indices, and mutating
+// `blocks` out from under an open one leaves it pointing at the wrong block. Simplest guard that
+// doesn't need any index bookkeeping: refuse while ANY editor is open, not just this one's own.
+function blocksLocked(): boolean {
+  return editingCell.value !== null || editingProse.value !== null;
+}
+
+function moveBlock(index: number, direction: -1 | 1) {
+  if (blocksLocked()) return;
+  blocks.value = swapBlocks(blocks.value, index, index + direction);
+  scheduleEvaluate();
+}
+
+function deleteBlock(index: number) {
+  if (blocksLocked()) return;
+  blocks.value = removeBlock(blocks.value, index);
+  scheduleEvaluate();
+}
+
+// Copies a fragment URL to this cell's own (already-stable) DOM id — no navigation, no history
+// entry, just a shareable link a reader can paste elsewhere and land back on this exact cell.
+async function copyCellLink(index: number): Promise<boolean> {
+  const url = `${location.href.split("#")[0]}#grimoire-cell-${index}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Hover-reveal per-cell actions (Livebook-style) — reorder up/down, copy a link, delete. No
+// separate "Edit" button: clicking the cell body already does this, so a duplicate affordance
+// here would add a second way to do the one thing every cell already offers. Rendered only in a
+// block's read-only view (never alongside its own open editor) but the disabled state reacts to
+// ANY editor being open, anywhere in the document — not just this cell's own.
+function CellActions({ index }: { index: number }) {
+  const [copied, setCopied] = useState(false);
+  const total = blocks.value.length;
+  const locked = editingCell.value !== null || editingProse.value !== null;
+
+  return (
+    <div class="grimoire__cell-actions">
+      <button
+        type="button"
+        class="grimoire__cell-action"
+        title="Move up"
+        disabled={locked || index === 0}
+        onClick={(e) => {
+          e.stopPropagation();
+          moveBlock(index, -1);
+        }}
+      >
+        ↑
+      </button>
+      <button
+        type="button"
+        class="grimoire__cell-action"
+        title="Move down"
+        disabled={locked || index === total - 1}
+        onClick={(e) => {
+          e.stopPropagation();
+          moveBlock(index, 1);
+        }}
+      >
+        ↓
+      </button>
+      <button
+        type="button"
+        class="grimoire__cell-action"
+        title="Copy a link to this cell"
+        disabled={locked}
+        onClick={(e) => {
+          e.stopPropagation();
+          copyCellLink(index).then((ok) => {
+            if (!ok) return;
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          });
+        }}
+      >
+        {copied ? "Copied" : "Link"}
+      </button>
+      <button
+        type="button"
+        class="grimoire__cell-action grimoire__cell-action--delete"
+        title="Delete this cell"
+        disabled={locked}
+        onClick={(e) => {
+          e.stopPropagation();
+          deleteBlock(index);
+        }}
+      >
+        Delete
+      </button>
+    </div>
+  );
 }
 
 function beginEditCell(index: number, text: string) {
@@ -455,6 +557,7 @@ function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
       title="Click to edit as raw markdown"
       onClick={() => beginEditProse(index, block.text)}
     >
+      <CellActions index={index} />
       <MarkdownBlocks blocks={parsed} />
     </div>
   );
@@ -531,6 +634,7 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
       data-kind={block.kind}
       data-nonterminal={block.nonterminal ?? undefined}
     >
+      {!isEditing && <CellActions index={index} />}
       {isEditing ? (
         <>
           <EditorToolbar

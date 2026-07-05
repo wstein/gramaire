@@ -6,6 +6,8 @@ import {
   buildDocument,
   serializeDocument,
   replaceBlockText,
+  removeBlock,
+  swapBlocks,
   withLineNumbers,
   blockCharSpans,
   blockIndexAtOffset,
@@ -298,4 +300,34 @@ test("withLineNumbers: an empty fence spans exactly 2 lines (its own markers), n
   const numbered = withLineNumbers(blocks);
   expect(numbered[0].startLine).toBe(1);
   expect(numbered[0].endLine).toBe(2);
+});
+
+test("removeBlock: drops exactly the one block at the given index, in order", () => {
+  const blocks = buildDocument(readCalcMd(), calcFences);
+  const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
+  const result = removeBlock(blocks, exprIndex);
+  expect(result.length).toBe(blocks.length - 1);
+  expect(result.some((b) => b.nonterminal === "Expr")).toBe(false);
+  // Everything else survives, same relative order.
+  expect(result.map((b) => b.nonterminal ?? b.kind)).toEqual(
+    blocks
+      .filter((_, i) => i !== exprIndex)
+      .map((b) => b.nonterminal ?? b.kind),
+  );
+});
+
+test("swapBlocks: exchanges two blocks' positions, leaving every other block untouched", () => {
+  const blocks = buildDocument(readCalcMd(), calcFences);
+  const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
+  const termIndex = blocks.findIndex((b) => b.nonterminal === "Term");
+  const swapped = swapBlocks(blocks, exprIndex, termIndex);
+  expect(swapped[exprIndex].nonterminal).toBe("Term");
+  expect(swapped[termIndex].nonterminal).toBe("Expr");
+  expect(swapped.length).toBe(blocks.length);
+});
+
+test("swapBlocks: a no-op (same reference back) when either index is out of range", () => {
+  const blocks = buildDocument(readCalcMd(), calcFences);
+  expect(swapBlocks(blocks, 0, blocks.length)).toBe(blocks);
+  expect(swapBlocks(blocks, -1, 0)).toBe(blocks);
 });

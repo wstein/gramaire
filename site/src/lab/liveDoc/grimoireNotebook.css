@@ -230,6 +230,7 @@
 }
 
 .grimoire__prose {
+  position: relative;
   cursor: text;
   border-radius: 8px;
   padding: 2px 10px;
@@ -394,7 +395,49 @@
    "which cell is this" comes from the document's own preceding prose heading, not an internal
    badge/name header (Layer 2's old `.grimoire__cell-header` — removed, not just restyled). */
 .grimoire__cell {
+  position: relative;
   margin: 6px 0 20px;
+}
+
+/* Hover-reveal per-cell actions (Livebook-style) — a small floating row, not a header bar, so it
+   doesn't reintroduce the border/badge chrome the de-boxed cell design deliberately dropped.
+   `.grimoire__prose`/`.grimoire__cell` (both `position: relative`) are this row's own anchor. */
+.grimoire__cell-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  z-index: 1;
+}
+.grimoire__prose:hover .grimoire__cell-actions,
+.grimoire__cell:hover .grimoire__cell-actions {
+  opacity: 1;
+}
+.grimoire__cell-action {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--fg-secondary);
+  cursor: pointer;
+}
+.grimoire__cell-action:hover:not(:disabled) {
+  background: var(--bg-2);
+  color: var(--fg);
+}
+.grimoire__cell-action:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.grimoire__cell-action--delete:hover:not(:disabled) {
+  color: #e05a4b;
+  border-color: #e05a4b;
 }
 
 .grimoire__cell-diags {

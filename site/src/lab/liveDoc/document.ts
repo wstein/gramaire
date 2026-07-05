@@ -122,6 +122,34 @@ export function replaceBlockText(
   return blocks.map((b, i) => (i === index ? { ...b, text: newText } : b));
 }
 
+/** Remove the block at `index`. Every later block's own position shifts down by one — callers
+ * that hold onto a separately-read index (e.g. a currently-open editor's) must not reuse it
+ * across this call; the Notebook's own cell actions only ever act while no editor is open, for
+ * exactly this reason. */
+export function removeBlock(
+  blocks: readonly DocBlock[],
+  index: number,
+): DocBlock[] {
+  return blocks.filter((_, i) => i !== index);
+}
+
+/** Swap the blocks at `i` and `j` in place — used to move a block up/down by one position
+ * (`swapBlocks(blocks, index, index - 1)` / `(index, index + 1)`). A no-op (returns `blocks`
+ * unchanged, same reference) if either index is out of range, so a caller doesn't need its own
+ * bounds check before calling this at the first/last block. */
+export function swapBlocks(
+  blocks: readonly DocBlock[],
+  i: number,
+  j: number,
+): DocBlock[] {
+  if (i < 0 || j < 0 || i >= blocks.length || j >= blocks.length) {
+    return blocks as DocBlock[];
+  }
+  const next = blocks.slice();
+  [next[i], next[j]] = [next[j], next[i]];
+  return next;
+}
+
 /** A `DocBlock` with its current 1-based, inclusive line span (in the FULL document — including
  * a fence block's own marker lines, which its `text` doesn't carry). */
 export interface NumberedDocBlock extends DocBlock {

@@ -162,9 +162,12 @@ test("editing a prose block to a different line count never corrupts sibling cel
   await page.locator(".grimoire__prose-editor").fill("A rewritten intro.");
   await page.locator(".grimoire__statusbar").click(); // blur, commits the edit
 
-  await expect(page.locator(".grimoire__prose").first()).toHaveText(
-    "A rewritten intro.",
-  );
+  // The rendered paragraph specifically, not the whole `.grimoire__prose` container — that also
+  // holds the hover-reveal cell-actions row (↑/↓/Link/Delete), unrelated text this test isn't
+  // about.
+  await expect(
+    page.locator(".grimoire__prose").first().locator("p"),
+  ).toHaveText("A rewritten intro.");
   // Not corrupted immediately (before the debounced worker round-trip resolves)...
   await expect(page.locator(".grimoire__prose").first()).not.toContainText(
     "```",
@@ -766,4 +769,126 @@ test("toggling to Source view and back with no edits leaves the document unchang
   // ruleNonterminals reads plain attributes (no Playwright auto-wait) — poll since the toggle's
   // own commit + re-derive round-trip settles a moment after the click, not synchronously with it.
   await expect.poll(() => ruleNonterminals(page)).toEqual(namesBefore);
+});
+
+// Livebook-style hover-reveal per-cell actions (reorder/link/delete) — a small floating row, not
+// a header bar, so it doesn't reintroduce the border/badge chrome the de-boxed cell design
+// dropped. No "Edit" button: clicking the cell body already does that.
+test("hovering a cell reveals its action row; it's invisible at rest", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const ruleCell = ruleCellLocator(page);
+  const actions = ruleCell.locator(".grimoire__cell-actions");
+
+  await expect(actions).toHaveCSS("opacity", "0");
+  await ruleCell.hover();
+  await expect(actions).toHaveCSS("opacity", "1");
+});
+
+test("the first block's Up and the last block's Down are disabled, not hidden", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const cells = page.locator(".grimoire__prose, .grimoire__cell[data-kind]");
+  const first = cells.first();
+  const last = cells.last();
+
+  await first.hover();
+  await expect(first.locator(".grimoire__cell-action").first()).toBeDisabled();
+  await expect(first.locator(".grimoire__cell-action").nth(1)).toBeEnabled();
+
+  await last.hover();
+  await expect(last.locator(".grimoire__cell-action").first()).toBeEnabled();
+  await expect(last.locator(".grimoire__cell-action").nth(1)).toBeDisabled();
+});
+
+test("clicking Down moves a block later in the document and re-evaluates", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const before = await page
+    .locator(".grimoire__prose, .grimoire__cell[data-kind]")
+    .evaluateAll((els) =>
+      els.map((el) =>
+        el.classList.contains("grimoire__prose")
+          ? "prose"
+          : el.getAttribute("data-nonterminal") || el.getAttribute("data-kind"),
+      ),
+    );
+
+  const settingsCell = page.locator('.grimoire__cell[data-kind="settings"]');
+  await settingsCell.hover();
+  await settingsCell.locator(".grimoire__cell-action").nth(1).click(); // Down
+
+  await expect
+    .poll(() =>
+      page
+        .locator(".grimoire__prose, .grimoire__cell[data-kind]")
+        .evaluateAll((els) =>
+          els.map((el) =>
+            el.classList.contains("grimoire__prose")
+              ? "prose"
+              : el.getAttribute("data-nonterminal") ||
+                el.getAttribute("data-kind"),
+          ),
+        ),
+    )
+    .toEqual(
+      before.map((_, i, arr) => {
+        const settingsIdx = arr.indexOf("settings");
+        if (i === settingsIdx) return arr[settingsIdx + 1];
+        if (i === settingsIdx + 1) return arr[settingsIdx];
+        return arr[i];
+      }),
+    );
+});
+
+test("clicking Delete removes a cell from the document and re-evaluates", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const before = await ruleNonterminals(page);
+
+  const factorCell = page.locator('.grimoire__cell[data-kind="rule"]').last();
+  await factorCell.hover();
+  await factorCell.locator(".grimoire__cell-action--delete").click();
+
+  await expect.poll(() => ruleNonterminals(page)).toEqual(before.slice(0, -1));
+});
+
+test("Link copies a URL fragment to this cell and shows brief feedback", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await gotoNotebookReady(page);
+  const ruleCell = ruleCellLocator(page);
+  await ruleCell.hover();
+  const cellId = await ruleCell.getAttribute("id");
+  // Located by position, not by its own (changing) text — a `.filter({hasText:"Link"})` locator
+  // stops matching the instant the label flips to "Copied", which reads as "nothing happened"
+  // even though it did (confirmed the hard way: verified against the real DOM node by id instead).
+  const linkBtn = ruleCell.locator(".grimoire__cell-action").nth(2);
+  await linkBtn.click();
+
+  await expect(linkBtn).toHaveText("Copied");
+  const clipboard = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clipboard).toBe(`${page.url().split("#")[0]}#${cellId}`);
+  await expect(linkBtn).toHaveText("Link", { timeout: 3000 });
+});
+
+test("all cell actions are disabled while any editor is open, anywhere in the document", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const ruleCell = ruleCellLocator(page);
+  await ruleCell.locator(".grimoire__cell-rendered").click(); // open its editor
+
+  const otherCell = page.locator('.grimoire__cell[data-kind="tokens"]');
+  await otherCell.hover();
+  const actions = otherCell.locator(".grimoire__cell-action");
+  for (let i = 0; i < (await actions.count()); i++) {
+    await expect(actions.nth(i)).toBeDisabled();
+  }
 });
