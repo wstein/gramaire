@@ -331,12 +331,17 @@ function insertProseAt(index: number) {
 // `+ Rule` needs a placeholder that actually LOOKS like a rule once re-parsed — `serializeDocument`
 // wraps any non-prose block in the same generic ```gramark fence regardless of the client's own
 // `kind` label; what the engine reclassifies it as on the next round-trip depends on the fence's
-// real first-line shape, not what this called it. A bare "NewRule\n  : " matches the same shape
-// every existing rule fence has (a bare word, then ":"), so it reclassifies as `rule` again once
-// the user's own edit + the next evaluate() lands — verified in the browser, not just assumed.
+// real first-line shape, not what this called it. Also needs to be immediately BUILDABLE, not just
+// shaped right: an earlier version left the alternative empty ("NewRule\n  : "), which is a real
+// syntax error ("unexpected end of input, expected ... a quoted literal ...") shown the instant the
+// cell is inserted, before the user has touched it. A trailing quoted-literal placeholder is
+// always a valid terminal reference regardless of the document's own tokens/rules, so the fresh
+// cell builds clean immediately — verified against the real engine, not just assumed (`buildOk`
+// true, no diagnostics beyond the expected "rule unreachable from the new start rule" warnings
+// inserting BEFORE other rules always produces, regardless of what valid placeholder is chosen).
 function insertRuleAt(index: number) {
   if (blocksLocked()) return;
-  const placeholder = "NewRule\n  : ";
+  const placeholder = "NewRule\n  : 'TODO'";
   const block: DocBlock = {
     kind: "rule",
     text: placeholder,
