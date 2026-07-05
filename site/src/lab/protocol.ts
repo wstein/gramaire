@@ -78,6 +78,10 @@ export type LlActionInfo =
   | {
       kind: "accept";
     };
+/**
+ * How a rendered grammar symbol should be classified for display: a quoted string literal, a named lexical token, a nonterminal (a rule reference), or the end-of-input marker.
+ */
+export type SymbolKind = "literal" | "token" | "nonterminal" | "eof";
 
 /**
  * The Lab's full response: whether the grammar itself built, any diagnostics, and — if input was given and the grammar built — the parse result.
@@ -205,7 +209,7 @@ export interface LrStepInfo {
   stateBefore: number;
   action: LrActionInfo;
   /**
-   * Bottom to top, before this action; already display-rendered like ProductionInfo.rhs.
+   * Bottom to top, before this action; plain backtick-quoted display text (a terminal is backtick-quoted, e.g. `` `+` ``; a nonterminal is bare) — unlike ProductionInfo.rhs/RuleFirstFollow, this walk trace has no client need for kind classification yet, so it stays string-only.
    */
   stackSymbols: string[];
   /**
@@ -226,15 +230,22 @@ export interface LlStepInfo {
   pos: number;
 }
 /**
- * One flattened production of the compiled grammar. `lhs`/`rhs` are already display-rendered (a terminal is backtick-quoted, e.g. `` `+` ``; a nonterminal is bare).
+ * One flattened production of the compiled grammar. `lhs` is the bare nonterminal name; `rhs` is each right-hand-side symbol classified via RenderedSymbol.
  */
 export interface ProductionInfo {
   lhs: string;
-  rhs: string[];
+  rhs: RenderedSymbol[];
   /**
    * The production's raw `{% … %}` action source text, or null when the alternative has no action.
    */
   action: string | null;
+}
+/**
+ * A single grammar symbol as displayed text plus its kind, so a client can style literals/tokens/nonterminals/EOF differently without re-parsing the rendered text (e.g. a literal is never backtick-quoted; a token or literal previously couldn't be told apart from the text alone).
+ */
+export interface RenderedSymbol {
+  text: string;
+  kind: SymbolKind;
 }
 /**
  * Every distinct parse of the target input, capped so a wildly ambiguous grammar can't blow up the response.
@@ -273,12 +284,12 @@ export interface MethodStatsInfo {
   conflicts: number;
 }
 /**
- * One nonterminal's FIRST/FOLLOW sets, display-rendered like ProductionInfo.rhs (a terminal backtick-quoted, EOF as `$`).
+ * One nonterminal's FIRST/FOLLOW sets, each symbol classified via RenderedSymbol (EOF rendered as `$`).
  */
 export interface RuleFirstFollow {
   name: string;
-  first: string[];
-  follow: string[];
+  first: RenderedSymbol[];
+  follow: RenderedSymbol[];
 }
 /**
  * The same conflict classification `gramaire explain-conflict` prints as CLI prose, surfaced live: which of the four buckets the grammar's conflicts land in, the conflict count that survives with the grammar's own declared precedence applied, and — for a genuine conflict — each one rendered in grammar terms (empty otherwise).
