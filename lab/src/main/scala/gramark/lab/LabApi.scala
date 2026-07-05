@@ -343,11 +343,55 @@ object LabApi:
       case _ => grammar
 
   // A terminal renders backtick-quoted (matching the grammar notation's own literal spelling and
-  // the LR-walk ACTION line's format, M5+); a nonterminal renders bare; EOF as `$`.
+  // the LR-walk ACTION line's format, M5+); a nonterminal renders bare; EOF as `$`. Still used for
+  // `LrActionInfo` (the Walk tab's own step trace) exactly as before — `ProductionInfo.rhs` and
+  // `RuleFirstFollow.first`/`follow` moved to `renderSymStructured` below instead, since a plain
+  // string can't also carry the literal-vs-token distinction that needs.
   private def renderSym(s: GSym): String = s match
     case GSym.NonTerm(n) => n
     case GSym.Term(t)    => s"`$t`"
     case GSym.EOF        => "$"
+
+  // FIRST/FOLLOW/RHS display classification — literal-string terminal vs named-token terminal,
+  // looked up by name from the grammar's own `Sym` tree (`Sym.Lit` vs `Sym.Ref`), since
+  // `Table.scala`'s own `GSym.Term` already collapses that distinction into one untyped name
+  // before FIRST/FOLLOW or the LR tables are even built (that module's own header: "the single
+  // hardest module... ported closely, not creatively" — this stays a read-only, display-only side
+  // lookup, never touching `GSym`'s shape or equality, let alone the algorithm built on it).
+  // Mirrors `IR.scala`'s own `termLiteralMap` traversal shape, but keyed to a real `SymbolKind`
+  // rather than a `Boolean`, and using last-write-wins instead of that map's OR-merge: a
+  // well-formed grammar never reuses one terminal's own spelling as both a literal and a token
+  // name, so this is unambiguous for every grammar this codebase ships; if that ever collides
+  // (nothing else in this codebase detects or rejects it either), the LAST occurrence found wins —
+  // a documented, exceedingly rare authoring smell, not a case worth a cleverer resolution.
+  private def classifyTerminals(grammar: Grammar): Map[String, SymbolKind] =
+    val nonterminals = grammar.rules.map(_.name).toSet
+    def perSym(m: Map[String, SymbolKind], s: Sym): Map[String, SymbolKind] = s match
+      case Sym.Lit(text) => m.updated(text, SymbolKind.Literal)
+      case Sym.Ref(name) =>
+        if nonterminals.contains(name) then m else m.updated(name, SymbolKind.Token)
+      case Sym.Rep(inner)      => perSym(m, inner)
+      case Sym.Star(inner)     => perSym(m, inner)
+      case Sym.Opt(inner)      => perSym(m, inner)
+      case Sym.Field(_, inner) => perSym(m, inner)
+      case Sym.Macro(_, args)  => args.foldLeft(m)(perSym)
+      case Sym.Group(alts)     => alts.foldLeft(m)((mm, alt) => alt.foldLeft(mm)(perSym))
+      case Sym.Any             => m
+      case Sym.Not(set)        => set.foldLeft(m)(perSym)
+    val allSyms = grammar.rules.flatMap(_.alts.flatMap(_.syms))
+    allSyms.foldLeft(Map.empty[String, SymbolKind])(perSym)
+
+  // The `RenderedSymbol` counterpart to `renderSym` above, for the two wire fields that need a
+  // symbol's own kind, not just its display text. `kinds` is `classifyTerminals`'s own result,
+  // computed once per grammar by each caller below (cheap — one pass over the grammar's own
+  // symbols — and avoids threading it as a parameter any further than it needs to go).
+  private def renderSymStructured(kinds: Map[String, SymbolKind])(s: GSym): RenderedSymbol = s match
+    case GSym.NonTerm(n) => RenderedSymbol(n, SymbolKind.Nonterminal)
+    // Falls back to Token on a lookup miss (an unclassified name should never happen — every
+    // GSym.Term this module ever builds comes from resolving the same grammar `kinds` was just
+    // computed from — but Token is the more common case if it ever somehow did).
+    case GSym.Term(t) => RenderedSymbol(t, kinds.getOrElse(t, SymbolKind.Token))
+    case GSym.EOF     => RenderedSymbol("$", SymbolKind.Eof)
 
   // The Lowered Core tab's data: the desugared grammar's flattened productions, each paired with
   // its original `{% %}` action text. `Table.productions` and `grammar.rules.flatMap(_.alts)` are
@@ -360,8 +404,13 @@ object LabApi:
   private def productionsOf(grammar: Grammar): Vector[ProductionInfo] =
     val prods = Table.productions(grammar)
     val alts = grammar.rules.flatMap(_.alts)
+    val kinds = classifyTerminals(grammar)
     prods.zip(alts).map { case (p, alt) =>
-      ProductionInfo(p.lhs, p.rhs.map(renderSym), alt.action.map(BackendJs.unwrapBinder))
+      ProductionInfo(
+        p.lhs,
+        p.rhs.map(renderSymStructured(kinds)),
+        alt.action.map(BackendJs.unwrapBinder)
+      )
     }
 
   // The Lowered Core tab's ALL(*)-only section: the same two rewrites `Ll.parse`/`Ll.parseTraced`
@@ -387,11 +436,12 @@ object LabApi:
     }
 
     val a = Table.analyze(grammar)
+    val kinds = classifyTerminals(grammar)
     val firstFollow = grammar.rules.map { r =>
       RuleFirstFollow(
         r.name,
-        a.firsts.getOrElse(r.name, Set.empty).toVector.sorted.map(renderSym),
-        a.follows.getOrElse(r.name, Set.empty).toVector.sorted.map(renderSym)
+        a.firsts.getOrElse(r.name, Set.empty).toVector.sorted.map(renderSymStructured(kinds)),
+        a.follows.getOrElse(r.name, Set.empty).toVector.sorted.map(renderSymStructured(kinds))
       )
     }
 
