@@ -6,8 +6,8 @@ package gramaire
 //
 // Originally planned around `fastparse` for "production-grade performance", but fastparse's
 // `ParserInput` is fundamentally `Char`/`Byte`-oriented (confirmed: its only supported inputs are
-// `String`, `Array[Byte]`, `java.io.InputStream`, or another `geny.Readable` — no generic
-// token-stream support), while this port's whole pipeline works over a pre-lexed `Vector[Token]`.
+// `String`, `Array[Byte]`, an `InputStream` (java's `io` package), or another `geny.Readable` — no
+// generic token-stream support), while this port's whole pipeline works over a pre-lexed `Vector[Token]`.
 // `scala.util.parsing.combinator.Parsers` is generic over `type Elem`, so it parses a token
 // stream directly via a custom `Reader[Token]` — no character-encoding workaround needed — at the
 // cost of being a separately-versioned, less actively maintained module than fastparse (a real
