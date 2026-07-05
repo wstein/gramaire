@@ -1,4 +1,4 @@
-import type { MdBlock, MdInline } from "./markdown";
+import type { MdBlock, MdHeading, MdInline } from "./markdown";
 import { isRailroadPlaceholder } from "./markdown";
 import { resolveExampleSvg } from "./exampleAssets";
 
@@ -63,6 +63,15 @@ function MdTable({
       </tbody>
     </table>
   );
+}
+
+/** Renders a single heading `MdBlock` standalone — the one piece a prose block's inline
+ * heading-plus-actions row (GrimoireNotebookIsland.tsx's own `ProseBlock`) needs outside the
+ * normal `MarkdownBlocks` list, reusing the SAME `renderInline` a heading gets there so the two
+ * never drift on how a heading's own text renders. */
+export function MarkdownHeading({ heading }: { heading: MdHeading }) {
+  const Tag = heading.tag;
+  return <Tag>{renderInline(heading.parts)}</Tag>;
 }
 
 /** Renders `parseMarkdownLite`'s output as actual markup — kept separate from that pure parser so

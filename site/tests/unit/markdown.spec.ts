@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import {
   parseMarkdownLite,
   isRailroadPlaceholder,
+  leadingHeading,
 } from "../../src/lab/liveDoc/markdown";
 
 test("parseMarkdownLite: a heading line becomes its own block, one level down", () => {
@@ -250,4 +251,43 @@ test("parseMarkdownLite: a <details> line doesn't get swallowed into an adjacent
     { tag: "p", parts: [{ kind: "text", text: "Before." }] },
     { tag: "p", parts: [{ kind: "text", text: "After." }] },
   ]);
+});
+
+test("leadingHeading: a lone heading is found at index 0", () => {
+  const parsed = parseMarkdownLite("## Tokens");
+  expect(leadingHeading(parsed)).toEqual({
+    heading: { tag: "h3", parts: [{ kind: "text", text: "Tokens" }] },
+    index: 0,
+  });
+});
+
+test("leadingHeading: heading + trailing paragraph — still found at index 0", () => {
+  const parsed = parseMarkdownLite("# Calc-js\n\nAn intro paragraph.");
+  expect(leadingHeading(parsed)).toEqual({
+    heading: { tag: "h2", parts: [{ kind: "text", text: "Calc-js" }] },
+    index: 0,
+  });
+});
+
+// The exact shape `gramark fmt --diagrams=sidecar` produces between a rule's own fence and the
+// NEXT section's heading (examples/calc-js.grmk.md's own `## Term`/`## Factor`/`## Generated
+// tables` blocks) — a naive "is parsed[0] a heading" check would miss every one of these.
+test("leadingHeading: tolerates a leading railroad-diagram placeholder before the heading", () => {
+  const parsed = parseMarkdownLite(
+    "![Railroad diagram for the Expr rule](diagrams-calc-js/expr.svg)\n\n## Term",
+  );
+  expect(leadingHeading(parsed)).toEqual({
+    heading: { tag: "h3", parts: [{ kind: "text", text: "Term" }] },
+    index: 1,
+  });
+});
+
+test("leadingHeading: null when real, visible content precedes every heading", () => {
+  const parsed = parseMarkdownLite("Some real prose.\n\n## Heading");
+  expect(leadingHeading(parsed)).toBe(null);
+});
+
+test("leadingHeading: null when there's no heading at all", () => {
+  const parsed = parseMarkdownLite("Just a paragraph, nothing else.");
+  expect(leadingHeading(parsed)).toBe(null);
 });

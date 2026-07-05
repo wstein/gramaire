@@ -13,7 +13,12 @@ import {
   withLineNumbers,
   blockCharSpans,
   blockIndexAtOffset,
+  sectionEndIndex,
+  previousSiblingSectionStart,
+  nextSiblingSectionStart,
+  swapAdjacentRanges,
 } from "../../src/lab/liveDoc/document";
+import type { DocBlock } from "../../src/lab/liveDoc/document";
 import type { FenceInfo } from "../../src/lab/protocol";
 
 // This file lives at site/tests/unit/, one level deeper than site/scripts/ — three dirname()
@@ -448,4 +453,93 @@ test("insertBlock: index === blocks.length appends at the very end", () => {
   const result = insertBlock(blocks, blocks.length, newBlock);
   expect(result.length).toBe(blocks.length + 1);
   expect(result[result.length - 1]).toEqual(newBlock);
+});
+
+// Section-aware move (GrimoireNotebookIsland.tsx's own moveBlock/CellActions) — these four
+// functions are markdown-agnostic (see their own doc comments in document.ts), taking an INJECTED
+// `headingLevelOf` callback rather than real markdown text. A trivial id->level stub is enough to
+// exercise every boundary case without a real DocBlock/markdown round-trip.
+function stubBlock(id: string): DocBlock {
+  return { id, kind: "prose", text: "", nonterminal: null, fenceIndex: null };
+}
+function levelsOf(levels: Record<string, number | null>) {
+  return (b: DocBlock) => levels[b.id] ?? null;
+}
+
+test("sectionEndIndex: absorbs non-heading blocks, stops at the first same-or-shallower heading", () => {
+  const blocks = ["h3", "a", "b", "h3b", "c"].map(stubBlock);
+  const level = levelsOf({ h3: 3, a: null, b: null, h3b: 3, c: null });
+  expect(sectionEndIndex(blocks, 0, level)).toBe(3); // stops at "h3b", index 3
+});
+
+test("sectionEndIndex: a nested deeper heading doesn't end the section, only a same-or-shallower one does", () => {
+  const blocks = ["h3", "h4a", "h4b", "h3b"].map(stubBlock);
+  const level = levelsOf({ h3: 3, h4a: 4, h4b: 4, h3b: 3 });
+  expect(sectionEndIndex(blocks, 0, level)).toBe(3); // skips both h4s, stops at the second h3
+});
+
+test("sectionEndIndex: no later same-or-shallower heading reaches the end of the document", () => {
+  const blocks = ["h3", "a", "h4"].map(stubBlock);
+  const level = levelsOf({ h3: 3, a: null, h4: 4 });
+  expect(sectionEndIndex(blocks, 0, level)).toBe(3);
+});
+
+test("sectionEndIndex: a non-heading start block's own section is just itself", () => {
+  const blocks = ["a", "h3"].map(stubBlock);
+  const level = levelsOf({ a: null, h3: 3 });
+  expect(sectionEndIndex(blocks, 0, level)).toBe(1);
+});
+
+test("previousSiblingSectionStart: finds the nearest true sibling, skipping absorbed and deeper blocks", () => {
+  const blocks = ["h3a", "a", "h4", "h3b"].map(stubBlock);
+  const level = levelsOf({ h3a: 3, a: null, h4: 4, h3b: 3 });
+  expect(previousSiblingSectionStart(blocks, 3, 3, level)).toBe(0);
+});
+
+test("previousSiblingSectionStart: null when a shallower heading is hit first", () => {
+  const blocks = ["h2", "h3a", "h3b"].map(stubBlock);
+  const level = levelsOf({ h2: 2, h3a: 3, h3b: 3 });
+  expect(previousSiblingSectionStart(blocks, 2, 3, level)).toBe(1);
+  expect(previousSiblingSectionStart(blocks, 1, 3, level)).toBe(null); // h2 is shallower, not a sibling
+});
+
+test("previousSiblingSectionStart: null at the start of the document", () => {
+  const blocks = ["h3"].map(stubBlock);
+  const level = levelsOf({ h3: 3 });
+  expect(previousSiblingSectionStart(blocks, 0, 3, level)).toBe(null);
+});
+
+test("nextSiblingSectionStart: sectionEnd is the next section's own start when it's a true sibling", () => {
+  const blocks = ["h3a", "a", "h3b"].map(stubBlock);
+  const level = levelsOf({ h3a: 3, a: null, h3b: 3 });
+  expect(nextSiblingSectionStart(blocks, 2, 3, level)).toBe(2);
+});
+
+test("nextSiblingSectionStart: null past the end of the document, or when a shallower heading sits there", () => {
+  const blocks = ["h3"].map(stubBlock);
+  const level = levelsOf({ h3: 3 });
+  expect(nextSiblingSectionStart(blocks, 1, 3, level)).toBe(null);
+
+  const blocks2 = ["h3a", "h2"].map(stubBlock);
+  const level2 = levelsOf({ h3a: 3, h2: 2 });
+  expect(nextSiblingSectionStart(blocks2, 1, 3, level2)).toBe(null);
+});
+
+test("swapAdjacentRanges: exchanges two contiguous slices, preserving internal order and identity", () => {
+  const blocks = ["a", "b", "c", "d", "e"].map(stubBlock);
+  const result = swapAdjacentRanges(blocks, 1, 3, 5);
+  expect(result.map((b) => b.id)).toEqual(["a", "d", "e", "b", "c"]);
+  // Every relocated block is the SAME reference, not a rebuilt copy.
+  expect(result[1]).toBe(blocks[3]);
+  expect(result[2]).toBe(blocks[4]);
+  expect(result[3]).toBe(blocks[1]);
+  expect(result[4]).toBe(blocks[2]);
+});
+
+test("swapAdjacentRanges: a no-op (same reference back) on an invalid range", () => {
+  const blocks = ["a", "b", "c"].map(stubBlock);
+  expect(swapAdjacentRanges(blocks, -1, 1, 2)).toBe(blocks);
+  expect(swapAdjacentRanges(blocks, 2, 1, 3)).toBe(blocks); // start > mid
+  expect(swapAdjacentRanges(blocks, 0, 4, 3)).toBe(blocks); // mid > end
+  expect(swapAdjacentRanges(blocks, 0, 1, 4)).toBe(blocks); // end > blocks.length
 });
