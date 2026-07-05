@@ -88,6 +88,43 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
+      # actions/deploy-pages occasionally fails its post-creation status poll with a
+      # generic "Deployment failed, try again later" — a transient GitHub Pages
+      # backend hiccup (observed 2026-07-04 and 2026-07-05), not anything this
+      # workflow or repo controls. It has always self-healed on the next push, but
+      # retrying here means a single flaky attempt doesn't force a hollow follow-up
+      # commit just to redeploy the same content.
+      - name: Deploy to GitHub Pages (attempt 1)
+        id: deploy1
+        continue-on-error: true
         uses: actions/deploy-pages@v5
+
+      - name: Back off before retry 1
+        if: steps.deploy1.outcome == 'failure'
+        run: sleep 15
+
+      - name: Deploy to GitHub Pages (attempt 2)
+        id: deploy2
+        if: steps.deploy1.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+
+      - name: Back off before retry 2
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        run: sleep 30
+
+      - name: Deploy to GitHub Pages (attempt 3)
+        id: deploy3
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        uses: actions/deploy-pages@v5
+
+      - name: Resolve deployment result
+        id: deployment
+        if: always()
+        run: |
+          url="${{ steps.deploy3.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy1.outputs.page_url }}"
+          echo "page_url=$url" >> "$GITHUB_OUTPUT"
+          if [ -z "$url" ]; then
+            echo "::error::All deploy-pages attempts failed"
+            exit 1
+          fi
