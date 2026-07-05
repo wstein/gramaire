@@ -36,6 +36,7 @@ import type { DocBlock, DocBlockKind } from "./document";
 import { parseMarkdownLite, leadingHeading } from "./markdown";
 import type { MdBlock, MdInline } from "./markdown";
 import { MarkdownBlocks, MarkdownHeading } from "./MarkdownBlock";
+import { SymbolChip } from "../symbolDisplay";
 import { buildPaperPdf } from "./paperPdf";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
 import type { EditorDiagnostic } from "./CodeMirrorEditor";
@@ -1135,20 +1136,6 @@ function CellDiagnostics({ diags }: { diags: DiagnosticInfo[] }) {
   );
 }
 
-// A FIRST/FOLLOW token arrives pre-formatted "display-rendered like ProductionInfo.rhs" — a
-// terminal wrapped in a single pair of backticks, or the bare `$` EOF marker with none. Once each
-// token gets its own `<code>` chip (background + border-radius already say "this is a terminal"),
-// the backticks themselves are redundant AND inconsistent with the Generated-tables table's own
-// chips, which never show them either (there, `` `(` `` is real markdown inline-code syntax; the
-// backtick delimiters are consumed by the parser, never part of the rendered text). Strips only a
-// single matching leading/trailing pair — never touches whatever's inside, so a terminal whose own
-// text happens to contain a backtick is left exactly as the engine formatted it.
-function unwrapTokenBackticks(token: string): string {
-  return token.length >= 2 && token.startsWith("`") && token.endsWith("`")
-    ? token.slice(1, -1)
-    : token;
-}
-
 function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
   const isEditing = editingCell.value === index;
   const myAttributed = attributedDiagnostics.value.filter(
@@ -1256,16 +1243,16 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
                   <span class="gramaire__output-ff-group">
                     <span class="gramaire__output-ff-label">FIRST</span>
                     <span class="gramaire__output-ff-chips">
-                      {ff.first.map((t) => (
-                        <code key={t}>{unwrapTokenBackticks(t)}</code>
+                      {ff.first.map((s, i) => (
+                        <SymbolChip key={i} symbol={s} />
                       ))}
                     </span>
                   </span>
                   <span class="gramaire__output-ff-group">
                     <span class="gramaire__output-ff-label">FOLLOW</span>
                     <span class="gramaire__output-ff-chips">
-                      {ff.follow.map((t) => (
-                        <code key={t}>{unwrapTokenBackticks(t)}</code>
+                      {ff.follow.map((s, i) => (
+                        <SymbolChip key={i} symbol={s} />
                       ))}
                     </span>
                   </span>

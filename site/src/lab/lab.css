@@ -434,6 +434,21 @@
 .lab__table tbody tr:nth-child(even) td {
   background: var(--bg-1);
 }
+/* Productions/FIRST-FOLLOW cells render each RenderedSymbol as a bare `<code>` (no chip background
+   here, unlike the Notebook's own FIRST/FOLLOW chips — this table is dense mono text, not a
+   wrapping cluster); only the color carries the literal/token/nonterminal/eof distinction. */
+.lab__table td code[data-kind="literal"] {
+  color: var(--t-op);
+}
+.lab__table td code[data-kind="token"] {
+  color: var(--t-term);
+}
+.lab__table td code[data-kind="nonterminal"] {
+  color: var(--t-nonterm);
+}
+.lab__table td code[data-kind="eof"] {
+  color: var(--fg-muted);
+}
 
 .lab__tree {
   margin: 0;
