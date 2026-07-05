@@ -295,9 +295,27 @@ object GramaireCheck:
                     if !Files.exists(fileDir.resolve(path)) then
                       fails += s"missing artifact file: $path; run `gramaire fmt`"
               case Artifact.TablesArt(section, sourceSha256) =>
-                if grammarSha256 != sourceSha256 then
+                // Presence, not just staleness: a hash match only proves the SOURCE grammar the
+                // lock was built from hasn't changed — it says nothing about whether the section
+                // still actually CONTAINS a table (regenerateTables used to silently no-op on a
+                // caption with no `|` row to replace, leaving a hash-matching but table-less
+                // section passing this gate forever). Checked first, since a missing table is
+                // never simultaneously "stale" in any actionable sense.
+                if !hasGeneratedTable(doc, section) then
+                  fails += s"missing $section: no FIRST/FOLLOW table found in the section; run `gramaire fmt`"
+                else if grammarSha256 != sourceSha256 then
                   fails += s"stale tables: $section was generated from an older version of the grammar; run `gramaire fmt`"
           fails.result()
+
+  // Whether `doc` actually has a `|`-prefixed table row somewhere inside the named H2 section
+  // (between its heading and the next heading, or EOF) — the presence check `checkDrift`'s
+  // `TablesArt` branch needs alongside its hash comparison.
+  private def hasGeneratedTable(doc: Doc, section: String): Boolean =
+    val headingRe = ("^##\\s+" + java.util.regex.Pattern.quote(section) + "\\s*$").r
+    doc.lines.indexWhere(headingRe.matches) match
+      case -1 => false
+      case idx =>
+        doc.lines.drop(idx + 1).takeWhile(!_.startsWith("#")).exists(_.trim.startsWith("|"))
 
   // ---- gramaire fmt -----------------------------------------------------
 
@@ -532,6 +550,12 @@ object GramaireCheck:
   // the conflict-summary line untouched. The conflict line stays
   // author-owned: it needs the full LR automaton, which lives in the
   // compiler core, not here.
+  //
+  // INSERTS the table when the section has no existing `|`-prefixed row to replace (a grammar
+  // hand-authored without ever running `fmt`, or a `## Generated tables` section reduced to just
+  // its caption), not only updates one already there — a bare caption with nothing after it used
+  // to survive every `fmt` re-run unchanged, because the replace branch below has nothing to
+  // trigger on without a `|` line to find in the first place.
   def regenerateTables(src: String, prods: Vector[Production]): String =
     if prods.isEmpty then src
     else
@@ -555,8 +579,20 @@ object GramaireCheck:
       ) ++ rowsResult.drop(1).map(row)
 
       val lines = src.split("\n", -1).toVector
-      val out = Vector.newBuilder[String]
+      val out = scala.collection.mutable.ArrayBuffer.empty[String]
       var inSection = false
+      var tableInserted = false
+
+      // Called right where the section ends (a new heading, or EOF) having never found an
+      // existing table to replace: drop back to the caption (undoing any blank lines already
+      // copied through) and splice the freshly computed table in after exactly one blank line.
+      def insertTableIfMissing(): Unit =
+        if !tableInserted then
+          while out.nonEmpty && out.last.isEmpty do out.trimEnd(1)
+          out += ""
+          out ++= table
+          tableInserted = true
+
       var i = 0
       while i < lines.length do
         val line = lines(i)
@@ -567,12 +603,21 @@ object GramaireCheck:
         else if inSection && line.trim.startsWith("|") then
           while i < lines.length && lines(i).trim.startsWith("|") do i += 1
           out ++= table
+          tableInserted = true
           inSection = false
         else
-          if inSection && line.startsWith("#") then inSection = false
+          if inSection && line.startsWith("#") then
+            insertTableIfMissing()
+            inSection = false
           out += line
           i += 1
-      out.result().mkString("\n")
+      // Reached EOF still "in" the section (the common broken shape: the caption is the last
+      // content) with no table ever found — append it now, restoring the single trailing newline
+      // `insertTableIfMissing`'s own trim consumed.
+      if inSection then
+        insertTableIfMissing()
+        out += ""
+      out.mkString("\n")
 
   // `gramaire fmt`: (re)emit the derived artifacts for a grammar file. In
   // sidecar mode it writes the railroad SVGs; in mermaid mode it embeds the
