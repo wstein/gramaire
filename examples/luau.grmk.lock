@@ -1,0 +1,612 @@
+{
+  "version": 1,
+  "mode": "sidecar",
+  "grammarSha256": "dde127283a2edef278cfb7fcce939862adb75848aeeec9bd17543d3b740e3229",
+  "artifacts": [
+    {
+      "kind": "railroad",
+      "nonterminal": "chunk",
+      "path": "diagrams-luau/chunk.svg",
+      "sourceSha256": "375f2fdfc267ee16a238c98711bf560cd9cff9b5b655f1e30a890a9644f3ec68"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "block",
+      "path": "diagrams-luau/block.svg",
+      "sourceSha256": "f94098d2c3b521b3796046a4e5f8177d13afeadad8fe8df49918fd4391d18f43"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "StatWithSemi",
+      "path": "diagrams-luau/statwithsemi.svg",
+      "sourceSha256": "2da01e660a542ecca691622a3c4ab6a7f86e6787e4a29441f7bafc3ab5e0adab"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LastStatWithSemi",
+      "path": "diagrams-luau/laststatwithsemi.svg",
+      "sourceSha256": "2de9af8662d2f29751acf2ec89514188defc6b9954962917e4dddd4be05f14ea"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "stat",
+      "path": "diagrams-luau/stat.svg",
+      "sourceSha256": "71d2306de9129f07b0a9a95a40225aad79b8d3c2a9cb34c3a8dde798e206ec06"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ElseifBlock",
+      "path": "diagrams-luau/elseifblock.svg",
+      "sourceSha256": "727570809793bc5ebcf0d35f519b99645eb0ba65dbb8e9e7591c2519700d953d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ElseBlock",
+      "path": "diagrams-luau/elseblock.svg",
+      "sourceSha256": "8b939f60572ebe5818bf4f1913ea5f0630a35aea6de4589cd03155acffa883ac"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ForStep",
+      "path": "diagrams-luau/forstep.svg",
+      "sourceSha256": "307d21e1529f3e23bdb8fd9877040e011a9bee2c2268020f254c634abf120965"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LocalInit",
+      "path": "diagrams-luau/localinit.svg",
+      "sourceSha256": "e6ca8694936820fb1bdc849159a58aea323bf03ca8b1868ddbe53ba627ee5d7f"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TypeParamsWithDefaults",
+      "path": "diagrams-luau/typeparamswithdefaults.svg",
+      "sourceSha256": "e58e53c4560827f8092cb90a2a97735b7d4c7e862efea584deca31351833f4d3"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "laststat",
+      "path": "diagrams-luau/laststat.svg",
+      "sourceSha256": "e47b43b95a9a882995795bc77e35b99c064a1a41a1b0f44e888e1dd97c22cb2a"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "funcname",
+      "path": "diagrams-luau/funcname.svg",
+      "sourceSha256": "c2cce617e20eba48e41f999d8d5c8e64c7aa9c6df26236b317c56e8d1912b9a8"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "DotName",
+      "path": "diagrams-luau/dotname.svg",
+      "sourceSha256": "6ba25dbb840806d8019e036f5828d596b6bcdf535098cd42d6df8c975d74a712"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "MethodName",
+      "path": "diagrams-luau/methodname.svg",
+      "sourceSha256": "1c605f7accaf7761e36f7b4ba2b31bd94efde07344026ac17d8162e47e6dcddd"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "funcbody",
+      "path": "diagrams-luau/funcbody.svg",
+      "sourceSha256": "2b76c11c8c840cfcfbecd532f18c5f5dbb42d1e8c3cabc49f08020e8f072c679"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "GenericTypeParams",
+      "path": "diagrams-luau/generictypeparams.svg",
+      "sourceSha256": "0024172de68f0a7ca1e392277ac2eaed6cd77cab60ecbcc082375690923bcf2f"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ReturnAnnotation",
+      "path": "diagrams-luau/returnannotation.svg",
+      "sourceSha256": "9b2bfbb2fb958256a822a0f06d45e2553dbf74acf2a67966d2eea3370347cc82"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "parlist",
+      "path": "diagrams-luau/parlist.svg",
+      "sourceSha256": "b9a106b274bac5a5223757a036ced71c24dee372e80c3e8fa4224c48c95dbf4b"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TrailingVararg",
+      "path": "diagrams-luau/trailingvararg.svg",
+      "sourceSha256": "548750f3fb54c55cabff919edf60637a6311c61a89659eac43bde2ab0251a9ff"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "VarargAnnotation",
+      "path": "diagrams-luau/varargannotation.svg",
+      "sourceSha256": "608f065d01aead2c5312a72068d85de9e145a68d2ad32332e15c5a1ebd126e7f"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "VarargType",
+      "path": "diagrams-luau/varargtype.svg",
+      "sourceSha256": "158bec1f2f094e9942376198d77349db5e1d58e2e1cb6a7648fc8f12f1a9c319"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "explist",
+      "path": "diagrams-luau/explist.svg",
+      "sourceSha256": "f55a3918d76b4584e8670c9e49574a32f2a94f5b498b8b238a39eccc7f62c173"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "binding",
+      "path": "diagrams-luau/binding.svg",
+      "sourceSha256": "87f804e3ce3fc7f1cdcd85463b6ffdfa61ee5075ff034a8d1c4e3b4e2c3ca0d6"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TypeAnnotation",
+      "path": "diagrams-luau/typeannotation.svg",
+      "sourceSha256": "1cbcd75ffdf53617a464d891e4f71014b4cd62136029d2d923d95e595228b120"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "bindinglist",
+      "path": "diagrams-luau/bindinglist.svg",
+      "sourceSha256": "a43ba13d2c2712fbc6076aa02769a8751e78e3d3f271327a52083e1f4d376704"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "var",
+      "path": "diagrams-luau/var.svg",
+      "sourceSha256": "ef88dd95e6ca4c4cb4cec179dd3ef3c38e1df17f4f88e58891a6dc9ab83abbc5"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "varlist",
+      "path": "diagrams-luau/varlist.svg",
+      "sourceSha256": "c80b9c3407d4db13f66f686c4f216e312f0242398dca7df43042e69898720f2e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "prefixexp",
+      "path": "diagrams-luau/prefixexp.svg",
+      "sourceSha256": "240e41a693c508c42447ee50dbddfc1d1d39c101d5baac6efff8190706079437"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "functioncall",
+      "path": "diagrams-luau/functioncall.svg",
+      "sourceSha256": "bc059d2bb37d30601c86482ff78493e24e45406c03ed402bec56203bb797af0c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "exp",
+      "path": "diagrams-luau/exp.svg",
+      "sourceSha256": "24077892edbc71a82f8010454411030b89590a170309f55467fd58f5782b9a88"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AndExpr",
+      "path": "diagrams-luau/andexpr.svg",
+      "sourceSha256": "078a921720256964945e2da98d0a1102fb9fe01f13753207f3242439f019d06b"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "CmpExpr",
+      "path": "diagrams-luau/cmpexpr.svg",
+      "sourceSha256": "2f3b796f2d1ab7a0df4c8fc497a31911cc58f6a733b58788fad547e03695014c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "cmpop",
+      "path": "diagrams-luau/cmpop.svg",
+      "sourceSha256": "c0b782a116a60fea422931bdfb7768e7860d429dbe3b2ab04b0bffd8a7ab2d5d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ConcatExpr",
+      "path": "diagrams-luau/concatexpr.svg",
+      "sourceSha256": "84a3df40b2e901f763e50179a11f3c16af56a819aea1319daf9fde99d9e6744b"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AddExpr",
+      "path": "diagrams-luau/addexpr.svg",
+      "sourceSha256": "cff60531b336b707add5542fa8db9598a5d16151ea1955386b2e6b8d848bc160"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "MulExpr",
+      "path": "diagrams-luau/mulexpr.svg",
+      "sourceSha256": "6e412c94a8dd42a9674a275b6c9d087f5e747550f909a33ec2294fe1002c4f04"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "UnaryExpr",
+      "path": "diagrams-luau/unaryexpr.svg",
+      "sourceSha256": "1c7db494bf9b45f6de3d4946e8fdb6a6d9b69a457d09697ab94a94e4ea4fc4dd"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "PowExpr",
+      "path": "diagrams-luau/powexpr.svg",
+      "sourceSha256": "440b386caf8aee38e02b2bf00c19ec1433392b18a22bede8ee0994c48dca8759"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ifelseexp",
+      "path": "diagrams-luau/ifelseexp.svg",
+      "sourceSha256": "16cc15f47b7d3dc2da5855a729853fa81fb3ddde55d61e30a7ce4ca8905d2d2e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ElseifExpClause",
+      "path": "diagrams-luau/elseifexpclause.svg",
+      "sourceSha256": "d1b3aa3df4ae661f3e54d5d3512fb8fdf25bf392e1a5c845f2c9e9a8ec5fd213"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "asexp",
+      "path": "diagrams-luau/asexp.svg",
+      "sourceSha256": "4bc696766fc9f98bb2880e27a212a07f42eba6ae4b3d1ab55f1d73dd1b9af9f9"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "stringinterp",
+      "path": "diagrams-luau/stringinterp.svg",
+      "sourceSha256": "bb9169c83e71e8339a11b04de9076fd1f7d4827bd0453d431a186fc5fa5a4940"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "InterpMidPart",
+      "path": "diagrams-luau/interpmidpart.svg",
+      "sourceSha256": "5daf10adf6dba7783718e93dae36aed50b32402038ab2542bf54f7861eb97ec1"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "simpleexp",
+      "path": "diagrams-luau/simpleexp.svg",
+      "sourceSha256": "b5dd1f8343ab876ae58a01a36f0ed8c920c10cefe2c2bba3389979dd449460b9"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "funcargs",
+      "path": "diagrams-luau/funcargs.svg",
+      "sourceSha256": "1c96212ff0c038493d755c8879eae4689491565cf149e8ca81cd353d6445eb8a"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "tableconstructor",
+      "path": "diagrams-luau/tableconstructor.svg",
+      "sourceSha256": "8c0aa5d35b67334a8b01d4ea47001f7556f0e98fa979accbde8d9bee8f12622c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "fieldlist",
+      "path": "diagrams-luau/fieldlist.svg",
+      "sourceSha256": "e9cc76d88680e3d943d5cbcd1a6bf2b21c0e4fec9589fab2d9d9be0e23feee00"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "field",
+      "path": "diagrams-luau/field.svg",
+      "sourceSha256": "1a9bd5bc5d0188a5715770d9d159642734f5a4ecc6a13726247cbffc3396e4ee"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "fieldsep",
+      "path": "diagrams-luau/fieldsep.svg",
+      "sourceSha256": "0a72591d9ed1fc85a1c3e2e26771c2b4c6a4f82e20de3f76ff340c1a406549a7"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "compoundop",
+      "path": "diagrams-luau/compoundop.svg",
+      "sourceSha256": "4be0d39c7d3716c3d5d4e374d9a9425dee171dbfccf3e29b9e2314fc3c542d4f"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "littable",
+      "path": "diagrams-luau/littable.svg",
+      "sourceSha256": "c3ab7a09986858b9be967549d424237e048d5cfb8999e7359983721df53b2425"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "litfieldlist",
+      "path": "diagrams-luau/litfieldlist.svg",
+      "sourceSha256": "dd4c68739ed79791d73eda8431db25e71a4fe706109865c45eef75bdf65911f9"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "litfield",
+      "path": "diagrams-luau/litfield.svg",
+      "sourceSha256": "c957c5df3c1205ab53a22d3f8171ddd95e4737a85eadd49a9a195974cd876efa"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LitFieldKey",
+      "path": "diagrams-luau/litfieldkey.svg",
+      "sourceSha256": "ae94fbae58e61a0f89131c67bc09b5e6f473b5c99dcdd79beeecd130f3faf8de"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "literal",
+      "path": "diagrams-luau/literal.svg",
+      "sourceSha256": "b09612343c6c1c52474e8c5bd970434532f4c802f63f03cc0182165c02de2ce2"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "litlist",
+      "path": "diagrams-luau/litlist.svg",
+      "sourceSha256": "0bb0a3f704d609b12ba651b20e84c437660aefc3e50f64091c9ed6203ab3d52b"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "pars",
+      "path": "diagrams-luau/pars.svg",
+      "sourceSha256": "07d175065433172ce905c85e361ea57524b2da4c0e5f09613f274e990f90a204"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "parattr",
+      "path": "diagrams-luau/parattr.svg",
+      "sourceSha256": "fdb35b24da72ab1d5227df85578306f9bd6ab4458396dbbf1c872963f69e14ff"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "attribute",
+      "path": "diagrams-luau/attribute.svg",
+      "sourceSha256": "cc9204cb7d898f5b26be89ff23d96aa198d7f0be686ec58b4eb43be97edde9ea"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "attributes",
+      "path": "diagrams-luau/attributes.svg",
+      "sourceSha256": "3ed14232047b394d3194522e909786e8ca359fbee905e5314c14fa341fd0b463"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SimpleType",
+      "path": "diagrams-luau/simpletype.svg",
+      "sourceSha256": "60e7678eef4551b968c45d6f56719c03efa244c0e580b93ef18f8bc190ab870e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "GenericFunctionType",
+      "path": "diagrams-luau/genericfunctiontype.svg",
+      "sourceSha256": "16ef0604f91a1cc1c3962ed466362c08c7b7e834b9ef4d52081f6964abf950ba"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ParenTypeOrFunctionType",
+      "path": "diagrams-luau/parentypeorfunctiontype.svg",
+      "sourceSha256": "56e155b121bef5f1076e5721a42d91457f4d1c0d58e97a1f2efbf688a4d96b6c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "FunctionArrow",
+      "path": "diagrams-luau/functionarrow.svg",
+      "sourceSha256": "6017304d4f64175a8aa3922a5abd28e835c8d52ec2ed5bc7f11cfaedca8460c8"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "QualifiedTypeName",
+      "path": "diagrams-luau/qualifiedtypename.svg",
+      "sourceSha256": "203462e58d02ae48a5ab11f7388bf47d8bbcaa829b21356a2e37d71ad38f9433"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TypeArgs",
+      "path": "diagrams-luau/typeargs.svg",
+      "sourceSha256": "9e29abb2a30c35f137367da3a3ac35c616d17327cd7a15256ca304422cbaa15e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SingletonType",
+      "path": "diagrams-luau/singletontype.svg",
+      "sourceSha256": "230ac1d35e8b5460b04a8048ef20c223dee3d98091ec9fe1910f1cde1bd2e520"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Type",
+      "path": "diagrams-luau/type.svg",
+      "sourceSha256": "0ca4be103f0573930a68f98f5792c1386e6ff16c44552b7477ca799b2b151722"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Union",
+      "path": "diagrams-luau/union.svg",
+      "sourceSha256": "b12560a7920ecd168b9914a9c226537185e6fb8ec34105be8f92b16eb8d3eeb1"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Intersection",
+      "path": "diagrams-luau/intersection.svg",
+      "sourceSha256": "357234ea599df2b9e41e55a573c43e6773308757ad0045f9cd3344f7d98924e7"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "QuestionedType",
+      "path": "diagrams-luau/questionedtype.svg",
+      "sourceSha256": "932dd9dd4eba6138517e2350b1dd23a4af88b2247409248766f3d0b2f50d77ed"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "GenericTypePackParameter",
+      "path": "diagrams-luau/generictypepackparameter.svg",
+      "sourceSha256": "1a0cd4c1696c19e60969624134d9b929806a5dabb37a84890f12428f8ae9c9e3"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "GenericTypeList",
+      "path": "diagrams-luau/generictypelist.svg",
+      "sourceSha256": "82365596ab5474861762864f3b2ac15e07915a52e75b32cb0386ec49b6d95b9f"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "GenericTypeListTail",
+      "path": "diagrams-luau/generictypelisttail.svg",
+      "sourceSha256": "cb23c82245be3e4c43e1cb034c6e30f5d1abaf3e1f5e5f84e4a8d7fc4303e79e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "GenericTypePackParameterWithDefault",
+      "path": "diagrams-luau/generictypepackparameterwithdefault.svg",
+      "sourceSha256": "9499b5f8f9f0035b979ce8dab04ddad6b3c3e6a866a3541136830c4dc731826a"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TypePackDefault",
+      "path": "diagrams-luau/typepackdefault.svg",
+      "sourceSha256": "7872fb745a72a1c859d527abadb409764b3a42ab09e2a4814dd09233b3431dab"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "GenericTypeListWithDefaults",
+      "path": "diagrams-luau/generictypelistwithdefaults.svg",
+      "sourceSha256": "5813e247e7594569d44685e6589e3589f2c854f12ae8a73067e09bbfd9dfe0c1"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TypeDefault",
+      "path": "diagrams-luau/typedefault.svg",
+      "sourceSha256": "5958ed02b71425e0dd360ae9b4b8b53a93e07def16494b3493787eca058ac637"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "GenericTypeListWithDefaultsTail",
+      "path": "diagrams-luau/generictypelistwithdefaultstail.svg",
+      "sourceSha256": "a649f84fc4e66bc175644a67036fa731517d11dfe65dd2fb7f58dd6f013e1f18"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TypeList",
+      "path": "diagrams-luau/typelist.svg",
+      "sourceSha256": "d234375cdd5e2354c0698c0b18a0c4c4df73add968c3b4099933d1ef64368845"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TypeListVarargTail",
+      "path": "diagrams-luau/typelistvarargtail.svg",
+      "sourceSha256": "243c288aca9d12e2730082f51a076a7e41f52360d865d39d9972d4688ebbeb71"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BoundTypeList",
+      "path": "diagrams-luau/boundtypelist.svg",
+      "sourceSha256": "578b566b10b051f33575049913f0eb67eb721130e72f04959430d8412fff174c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BoundTypeItem",
+      "path": "diagrams-luau/boundtypeitem.svg",
+      "sourceSha256": "d53ab14d7c5b84c8ccf4b87f10485695c40df355f052535e79e2f6768a05074c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BoundName",
+      "path": "diagrams-luau/boundname.svg",
+      "sourceSha256": "38268ddfc8a868996ac3fd5098ba2cd17782281c846ceade2d81da679b8d68d1"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BoundTypeListPackTail",
+      "path": "diagrams-luau/boundtypelistpacktail.svg",
+      "sourceSha256": "d2a4f069406215352eb99bffeb77d10773a7fb8458d4122188db403bc8fbd823"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BoundTypeListPack",
+      "path": "diagrams-luau/boundtypelistpack.svg",
+      "sourceSha256": "e4918ce9722b86f8fa28254c6e1e8e3dc0c94a6cdedaa323bf0df24dc55bd6aa"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TypeParams",
+      "path": "diagrams-luau/typeparams.svg",
+      "sourceSha256": "f2431231b2529375d9f8df921dbb627129f937c81361c03489a5bc7273d523d2"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TypeParamItem",
+      "path": "diagrams-luau/typeparamitem.svg",
+      "sourceSha256": "54ef120f3961b631bb5f66bb73d6e1bc89f02dddf4dbbefea54b63649aa3102b"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TypeParamsTail",
+      "path": "diagrams-luau/typeparamstail.svg",
+      "sourceSha256": "c428a4b1e5b45ede04bcc47a59341fbbc523d09eadbfa824b3c8077a571e19d3"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TypePack",
+      "path": "diagrams-luau/typepack.svg",
+      "sourceSha256": "cdf3e599dc0ef45c9f877d148ab1d21c24cf8c8924c9e2d1d89bdaf00bc88eac"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "GenericTypePack",
+      "path": "diagrams-luau/generictypepack.svg",
+      "sourceSha256": "5c3a03941a0fd487a0b0b9664aa28468652ec15d577beee9b21ef049a9c19658"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "VariadicTypePack",
+      "path": "diagrams-luau/variadictypepack.svg",
+      "sourceSha256": "0e715051a5094979c0f7196605d49a0dcee10438fcd6192f0a435a4f48da58d3"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ReturnType",
+      "path": "diagrams-luau/returntype.svg",
+      "sourceSha256": "154beb7e7730ec1089ba5596da79d6ea5004156c31f2a90ff4115569a88fe1d5"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TableIndexer",
+      "path": "diagrams-luau/tableindexer.svg",
+      "sourceSha256": "c022fb201838631ca961634dc064e405adca70b8e803fce4aa89407a0c753886"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AccessMod",
+      "path": "diagrams-luau/accessmod.svg",
+      "sourceSha256": "1d8c9bb9c8bce757a7f665b11938616c6b6a69cc060b7e2a2470c656b903bda6"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TableProp",
+      "path": "diagrams-luau/tableprop.svg",
+      "sourceSha256": "ba54060cdd993fdd31afc913b0d52598a3ecaabdbdf4d978adc3f413a7117329"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "PropList",
+      "path": "diagrams-luau/proplist.svg",
+      "sourceSha256": "5a064715924e1c5a00a27943bcd35da805d55fb8c3884cf2fa87bdd55d13b656"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "PropListTail",
+      "path": "diagrams-luau/proplisttail.svg",
+      "sourceSha256": "414b4f768bb21eca0e476ce3c1267c9e37949ee64d2ac83c231ecf024d415b79"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TablePropItem",
+      "path": "diagrams-luau/tablepropitem.svg",
+      "sourceSha256": "15eec2b5ad13b0a589e85ec7a8123261d7197524ec4a3ee6d2e39ee52c2396d2"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TableType",
+      "path": "diagrams-luau/tabletype.svg",
+      "sourceSha256": "0f1c6f5fdc73ab746532f74cd3112a9b3828c1fa0a96c9a59e28990de7c2a466"
+    },
+    {
+      "kind": "tables",
+      "section": "Generated tables",
+      "sourceSha256": "dde127283a2edef278cfb7fcce939862adb75848aeeec9bd17543d3b740e3229"
+    }
+  ]
+}
