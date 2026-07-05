@@ -150,6 +150,20 @@ export function swapBlocks(
   return next;
 }
 
+/** Insert `block` at `index` (before the block currently there; `index === blocks.length` appends
+ * at the end) — every block from `index` on shifts one position later. Used by the Notebook's
+ * `+ Prose`/`+ Rule` insert affordances; the caller opens the new block for editing immediately
+ * after, so a placeholder's exact starting `text` only needs to look right for one keystroke. */
+export function insertBlock(
+  blocks: readonly DocBlock[],
+  index: number,
+  block: DocBlock,
+): DocBlock[] {
+  const next = blocks.slice();
+  next.splice(index, 0, block);
+  return next;
+}
+
 /** A `DocBlock` with its current 1-based, inclusive line span (in the FULL document — including
  * a fence block's own marker lines, which its `text` doesn't carry). */
 export interface NumberedDocBlock extends DocBlock {

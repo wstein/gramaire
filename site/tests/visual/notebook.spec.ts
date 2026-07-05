@@ -892,3 +892,118 @@ test("all cell actions are disabled while any editor is open, anywhere in the do
     await expect(actions.nth(i)).toBeDisabled();
   }
 });
+
+// Livebook's own "+ Elixir/+ Block" between-cell affordance, adapted to the Notebook's two real
+// block kinds: `+ Prose` / `+ Rule`, in a thin hover-zone between every pair of adjacent blocks
+// (plus one before the first and one after the last).
+async function firstRuleZoneIndex(page: import("@playwright/test").Page) {
+  const kinds = await page
+    .locator(".grimoire__prose, .grimoire__cell[data-kind]")
+    .evaluateAll((els) =>
+      els.map((el) =>
+        el.classList.contains("grimoire__prose")
+          ? "prose"
+          : el.getAttribute("data-kind"),
+      ),
+    );
+  return kinds.indexOf("rule");
+}
+
+test("hovering an insert zone reveals + Prose / + Rule; invisible at rest", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const zone = page.locator(".grimoire__insert-zone").first();
+  const buttons = zone.locator(".grimoire__insert-buttons");
+
+  await expect(buttons).toHaveCSS("opacity", "0");
+  await zone.hover();
+  await expect(buttons).toHaveCSS("opacity", "1");
+  await expect(zone.locator(".grimoire__insert-btn")).toHaveText([
+    "+ Prose",
+    "+ Rule",
+  ]);
+});
+
+test("there is one more insert zone than there are blocks (one before each, one after the last)", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const blockCount = await page
+    .locator(".grimoire__prose, .grimoire__cell[data-kind]")
+    .count();
+  await expect(page.locator(".grimoire__insert-zone")).toHaveCount(
+    blockCount + 1,
+  );
+});
+
+test("+ Prose inserts an empty prose block at that position and opens it for typing", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const zoneIndex = await firstRuleZoneIndex(page);
+  const zone = page.locator(".grimoire__insert-zone").nth(zoneIndex);
+  await zone.hover();
+  await zone
+    .locator(".grimoire__insert-btn")
+    .filter({ hasText: "Prose" })
+    .click();
+
+  // A new prose block opened directly for editing — its own raw-markdown textarea, empty.
+  await expect(page.locator(".grimoire__prose-editor")).toHaveValue("");
+  await page.locator(".grimoire__prose-editor").fill("A new paragraph.");
+  await page.locator(".grimoire__statusbar").click();
+  await page.waitForTimeout(1000);
+
+  const proseTexts = await page.locator(".grimoire__prose p").allTextContents();
+  expect(proseTexts).toContain("A new paragraph.");
+});
+
+// The one non-obvious claim this feature depends on: `serializeDocument` wraps ANY non-prose
+// block in the same generic fence regardless of the client's own `kind` label — what the ENGINE
+// reclassifies it as next depends on the fence's real first-line shape once re-parsed, not what
+// the client called it. This proves the placeholder text ("NewRule\n  : ") really does
+// reclassify as `rule` again after a real edit, not just that the client-side label says so.
+test("+ Rule inserts a rule skeleton that reclassifies as a real rule cell after editing", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const zoneIndex = await firstRuleZoneIndex(page);
+  const zone = page.locator(".grimoire__insert-zone").nth(zoneIndex);
+  await zone.hover();
+  await zone
+    .locator(".grimoire__insert-btn")
+    .filter({ hasText: "Rule" })
+    .click();
+
+  const editor = page.locator(".cm-content").first();
+  await expect(editor).toHaveText("NewRule  : ");
+
+  // Click the second line precisely (End alone, without a click, lands wherever autoFocus put
+  // the cursor — verified the hard way against a real page, not assumed).
+  await editor.locator(".cm-line").nth(1).click();
+  await page.keyboard.press("End");
+  await page.keyboard.type("'x'");
+  await page.locator(".grimoire__statusbar").click();
+  await page.waitForTimeout(1500);
+
+  const newCell = page.locator('.grimoire__cell[data-nonterminal="NewRule"]');
+  await expect(newCell).toHaveCount(1);
+  await expect(newCell).toHaveAttribute("data-kind", "rule");
+  await expect(newCell.locator("svg")).toHaveCount(1);
+});
+
+test("insert-zone buttons are disabled while any editor is open, anywhere in the document", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const ruleCell = ruleCellLocator(page);
+  await ruleCell.locator(".grimoire__cell-rendered").click(); // open its editor
+
+  const zone = page.locator(".grimoire__insert-zone").first();
+  await zone.hover();
+  const buttons = zone.locator(".grimoire__insert-btn");
+  for (let i = 0; i < (await buttons.count()); i++) {
+    await expect(buttons.nth(i)).toBeDisabled();
+  }
+});

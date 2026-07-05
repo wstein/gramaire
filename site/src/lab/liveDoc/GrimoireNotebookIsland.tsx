@@ -16,6 +16,7 @@ import {
   replaceBlockText,
   removeBlock,
   swapBlocks,
+  insertBlock,
   serializeDocument,
   blockIndexAtOffset,
   blockCharSpans,
@@ -307,6 +308,71 @@ function CellActions({ index }: { index: number }) {
       >
         Delete
       </button>
+    </div>
+  );
+}
+
+// `+ Prose` inserts an empty prose block and opens it for typing immediately — same "mutate
+// blocks once, then evaluate" shape as every other edit, then hands off to the normal
+// beginEditProse flow rather than inventing a separate "new block" editing path.
+function insertProseAt(index: number) {
+  if (blocksLocked()) return;
+  const block: DocBlock = {
+    kind: "prose",
+    text: "",
+    nonterminal: null,
+    fenceIndex: null,
+  };
+  blocks.value = insertBlock(blocks.value, index, block);
+  scheduleEvaluate();
+  beginEditProse(index, "");
+}
+
+// `+ Rule` needs a placeholder that actually LOOKS like a rule once re-parsed — `serializeDocument`
+// wraps any non-prose block in the same generic ```gramark fence regardless of the client's own
+// `kind` label; what the engine reclassifies it as on the next round-trip depends on the fence's
+// real first-line shape, not what this called it. A bare "NewRule\n  : " matches the same shape
+// every existing rule fence has (a bare word, then ":"), so it reclassifies as `rule` again once
+// the user's own edit + the next evaluate() lands — verified in the browser, not just assumed.
+function insertRuleAt(index: number) {
+  if (blocksLocked()) return;
+  const placeholder = "NewRule\n  : ";
+  const block: DocBlock = {
+    kind: "rule",
+    text: placeholder,
+    nonterminal: "NewRule",
+    fenceIndex: null,
+  };
+  blocks.value = insertBlock(blocks.value, index, block);
+  scheduleEvaluate();
+  beginEditCell(index, placeholder);
+}
+
+// A thin hover-zone between every pair of adjacent blocks (plus one before the first and one
+// after the last, from the render loop's own extra call) — Livebook's own "+ Elixir/+ Block"
+// affordance, adapted to this document's two real block kinds.
+function InsertZone({ index }: { index: number }) {
+  const locked = editingCell.value !== null || editingProse.value !== null;
+  return (
+    <div class="grimoire__insert-zone">
+      <div class="grimoire__insert-buttons">
+        <button
+          type="button"
+          class="grimoire__insert-btn"
+          disabled={locked}
+          onClick={() => insertProseAt(index)}
+        >
+          + Prose
+        </button>
+        <button
+          type="button"
+          class="grimoire__insert-btn"
+          disabled={locked}
+          onClick={() => insertRuleAt(index)}
+        >
+          + Rule
+        </button>
+      </div>
     </div>
   );
 }
@@ -988,13 +1054,23 @@ export function GrimoireNotebookIsland(
             />
           ) : showNotebook.value ? (
             <>
-              {blocks.value.map((block, index) =>
+              {blocks.value.flatMap((block, index) => [
+                <InsertZone key={`ins-${index}`} index={index} />,
                 block.kind === "prose" ? (
-                  <ProseBlock key={index} index={index} block={block} />
+                  <ProseBlock
+                    key={`block-${index}`}
+                    index={index}
+                    block={block}
+                  />
                 ) : (
-                  <GrammarCell key={index} index={index} block={block} />
+                  <GrammarCell
+                    key={`block-${index}`}
+                    index={index}
+                    block={block}
+                  />
                 ),
-              )}
+              ])}
+              <InsertZone key="ins-end" index={blocks.value.length} />
               <TryIt />
             </>
           ) : (
