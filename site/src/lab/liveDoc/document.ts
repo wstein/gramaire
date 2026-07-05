@@ -31,6 +31,13 @@ export type DocBlockKind = "prose" | FenceInfo["kind"];
  * range — never reflows a prose paragraph or another cell.
  */
 export interface DocBlock {
+  /** Stable across a `buildDocument` rebuild that carries it forward (see the `prev` parameter
+   * below) — an opaque client-side identity, never sent to or read from the engine. This is
+   * bookkeeping about WHICH block something is across renders, not a classification of WHAT it
+   * is (that's still the engine's alone, per D43); a render key, a DOM anchor, or a "the user's
+   * cursor was in this cell" reference can all use this without threading array indices through,
+   * which shift under insert/delete/move. */
+  id: string;
   kind: DocBlockKind;
   text: string;
   /** The rule this block defines, when `kind === "rule"`; null for every other kind. */
@@ -39,16 +46,40 @@ export interface DocBlock {
   fenceIndex: number | null;
 }
 
+/** Mints a fresh, opaque block id. Exported so callers that construct a `DocBlock` outside
+ * `buildDocument` (inserting a brand-new cell) can mint one the same way. */
+export function makeBlockId(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+  return `block-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+}
+
 /**
  * Split `source` into ordered prose/fence blocks using `fences` (`LabResponse.fences`).
  * `fences` must describe `source` itself — the same text a `LabResponse` was computed for.
  * Passing a `fences` array computed for a since-edited `source` produces blocks that no longer
  * line up with the fence markers; callers own re-requesting `fences` after an edit (see
  * `replaceBlockText`, which updates a block's text locally without needing a fresh `fences`).
+ *
+ * `prev`, when given, carries a block's `id` forward into the newly-built block occupying the
+ * EXACT SAME character span (via `blockCharSpans`) — deterministic bookkeeping, not a guess: a
+ * caller only has grounds to pass `prev` when `source === serializeDocument(prev)` genuinely
+ * holds (GramaireNotebookIsland.tsx's reshape effect only calls this with its own guard-2
+ * precondition already satisfied), meaning `prev` and the fresh `fences` both partition the
+ * SAME underlying bytes — a position match is exact, not inferred. A block whose position
+ * shifted (or that's simply new) gets a fresh id; nothing here re-identifies blocks by content
+ * or fuzzy matching, which would be the client re-inferring structure the engine alone owns.
+ * Omit `prev` entirely for a genuine rewrite (a raw Source-view edit, or the very first
+ * classification of an unclassified document) — every block is new there, correctly.
  */
 export function buildDocument(
   source: string,
   fences: readonly FenceInfo[],
+  prev?: readonly DocBlock[],
 ): DocBlock[] {
   const lines = source.split("\n");
   const blocks: DocBlock[] = [];
@@ -57,6 +88,7 @@ export function buildDocument(
   const pushProse = (fromLine: number, toLine: number) => {
     if (fromLine > toLine) return; // an empty gap between two adjacent fences — no block for it
     blocks.push({
+      id: makeBlockId(),
       kind: "prose",
       text: lines.slice(fromLine - 1, toLine).join("\n"),
       nonterminal: null,
@@ -69,6 +101,7 @@ export function buildDocument(
     // f.startLine/f.endLine are the ```gramaire/``` marker lines themselves (1-based) — the inner
     // content is strictly between them.
     blocks.push({
+      id: makeBlockId(),
       kind: f.kind,
       text: lines.slice(f.startLine, f.endLine - 1).join("\n"),
       nonterminal: f.nonterminal,
@@ -78,7 +111,16 @@ export function buildDocument(
   }
   pushProse(cursor, lines.length);
 
-  return blocks;
+  if (!prev) return blocks;
+  const prevSpans = blockCharSpans(prev);
+  const nextSpans = blockCharSpans(blocks);
+  return blocks.map((b, i) => {
+    const span = nextSpans[i];
+    const matchIndex = prevSpans.findIndex(
+      (s) => s.start === span.start && s.end === span.end,
+    );
+    return matchIndex === -1 ? b : { ...b, id: prev[matchIndex].id };
+  });
 }
 
 /**

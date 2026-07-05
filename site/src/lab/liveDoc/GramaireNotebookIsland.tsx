@@ -17,6 +17,7 @@ import {
 } from "../examples";
 import {
   buildDocument,
+  makeBlockId,
   replaceBlockText,
   removeBlock,
   swapBlocks,
@@ -225,9 +226,13 @@ effect(() => {
   const resp = response.value;
   if (!resp) return;
   if (editingCell.value !== null || editingProse.value !== null) return;
-  const current = serializeDocument(blocks.peek());
+  const prev = blocks.peek();
+  const current = serializeDocument(prev);
   if (responseSource.value !== current) return;
-  const next = buildDocument(current, resp.fences);
+  // `prev` is passed for id carryover: this guard having just passed IS buildDocument's own
+  // documented precondition for it (`current === serializeDocument(prev)`) — the two partition
+  // the exact same bytes, so a same-span match is exact bookkeeping, never a guess at content.
+  const next = buildDocument(current, resp.fences, prev);
   blocks.value = next;
   // document.ts's own round-trip contract admits ONE exception: a fence with exactly one blank
   // content line (` ```gramaire\n\n``` `) collapses to the same zero-content-line fixed point as a
@@ -265,15 +270,15 @@ function cellLabel(block: DocBlock): string {
 // Scroll a diagnostic's owning cell into view and open its editor — the "click the error, land on
 // the offending source" affordance from the diagnostics panel.
 function jumpToCell(index: number) {
+  const block = blocks.value[index];
+  if (!block) return;
   try {
     document
-      .getElementById(`gramaire-cell-${index}`)
+      .getElementById(`gramaire-cell-${block.id}`)
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
   } catch {
     /* jsdom / no-DOM contexts: scrolling is a nice-to-have, not load-bearing */
   }
-  const block = blocks.value[index];
-  if (!block) return;
   if (block.kind === "prose") beginEditProse(index, block.text);
   else beginEditCell(index, block.text);
 }
@@ -285,11 +290,16 @@ function jumpToCell(index: number) {
 // collapsed, non-editing view — doesn't exist in the DOM until after this tick.
 // `.gramaire__prose`'s own outer element IS its clickable/focusable region; `.gramaire__cell`'s
 // outer element (which owns the stable `id`) only WRAPS the focusable `.gramaire__cell-rendered`
-// child, so the two shapes need different lookups under the same shared id.
+// child, so the two shapes need different lookups under the same shared id. Reads the block's
+// `id` at call time (not the caller's own, possibly-stale closure) — every call site here still
+// has the block at `index` present in `blocks.value` when it calls this (Cancel/Escape haven't
+// mutated the array; Save's own `replaceBlockText` keeps the same block identity in place).
 function focusCellAfterEdit(index: number) {
   if (typeof window === "undefined") return;
+  const id = blocks.value[index]?.id;
+  if (id === undefined) return;
   requestAnimationFrame(() => {
-    const host = document.getElementById(`gramaire-cell-${index}`);
+    const host = document.getElementById(`gramaire-cell-${id}`);
     if (!host) return;
     const target = host.matches(".gramaire__prose")
       ? host
@@ -327,10 +337,14 @@ function deleteBlock(index: number) {
   scheduleEvaluate();
 }
 
-// Copies a fragment URL to this cell's own (already-stable) DOM id — no navigation, no history
-// entry, just a shareable link a reader can paste elsewhere and land back on this exact cell.
+// Copies a fragment URL to this cell's own stable DOM id — no navigation, no history entry, just
+// a shareable link a reader can paste elsewhere and land back on this exact cell. Keyed on the
+// block's own `id` (stable across insert/delete/move elsewhere in the document, carried forward
+// by buildDocument's span-matched rebuild), not its array index, which shifts under those edits.
 async function copyCellLink(index: number): Promise<boolean> {
-  const url = `${location.href.split("#")[0]}#gramaire-cell-${index}`;
+  const block = blocks.value[index];
+  if (!block) return false;
+  const url = `${location.href.split("#")[0]}#gramaire-cell-${block.id}`;
   try {
     await navigator.clipboard.writeText(url);
     return true;
@@ -413,6 +427,7 @@ function CellActions({ index }: { index: number }) {
 function insertProseAt(index: number) {
   if (blocksLocked()) return;
   const block: DocBlock = {
+    id: makeBlockId(),
     kind: "prose",
     text: "",
     nonterminal: null,
@@ -439,6 +454,7 @@ function insertCellAt(
 ) {
   if (blocksLocked()) return;
   const block: DocBlock = {
+    id: makeBlockId(),
     kind,
     text: placeholder,
     nonterminal,
@@ -825,7 +841,7 @@ function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
   return (
     <div
       class="gramaire__prose"
-      id={`gramaire-cell-${index}`}
+      id={`gramaire-cell-${block.id}`}
       title="Click to edit as raw markdown"
       role="button"
       tabIndex={0}
@@ -908,7 +924,7 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
   return (
     <div
       class="gramaire__cell"
-      id={`gramaire-cell-${index}`}
+      id={`gramaire-cell-${block.id}`}
       data-kind={block.kind}
       data-nonterminal={block.nonterminal ?? undefined}
     >
@@ -1842,18 +1858,16 @@ export function GramaireNotebookIsland(
             <>
               {blocks.value.flatMap((block, index) => [
                 <InsertZone key={`ins-${index}`} index={index} />,
+                // Keyed on the block's own stable `id`, not its array index: CellActions' local
+                // `copied` state (its "Link"→"Copied" flash) used to stick to a POSITION rather
+                // than a BLOCK — moving a cell within 1.5s of copying its link showed "Copied" on
+                // whatever block now sat at the old index. An id-keyed element preserves Preact's
+                // component instance (and its local state) across a reorder instead of reusing
+                // the slot for a different block.
                 block.kind === "prose" ? (
-                  <ProseBlock
-                    key={`block-${index}`}
-                    index={index}
-                    block={block}
-                  />
+                  <ProseBlock key={block.id} index={index} block={block} />
                 ) : (
-                  <GrammarCell
-                    key={`block-${index}`}
-                    index={index}
-                    block={block}
-                  />
+                  <GrammarCell key={block.id} index={index} block={block} />
                 ),
               ])}
               <InsertZone key="ins-end" index={blocks.value.length} />
@@ -1875,6 +1889,7 @@ export function GramaireNotebookIsland(
                   // mega prose block, matching what buildDocument(text, []) would produce.
                   blocks.value = [
                     {
+                      id: makeBlockId(),
                       kind: "prose",
                       text: (e.target as HTMLTextAreaElement).value,
                       nonterminal: null,
