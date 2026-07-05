@@ -956,6 +956,28 @@ one-prose-block shape the no-fences fallback textarea already produces) and
 re-evaluates — the next real response's `fences` restores proper cell
 structure once the engine catches up, exactly like any other edit.
 
+**Hover-reveal per-cell actions** (Livebook-style — `CellActions`,
+`GramaireNotebookIsland.tsx`): a small floating row (↑/↓/Link/Delete) in a
+block's top-right corner, `opacity: 0` at rest and `1` on the block's own
+hover — not a header bar, so it doesn't reintroduce the border/badge chrome
+the de-boxed cell design deliberately dropped. No separate "Edit" button:
+clicking the cell body already opens its editor. `↑`/`↓` swap this block
+with its neighbor (`document.ts`'s `swapBlocks`); `Delete` removes it
+(`removeBlock`); both then `scheduleEvaluate()`, the same "mutate `blocks`
+once, then evaluate" shape every other edit path already follows. `Link`
+copies a URL fragment to the block's own (already-stable) DOM id, with a
+brief "Copied" label swap for feedback — no toast system exists to reuse,
+and this is the same convention the rest of the file follows (plain text/
+Unicode-glyph buttons, e.g. the status bar's `▸`/`▾`, never an icon font).
+
+The one real hazard: `editingCell`/`editingProse` are plain array _indices_
+into `blocks`, and mutating `blocks` while one is open leaves it pointing at
+the wrong block (the exact failure class the fences-reshape effect's own
+comment already documents, for the same reason). Reorder/delete sidestep
+this with the simplest available rule — disabled (not hidden) while _any_
+editor is open anywhere in the document, not just this cell's own — rather
+than adjusting a stale index in lock-step with every mutation.
+
 **Ligature font in railroad SVG text (`Railroad.scala`'s shared `font`/
 `ligatures` vals).** `=>`/`!=`/`<=`/etc. now render as their single-glyph
 ligature forms via **Fira Code** (prepended to the font stack, loaded the
