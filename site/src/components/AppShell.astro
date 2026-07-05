@@ -50,22 +50,44 @@ const active = detectActive(Astro.url.pathname, import.meta.env.BASE_URL);
 // broken/confusing rather than merely unhelpful. Every other section has
 // real Pagefind-indexed content behind it.
 const showSearch = active !== "lab" && active !== "notebook";
+
+// `page-tools` is an ASTRO-level slot (distinct on purpose from the native
+// custom-element slot name `tools` below — two unrelated slotting layers
+// that happen to share a word): a page can supply its own tools-slot content
+// instead of the default Search-or-nothing (the Notebook does, with its
+// Notebook/Source view toggle — the same "page-related dynamic section"
+// gramaire-topbar.mjs's `tools` slot already generically supports, right
+// down to the divider next to it auto-showing once anything real is
+// slotted in). No caller passes one today except Notebook, so every other
+// page's rendering is unaffected.
+const hasPageTools = Astro.slots.has("page-tools");
 ---
 
 <gramaire-topbar active={active} base={import.meta.env.BASE_URL}>
   {
-    showSearch && (
+    hasPageTools ? (
       /*
-        `slot="tools"` on <Search/> itself would be consumed by Astro's OWN
-        component-slotting (it has no matching named <slot> to project into),
-        not forwarded as a literal HTML attribute on the rendered <site-search>
-        — the same gotcha FlatBars' Topbar.astro documents for its sidebar
-        toggle. A plain wrapping element isn't an Astro component, so Astro
-        passes its `slot` attribute through literally.
+        See the `showSearch` branch below for why a plain wrapping element
+        (not the slotted component itself) is what carries the literal
+        `slot="tools"` HTML attribute.
       */
       <div slot="tools">
-        <Search />
+        <slot name="page-tools" />
       </div>
+    ) : (
+      showSearch && (
+        /*
+          `slot="tools"` on <Search/> itself would be consumed by Astro's OWN
+          component-slotting (it has no matching named <slot> to project into),
+          not forwarded as a literal HTML attribute on the rendered <site-search>
+          — the same gotcha FlatBars' Topbar.astro documents for its sidebar
+          toggle. A plain wrapping element isn't an Astro component, so Astro
+          passes its `slot` attribute through literally.
+        */
+        <div slot="tools">
+          <Search />
+        </div>
+      )
     )
   }
 </gramaire-topbar>

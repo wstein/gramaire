@@ -1041,7 +1041,17 @@ function StatusBar() {
 // "feature on/off," not "which of two named views am I in," so there was never a clean answer to
 // which side should look active. A segmented control has no such ambiguity — whichever button is
 // pressed IS the answer — and it's already the right shape to grow a third (Paper) button later.
-function ViewToggle() {
+//
+// Exported (not just called from this file's own render tree) so `notebook.astro` can mount it as
+// its OWN separate `client:load` island, slotted into the shared topbar (AppShell.astro's
+// `page-tools` slot) rather than living in the Notebook page's own body — the shared topbar sits
+// outside the page's scrolling region already, so it's inherently always reachable with no sticky
+// CSS of its own needed. Reads/writes the exact same module-scope `viewMode`/`blocks`/
+// `sourceViewBase`/`sourceDraft` signals `GramaireNotebookIsland`'s own island uses — two
+// `client:load` islands importing the same module share the same signal instances (Vite dedupes
+// the shared module into one chunk both islands' bundles import from), so this and the main
+// island stay in lockstep despite being two separate Preact roots.
+export function ViewToggle() {
   const toNotebook = () => {
     if (viewMode.value === "notebook") return;
     commitSourceEdit();
@@ -1115,10 +1125,7 @@ export function GramaireNotebookIsland(
 
   return (
     <div class="gramaire">
-      <div class="gramaire__topbar">
-        <ViewToggle />
-        <DiagnosticsPanel />
-      </div>
+      <DiagnosticsPanel />
       <div class="gramaire__body">
         <div class="gramaire__doc">
           {viewMode.value === "source" ? (

@@ -91,30 +91,21 @@
   font-size: 9px;
 }
 
-/* The sticky top strip — always the ViewToggle, plus the diagnostics panel beneath it when
-   there's anything to show. One shared sticky anchor rather than two independently-sticky
-   siblings, so there's no stacked-offset math to keep in sync as either child's height changes. */
-.gramaire__topbar {
-  flex: none;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-}
-
 /* The Notebook/Source view switch — an aria-pressed segmented button pair, same visual language
    as the shared topbar's Light/Auto/Dark control (gramaire-topbar.mjs's `.seg`/`.seg
    button[aria-pressed="true"]), reusing this site's own tokens.css custom properties rather than
    that component's shadow-DOM-scoped hardcoded fallback colors. Deliberately NOT a switch: a
    switch reads as "is a feature on," not "which of two named views am I in," so there was no
    clean answer to which side should look active — a segmented control has no such ambiguity, and
-   is already the right shape to grow a third (Paper) button later with no redesign. */
+   is already the right shape to grow a third (Paper) button later with no redesign.
+   Mounted as its own separate island (`ViewToggle`'s own export), slotted into the shared
+   `gramaire-topbar`'s `tools` slot (`AppShell.astro`'s `page-tools` slot,
+   `notebook.astro`) rather than living in this page's own body — no margin of its own, the
+   topbar's own `.tools`/gap layout handles spacing. */
 .gramaire__view-toggle {
   display: inline-flex;
   gap: 2px;
   padding: 2px;
-  margin: 8px 20px;
   background: var(--bg-2);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
@@ -146,14 +137,19 @@
     0 0 0 1px var(--border-strong);
 }
 
-/* Layer 1 — the document diagnostics panel, now inside .gramaire__topbar rather than
-   independently sticky itself (see that rule's own comment). */
+/* Layer 1 — the document diagnostics panel. Sticky on its own again — the ViewToggle that used
+   to share this sticky anchor moved out into the shared site topbar's own `tools` slot (always
+   visible regardless of scroll already, since the topbar sits outside this page's own scrolling
+   region), so there's no second sticky sibling's offset to keep in sync with anymore. */
 .gramaire__diagnostics {
   flex: none;
+  position: sticky;
+  top: 0;
+  z-index: 4;
   max-height: 40vh;
   overflow-y: auto;
   background: var(--bg-1);
-  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 .gramaire__diag {

@@ -715,10 +715,22 @@ function viewToggleButton(
   return page.locator(".gramaire__view-toggle-btn", { hasText: label });
 }
 
-test("the view toggle's aria-pressed reflects the active view, and it's reachable without scrolling", async ({
+// The toggle lives in the SHARED site topbar's own `tools` slot (AppShell.astro's `page-tools`
+// slot, mounted as its own separate `client:load` island from `ViewToggle`'s own export) — not
+// in the Notebook page's own scrolling body — so it's reachable without scrolling for a much
+// stronger reason than "it happens to be sticky": the topbar sits entirely outside
+// `.content`'s scroll region (`notebook.astro`'s `.shell`/`.content` split), the same as every
+// other page's topbar controls.
+test("the view toggle lives in the shared topbar's tools slot, its aria-pressed reflects the active view, and it's reachable without scrolling a tall document", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
+
+  const topbarToggle = page.locator(
+    "gramaire-topbar .gramaire__view-toggle-btn",
+  );
+  await expect(topbarToggle).toHaveCount(2);
+
   await expect(viewToggleButton(page, "Notebook")).toBeVisible();
   await expect(viewToggleButton(page, "Notebook")).toHaveAttribute(
     "aria-pressed",
@@ -728,6 +740,13 @@ test("the view toggle's aria-pressed reflects the active view, and it's reachabl
     "aria-pressed",
     "false",
   );
+
+  // Scroll the document's own body to the bottom — the toggle stays visible and clickable
+  // regardless, since it isn't part of that scroll region at all.
+  await page
+    .locator(".gramaire__body")
+    .evaluate((el) => el.scrollTo(0, el.scrollHeight));
+  await expect(viewToggleButton(page, "Source")).toBeInViewport();
 
   await viewToggleButton(page, "Source").click();
   await expect(viewToggleButton(page, "Source")).toHaveAttribute(
