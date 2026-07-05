@@ -458,17 +458,27 @@
   border-color: #e05a4b;
 }
 
-/* Livebook's own "+ Elixir/+ Block" between-cell affordance, adapted to this document's two
-   real block kinds. A fixed small height at rest (not zero) so hovering never shifts surrounding
-   content — only the buttons themselves fade in. */
+/* Livebook's own "+ Elixir/+ Block" between-cell affordance, adapted to this document's five
+   real block kinds (Prose, Rule, Tokens, Settings, Precedence). A fixed small height at rest (not
+   zero) so hovering never shifts surrounding content — only the buttons themselves fade in.
+   Height grows to `auto` ONLY while hovered, so five buttons can wrap to two rows at narrow
+   viewports without clipping — that growth happens exactly when the user's attention is already
+   on this spot, not during ordinary reading, so the "no shift" guarantee still holds where it
+   matters. */
 .grimoire__insert-zone {
   height: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+.grimoire__insert-zone:hover {
+  height: auto;
+  min-height: 14px;
+}
 .grimoire__insert-buttons {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 6px;
   opacity: 0;
   transition: opacity 0.1s ease;

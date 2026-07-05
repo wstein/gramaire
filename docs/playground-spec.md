@@ -998,38 +998,67 @@ this with the simplest available rule — disabled (not hidden) while _any_
 editor is open anywhere in the document, not just this cell's own — rather
 than adjusting a stale index in lock-step with every mutation.
 
-**`+ Prose`/`+ Rule` insert affordances** (`InsertZone`,
-`GrimoireNotebookIsland.tsx`) — Livebook's own "+ Elixir/+ Block" between-
-cell affordance, adapted to this document's two real block kinds. A thin
-hover-zone sits between every pair of adjacent blocks (plus one before the
-first and one after the last — `blocks.value.length + 1` zones), fixed at a
-small height even at rest so hovering never shifts surrounding content —
-only the buttons themselves fade in. `+ Prose` inserts an empty prose block
-(`document.ts`'s `insertBlock`) and opens it for typing immediately; `+
-Rule` inserts a placeholder skeleton (`"NewRule\n  : 'TODO'"`) and opens ITS
-editor instead. Both then `scheduleEvaluate()` — keeping the engine in
-sync is the consistent, unconditional rule every mutation follows, not a
-special case.
+**Insert affordances** (`InsertZone`, `GrimoireNotebookIsland.tsx`) —
+Livebook's own "+ Elixir/+ Block" between-cell affordance, adapted to this
+document's five real block kinds: `+ Prose`, `+ Rule`, `+ Tokens`,
+`+ Settings`, `+ Precedence`. A thin hover-zone sits between every pair of
+adjacent blocks (plus one before the first and one after the last —
+`blocks.value.length + 1` zones), fixed at a small height even at rest so
+hovering never shifts surrounding content — only the buttons themselves fade
+in (height grows to `auto` while hovered so all five can wrap to two rows at
+narrow viewports without clipping; that growth happens exactly when the
+user's attention is already on that spot, not during ordinary reading, so
+the "no shift" guarantee still holds where it matters).
 
-The `+ Rule` placeholder's exact text matters, and isn't arbitrary, on two
-counts: `serializeDocument` wraps any non-prose block in the same generic
-fence marker regardless of the client's own `kind` label — what the ENGINE
+`+ Prose` inserts an empty prose block (`document.ts`'s `insertBlock`) and
+opens it for typing immediately; the other four insert a kind-specific
+placeholder skeleton and open ITS editor instead, all through one shared
+`insertCellAt(index, kind, placeholder, nonterminal)` helper. Every path
+then `scheduleEvaluate()` — keeping the engine in sync is the consistent,
+unconditional rule every mutation follows, not a special case.
+
+Tokens/Settings/Precedence are unconditional, exactly like `+ Rule` — never
+grayed out based on whether the document "already has one." That would fight
+the engine's own model: `Lr.tokensContentOf`/`settingsLinesOf`/
+`precedenceOf` explicitly gather and merge EVERY fence of a kind across the
+whole document, not just the first — `examples/ECMA-404.grmk.md` genuinely
+ships 3 separate Tokens fences, and no "duplicate block" diagnostic exists
+anywhere. No new dropdown/menu component either, for the same five-buttons-
+is-simpler-than-one-more-component-type reason `ViewToggle` avoided one.
+
+Every placeholder's exact text matters, and isn't arbitrary, on two counts:
+`serializeDocument` wraps any non-prose block in the same generic fence
+marker regardless of the client's own `kind` label — what the ENGINE
 reclassifies a fence as on the next round-trip depends on its real
-first-line shape once re-parsed, not what the client called it. A bare
-`"NewRule\n  : "` (no trailing symbol) matches the same shape every
-existing rule fence has (a bare word, then `:`), so it reclassifies as
-`rule` again — confirmed against the real engine, not assumed. But an empty
-alternative is also a genuine syntax error, shown the instant the cell is
-inserted, before the user has touched it (caught directly: the raw
-`"NewRule\n  : "` version left a fresh cell showing "unexpected end of
-input" the moment `+ Rule` was clicked) — so the placeholder ends in a
-trailing quoted literal (`'TODO'`), always a valid terminal reference
-regardless of the document's own tokens/rules, making the fresh cell
-buildable immediately. It does still warn, correctly: since Gramark's first
-rule is its start rule, inserting one before existing rules makes them
-newly unreachable — the engine's real analysis, not a stubbed response, so
-that warning is expected and left alone, not something the placeholder
-should try to avoid.
+first-line shape once re-parsed, not what the client called it. And it must
+be immediately BUILDABLE, not just correctly shaped, or the fresh cell shows
+a real syntax error before the user has touched it — the bug `+ Rule`'s own
+placeholder used to have (a bare `"NewRule\n  : "` with an empty alternative
+left a fresh cell showing "unexpected end of input" the instant it was
+clicked). Each of the four non-prose placeholders was verified against the
+real engine before picking it, not just assumed from its shape:
+
+- **Rule**: `"NewRule\n  : 'TODO'"` — a trailing quoted literal is always a
+  valid terminal reference regardless of the document's own tokens/rules.
+  `buildOk` true; only the expected "rule unreachable from the new start
+  rule" warning inserting a rule BEFORE others always produces (Gramark's
+  first rule is its start rule) — expected and left alone, not something the
+  placeholder should try to avoid.
+- **Tokens**: `"TODO : /x/"` — a token definition naming something no rule
+  references yet. `buildOk` true; only the expected "declared but never
+  referenced" warning, the same class of harmless warning as Rule's own.
+- **Settings**: `"%TODO placeholder"` — `Lr.isSettingDecl`'s shape regex
+  (`settingDeclShapeRe`) requires `%word` followed by whitespace **and
+  something after it**; a bare `"%TODO"` alone fails that shape and falls
+  through to `Rule`, lexed as grammar text and rejected outright ("unexpected
+  character `%`") — confirmed the hard way before picking the final text.
+  `"%TODO placeholder"` builds clean; only the expected "unknown setting
+  (ignored)" warning.
+- **Precedence**: `"%left 'TODO'"` — a precedence declaration for an
+  operator no rule uses yet. `buildOk` true, no diagnostics at all:
+  declaring precedence for an unused literal is silently fine (unlike
+  leaving a real ambiguity's operator undeclared, which the engine does
+  reject).
 
 Same disabled-while-editing guard as the hover-reveal actions above —
 inserting is exactly as index-sensitive as reordering/deleting.

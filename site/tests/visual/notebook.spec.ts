@@ -942,7 +942,7 @@ async function firstRuleZoneIndex(page: import("@playwright/test").Page) {
   return kinds.indexOf("rule");
 }
 
-test("hovering an insert zone reveals + Prose / + Rule; invisible at rest", async ({
+test("hovering an insert zone reveals all five insert buttons; invisible at rest", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
@@ -955,6 +955,9 @@ test("hovering an insert zone reveals + Prose / + Rule; invisible at rest", asyn
   await expect(zone.locator(".grimoire__insert-btn")).toHaveText([
     "+ Prose",
     "+ Rule",
+    "+ Tokens",
+    "+ Settings",
+    "+ Precedence",
   ]);
 });
 
@@ -1026,6 +1029,50 @@ test("+ Rule inserts a rule skeleton that reclassifies as a real rule cell after
   await expect(newCell).toHaveAttribute("data-kind", "rule");
   await expect(newCell.locator("svg")).toHaveCount(1);
 });
+
+// Tokens/Settings/Precedence are NOT capped at one-per-document by the engine (Lr.scala's
+// tokensContentOf/settingsLinesOf/precedenceOf gather and merge every fence of a kind — confirmed
+// by examples/ECMA-404.grmk.md genuinely shipping 3 separate Tokens fences), so these three insert
+// buttons are unconditional, same as + Rule — no graying out based on what the document already
+// has. Each placeholder's build-safety was verified directly against the real engine before
+// picking it (buildOk true, only the expected class of harmless warning, same as + Rule's own
+// "unreachable" one), not just assumed from its shape.
+for (const [label, placeholder, kind] of [
+  ["Tokens", "TODO : /x/", "tokens"],
+  ["Settings", "%TODO placeholder", "settings"],
+  ["Precedence", "%left 'TODO'", "precedence"],
+] as const) {
+  test(`+ ${label} inserts a placeholder that opens for editing and reclassifies as a real ${kind} cell`, async ({
+    page,
+  }) => {
+    await gotoNotebookReady(page);
+    const cells = page.locator(`.grimoire__cell[data-kind="${kind}"]`);
+    // The default document already has one Settings fence and one Tokens fence (its own
+    // `%name`/`%lang` preamble and token definitions) — Tokens/Settings aren't capped at
+    // one-per-document, so inserting a new one means TWO, not one; Precedence starts at zero.
+    const countBefore = await cells.count();
+
+    const zoneIndex = await firstRuleZoneIndex(page);
+    const zone = page.locator(".grimoire__insert-zone").nth(zoneIndex);
+    await zone.hover();
+    await zone
+      .locator(".grimoire__insert-btn")
+      .filter({ hasText: label })
+      .click();
+
+    // Every one of these three placeholders is single-line, so unlike `+ Rule`'s two-line
+    // skeleton there's no `toHaveText`/no-newline-concatenation quirk to work around here.
+    const editor = page.locator(".cm-content").first();
+    await expect(editor).toHaveText(placeholder);
+
+    // Blur without editing further — the placeholder itself must already be valid, buildable
+    // content (that's the whole point), so committing it as-is should reclassify cleanly.
+    await page.locator(".grimoire__statusbar").click();
+    await page.waitForTimeout(1500);
+
+    await expect(cells).toHaveCount(countBefore + 1);
+  });
+}
 
 test("insert-zone buttons are disabled while any editor is open, anywhere in the document", async ({
   page,

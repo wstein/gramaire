@@ -328,24 +328,25 @@ function insertProseAt(index: number) {
   beginEditProse(index, "");
 }
 
-// `+ Rule` needs a placeholder that actually LOOKS like a rule once re-parsed — `serializeDocument`
+// Shared shape every non-prose insert follows: build a block at `index`, evaluate, open its
+// editor immediately — same "mutate blocks once, then evaluate" pattern as every other edit path.
+// The placeholder text is never arbitrary (see each call site's own comment): `serializeDocument`
 // wraps any non-prose block in the same generic ```gramark fence regardless of the client's own
-// `kind` label; what the engine reclassifies it as on the next round-trip depends on the fence's
-// real first-line shape, not what this called it. Also needs to be immediately BUILDABLE, not just
-// shaped right: an earlier version left the alternative empty ("NewRule\n  : "), which is a real
-// syntax error ("unexpected end of input, expected ... a quoted literal ...") shown the instant the
-// cell is inserted, before the user has touched it. A trailing quoted-literal placeholder is
-// always a valid terminal reference regardless of the document's own tokens/rules, so the fresh
-// cell builds clean immediately — verified against the real engine, not just assumed (`buildOk`
-// true, no diagnostics beyond the expected "rule unreachable from the new start rule" warnings
-// inserting BEFORE other rules always produces, regardless of what valid placeholder is chosen).
-function insertRuleAt(index: number) {
+// `kind` label, so what the engine reclassifies it as on the next round-trip depends on the
+// fence's real first-line shape once re-parsed, not what this called it — and it must be
+// immediately BUILDABLE, not just correctly shaped, or the fresh cell shows a real syntax error
+// before the user has touched it (the bug `+ Rule`'s own placeholder used to have).
+function insertCellAt(
+  index: number,
+  kind: Exclude<DocBlockKind, "prose">,
+  placeholder: string,
+  nonterminal: string | null,
+) {
   if (blocksLocked()) return;
-  const placeholder = "NewRule\n  : 'TODO'";
   const block: DocBlock = {
-    kind: "rule",
+    kind,
     text: placeholder,
-    nonterminal: "NewRule",
+    nonterminal,
     fenceIndex: null,
   };
   blocks.value = insertBlock(blocks.value, index, block);
@@ -353,30 +354,70 @@ function insertRuleAt(index: number) {
   beginEditCell(index, placeholder);
 }
 
+// A trailing quoted-literal placeholder is always a valid terminal reference regardless of the
+// document's own tokens/rules, so the fresh cell builds clean immediately — verified against the
+// real engine, not just assumed (`buildOk` true, no diagnostics beyond the expected "rule
+// unreachable from the new start rule" warnings inserting BEFORE other rules always produces).
+function insertRuleAt(index: number) {
+  insertCellAt(index, "rule", "NewRule\n  : 'TODO'", "NewRule");
+}
+
+// A token definition naming something no rule references yet — verified against the real engine:
+// `buildOk` true, only the expected "declared but never referenced" warning (the same class of
+// harmless, expected warning as `+Rule`'s "unreachable" one above), regardless of insert position.
+function insertTokensAt(index: number) {
+  insertCellAt(index, "tokens", "TODO : /x/", null);
+}
+
+// `%word value` is the shape `isSettingDecl` requires (`Lr.scala`'s `settingDeclShapeRe`) — a bare
+// `%TODO` with nothing after it fails that shape and falls through to `Rule`, lexed as grammar
+// text and rejected outright ("unexpected character `%`"); verified against the real engine that
+// `%TODO placeholder` builds clean, only the expected "unknown setting (ignored)" warning.
+function insertSettingsAt(index: number) {
+  insertCellAt(index, "settings", "%TODO placeholder", null);
+}
+
+// A precedence declaration for an operator no rule uses yet — verified against the real engine:
+// `buildOk` true, no diagnostics at all (declaring precedence for an unused literal is silently
+// fine, unlike leaving a real ambiguity's operator undeclared, which the engine does reject).
+function insertPrecedenceAt(index: number) {
+  insertCellAt(index, "precedence", "%left 'TODO'", null);
+}
+
 // A thin hover-zone between every pair of adjacent blocks (plus one before the first and one
 // after the last, from the render loop's own extra call) — Livebook's own "+ Elixir/+ Block"
 // affordance, adapted to this document's two real block kinds.
+// Unconditional, all five, every zone — Tokens/Settings/Precedence are NOT capped at
+// one-per-document by the engine (`Lr.tokensContentOf`/`settingsLinesOf`/`precedenceOf` gather
+// and merge every fence of a kind; `examples/ECMA-404.grmk.md` genuinely ships 3 Tokens fences),
+// so graying a button out because the document "already has one" would fight the engine's own
+// model. No dropdown/menu either — this codebase has no such component yet, and five buttons of
+// the same shape as the existing two is simpler than introducing one.
+const INSERT_KINDS: Array<{ label: string; insert: (index: number) => void }> =
+  [
+    { label: "+ Prose", insert: insertProseAt },
+    { label: "+ Rule", insert: insertRuleAt },
+    { label: "+ Tokens", insert: insertTokensAt },
+    { label: "+ Settings", insert: insertSettingsAt },
+    { label: "+ Precedence", insert: insertPrecedenceAt },
+  ];
+
 function InsertZone({ index }: { index: number }) {
   const locked = editingCell.value !== null || editingProse.value !== null;
   return (
     <div class="grimoire__insert-zone">
       <div class="grimoire__insert-buttons">
-        <button
-          type="button"
-          class="grimoire__insert-btn"
-          disabled={locked}
-          onClick={() => insertProseAt(index)}
-        >
-          + Prose
-        </button>
-        <button
-          type="button"
-          class="grimoire__insert-btn"
-          disabled={locked}
-          onClick={() => insertRuleAt(index)}
-        >
-          + Rule
-        </button>
+        {INSERT_KINDS.map(({ label, insert }) => (
+          <button
+            key={label}
+            type="button"
+            class="grimoire__insert-btn"
+            disabled={locked}
+            onClick={() => insert(index)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
     </div>
   );
