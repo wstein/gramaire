@@ -390,8 +390,9 @@
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
-/* A rule's own entry reads as a distinct "definition," matching how nonterminal names already
-   read elsewhere (the FIRST/FOLLOW value color, `--t-term`) rather than plain body text. */
+/* A rule's own entry reads as a distinct "definition," matching how a token symbol reads in the
+   FIRST/FOLLOW chips (`--t-term`, one of several kind colors there — see
+   .grimoire__output-ff-chips code[data-kind]) rather than plain body text. */
 .grimoire__outline-item--rule {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -960,9 +961,23 @@
   background: var(--bg-2);
   padding: 1px 5px;
   border-radius: 4px;
-  color: var(--t-term);
   font-family: var(--font-mono);
   font-size: 11px;
+}
+/* A chip's own data-kind (RenderedSymbol.kind, from the wire) picks its color — literal/token/
+   nonterminal/eof read distinctly, answering "is this a quoted string, a named token, a rule
+   reference, or end-of-input" without re-parsing the chip's own text. */
+.grimoire__output-ff-chips code[data-kind="literal"] {
+  color: var(--t-op);
+}
+.grimoire__output-ff-chips code[data-kind="token"] {
+  color: var(--t-term);
+}
+.grimoire__output-ff-chips code[data-kind="nonterminal"] {
+  color: var(--t-nonterm);
+}
+.grimoire__output-ff-chips code[data-kind="eof"] {
+  color: var(--fg-muted);
 }
 
 .grimoire__fallback {

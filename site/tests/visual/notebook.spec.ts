@@ -838,28 +838,36 @@ test("a rule's railroad diagram has an accessible name for screen readers", asyn
 // Regression: a rule's own FIRST/FOLLOW used to render as one plain-text, space-joined string
 // (`{ \`(\` \`NUMBER\` }`) — hard to scan once a FOLLOW set has more than a couple of tokens, and
 // visually inconsistent with the Generated-tables table's own per-token styling a few scrolls
-// down. Each token is now its own chip, matching the table exactly: no literal backticks (the
-// chip's own background already says "this is a terminal"), `$` (no backticks in the engine's own
-// formatting) rendered exactly as received.
+// down. Each token is now its own chip, matching the table's own text; its `data-kind` attribute
+// (RenderedSymbol.kind from the wire) drives a literal/token/nonterminal/EOF color distinction the
+// raw text alone can't express, so no backtick delimiters are needed to mark "this is a terminal."
 test("a rule's FIRST/FOLLOW renders each token as its own chip, matching the Generated-tables table's own styling", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
   const factorCell = page.locator('.grimoire__cell[data-nonterminal="Factor"]');
 
-  const firstChips = await factorCell
+  const firstGroup = factorCell
     .locator(".grimoire__output-ff-group")
     .first()
-    .locator(".grimoire__output-ff-chips code")
-    .allTextContents();
+    .locator(".grimoire__output-ff-chips code");
+  const firstChips = await firstGroup.allTextContents();
   expect(firstChips).toEqual(["(", "NUMBER"]);
+  // Each chip's own data-kind carries the literal/token distinction the raw text alone can't:
+  // `(` is a quoted literal, `NUMBER` a named lexical token.
+  expect(
+    await firstGroup.evaluateAll((els) => els.map((el) => el.dataset.kind)),
+  ).toEqual(["literal", "token"]);
 
-  const followChips = await factorCell
+  const followGroup = factorCell
     .locator(".grimoire__output-ff-group")
     .nth(1)
-    .locator(".grimoire__output-ff-chips code")
-    .allTextContents();
+    .locator(".grimoire__output-ff-chips code");
+  const followChips = await followGroup.allTextContents();
   expect(followChips).toEqual([")", "*", "+", "-", "/", "$"]);
+  expect(
+    await followGroup.evaluateAll((els) => els.map((el) => el.dataset.kind)),
+  ).toEqual(["literal", "literal", "literal", "literal", "literal", "eof"]);
 
   // No chip's own text still carries the raw backtick delimiters.
   for (const chip of [...firstChips, ...followChips]) {

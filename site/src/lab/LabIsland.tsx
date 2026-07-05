@@ -24,6 +24,7 @@ import type {
 import { DEFAULT_SOURCE, DEFAULT_INPUT, EXAMPLES } from "./examples";
 import type { LabExample } from "./examples";
 import { internalErrorResponse } from "./internalDiagnosticResponse";
+import { SymbolChips, symbolsEqual } from "./symbolDisplay";
 import "./lab.css";
 
 // Tier 0/1 v1 slice (docs/playground-spec.md §6) was Result, Tokens, Parse
@@ -1330,7 +1331,9 @@ function ProductionsTable({ productions }: { productions: ProductionInfo[] }) {
             onMouseLeave={() => (hoverRule.value = null)}
           >
             <td class="lab__mono">{p.lhs}</td>
-            <td class="lab__mono">{p.rhs.join(" ") || "ε"}</td>
+            <td class="lab__mono">
+              {p.rhs.length ? <SymbolChips symbols={p.rhs} /> : "ε"}
+            </td>
             <td class="lab__mono">{p.action ?? ""}</td>
           </tr>
         ))}
@@ -1348,8 +1351,7 @@ function sameProductions(a: ProductionInfo[], b: ProductionInfo[]): boolean {
     (p, i) =>
       p.lhs === b[i].lhs &&
       p.action === b[i].action &&
-      p.rhs.length === b[i].rhs.length &&
-      p.rhs.every((s, j) => s === b[i].rhs[j]),
+      symbolsEqual(p.rhs, b[i].rhs),
   );
 }
 
@@ -1502,8 +1504,12 @@ function GrammarAnalysisPanel() {
                 onMouseLeave={() => (hoverRule.value = null)}
               >
                 <td class="lab__mono">{r.name}</td>
-                <td class="lab__mono">{r.first.join(" ")}</td>
-                <td class="lab__mono">{r.follow.join(" ")}</td>
+                <td class="lab__mono">
+                  <SymbolChips symbols={r.first} />
+                </td>
+                <td class="lab__mono">
+                  <SymbolChips symbols={r.follow} />
+                </td>
               </tr>
             ))}
           </tbody>
