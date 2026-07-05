@@ -440,6 +440,45 @@
   border-color: #e05a4b;
 }
 
+/* Livebook's own "+ Elixir/+ Block" between-cell affordance, adapted to this document's two
+   real block kinds. A fixed small height at rest (not zero) so hovering never shifts surrounding
+   content — only the buttons themselves fade in. */
+.gramaire__insert-zone {
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gramaire__insert-buttons {
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+.gramaire__insert-zone:hover .gramaire__insert-buttons {
+  opacity: 1;
+}
+.gramaire__insert-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--fg-secondary);
+  cursor: pointer;
+}
+.gramaire__insert-btn:hover:not(:disabled) {
+  background: var(--bg-2);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.gramaire__insert-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .gramaire__cell-diags {
   border-top: 1px solid var(--border);
 }

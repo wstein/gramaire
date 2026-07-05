@@ -8,6 +8,7 @@ import {
   replaceBlockText,
   removeBlock,
   swapBlocks,
+  insertBlock,
   withLineNumbers,
   blockCharSpans,
   blockIndexAtOffset,
@@ -330,4 +331,34 @@ test("swapBlocks: a no-op (same reference back) when either index is out of rang
   const blocks = buildDocument(readCalcMd(), calcFences);
   expect(swapBlocks(blocks, 0, blocks.length)).toBe(blocks);
   expect(swapBlocks(blocks, -1, 0)).toBe(blocks);
+});
+
+test("insertBlock: inserts at the given index, shifting every later block by one", () => {
+  const blocks = buildDocument(readCalcMd(), calcFences);
+  const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
+  const newBlock = {
+    kind: "prose" as const,
+    text: "",
+    nonterminal: null,
+    fenceIndex: null,
+  };
+  const result = insertBlock(blocks, exprIndex, newBlock);
+  expect(result.length).toBe(blocks.length + 1);
+  expect(result[exprIndex]).toEqual(newBlock);
+  // Everything from the insertion point on shifted one later; everything before is untouched.
+  expect(result.slice(0, exprIndex)).toEqual(blocks.slice(0, exprIndex));
+  expect(result.slice(exprIndex + 1)).toEqual(blocks.slice(exprIndex));
+});
+
+test("insertBlock: index === blocks.length appends at the very end", () => {
+  const blocks = buildDocument(readCalcMd(), calcFences);
+  const newBlock = {
+    kind: "prose" as const,
+    text: "the end",
+    nonterminal: null,
+    fenceIndex: null,
+  };
+  const result = insertBlock(blocks, blocks.length, newBlock);
+  expect(result.length).toBe(blocks.length + 1);
+  expect(result[result.length - 1]).toEqual(newBlock);
 });
