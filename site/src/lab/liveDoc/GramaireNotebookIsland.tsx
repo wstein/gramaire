@@ -986,38 +986,55 @@ function StatusBar() {
           </span>
         )}
       </span>
-      <label
-        class="gramaire__view-toggle"
-        title="Switch between the rendered Notebook and its raw source"
-      >
-        <span class="gramaire__view-toggle-label">Notebook</span>
-        <input
-          type="checkbox"
-          class="gramaire__view-toggle-input"
-          checked={viewMode.value === "source"}
-          onChange={(e) => {
-            const toSource = (e.target as HTMLInputElement).checked;
-            if (toSource) {
-              const text = serializeDocument(blocks.value);
-              sourceViewBase.value = text;
-              sourceDraft.value = text;
-              viewMode.value = "source";
-            } else {
-              commitSourceEdit();
-              viewMode.value = "notebook";
-            }
-          }}
-        />
-        <span class="gramaire__view-toggle-track">
-          <span class="gramaire__view-toggle-thumb" />
-        </span>
-        <span class="gramaire__view-toggle-label">Source</span>
-      </label>
       <span class="gramaire__statusbar-stats">
         {stats
           ? `Canonical(1) · ${stats.states} state${stats.states === 1 ? "" : "s"} · ${stats.conflicts} conflict${stats.conflicts === 1 ? "" : "s"}`
           : "—"}
       </span>
+    </div>
+  );
+}
+
+// The Notebook/Source view switch — an aria-pressed segmented pair (same visual language as
+// gramaire-topbar.mjs's Light/Auto/Dark control), not a checkbox switch: a switch reads as
+// "feature on/off," not "which of two named views am I in," so there was never a clean answer to
+// which side should look active. A segmented control has no such ambiguity — whichever button is
+// pressed IS the answer — and it's already the right shape to grow a third (Paper) button later.
+function ViewToggle() {
+  const toNotebook = () => {
+    if (viewMode.value === "notebook") return;
+    commitSourceEdit();
+    viewMode.value = "notebook";
+  };
+  const toSource = () => {
+    if (viewMode.value === "source") return;
+    const text = serializeDocument(blocks.value);
+    sourceViewBase.value = text;
+    sourceDraft.value = text;
+    viewMode.value = "source";
+  };
+  return (
+    <div
+      class="gramaire__view-toggle"
+      role="group"
+      aria-label="Switch between the rendered Notebook and its raw source"
+    >
+      <button
+        type="button"
+        class="gramaire__view-toggle-btn"
+        aria-pressed={viewMode.value === "notebook"}
+        onClick={toNotebook}
+      >
+        Notebook
+      </button>
+      <button
+        type="button"
+        class="gramaire__view-toggle-btn"
+        aria-pressed={viewMode.value === "source"}
+        onClick={toSource}
+      >
+        Source
+      </button>
     </div>
   );
 }
@@ -1057,7 +1074,10 @@ export function GramaireNotebookIsland(
 
   return (
     <div class="gramaire">
-      <DiagnosticsPanel />
+      <div class="gramaire__topbar">
+        <ViewToggle />
+        <DiagnosticsPanel />
+      </div>
       <div class="gramaire__body">
         <div class="gramaire__doc">
           {viewMode.value === "source" ? (

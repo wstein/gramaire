@@ -706,14 +706,47 @@ test("clicking the status bar collapses and re-opens the diagnostics panel", asy
   await expect(page.locator(".gramaire__diagnostics")).toBeVisible();
 });
 
-// The Notebook/Source view switch — a real sliding toggle in the status bar, not a separate page.
+// The Notebook/Source view switch — an aria-pressed segmented pair sticky at the top of the
+// document, not a separate page.
+function viewToggleButton(
+  page: import("@playwright/test").Page,
+  label: string,
+) {
+  return page.locator(".gramaire__view-toggle-btn", { hasText: label });
+}
+
+test("the view toggle's aria-pressed reflects the active view, and it's reachable without scrolling", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await expect(viewToggleButton(page, "Notebook")).toBeVisible();
+  await expect(viewToggleButton(page, "Notebook")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(viewToggleButton(page, "Source")).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+
+  await viewToggleButton(page, "Source").click();
+  await expect(viewToggleButton(page, "Source")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(viewToggleButton(page, "Notebook")).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+});
+
 test("toggling to Source view replaces the per-cell rendering with one editor over the whole raw document", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
   await expect(page.locator(".gramaire__cell")).toHaveCount(5);
 
-  await page.locator(".gramaire__view-toggle").click();
+  await viewToggleButton(page, "Source").click();
 
   await expect(page.locator(".gramaire__cell")).toHaveCount(0);
   const editor = page.locator(".gramaire__source-editor .cm-content");
@@ -728,7 +761,7 @@ test("editing the raw source and toggling back updates the corresponding cell's 
 }) => {
   await gotoNotebookReady(page);
 
-  await page.locator(".gramaire__view-toggle").click();
+  await viewToggleButton(page, "Source").click();
   const editorContent = page.locator(".gramaire__source-editor .cm-content");
   await expect(editorContent).toContainText("c.expr + c.term");
 
@@ -747,7 +780,7 @@ test("editing the raw source and toggling back updates the corresponding cell's 
     "  : Expr '+' Term   {% (c) => c.expr + c.term + 1 %}",
   );
 
-  await page.locator(".gramaire__view-toggle").click(); // toggle back, commits on blur
+  await viewToggleButton(page, "Notebook").click(); // toggle back, commits on blur
   await expect(page.locator(".gramaire__cell")).toHaveCount(5);
   await page.waitForTimeout(1000); // settle worker round-trip, same as breakFirstRule
 
@@ -763,8 +796,8 @@ test("toggling to Source view and back with no edits leaves the document unchang
   await gotoNotebookReady(page);
   const namesBefore = await ruleNonterminals(page);
 
-  await page.locator(".gramaire__view-toggle").click();
-  await page.locator(".gramaire__view-toggle").click();
+  await viewToggleButton(page, "Source").click();
+  await viewToggleButton(page, "Notebook").click();
 
   // ruleNonterminals reads plain attributes (no Playwright auto-wait) — poll since the toggle's
   // own commit + re-derive round-trip settles a moment after the click, not synchronously with it.
