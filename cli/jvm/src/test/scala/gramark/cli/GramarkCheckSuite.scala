@@ -1,7 +1,7 @@
 package gramark.cli
 
 // Ported from the structural half of bootstrap/gramark-check.test.ts, plus
-// a real drift check against the 7 gated grammar files' committed
+// a real drift check against the 8 gated grammar files' committed
 // `.grmk.lock` sidecars — the exact CI idempotence gate this CLI replaces.
 class GramarkCheckSuite extends munit.FunSuite:
   private def readFile(path: String): String =
@@ -14,7 +14,8 @@ class GramarkCheckSuite extends munit.FunSuite:
     "examples/calc-js.grmk.md",
     "examples/json.grmk.md",
     "examples/readme.grmk.md",
-    "examples/antlr/antlr4.grmk.md"
+    "examples/antlr/antlr4.grmk.md",
+    "examples/luau.grmk.md"
   )
 
   // Standalone native `.grmk` files (ADR D36, first-class — see GramarkCheck.scala's "Native
