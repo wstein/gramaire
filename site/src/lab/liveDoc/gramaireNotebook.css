@@ -55,6 +55,9 @@
   color: var(--fg-faint);
 }
 
+/* A <button> now (was a <span>) so a keyboard user can reach it — reset every default button
+   style back to how the plain span used to look; a disabled button (no diagnostics to toggle)
+   needs no cursor/focus treatment of its own, same as the span's own `onClick: undefined` before. */
 .gramaire__status {
   font-family: var(--font-mono);
   font-size: 11.5px;
@@ -62,6 +65,11 @@
   display: flex;
   align-items: center;
   gap: 7px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: default;
 }
 
 .gramaire__status--clickable {
@@ -69,6 +77,10 @@
 }
 .gramaire__status--clickable:hover {
   color: var(--fg-muted);
+}
+.gramaire__status--clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .gramaire__status-dot {
@@ -286,6 +298,10 @@
 .gramaire__prose:hover {
   background: var(--bg-1);
 }
+.gramaire__prose:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
 .gramaire__prose h2 {
   font-size: 21px;
   margin: 0 0 6px;
@@ -480,7 +496,9 @@
   z-index: 1;
 }
 .gramaire__prose:hover .gramaire__cell-actions,
-.gramaire__cell:hover .gramaire__cell-actions {
+.gramaire__cell:hover .gramaire__cell-actions,
+.gramaire__prose:focus-within .gramaire__cell-actions,
+.gramaire__cell:focus-within .gramaire__cell-actions {
   opacity: 1;
 }
 .gramaire__cell-action {
@@ -497,6 +515,11 @@
 .gramaire__cell-action:hover:not(:disabled) {
   background: var(--bg-2);
   color: var(--fg);
+}
+.gramaire__cell-action:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 .gramaire__cell-action:disabled {
   opacity: 0.4;
@@ -520,7 +543,8 @@
   align-items: center;
   justify-content: center;
 }
-.gramaire__insert-zone:hover {
+.gramaire__insert-zone:hover,
+.gramaire__insert-zone:focus-within {
   height: auto;
   min-height: 14px;
 }
@@ -532,7 +556,8 @@
   opacity: 0;
   transition: opacity 0.1s ease;
 }
-.gramaire__insert-zone:hover .gramaire__insert-buttons {
+.gramaire__insert-zone:hover .gramaire__insert-buttons,
+.gramaire__insert-zone:focus-within .gramaire__insert-buttons {
   opacity: 1;
 }
 .gramaire__insert-btn {
@@ -554,6 +579,10 @@
 .gramaire__insert-btn:disabled {
   opacity: 0.4;
   cursor: default;
+}
+.gramaire__insert-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .gramaire__cell-diags {
@@ -601,6 +630,10 @@
 }
 .gramaire__cell-rendered:hover {
   background: var(--bg-1);
+}
+.gramaire__cell-rendered:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .gramaire__cell-source {
