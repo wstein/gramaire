@@ -40,7 +40,7 @@ export interface LabWorkerHandle {
  * A standalone Web Worker + debounce/latest-wins lifecycle around `LabApi.evaluate`, independent
  * of LabIsland.tsx's own module-level copy of the same pattern — the Grimoire Notebook is a
  * separate page with its own state, not a mode bolted onto the existing Lab (see
- * docs/rebrand-grimoire-plan.md's "status of the notebook feature" note). Always builds with
+ * docs/rebrand-gramaire-plan.md's "status of the notebook feature" note). Always builds with
  * `method: "Canonical"` — the notebook has no method picker in this first cut, matching
  * LabIsland's own doc comment that `forest`/`analysis` never depend on it anyway.
  */

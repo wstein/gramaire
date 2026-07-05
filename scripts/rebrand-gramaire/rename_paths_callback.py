@@ -8,7 +8,7 @@
 
 name = filename.decode("utf-8", "surrogateescape")
 
-# The Claude Design mirror is documented (docs/rebrand-grimoire-plan.md) as a FROZEN historical
+# The Claude Design mirror is documented (docs/rebrand-gramaire-plan.md) as a FROZEN historical
 # reference -- a new design pass supersedes it, but this one is explicitly not touched by the
 # rebrand itself. Leave every path under it exactly as-is.
 if name == "design/gramark-site-handoff" or name.startswith("design/gramark-site-handoff/"):
@@ -20,6 +20,11 @@ if name == "design/gramark-site-handoff" or name.startswith("design/gramark-site
 name = name.replace(".grmk.md", ".gram.md").replace(".grmk", ".gram")
 
 # Brand rename in any path segment (directory or file name) -- both casings actually used.
-name = name.replace("Gramark", "Grimoire").replace("gramark", "grimoire")
+# "Grimoire" is also rewritten here, not just "Gramark": the shipped notebook feature was named
+# after the project's OLD target name ("Grimoire Notebook", GrimoireNotebookIsland.tsx,
+# grimoireNotebook.css) before it changed to "Gramaire" -- both source names collapse onto the
+# same final target, matching replace-text-rules.txt's own two brand-rename rule pairs.
+name = name.replace("Gramark", "Gramaire").replace("gramark", "gramaire")
+name = name.replace("Grimoire", "Gramaire").replace("grimoire", "gramaire")
 
 return name.encode("utf-8", "surrogateescape")

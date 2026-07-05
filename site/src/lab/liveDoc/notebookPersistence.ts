@@ -1,6 +1,6 @@
 // Session autosave for the Grimoire Notebook — a reload (or a crashed tab, the exact failure the
 // OOM regression in notebook.spec.ts proves happens) used to destroy a document with no trace: no
-// localStorage, no file, nothing (docs/rebrand-grimoire-plan.md's own "status of the notebook
+// localStorage, no file, nothing (docs/rebrand-gramaire-plan.md's own "status of the notebook
 // feature" note never scoped persistence at all). This module holds the pure, DOM-free logic —
 // snapshot shape, parsing, and the restore/foreign-write decisions — so it's unit-testable without
 // a browser; GrimoireNotebookIsland.tsx wires it to `localStorage`/`window` from inside a

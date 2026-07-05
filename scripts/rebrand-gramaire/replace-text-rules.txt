@@ -1,0 +1,9 @@
+.grmk.md==>.gram.md
+.grmk==>.gram
+Grmk==>Gram
+grmk==>gram
+Gramark==>Gramaire
+gramark==>gramaire
+Grimoire==>Gramaire
+grimoire==>gramaire
+gramaire-site-handoff==>gramark-site-handoff

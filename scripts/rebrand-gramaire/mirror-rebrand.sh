@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Mirror a GitHub repo and rewrite its ENTIRE history to rebrand Gramark -> Grimoire and rename
-# the .grmk/.grmk.md file extension to .gram/.gram.md, via git-filter-repo.
+# Mirror a GitHub repo and rewrite its ENTIRE history to rebrand Gramark -> Gramaire (and the
+# already-shipped "Grimoire Notebook" feature naming -> "Gramaire", left over from the project's
+# OLD target name before the 2026-07-05 collision-risk pivot) and rename the .grmk/.grmk.md file
+# extension to .gram/.gram.md, via git-filter-repo.
 #
 # SAFETY MODEL (read this before running):
 #   - Operates ONLY on a fresh, disposable --mirror clone in $WORK_DIR. Your real working
@@ -11,7 +13,7 @@
 #     commit gets a new hash). Re-run this script from scratch (delete $WORK_DIR) if anything
 #     looks wrong -- never try to "patch up" a partially-filtered mirror by hand.
 #   - Known, deliberate exclusion: design/gramark-site-handoff/ is left with its ORIGINAL paths
-#     (docs/rebrand-grimoire-plan.md documents it as a frozen historical reference). Its file
+#     (docs/rebrand-gramaire-plan.md documents it as a frozen historical reference). Its file
 #     CONTENT still passes through the same text substitution as everything else, since
 #     git-filter-repo's --replace-text has no per-path scoping -- if you need that directory's
 #     bytes untouched too, tell me and I'll add a path-conditional blob rewrite instead of this
@@ -31,7 +33,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_URL="${1:?usage: $0 <source-repo-url-or-path> [work-dir]}"
 WORK_DIR="${2:-$SCRIPT_DIR/gramark-rebrand-work}"
 MIRROR_DIR="$WORK_DIR/gramark-mirror.git"
-REVIEW_CHECKOUT_DIR="$WORK_DIR/grimoire-review-checkout"
+REVIEW_CHECKOUT_DIR="$WORK_DIR/gramaire-review-checkout"
 
 if ! command -v git-filter-repo >/dev/null 2>&1; then
   echo "error: git-filter-repo not found on PATH." >&2
@@ -55,7 +57,9 @@ git clone --no-local --mirror "$SOURCE_URL" "$MIRROR_DIR"
 echo
 echo "== About to rewrite ALL history in $MIRROR_DIR =="
 echo "   - rename .grmk/.grmk.md -> .gram/.gram.md (paths + in-text mentions)"
-echo "   - rebrand Gramark -> Grimoire, gramark -> grimoire (paths + all text content)"
+echo "   - rebrand Gramark -> Gramaire, gramark -> gramaire (paths + all text content)"
+echo "   - rebrand Grimoire -> Gramaire, grimoire -> gramaire (paths + all text content --"
+echo "     the shipped Grimoire Notebook feature's leftover old-target-name naming)"
 echo "   - leaving design/gramark-site-handoff/ paths alone (frozen historical reference)"
 echo
 read -r -p "Type 'yes' to proceed with this irreversible rewrite of the MIRROR clone: " CONFIRM
@@ -80,10 +84,15 @@ echo "-- git-filter-repo's own secret-redaction marker (would mean a rules-file 
 git -C "$REVIEW_CHECKOUT_DIR" grep -l '\*\*\*REMOVED\*\*\*' -- . 2>/dev/null || echo "  (none -- clean)"
 echo "-- remaining 'gramark' (any case) mentions in the current tree tip, if any:"
 git -C "$REVIEW_CHECKOUT_DIR" grep -ilE 'gramark' -- . 2>/dev/null | grep -v '^design/gramark-site-handoff/' | head -20 || echo "  (none)"
+echo "-- remaining 'grimoire' (any case) mentions in the current tree tip, if any -- the OLD" \
+     "target name the shipped notebook feature was leftover-named after:"
+git -C "$REVIEW_CHECKOUT_DIR" grep -ilE 'grimoire' -- . 2>/dev/null | head -20 || echo "  (none)"
 echo "-- remaining .grmk/.grmk.md/.grmk.lock paths, if any:"
 git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -E '\.grmk(\.md|\.lock)?$' || echo "  (none)"
-echo "-- sample of the renamed grammar package + example files:"
-git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -E '^(core/src/main/scala/grimoire/IR\.scala|examples/calc\.gram\.md|grammar/Grimoire\.gram\.md)$' || true
+echo "-- remaining Grimoire*-named paths, if any:"
+git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -iE 'grimoire' || echo "  (none)"
+echo "-- sample of the renamed grammar package + example + notebook files:"
+git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -E '^(core/src/main/scala/gramaire/IR\.scala|examples/calc\.gram\.md|grammar/Gramaire\.gram\.md|site/src/lab/liveDoc/GramaireNotebookIsland\.tsx)$' || true
 
 cat <<EOF
 
@@ -96,7 +105,7 @@ Review the result for real before going any further:
 Once you're satisfied, publish it to a NEW remote (never force-push this over the
 original wstein/gramark -- that's a separate, much bigger decision this script does
 not make for you: GitHub repo rename/redirect sequencing, Pages URL migration, etc.,
-per docs/rebrand-grimoire-plan.md):
+per docs/rebrand-gramaire-plan.md):
   cd "$MIRROR_DIR"
   git remote add rewritten-origin <NEW_REPO_URL>
   git push --mirror rewritten-origin

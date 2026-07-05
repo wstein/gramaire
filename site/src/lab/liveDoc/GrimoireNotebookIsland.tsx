@@ -53,7 +53,7 @@ import "./grimoireNotebook.css";
 // inline with per-fence editable cells, each cell's railroad diagram/FIRST-FOLLOW rendered right
 // beneath it from the same LabResponse the edit itself triggers. Deliberately its own page with
 // its own state (source/input/response/worker below), not a mode bolted onto the existing Lab —
-// see docs/rebrand-grimoire-plan.md's "status of the notebook feature" note and this session's own
+// see docs/rebrand-gramaire-plan.md's "status of the notebook feature" note and this session's own
 // feedback memory on why an earlier LabIsland-integrated prototype was reverted.
 //
 // Scope (docs/playground-spec.md's "Live Document notebook" notes): no method picker (always

@@ -1,7 +1,0 @@
-.grmk.md==>.gram.md
-.grmk==>.gram
-Grmk==>Gram
-grmk==>gram
-Gramark==>Grimoire
-gramark==>grimoire
-grimoire-site-handoff==>gramark-site-handoff
