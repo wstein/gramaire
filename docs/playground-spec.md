@@ -1119,12 +1119,11 @@ restores proper cell structure once the engine catches up, exactly like any
 other edit.
 
 **Download actions** (`DownloadActions`, `.grimoire__download-actions`,
-`GrimoireNotebookIsland.tsx`) — two plain buttons, ordered BEFORE
-`ViewToggle` in the topbar row (`↓ Source`, `Print / PDF`, then `Notebook /
-Source / Paper`) — combined into one `NotebookTopbarTools` export so
-`notebook.astro` mounts a single `client:load` island in the topbar's
-`page-tools` slot for both, rather than a second separate Preact root for
-one more control.
+`GrimoireNotebookIsland.tsx`) — ordered BEFORE `ViewToggle` in the topbar
+row (`↓ Source`, `↓ PDF`, then `Notebook / Source / Paper`) — combined into
+one `NotebookTopbarTools` export so `notebook.astro` mounts a single
+`client:load` island in the topbar's `page-tools` slot for both, rather
+than a second separate Preact root for one more control.
 
 - **`↓ Source`**: the first save-to-disk feature this codebase has (confirmed
   by research before building it — no `download=`/`Blob(`/`createObjectURL`
@@ -1134,31 +1133,80 @@ one more control.
   `serializeDocument(blocks.value)`, mirroring what the engine's own
   `Lr.nameOf` reads server-side — falling back to a generic name if
   absent/not-yet-set.
-- **`Print / PDF`**: the browser's own print-to-PDF path (every modern
-  browser's print dialog offers "Save as PDF" as a destination) rather than
-  a client-side PDF-generation dependency — zero new dependencies (confirmed
-  none exists or has ever been discussed for this repo), and typically
-  better SVG/CSS fidelity for the railroad diagrams than such a library
-  would produce. Always prints the Paper view specifically, switching
-  `viewMode` first if the visitor was on Notebook or Source when they
-  clicked, then `window.print()` after a double `requestAnimationFrame` (not
-  a single one, and not just assumed reliable — verified empirically against
-  a real page) to let the view-mode change actually paint before print
-  captures it.
+- **`↓ PDF`** (`paperPdf.ts`'s `buildPaperPdf`): a genuinely separate,
+  one-click PDF download — an earlier iteration shipped a "Print" action
+  instead (browser print-to-PDF, zero new dependencies), but a team debate
+  (below) concluded that read as a system dialog, not a one-click "download
+  a document," and it was removed entirely once `↓ PDF` shipped as its
+  replacement.
 
-The print stylesheet itself lives in `notebook.astro`'s own `<style>` block
-(`@media print`, using `:global()` for the island-rendered classes it
-doesn't own directly — the same pattern that block's own
-`:global(html, body)` rule already uses), NOT in the reusable
-`grimoireNotebook.css`: that file is also imported by the homepage's
-embedded showcase card (`index.astro`), which has none of this page's own
-`.shell`/`.content`/shared-topbar structure to reset. It hides
-`gramark-topbar`/`.grimoire__statusbar`/`.grimoire__diagnostics`, and resets
-`.shell`/`.content`/`.grimoire`/`.grimoire__body`/`.grimoire__doc` from
-`height:100vh; overflow:hidden` to `height:auto; overflow:visible` — without
-this, the printed output would clip to one screen's worth of content instead
-of flowing across physical pages, a real failure mode this page's own
-fixed-shell layout would otherwise cause, not a hypothetical one.
+Both actions share `settledBlocks()`, a fix for a real, reproducible race
+caught empirically (not a hypothetical one): both read `blocks.value` as a
+one-shot snapshot baked permanently into a file, unlike a VIEW rendering
+normally (which shows a harmless, self-healing transient "no fences yet"
+fallback and then correctly re-renders once a fresh response lands) —
+clicking either download button while the Source editor is open blurs it
+as an ordinary side effect of the click landing elsewhere in the topbar,
+committing the pending edit (`commitSourceEdit`'s own `fences: []` rebuild)
+and leaving `blocks.value` a single degenerate mega-prose-block until the
+next real evaluate() response restores proper fence-classified blocks.
+Reading `blocks.value` synchronously right after can catch it mid-transition
+— reproduced directly (a first "fix" attempt still downloaded a 2KB,
+diagram-less PDF in ~60ms, far too fast for a real worker round-trip,
+because it checked `response.value.fences.length` — the WRONG signal:
+`response` only updates later, once the debounced evaluate() resolves,
+while `blocks.value` is overwritten synchronously and immediately). The
+correct fix waits for `blocks.value` itself to be reassigned by the
+existing re-derive effect (which only fires once a response whose own
+`responseSource` matches the just-committed text lands), not for any
+particular shape of `response`.
+
+**The pdf-lib team debate.** Four perspectives argued this out before any
+code was written (full transcript in this session's own record, not
+reproduced here): a "ship it as-is, tune the print CSS" minimal-dependency
+view; an "the workflow itself is the problem, a print dialog isn't a
+download button" quality view; a "none of these libraries do HTML-to-PDF,
+adopting one means a second rendering path to maintain forever" skeptic
+view; and a "bounded v1, hybrid vector-text-plus-raster-diagrams" pragmatic
+middle path. Consensus: adopt `pdf-lib` — the one candidate (of pdf-lib,
+PDF.js, pdf-lite, PDFKit, EmbedPDF) that's an actual PDF _generator_
+(PDF.js/EmbedPDF are viewers) — scoped explicitly as v1 with named
+limitations (simple top-to-bottom flow; tables render as plain ruled text
+rows, fixed-fraction column widths, no per-column measurement; inline
+bold/code/image formatting flattens to plain text, an inline image becomes
+a bracketed `[image: alt]` fallback). `buildPaperPdf` walks the exact same
+`isPaperBlock`-filtered blocks Paper itself shows (the filter lives in
+`document.ts`, shared by both — the PDF can never drift from what Paper
+displays on screen): prose reuses `parseMarkdownLite` as-is (pure data, no
+DOM dependency), word-wrapped against `pdf-lib`'s own
+`font.widthOfTextAtSize` (it has no built-in text wrapping); rule figures
+reuse the exact same `analysis.railroad[nonterminal]` SVG string every
+other view already renders, rasterized via an offscreen `<img>`+`<canvas>`
+(`SVG string → Blob → Image → canvas.toBlob("image/png") → pdfDoc.embedPng`)
+— verified the railroad SVGs' own `styleThemed` CSS already bakes real
+fallback colors into every `var(--x, #hex)` reference, so rasterizing the
+raw SVG string standalone (outside the live page's own CSS custom-property
+cascade) still renders correctly with no pre-processing needed.
+
+A figure capped by WIDTH alone (the original v1 attempt) still let a
+naturally tall diagram (many stacked alternatives) draw at an enormous,
+page-dominating size, or spill past the bottom of a fresh page entirely
+(`drawImage` doesn't clip) — caught against a real generated PDF from this
+project's own self-hosting grammar (`grammar/Gramark.grmk.md`), whose `Sym`
+rule has 19 alternatives. Fixed by capping the SHORTER of two scale factors
+(width against `CONTENT_WIDTH`, height against 70% of the page's content
+height) — the more restrictive of the two wins regardless of the diagram's
+own aspect ratio, guaranteeing any figure fits within one page. A figure
+past 40% of the content height also starts on its own fresh page rather
+than whatever sliver of room was left on the current one — confirmed
+visually (rendered the generated PDF to images via `pdftoppm`): the `Sym`
+figure, the largest in the whole document, lands correctly scaled on its
+own page, with room to spare for the next rule right below it.
+
+`pdf-lib` itself is dynamically imported inside `buildPaperPdf`, not statically at
+the file's top level — its ~19MB unpacked size (mostly AFM font-metric
+tables) never reaches the page's initial bundle, the same lazy-load
+convention this codebase already uses for the Scala engine/worker.
 
 **Hover-reveal per-cell actions** (Livebook-style — `CellActions`,
 `GrimoireNotebookIsland.tsx`): a small floating row (↑/↓/Link/Delete) in a

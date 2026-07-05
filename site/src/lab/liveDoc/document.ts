@@ -257,3 +257,17 @@ export function blockIndexAtOffset(
   }
   return null;
 }
+
+/** True for the two block kinds the Paper view (and the PDF export built from the same data,
+ * `paperPdf.ts`'s `buildPaperPdf`) actually show — prose and rule figures. Tokens/Settings/
+ * Precedence are deliberately excluded from both: this is a reading/printing surface, and the raw
+ * declarations those three fence kinds hold aren't part of the "document" a reader or a printed
+ * page wants, unlike a rule's own railroad diagram. Lives here (not in
+ * GrimoireNotebookIsland.tsx, where Paper's own rendering lives) so `paperPdf.ts` can import it
+ * without an import cycle between the two — both `PaperView` and `buildPaperPdf` import the
+ * SAME filter from here, so the PDF can never drift from what Paper itself shows on screen. */
+export function isPaperBlock(
+  block: DocBlock,
+): block is DocBlock & { kind: "prose" | "rule" } {
+  return block.kind === "prose" || block.kind === "rule";
+}
