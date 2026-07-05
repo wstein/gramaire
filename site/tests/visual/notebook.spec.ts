@@ -369,6 +369,34 @@ test("clicking a prose block reveals a raw-markdown editor; blurring commits and
   );
 });
 
+// Regression: a prose gap between two fences (e.g. "```\n\n## Expr\n\n```gramaire") used to keep
+// its own leading blank line as part of the block's stored text — opening the "Expr" section for
+// raw editing showed a dead empty first line before "## Expr" (document.ts's own
+// `normalizeProseText`, buildDocument's pushProse). The document itself must never open with a
+// blank line either, and no gap may contain a run of 2+ blank lines anywhere.
+test("a prose block's raw editor never opens with a leading blank line; the document itself never starts with one and never contains 2+ blank lines in a row", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  const exprHeading = page.locator(".gramaire__prose").nth(2);
+  await expect(exprHeading).toContainText("Expr");
+  await exprHeading.click();
+  const raw = await page.locator(".gramaire__prose-editor").inputValue();
+  expect(raw.startsWith("\n")).toBe(false);
+  await page.keyboard.press("Escape");
+
+  await page
+    .locator(".gramaire__view-toggle-btn", { hasText: "Source" })
+    .click();
+  const source = await page
+    .locator(".gramaire__source-editor .cm-content")
+    .locator(".cm-line")
+    .evaluateAll((els) => els.map((el) => el.textContent).join("\n"));
+  expect(source.startsWith("\n")).toBe(false);
+  expect(source).not.toContain("\n\n\n");
+});
+
 test("the prose toolbar's Save button commits, same as blurring", async ({
   page,
 }) => {

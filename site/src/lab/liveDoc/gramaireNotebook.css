@@ -756,42 +756,47 @@
   border-color: #e05a4b;
 }
 
-/* Livebook's own "+ Elixir/+ Block" between-cell affordance, adapted to this document's five
-   real block kinds (Prose, Rule, Tokens, Settings, Precedence). The resting height matches
-   `.gramaire__insert-btn`'s own real single-row rendered height EXACTLY (11px font-size,
-   line-height:1, + 3px top/bottom padding, + 1px top/bottom border = 19px) — not an arbitrarily
-   smaller placeholder. Hover only flips `.gramaire__insert-buttons`' own opacity (0→1, below);
-   this element's box height is IDENTICAL at rest and hovered at normal widths, so a sibling below
-   never shifts (a prior 14px-resting/auto-on-hover shape measured a real, confirmed 5px shift on
-   every hover, contradicting its own "never shifts" intent). */
+/* Livebook's own "+ Elixir/+ Block" between-cell affordance, adapted to this document's five real
+   block kinds (Prose, Rule, Tokens, Settings, Precedence). No space is reserved FOR the buttons —
+   this element's own box height is a small fixed value chosen for hover-target/visual-rhythm
+   purposes only, entirely independent of the button row's own size; `.gramaire__insert-buttons`
+   is an absolutely positioned overlay (same pattern as `.gramaire__cell-actions`), so revealing it
+   on hover never changes this element's box height, regardless of how many buttons wrap to a
+   second row at a narrow viewport. Hovering the thin border zone between two cells is enough to
+   trigger it — there's no separate, wider invisible hit-area needed. */
 .gramaire__insert-zone {
-  height: 19px;
+  position: relative;
+  height: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-/* The one place growth is still allowed: a narrow viewport where five buttons can't fit one row —
-   same breakpoint this app's own responsive layout already uses (lab.css). That growth happens
-   ONLY there, and only on hover/focus, when the user's attention is already on this spot; the
-   common (wide) reading case above never triggers it, so "no shift" holds unconditionally there. */
-@media (max-width: 720px) {
-  .gramaire__insert-zone:hover,
-  .gramaire__insert-zone:focus-within {
-    height: auto;
-    min-height: 19px;
-  }
-}
 .gramaire__insert-buttons {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  /* Without this, a `left: 50%` auto-width flex container's own shrink-to-fit sizing is computed
+     against HALF the containing block's width (the space to the right of the 50% mark, before
+     the translateX(-50%) shift is applied) — wrapping the 5 buttons to 2 rows even in a plenty-
+     wide document, not just at an actually-narrow viewport. `max-content` sizes this to its own
+     row of buttons regardless, so wrapping only ever happens when the viewport itself is too
+     narrow to fit them, which is the only case it should. */
+  width: max-content;
+  max-width: 90vw;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 6px;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.1s ease;
+  z-index: 1;
 }
 .gramaire__insert-zone:hover .gramaire__insert-buttons,
 .gramaire__insert-zone:focus-within .gramaire__insert-buttons {
   opacity: 1;
+  pointer-events: auto;
 }
 .gramaire__insert-btn {
   font-family: var(--font-mono);
