@@ -767,6 +767,34 @@ test("clicking the status bar collapses and re-opens the diagnostics panel", asy
   await expect(page.locator(".grimoire__diagnostics")).toBeVisible();
 });
 
+// The status toggle is now a real <button> (was a <span>), reachable and operable by keyboard,
+// with `aria-expanded` reflecting the panel's own open/closed state for assistive tech.
+test("the status toggle is a real button with aria-expanded, disabled when there's nothing to toggle", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const status = page.locator(".grimoire__status");
+
+  // A clean document has nothing to expand/collapse.
+  await expect(status).toBeDisabled();
+
+  await breakFirstRule(page, "Foo Bar");
+  await expect(status).toBeEnabled();
+  await expect(status).toHaveAttribute("aria-expanded", "true");
+  await status.press("Enter");
+  await expect(status).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator(".grimoire__diagnostics")).toHaveCount(0);
+});
+
+test("a rule's railroad diagram has an accessible name for screen readers", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const railroad = ruleCellLocator(page).locator(".grimoire__output-railroad");
+  await expect(railroad).toHaveAttribute("role", "img");
+  await expect(railroad).toHaveAttribute("aria-label", /Railroad diagram for/);
+});
+
 // The Notebook/Source view switch — an aria-pressed segmented pair sticky at the top of the
 // document, not a separate page.
 function viewToggleButton(
@@ -1118,6 +1146,100 @@ test("Link copies a URL fragment to this cell and shows brief feedback", async (
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
   expect(clipboard).toBe(`${page.url().split("#")[0]}#${cellId}`);
   await expect(linkBtn).toHaveText("Link", { timeout: 3000 });
+});
+
+// Regression: ProseBlock's rendered div never carried its own `id` — only GrammarCell's did — so
+// copying a prose block's link produced a fragment URL pointing at nothing in the DOM, and
+// jumpToCell's scrollIntoView silently no-opped for a prose-attributed diagnostic.
+test("Link on a prose block copies a fragment URL that resolves to a real element in the DOM", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await gotoNotebookReady(page);
+  const firstProse = page.locator(".grimoire__prose").first();
+  await firstProse.hover();
+  const cellId = await firstProse.getAttribute("id");
+  expect(cellId).toBeTruthy();
+
+  const linkBtn = firstProse.locator(".grimoire__cell-action").nth(2);
+  await linkBtn.click();
+  const clipboard = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clipboard).toBe(`${page.url().split("#")[0]}#${cellId}`);
+
+  const resolvesToProse = await page.evaluate(
+    (id) => document.getElementById(id)?.classList.contains("grimoire__prose"),
+    cellId,
+  );
+  expect(resolvesToProse).toBe(true);
+});
+
+// The primary interaction (open a cell's editor) used to be reachable only by mouse — a plain
+// `<div onClick>` with no role/tabindex/keyboard handler. Both cell kinds now expose the same
+// activation via Enter and Space as a click.
+test("a grammar cell's editor opens via Enter/Space on its focused rendered view, not just a click", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const ruleCell = ruleCellLocator(page);
+  const rendered = ruleCell.locator(".grimoire__cell-rendered");
+
+  await expect(rendered).toHaveAttribute("role", "button");
+  await expect(rendered).toHaveAttribute("tabindex", "0");
+  await rendered.focus();
+  await page.keyboard.press("Enter");
+  await expect(ruleCell.locator(".cm-content")).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(ruleCell.locator(".cm-content")).toHaveCount(0);
+
+  await rendered.focus();
+  await page.keyboard.press(" ");
+  await expect(ruleCell.locator(".cm-content")).toBeVisible();
+});
+
+test("a prose block's editor opens via Enter/Space on its focused view, not just a click", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const firstProse = page.locator(".grimoire__prose").first();
+
+  await expect(firstProse).toHaveAttribute("role", "button");
+  await expect(firstProse).toHaveAttribute("tabindex", "0");
+  await firstProse.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".grimoire__prose-editor")).toBeVisible();
+});
+
+// Closing an editor (Save, Cancel, or Escape) used to leave focus nowhere in particular (the
+// removed CodeMirror/textarea host), dumping a keyboard user back to the top of the page. Focus
+// now returns to the cell's own (now focusable) rendered view.
+test("focus returns to the cell's rendered view after Escape closes its editor", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const ruleCell = ruleCellLocator(page);
+  const rendered = ruleCell.locator(".grimoire__cell-rendered");
+
+  await rendered.focus();
+  await page.keyboard.press("Enter");
+  await expect(ruleCell.locator(".cm-content")).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await expect(rendered).toBeFocused();
+});
+
+test("focus returns to the prose block after Save (the toolbar button) commits its edit", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const firstProse = page.locator(".grimoire__prose").first();
+
+  await firstProse.click();
+  await page.locator(".grimoire__prose-editor").fill("## Focus check");
+  await page.locator(".grimoire__toolbar-btn--save").click();
+
+  await expect(firstProse).toBeFocused();
 });
 
 test("all cell actions are disabled while any editor is open, anywhere in the document", async ({

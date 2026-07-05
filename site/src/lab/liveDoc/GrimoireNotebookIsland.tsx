@@ -244,6 +244,35 @@ function jumpToCell(index: number) {
   else beginEditCell(index, block.text);
 }
 
+// Returns focus to the cell a just-closed editor belongs to (Save/Cancel/Escape/blur-commit all
+// call this) — otherwise a keyboard user closing an editor is dumped to the top of the tab order
+// every time, with no way to tell where they landed. Deferred a frame: the editor is still
+// mounted at the moment this runs (the caller hasn't re-rendered yet), so the target — the
+// collapsed, non-editing view — doesn't exist in the DOM until after this tick.
+// `.grimoire__prose`'s own outer element IS its clickable/focusable region; `.grimoire__cell`'s
+// outer element (which owns the stable `id`) only WRAPS the focusable `.grimoire__cell-rendered`
+// child, so the two shapes need different lookups under the same shared id.
+function focusCellAfterEdit(index: number) {
+  if (typeof window === "undefined") return;
+  requestAnimationFrame(() => {
+    const host = document.getElementById(`grimoire-cell-${index}`);
+    if (!host) return;
+    const target = host.matches(".grimoire__prose")
+      ? host
+      : host.querySelector<HTMLElement>(".grimoire__cell-rendered");
+    target?.focus();
+  });
+}
+
+// Enter/Space activate a cell the same way a click does — the shared handler behind both
+// GrammarCell's and ProseBlock's `role="button"` rendered divs. Space's default action (scrolling
+// the page) is suppressed only for the keys this handles.
+function handleCellActivateKey(e: KeyboardEvent, activate: () => void) {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  e.preventDefault();
+  activate();
+}
+
 // Reorder/delete are exactly as index-sensitive as the fences-reshape effect's own deferral
 // (above) already documents: `editingCell`/`editingProse` are plain array indices, and mutating
 // `blocks` out from under an open one leaves it pointing at the wrong block. Simplest guard that
@@ -470,6 +499,7 @@ function endEditCell(index: number) {
   blocks.value = replaceBlockText(blocks.value, index, cellDraft.value);
   editingCell.value = null;
   scheduleEvaluate();
+  focusCellAfterEdit(index);
 }
 
 // Closes the editor WITHOUT committing `cellDraft`/`proseDraft` — the toolbar's "Cancel". Safe
@@ -478,7 +508,9 @@ function endEditCell(index: number) {
 // and skips the auto-commit, leaving Save/Cancel's own click handler as the only thing that
 // decides — this also means Tab-then-Enter to Cancel works, not just a mouse click.
 function cancelEditCell() {
+  const index = editingCell.peek();
   editingCell.value = null;
+  if (index !== null) focusCellAfterEdit(index);
 }
 
 function beginEditProse(index: number, text: string) {
@@ -493,10 +525,13 @@ function endEditProse(index: number) {
   blocks.value = replaceBlockText(blocks.value, index, proseDraft.value);
   editingProse.value = null;
   scheduleEvaluate();
+  focusCellAfterEdit(index);
 }
 
 function cancelEditProse() {
+  const index = editingProse.peek();
   editingProse.value = null;
+  if (index !== null) focusCellAfterEdit(index);
 }
 
 // RestoreBanner's own Restore/Discard actions — module-level like every other block-mutating
@@ -756,8 +791,15 @@ function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
   return (
     <div
       class="grimoire__prose"
+      id={`grimoire-cell-${index}`}
       title="Click to edit as raw markdown"
+      role="button"
+      tabIndex={0}
+      aria-label="Edit prose as raw markdown"
       onClick={() => beginEditProse(index, block.text)}
+      onKeyDown={(e) =>
+        handleCellActivateKey(e, () => beginEditProse(index, block.text))
+      }
     >
       <CellActions index={index} />
       <MarkdownBlocks blocks={parsed} />
@@ -868,7 +910,13 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
         <div
           class="grimoire__cell-rendered"
           title="Click to edit source"
+          role="button"
+          tabIndex={0}
+          aria-label={`Edit ${cellLabel(block)} cell`}
           onClick={() => beginEditCell(index, block.text)}
+          onKeyDown={(e) =>
+            handleCellActivateKey(e, () => beginEditCell(index, block.text))
+          }
         >
           {hasRendered ? (
             <div
@@ -877,6 +925,8 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
               {svg && (
                 <div
                   class="grimoire__output-railroad"
+                  role="img"
+                  aria-label={`Railroad diagram for ${block.nonterminal}`}
                   dangerouslySetInnerHTML={{ __html: svg }}
                 />
               )}
@@ -1149,9 +1199,13 @@ function StatusBar() {
 
   return (
     <div class="grimoire__statusbar">
-      <span
+      <button
+        type="button"
         class={`grimoire__status${hasDiags ? " grimoire__status--clickable" : ""}`}
         title={hasDiags ? "Show / hide the diagnostics panel" : undefined}
+        disabled={!hasDiags}
+        aria-expanded={hasDiags ? !diagPanelCollapsed.value : undefined}
+        aria-live="polite"
         onClick={
           hasDiags
             ? () => {
@@ -1167,7 +1221,7 @@ function StatusBar() {
             {diagPanelCollapsed.value ? "▸" : "▾"}
           </span>
         )}
-      </span>
+      </button>
       <span class="grimoire__statusbar-stats">
         {stats
           ? `Canonical(1) · ${stats.states} state${stats.states === 1 ? "" : "s"} · ${stats.conflicts} conflict${stats.conflicts === 1 ? "" : "s"}`
