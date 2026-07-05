@@ -10,7 +10,11 @@ import type {
   SrcSpanInfo,
 } from "../protocol";
 import type { EvaluationResult } from "../worker";
-import { NOTEBOOK_DEFAULT_SOURCE, NOTEBOOK_DEFAULT_INPUT } from "../examples";
+import {
+  NOTEBOOK_DEFAULT_SOURCE,
+  NOTEBOOK_DEFAULT_INPUT,
+  EXAMPLES,
+} from "../examples";
 import {
   buildDocument,
   replaceBlockText,
@@ -123,6 +127,22 @@ function getTabId(): string {
   if (tabIdValue === null) tabIdValue = makeTabId();
   return tabIdValue;
 }
+
+// The File System Access API's own writable-file handle — minimal shape, hand-declared rather
+// than pulled from a `@types/wicg-file-system-access` dependency this repo doesn't otherwise
+// need. Held only when a document was opened via `showOpenFilePicker` (Chromium); a document
+// opened via the `<input type=file>` fallback, or never opened at all, has none — `saveInPlace`
+// falls back to the existing download-a-copy flow whenever this is null.
+interface WritableFileHandle {
+  getFile(): Promise<File>;
+  createWritable(): Promise<{
+    write(data: BlobPart): Promise<void>;
+    close(): Promise<void>;
+  }>;
+}
+const fileHandle = signal<WritableFileHandle | null>(null);
+// A lightweight visual cue for the drag-and-drop target — no other state depends on this.
+const isDraggingFile = signal(false);
 
 function scheduleEvaluate() {
   labWorker.evaluate(
@@ -1347,6 +1367,118 @@ function ViewToggle() {
 // fires once a response whose OWN `responseSource` matches the just-committed text lands — so
 // the correct signal is `blocks.value` itself being reassigned to a NEW array by that effect,
 // not any particular shape of `response`.
+// True once the document has diverged from the pristine default — the only state a fresh
+// replacement (Open/drag-drop/an example) can silently discard without asking first. Checked
+// against `blocks.peek()`, not `.value`: this never runs inside a render, so there's nothing to
+// subscribe to.
+function hasUnsavedWork(): boolean {
+  return serializeDocument(blocks.peek()) !== NOTEBOOK_DEFAULT_SOURCE;
+}
+
+// A native confirm() before any action that REPLACES the whole document (Open, drag-drop, an
+// Examples pick) — skipped only when there's nothing to lose yet (a pristine, untouched default).
+// Session autosave (this file's own mount effect) means the CURRENT document was never actually
+// at risk of vanishing outright, but silently swapping out what someone's mid-edit on for a
+// different document entirely is still a surprise worth confirming.
+function confirmReplace(): boolean {
+  if (!hasUnsavedWork()) return true;
+  return window.confirm(
+    "Loading a new document replaces the one you're editing. Continue?",
+  );
+}
+
+// Shared by Open, drag-drop, and the Examples picker — raw text in, through the exact same
+// fences:[] → evaluate() → reshape path every other raw-text entry point already uses (the
+// fallback textarea, commitSourceEdit). Never attempts client-side classification (D43): the
+// document opens as one prose block until the engine's own response arrives.
+//
+// Forces `viewMode` back to Notebook: `sourceViewBase` (the Source editor's own mounted `value`)
+// only refreshes when TOGGLING into Source, never reactively — replacing `blocks` while already
+// on Source would leave the visible editor showing the OLD text, and blurring it would then
+// silently overwrite this fresh document with that stale text via commitSourceEdit.
+function loadDocumentText(text: string) {
+  blocks.value = buildDocument(text, []);
+  viewMode.value = "notebook";
+  scheduleEvaluate();
+}
+
+// Prefers the File System Access API (`showOpenFilePicker`) when available — it returns a
+// re-usable handle, so `saveInPlace` (below) can write straight back to the SAME file instead of
+// only ever offering a fresh download. Firefox/Safari have no such API; `legacyInput` (a hidden
+// `<input type=file>` the caller already has a ref to) is the universal fallback, which can never
+// yield a handle — `fileHandle` stays null, and Save degrades to downloadSource's existing
+// download-a-copy behavior.
+async function openFile(legacyInput: HTMLInputElement | null) {
+  if (!confirmReplace()) return;
+  const picker = (
+    window as unknown as {
+      showOpenFilePicker?: (options: unknown) => Promise<WritableFileHandle[]>;
+    }
+  ).showOpenFilePicker;
+  if (picker) {
+    let handle: WritableFileHandle;
+    try {
+      [handle] = await picker({
+        types: [
+          {
+            description: "Grimoire document",
+            accept: { "text/markdown": [".grmk.md", ".md"] },
+          },
+        ],
+      });
+    } catch (e) {
+      if ((e as DOMException)?.name === "AbortError") return; // user cancelled the picker
+      legacyInput?.click(); // an unexpected failure — fall back rather than dead-end silently
+      return;
+    }
+    const file = await handle.getFile();
+    loadDocumentText(await file.text());
+    fileHandle.value = handle;
+    return;
+  }
+  legacyInput?.click();
+}
+
+// The `<input type=file>` fallback's own onChange — never yields a fileHandle, so a document
+// opened this way can only ever be re-saved as a fresh download (downloadSource), same as before
+// this feature existed.
+async function loadFromFileInput(input: HTMLInputElement) {
+  const file = input.files?.[0];
+  input.value = ""; // reset so choosing the SAME file again still fires a change event
+  if (!file || !confirmReplace()) return;
+  loadDocumentText(await file.text());
+  fileHandle.value = null;
+}
+
+async function loadFromDrop(dataTransfer: DataTransfer | null) {
+  const file = dataTransfer?.files?.[0];
+  if (!file || !confirmReplace()) return;
+  loadDocumentText(await file.text());
+  fileHandle.value = null;
+}
+
+// Loads one of the Lab's own curated EXAMPLES (../examples) — the exact same conformance-tested
+// grammars the Lab page's own example switcher offers, never a duplicated/hand-copied approximation.
+function loadExample(name: string) {
+  const example = EXAMPLES.find((e) => e.name === name);
+  if (!example || !confirmReplace()) return;
+  loadDocumentText(example.source);
+  tryItInput.value = example.input;
+  fileHandle.value = null;
+}
+
+// Writes the current document straight back to the file it was opened from (only possible when
+// `fileHandle` holds a real File System Access handle) — falls back to the ordinary
+// download-a-copy flow otherwise, so the Save button is never a dead end.
+async function saveInPlace() {
+  const handle = fileHandle.value;
+  if (!handle) return downloadSource();
+  const text = serializeDocument(await settledBlocks());
+  const writable = await handle.createWritable();
+  await writable.write(text);
+  await writable.close();
+}
+
 async function settledBlocks(): Promise<DocBlock[]> {
   if (viewMode.value !== "source") return blocks.value;
   commitSourceEdit();
@@ -1418,9 +1550,65 @@ async function downloadPdf() {
   URL.revokeObjectURL(url);
 }
 
+// Open + Examples — the document's entrance; DownloadActions (below) is its only exit before this.
+// The hidden `<input type=file>` is the universal fallback for browsers with no File System
+// Access API (Firefox, Safari); `openFile` tries the real picker first and only falls back to
+// clicking this on failure or absence.
+function OpenActions() {
+  const legacyInputRef = useRef<HTMLInputElement | null>(null);
+  return (
+    <div class="grimoire__file-actions">
+      <input
+        ref={legacyInputRef}
+        type="file"
+        accept=".grmk.md,.md,text/markdown"
+        class="grimoire__file-input-hidden"
+        onChange={(e) => loadFromFileInput(e.currentTarget)}
+      />
+      <button
+        type="button"
+        class="grimoire__download-btn"
+        title="Open a .grmk.md document from disk"
+        onClick={() => openFile(legacyInputRef.current)}
+      >
+        ↑ Open
+      </button>
+      <select
+        class="grimoire__examples-select"
+        aria-label="Load an example grammar"
+        value=""
+        onChange={(e) => {
+          const name = e.currentTarget.value;
+          if (name) loadExample(name);
+          e.currentTarget.value = ""; // a picker, not a persistent selection — nothing stays "chosen"
+        }}
+      >
+        <option value="" disabled>
+          Examples…
+        </option>
+        {EXAMPLES.map((ex) => (
+          <option key={ex.name} value={ex.name}>
+            {ex.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function DownloadActions() {
   return (
     <div class="grimoire__download-actions">
+      {fileHandle.value && (
+        <button
+          type="button"
+          class="grimoire__download-btn"
+          title="Save this document back to the file it was opened from"
+          onClick={saveInPlace}
+        >
+          Save
+        </button>
+      )}
       <button
         type="button"
         class="grimoire__download-btn"
@@ -1448,6 +1636,7 @@ function DownloadActions() {
 export function NotebookTopbarTools() {
   return (
     <>
+      <OpenActions />
       <DownloadActions />
       <ViewToggle />
     </>
@@ -1622,7 +1811,21 @@ export function GrimoireNotebookIsland(
       <ForeignUpdateNotice />
       <DiagnosticsPanel />
       <div class="grimoire__body">
-        <div class="grimoire__doc">
+        <div
+          class={`grimoire__doc${isDraggingFile.value ? " grimoire__doc--dragover" : ""}`}
+          onDragOver={(e) => {
+            e.preventDefault(); // required for onDrop to fire at all
+            isDraggingFile.value = true;
+          }}
+          onDragLeave={() => {
+            isDraggingFile.value = false;
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            isDraggingFile.value = false;
+            loadFromDrop(e.dataTransfer);
+          }}
+        >
           {viewMode.value === "source" ? (
             <CodeMirrorEditor
               className="grimoire__source-editor"

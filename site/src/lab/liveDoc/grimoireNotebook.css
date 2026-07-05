@@ -178,6 +178,43 @@
   outline-offset: 2px;
 }
 
+/* File actions (OpenActions, GrimoireNotebookIsland.tsx) — the document's entrance, same visual
+   family as the download buttons (its own exit). The native <input type=file> fallback is never
+   shown itself; it's only ever reached via `.click()` from the "Open" button. */
+.grimoire__file-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 10px;
+}
+.grimoire__file-input-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.grimoire__examples-select {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  padding: 5px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.grimoire__examples-select:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.grimoire__examples-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* Session-autosave banners (RestoreBanner/ForeignUpdateNotice, GrimoireNotebookIsland.tsx) — sit
    above the diagnostics panel so a restore offer is the very first thing a returning visitor
    sees, before any diagnostic about the (not yet loaded) default document. */
@@ -286,6 +323,14 @@
   max-width: 760px;
   margin: 0 auto;
   padding: 32px 22px 80px;
+  outline: 2px dashed transparent;
+  outline-offset: -8px;
+  transition: outline-color 0.1s ease;
+}
+/* Dragging a file over the document — the drop target itself is the whole document area, not
+   just a dedicated drop zone, since replacing the entire document is exactly what a drop does. */
+.grimoire__doc--dragover {
+  outline-color: var(--accent);
 }
 
 .grimoire__prose {
