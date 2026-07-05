@@ -955,8 +955,8 @@ exact same visual pattern as the shared topbar's Light/Auto/Dark control
 (`gramaire-topbar.mjs`'s `.seg`/`.seg button[aria-pressed="true"]`, reusing
 this site's own `tokens.css` custom properties rather than that component's
 shadow-DOM-scoped fallbacks) — whichever button is pressed is unambiguously
-the active view, and the same shape already accommodates a third button
-(the planned Paper view) with no further redesign.
+the active view, and the same shape accommodated a third button (Paper, see
+below) with no redesign — exactly as anticipated when it was still two.
 
 Also moved, twice: the toggle used to live at the tail end of the bottom
 status bar — the LAST thing the whole document renders, meaning reaching it
@@ -1008,6 +1008,50 @@ this one case. Matched against the literal string `"true"`, not bare
 attribute presence: Astro renders the attribute as `data-page-tools="false"`
 when its value is false, not an omitted attribute — confirmed against the
 built HTML, since a bare presence check would have matched every page.
+
+**Paper view** (`PaperView`/`PaperBlock`, `.gramaire__paper`,
+`GramaireNotebookIsland.tsx`) — a third, fully read-only reading/printing
+surface: serif type, a narrow centered reading measure, and numbered
+figure/captions for railroad diagrams. Modeled directly on the exact
+rendering every other view already does for each block kind, not reinvented:
+prose reuses `ProseBlock`'s own collapsed-view call
+(`parseMarkdownLite`/`MarkdownBlocks`) — that component already produces
+plain semantic tags (`h1`-`h6`, `p`, `table`) with no Notebook-specific
+classes, so the serif/measure styling applies purely via the wrapping
+`.gramaire__paper` CSS scope, no component changes needed; rule blocks reuse
+`GrammarCell`'s own railroad SVG source
+(`analysis.railroad[block.nonterminal]`, the same raw HTML string via
+`dangerouslySetInnerHTML`), wrapped in a real `<figure>`/`<figcaption>Figure
+N — {nonterminal}</figcaption>` instead of a bare div (N is a running
+counter over rule-kind blocks only, computed once per `PaperView` render);
+Tokens/Settings/Precedence reuse `GrammarCell`'s own no-rendering fallback
+(a plain `<pre>` of the raw text), labeled via the existing
+`BADGE_LABEL`/`cellLabel` helpers, and kept in the monospace font even
+inside this serif reading view — code stays code, matching ordinary book
+typesetting (prose serif, code mono), not a special case invented for this
+feature.
+
+Fully read-only: no click handlers, no `CellActions`, no `InsertZone`, no
+`TryIt`. `DiagnosticsPanel`/`StatusBar` stay unconditional, same as they
+already were for Source view — not a new special case for Paper.
+
+New typography groundwork this needed: `tokens.css` gained
+`--font-serif: "IBM Plex Serif", ui-serif, Georgia, serif` — the same IBM
+Plex family already used for `--font-ui`/`--font-mono`, for visual cohesion
+rather than importing an unrelated serif face — and `page-head.mjs`'s
+`GOOGLE_FONTS_HREF` gained the matching `IBM+Plex+Serif` family.
+
+Switching modes needed one real fix along the way, not just a third button:
+`ViewToggle`'s `toNotebook` used to unconditionally call
+`commitSourceEdit()` on every switch into Notebook — harmless when the only
+other mode was Source itself (the same-mode guard already caught
+Notebook→Notebook), but `commitSourceEdit()` rebuilds `blocks` straight from
+`sourceDraft.value`, which is stale (or still empty, if Source was never
+opened this session) whenever the PREVIOUS mode wasn't Source — silently
+corrupting the document the first time a visitor went Paper → Notebook
+without ever visiting Source in between. Fixed by only committing when
+actually leaving Source (`leaveSourceIfNeeded`), shared by both `toNotebook`
+and the new `toPaper`.
 
 Entering source view snapshots a stable base text for CodeMirror's own
 `value` prop (never the live draft — the same race `CodeMirrorEditor`'s own

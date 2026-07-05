@@ -78,7 +78,7 @@ const cellDraft = signal("");
 // the empirically-confirmed race CodeMirrorEditor's own comment warns about). `sourceDraft` holds
 // the latest typed text; `commitSourceEdit` (below `scheduleEvaluate`) is what actually reparses it
 // back into `blocks`, on blur or on toggling back to Notebook view.
-const viewMode = signal<"notebook" | "source">("notebook");
+const viewMode = signal<"notebook" | "source" | "paper">("notebook");
 const sourceViewBase = signal("");
 const sourceDraft = signal("");
 // The document diagnostics panel (Layer 1) collapse toggle — clicking the status bar flips it.
@@ -1036,11 +1036,12 @@ function StatusBar() {
   );
 }
 
-// The Notebook/Source view switch — an aria-pressed segmented pair (same visual language as
-// gramaire-topbar.mjs's Light/Auto/Dark control), not a checkbox switch: a switch reads as
-// "feature on/off," not "which of two named views am I in," so there was never a clean answer to
-// which side should look active. A segmented control has no such ambiguity — whichever button is
-// pressed IS the answer — and it's already the right shape to grow a third (Paper) button later.
+// The Notebook/Source/Paper view switch — an aria-pressed segmented pair (same visual language
+// as gramaire-topbar.mjs's Light/Auto/Dark control), not a checkbox switch: a switch reads as
+// "feature on/off," not "which of several named views am I in," so there was never a clean
+// answer to which side should look active. A segmented control has no such ambiguity —
+// whichever button is pressed IS the answer — and it's already the right shape to have grown a
+// third (Paper) button with no redesign, exactly as originally anticipated when it was two.
 //
 // Exported (not just called from this file's own render tree) so `notebook.astro` can mount it as
 // its OWN separate `client:load` island, slotted into the shared topbar (AppShell.astro's
@@ -1052,9 +1053,20 @@ function StatusBar() {
 // the shared module into one chunk both islands' bundles import from), so this and the main
 // island stay in lockstep despite being two separate Preact roots.
 export function ViewToggle() {
+  // Leaving Source (either for Notebook or for Paper) needs its pending edit committed first —
+  // but ONLY when actually leaving Source: commitSourceEdit() rebuilds `blocks` straight from
+  // `sourceDraft.value`, which is stale (or still empty, if Source was never opened this
+  // session) whenever the PREVIOUS mode wasn't Source. Calling it unconditionally on every
+  // switch — as an earlier two-button version did, harmlessly, since its only other mode was
+  // Notebook itself (a no-op guard already caught the same-mode case) — would have silently
+  // corrupted the document the first time a visitor went Paper → Notebook without ever having
+  // visited Source at all.
+  const leaveSourceIfNeeded = () => {
+    if (viewMode.value === "source") commitSourceEdit();
+  };
   const toNotebook = () => {
     if (viewMode.value === "notebook") return;
-    commitSourceEdit();
+    leaveSourceIfNeeded();
     viewMode.value = "notebook";
   };
   const toSource = () => {
@@ -1064,11 +1076,16 @@ export function ViewToggle() {
     sourceDraft.value = text;
     viewMode.value = "source";
   };
+  const toPaper = () => {
+    if (viewMode.value === "paper") return;
+    leaveSourceIfNeeded();
+    viewMode.value = "paper";
+  };
   return (
     <div
       class="gramaire__view-toggle"
       role="group"
-      aria-label="Switch between the rendered Notebook and its raw source"
+      aria-label="Switch between the rendered Notebook, its raw source, and the read-only Paper view"
     >
       <button
         type="button"
@@ -1086,6 +1103,77 @@ export function ViewToggle() {
       >
         Source
       </button>
+      <button
+        type="button"
+        class="gramaire__view-toggle-btn"
+        aria-pressed={viewMode.value === "paper"}
+        onClick={toPaper}
+      >
+        Paper
+      </button>
+    </div>
+  );
+}
+
+// The Paper view — a read-only reading/printing surface, modeled directly on the exact rendering
+// every other view already does for each block kind rather than reinventing it: prose reuses
+// ProseBlock's own collapsed-view call (parseMarkdownLite + MarkdownBlocks); rule cells reuse
+// GrammarCell's own railroad SVG source (analysis.railroad[nonterminal]), wrapped in a real
+// <figure>/<figcaption> instead of GrammarCell's plain div; Tokens/Settings/Precedence reuse
+// GrammarCell's own no-rendering fallback (a plain <pre> of the raw text). No click handlers, no
+// CellActions, no InsertZone, no TryIt — nothing here is editable or interactive.
+function PaperBlock({
+  block,
+  figureNumber,
+}: {
+  block: DocBlock;
+  figureNumber: number | null;
+}) {
+  if (block.kind === "prose") {
+    const parsed = useMemo(() => parseMarkdownLite(block.text), [block.text]);
+    return <MarkdownBlocks blocks={parsed} />;
+  }
+  if (block.kind === "rule") {
+    const freshAnalysis = response.value?.analysis;
+    const analysis = freshAnalysis ?? lastAnalysis.value;
+    const svg =
+      block.nonterminal && analysis
+        ? (analysis.railroad[block.nonterminal] ?? "")
+        : "";
+    return (
+      <figure class="gramaire__paper-figure">
+        {svg && <div dangerouslySetInnerHTML={{ __html: svg }} />}
+        <figcaption>
+          Figure {figureNumber} — {block.nonterminal}
+        </figcaption>
+      </figure>
+    );
+  }
+  // Tokens/Settings/Precedence: kept in the monospace font even inside this serif reading view —
+  // code stays code, matching ordinary book typesetting (prose serif, code mono), not a special
+  // case invented for this feature.
+  return (
+    <div class="gramaire__paper-source">
+      <div class="gramaire__paper-source-label">{cellLabel(block)}</div>
+      <pre>{block.text}</pre>
+    </div>
+  );
+}
+
+function PaperView() {
+  let ruleCount = 0;
+  return (
+    <div class="gramaire__paper">
+      {blocks.value.map((block, index) => {
+        const figureNumber = block.kind === "rule" ? ++ruleCount : null;
+        return (
+          <PaperBlock
+            key={`paper-${index}`}
+            block={block}
+            figureNumber={figureNumber}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -1138,6 +1226,8 @@ export function GramaireNotebookIsland(
               }}
               onBlur={commitSourceEdit}
             />
+          ) : viewMode.value === "paper" ? (
+            <PaperView />
           ) : showNotebook.value ? (
             <>
               {blocks.value.flatMap((block, index) => [
