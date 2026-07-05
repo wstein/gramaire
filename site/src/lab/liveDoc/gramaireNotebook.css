@@ -329,6 +329,26 @@
   color: var(--fg-secondary);
 }
 
+/* Livebook-style simultaneous source+preview — shown below the raw-markdown editor while it's
+   open, not instead of it, updating live on every keystroke (GramaireNotebookIsland.tsx's own
+   `previewBlocks`, recomputed from the draft, not the last-committed `block.text`). A muted
+   label + a lighter background distinguish it from the read-only rendered view a click normally
+   collapses to, so it doesn't read as "two copies of the same text by accident." */
+.gramaire__prose-preview {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-1);
+}
+.gramaire__prose-preview-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  margin-bottom: 6px;
+}
+
 /* Save/Cancel (+ the prose editor's own Bold/Italic/Heading/Code/Link) — a standalone rounded
    bar above the prose textarea (the default shape) or, with the `--flush` modifier, a borderless
    strip directly above a grammar cell's CodeMirror editor (a plain bottom-border separator,

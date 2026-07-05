@@ -540,6 +540,15 @@ function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
     const withTextarea = (fn: (el: HTMLTextAreaElement) => void) => () => {
       if (textareaRef.current) fn(textareaRef.current);
     };
+    // Livebook-style simultaneous source+preview: recomputed on every keystroke from the CURRENT
+    // draft, not `block.text` (which only updates on commit) — cheap enough to do unconditionally
+    // because `parseMarkdownLite` is a pure client-side function, no engine round-trip involved
+    // (unlike a rule cell's own "preview", a compiled railroad diagram — out of scope for exactly
+    // that reason).
+    const previewBlocks = useMemo(
+      () => parseMarkdownLite(proseDraft.value),
+      [proseDraft.value],
+    );
     return (
       <>
         <EditorToolbar
@@ -610,6 +619,10 @@ function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
             endEditProse(index);
           }}
         />
+        <div class="gramaire__prose-preview">
+          <div class="gramaire__prose-preview-label">Preview</div>
+          <MarkdownBlocks blocks={previewBlocks} />
+        </div>
       </>
     );
   }
