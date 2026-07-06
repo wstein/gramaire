@@ -17,6 +17,11 @@ class MirrorRebrandScriptTests(unittest.TestCase):
         self.assertIn("--blob-callback", script)
         self.assertIn("commit_msg_callback.py", script)
 
+    def test_script_creates_work_dir_before_writing_blob_callback(self) -> None:
+        script = SCRIPT_PATH.read_text(encoding="utf-8")
+        self.assertIn('mkdir -p "$WORK_DIR"', script)
+        self.assertIn('cat > "$BLOB_CALLBACK_FILE" <<PY', script)
+
 
 if __name__ == "__main__":
     unittest.main()
