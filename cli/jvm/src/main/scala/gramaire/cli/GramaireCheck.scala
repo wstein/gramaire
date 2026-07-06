@@ -352,7 +352,8 @@ object GramaireCheck:
         Vector("```mermaid", s"%% Railroad diagram for the $name rule") ++ body ++ Vector("```")
 
   // Rewrite every diagram region (image link or mermaid fence) to the
-  // target mode, leaving the rest of the document untouched.
+  // target mode, leaving the rest of the document untouched. Also auto-insert
+  // diagram references for rules that have source code but no diagram yet.
   def convertDiagrams(
       src: String,
       contentByRule: Map[String, String],
@@ -362,12 +363,14 @@ object GramaireCheck:
   ): String =
     val lines = src.split("\n", -1).toVector
     val out = Vector.newBuilder[String]
+    var processedNonterminals = Set.empty[String]
     var i = 0
     while i < lines.length do
       val line = lines(i)
       line match
         case imageRe(name) =>
           out ++= diagramFor(name, contentByRule.getOrElse(name, ""), nonterminals, mode, stem)
+          processedNonterminals += name
           i += 1
         case _ =>
           val fenceMatch = "^(`{3,})mermaid\\s*$".r.findFirstMatchIn(line)
@@ -381,10 +384,69 @@ object GramaireCheck:
               val close = ("^`{" + fenceLen + ",}\\s*$").r
               while j < lines.length && close.findFirstIn(lines(j)).isEmpty do j += 1
               out ++= diagramFor(name, contentByRule.getOrElse(name, ""), nonterminals, mode, stem)
+              processedNonterminals += name
               i = j + 1
             case _ =>
-              out += line
-              i += 1
+              // Check if this is a gramaire rule fence that needs a diagram
+              line match
+                case fenceOpenRe(backticks, rawInfo) if rawInfo.trim == "gramaire" =>
+                  val fenceLen = backticks.length
+                  val content = Vector.newBuilder[String]
+                  var j = i + 1
+                  var closed = false
+                  while j < lines.length && !closed do
+                    lines(j) match
+                      case fenceCloseRe(closeBackticks) if closeBackticks.length >= fenceLen =>
+                        closed = true
+                      case _ =>
+                        content += lines(j)
+                        j += 1
+                  val contentStr = content.result().mkString("\n")
+                  val isRuleFence = Lr.classifyFenceContent(contentStr) == Lr.FenceKind.Rule
+                  val ruleNameOpt =
+                    if isRuleFence then
+                      contentStr.split("\n", -1).toVector
+                        .find(_.trim.nonEmpty)
+                        .flatMap { first =>
+                          first.trim.split("\\s+", -1).headOption.filter(_.nonEmpty)
+                        }
+                    else None
+                  
+                  out += line
+                  out ++= lines.slice(i + 1, j)
+                  out += lines(j)
+                  
+                  // After the rule fence, check if there's a diagram reference
+                  val afterFenceIdx = j + 1
+                  val hasDiagramAfter = lines.lift(afterFenceIdx) match
+                    case Some(nextLine) =>
+                      imageRe.findFirstMatchIn(nextLine).isDefined ||
+                        (fenceMatch
+                          .flatMap(_ =>
+                            lines.lift(afterFenceIdx + 1).flatMap(mermaidTagRe.findFirstMatchIn)
+                          )
+                          .isDefined)
+                    case None => false
+                  
+                  // If this is a rule fence without a diagram and we haven't seen it yet, insert one
+                  if isRuleFence && ruleNameOpt.isDefined && !hasDiagramAfter && !processedNonterminals
+                      .contains(ruleNameOpt.get)
+                  then
+                    val ruleName = ruleNameOpt.get
+                    out += ""
+                    out ++= diagramFor(
+                      ruleName,
+                      contentByRule.getOrElse(ruleName, ""),
+                      nonterminals,
+                      mode,
+                      stem
+                    )
+                    processedNonterminals += ruleName
+                  
+                  i = afterFenceIdx
+                case _ =>
+                  out += line
+                  i += 1
     out.result().mkString("\n")
 
   private val detailsOpenLine = "<details>"
