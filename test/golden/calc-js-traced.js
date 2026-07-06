@@ -16,6 +16,16 @@ function tuple(values, names) {
   return t;
 }
 
+// Host-supplied functions resolving `-> name` delegates with no embedded implementation —
+// see setExternals below.
+let externals = {};
+
+// Register the named functions a `-> name` delegate with no embedded `## Externals`
+// implementation resolves against at runtime. Call before evaluate/evaluateTraced.
+export function setExternals(impl) {
+  externals = impl;
+}
+
 function fold(node) {
   if (node.token !== undefined) return { token: node.token, text: node.text, value: node.text };
   const kidsAnnotated = node.children.map(fold);
