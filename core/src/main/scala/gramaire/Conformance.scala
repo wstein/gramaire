@@ -101,15 +101,16 @@ object Conformance:
 
   /** The `lr` grammar corpus: clearly-valid and clearly-invalid `lr` snippets. */
   val lrVectors: Vector[TestVector] = Vector(
-    TestVector("single rule, literal rhs", "Foo\n: 'x'", Outcome.Accept),
-    TestVector("two symbols on the rhs", "Foo\n: Bar 'x'", Outcome.Accept),
-    TestVector("rule with a semantic action", "Foo\n: 'x' {% \\a -> a %}", Outcome.Accept),
-    TestVector("two alternatives", "Foo\n: 'x'\n| 'y'", Outcome.Accept),
-    TestVector("two rules", "A\n: 'x'\n\nB\n: 'y'", Outcome.Accept),
+    TestVector("single rule, literal rhs", "Foo\n: 'x' ;", Outcome.Accept),
+    TestVector("two symbols on the rhs", "Foo\n: Bar 'x' ;", Outcome.Accept),
+    TestVector("rule with a semantic action", "Foo\n: 'x' {% \\a -> a %} ;", Outcome.Accept),
+    TestVector("two alternatives", "Foo\n: 'x'\n| 'y' ;", Outcome.Accept),
+    TestVector("two rules", "A\n: 'x' ;\n\nB\n: 'y' ;", Outcome.Accept),
     TestVector("leading terminal, no lhs", "'x'", Outcome.Reject),
     TestVector("missing newline after lhs", "Foo Bar", Outcome.Reject),
     TestVector("colon but empty body", "Foo\n:", Outcome.Reject),
     TestVector("body starts with a bar", "Foo\n| 'x'", Outcome.Reject),
+    TestVector("missing terminating semicolon", "Foo\n: 'x'", Outcome.Reject),
     TestVector("empty input", "", Outcome.Reject)
   )
 

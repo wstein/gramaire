@@ -562,7 +562,7 @@ object ConvertAntlr:
     val lexerRules = p.rules.filter(_.lexer)
 
     def tokenLine(r: G4Rule): String =
-      s"${r.name} : /${regexOfAlts(r.alts)}/" + (if r.skip then "   %skip" else "")
+      s"${r.name} : /${regexOfAlts(r.alts)}/" + (if r.skip then "   %skip ;" else " ;")
 
     // Headless — no heading of its own, immediately after the H1 (fmt-output-contract.md
     // §"Canonical document structure" item 3): `%name` reads like a source file's leading
@@ -583,7 +583,7 @@ object ConvertAntlr:
     def ruleSection(r: G4Rule): String =
       s"## ${r.name}\n\n```gramaire\n${r.name}\n  : " + r.alts
         .map(renderTopAlt)
-        .mkString("\n  | ") + "\n```\n"
+        .mkString("\n  | ") + "\n  ;\n```\n"
 
     val markdown =
       (Vector(s"# ${p.name}\n") ++ settingsSection ++ tokensSection ++ parserRules.map(

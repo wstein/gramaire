@@ -4,24 +4,24 @@ package gramaire
 class TokensSuite extends munit.FunSuite:
 
   private val lrTokens = List(
-    "WS       : /[ \\t]+/                  %skip",
-    "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/     %external(layout)",
-    "IDENT    : /[A-Za-z_][A-Za-z0-9_]*/",
-    "TERM_LIT : /`([^`]+)`/",
-    "ACTION   : /\\{%((?:[^%]|%[^}])*)%\\}/",
-    "LABEL    : /#[ \\t]*([A-Za-z_][A-Za-z0-9_]*)/",
-    "PLUS     : \"+\"",
-    "STAR     : \"*\"",
-    "QUESTION : \"?\"",
-    "LANGLE   : \"<\"",
-    "RANGLE   : \">\"",
-    "COMMA    : \",\""
+    "WS       : /[ \\t]+/                  %skip ;",
+    "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/     %external(layout) ;",
+    "IDENT    : /[A-Za-z_][A-Za-z0-9_]*/ ;",
+    "TERM_LIT : /`([^`]+)`/ ;",
+    "ACTION   : /\\{%((?:[^%]|%[^}])*)%\\}/ ;",
+    "LABEL    : /#[ \\t]*([A-Za-z_][A-Za-z0-9_]*)/ ;",
+    "PLUS     : \"+\" ;",
+    "STAR     : \"*\" ;",
+    "QUESTION : \"?\" ;",
+    "LANGLE   : \"<\" ;",
+    "RANGLE   : \">\" ;",
+    "COMMA    : \",\" ;"
   ).mkString("\n")
 
   private val jsonTokens = List(
-    "STRING : /\"(?:[^\"\\\\]|\\\\.)*\"/",
-    "NUMBER : /-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/",
-    "WS     : /[ \\t\\r\\n]+/    %skip"
+    "STRING : /\"(?:[^\"\\\\]|\\\\.)*\"/ ;",
+    "NUMBER : /-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/ ;",
+    "WS     : /[ \\t\\r\\n]+/    %skip ;"
   ).mkString("\n")
 
   private def byName(n: String, defs: Vector[TokenDef]): Option[TokenDef] = defs.find(_.name == n)
@@ -48,7 +48,7 @@ class TokensSuite extends munit.FunSuite:
 
   test("the /…/i flag and %caseless both set caseless (D35)") {
     val defs = Tokens
-      .parseTokens("KW : /select/i\nBG : \"begin\" %caseless\nID : /[a-z]+/")
+      .parseTokens("KW : /select/i ;\nBG : \"begin\" %caseless ;\nID : /[a-z]+/ ;")
       .getOrElse(fail("caseless tokens should parse"))
     assert(byName("KW", defs).exists(_.caseless))
     assert(byName("BG", defs).exists(_.caseless))
@@ -58,9 +58,12 @@ class TokensSuite extends munit.FunSuite:
   test("malformed lines are rejected") {
     def reject(why: String, src: String): Unit =
       assert(Tokens.parseTokens(src).isLeft, s"should reject $why: $src")
-    reject("a lowercase name", "ident : /a/")
-    reject("a missing colon", "X /a/")
-    reject("a forbidden regex construct", "X : /a(?=b)/")
-    reject("an unknown modifier", "X : /a/ %bogus")
-    reject("%prec without a number", "X : /a/ %prec")
+    // Each carries its own trailing `;` so the rejection still exercises the NAMED failure mode
+    // below, not just the (also-real, separately tested) missing-terminator case.
+    reject("a lowercase name", "ident : /a/ ;")
+    reject("a missing colon", "X /a/ ;")
+    reject("a forbidden regex construct", "X : /a(?=b)/ ;")
+    reject("an unknown modifier", "X : /a/ %bogus ;")
+    reject("%prec without a number", "X : /a/ %prec ;")
+    reject("a missing terminating semicolon", "X : /a/")
   }

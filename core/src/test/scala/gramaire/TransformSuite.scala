@@ -13,8 +13,8 @@ class TransformSuite extends munit.FunSuite:
       |## Tokens
       |
       |```gramaire
-      |NUMBER : /[0-9]+(?:\.[0-9]+)?/
-      |WS     : /[ \t\r\n]+/   %skip
+      |NUMBER : /[0-9]+(?:\.[0-9]+)?/;
+      |WS     : /[ \t\r\n]+/   %skip;
       |```
       |
       |## Expr
@@ -24,6 +24,7 @@ class TransformSuite extends munit.FunSuite:
       |  : left:Expr '+' right:Term   # Add
       |  | left:Expr '-' right:Term   # Sub
       |  | Term
+      |  ;
       |```
       |
       |## Term
@@ -33,6 +34,7 @@ class TransformSuite extends munit.FunSuite:
       |  : left:Term '*' right:Factor   # Mul
       |  | left:Term '/' right:Factor   # Div
       |  | Factor
+      |  ;
       |```
       |
       |## Factor
@@ -41,6 +43,7 @@ class TransformSuite extends munit.FunSuite:
       |Factor
       |  : '(' inner:Expr ')'   # Paren
       |  | value:NUMBER         # Num
+      |  ;
       |```
       |""".stripMargin
 

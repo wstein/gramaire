@@ -50,23 +50,26 @@ class TableSuite extends munit.FunSuite:
   private def t(s: String): GSym = GSym.Term(s)
   private def set(xs: GSym*): Set[GSym] = xs.toSet
 
+  // A mandatory trailing `;` (Bootstrap.scala's `Rule`) now ends every rule, replacing the boundary
+  // `NL` that used to separate consecutive rules in `RuleList` — so `;` appears everywhere `NL`
+  // used to in these FOLLOW sets, and `RuleList`/`Rule` themselves are followed directly by the
+  // NEXT rule's own head tokens (`ATTR`/`IDENT`) or `EOF`, not `NL`/`EOF`.
   private val bigFollow: Set[GSym] = set(
     t("("),
     t(")"),
     t("."),
+    t(";"),
     t("ACTION"),
     t("COMMA"),
     t("IDENT"),
     t("LABEL"),
-    t("NL"),
     t("PLUS"),
     t("QUESTION"),
     t("RANGLE"),
     t("STAR"),
     t("TERM_LIT"),
     t("|"),
-    t("~"),
-    GSym.EOF
+    t("~")
   )
 
   private val expectedFirst: Map[String, Set[GSym]] = Map(
@@ -89,27 +92,26 @@ class TableSuite extends munit.FunSuite:
 
   private val expectedFollow: Map[String, Set[GSym]] = Map(
     "Grammar" -> set(GSym.EOF),
-    "RuleList" -> set(t("NL"), GSym.EOF),
-    "Rule" -> set(t("NL"), GSym.EOF),
-    "Body" -> set(t("NL"), t("|"), GSym.EOF),
-    "Alt" -> set(t("NL"), t("|"), GSym.EOF),
+    "RuleList" -> set(t("ATTR"), t("IDENT"), GSym.EOF),
+    "Rule" -> set(t("ATTR"), t("IDENT"), GSym.EOF),
+    "Body" -> set(t(";"), t("|")),
+    "Alt" -> set(t(";"), t("|")),
     "SymList" -> set(
       t("LABEL"),
       t("ACTION"),
-      t("NL"),
+      t(";"),
       t("IDENT"),
       t("TERM_LIT"),
       t("|"),
       t("("),
       t(")"),
       t("."),
-      t("~"),
-      GSym.EOF
+      t("~")
     ),
     "Sym" -> set(
       t("LABEL"),
       t("ACTION"),
-      t("NL"),
+      t(";"),
       t("IDENT"),
       t("TERM_LIT"),
       t("RANGLE"),
@@ -118,12 +120,11 @@ class TableSuite extends munit.FunSuite:
       t("("),
       t(")"),
       t("."),
-      t("~"),
-      GSym.EOF
+      t("~")
     ),
     "Args" -> set(t("RANGLE"), t("COMMA")),
-    "Action" -> set(t("NL"), t("|"), GSym.EOF),
-    "Label" -> set(t("ACTION"), t("NL"), t("|"), GSym.EOF),
+    "Action" -> set(t(";"), t("|")),
+    "Label" -> set(t("ACTION"), t(";"), t("|")),
     "GroupBody" -> set(t(")"), t("|")),
     "Atom" -> bigFollow,
     "NotArg" -> bigFollow,

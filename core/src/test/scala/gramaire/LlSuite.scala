@@ -24,7 +24,7 @@ class LlSuite extends munit.FunSuite:
   private val cases: Vector[Case] = Vector(
     Case(
       "balanced nesting (recursive, two alts)",
-      "```gramaire\nS\n  : '(' S ')'\n  | 'x'\n```\n",
+      "```gramaire\nS\n  : '(' S ')'\n  | 'x'\n  ;\n```\n",
       Vector(
         Vec("x", true),
         Vec("(x)", true),
@@ -37,12 +37,12 @@ class LlSuite extends munit.FunSuite:
     ),
     Case(
       "right-recursive one-or-more list",
-      "```gramaire\nL\n  : 'a' L\n  | 'a'\n```\n",
+      "```gramaire\nL\n  : 'a' L\n  | 'a'\n  ;\n```\n",
       Vector(Vec("a", true), Vec("aaa", true), Vec("", false), Vec("b", false), Vec("ab", false))
     ),
     Case(
       "LL(3) decision — alts share a two-token prefix",
-      "```gramaire\nS\n  : 'a' 'b' 'c'\n  | 'a' 'b' 'd'\n  | 'x'\n```\n",
+      "```gramaire\nS\n  : 'a' 'b' 'c'\n  | 'a' 'b' 'd'\n  | 'x'\n  ;\n```\n",
       Vector(
         Vec("abc", true),
         Vec("abd", true),
@@ -54,12 +54,12 @@ class LlSuite extends munit.FunSuite:
     ),
     Case(
       "rule call whose tail belongs to the caller",
-      "```gramaire\nA\n  : B 'z'\n\nB\n  : 'a' 'b'\n  | 'a'\n```\n",
+      "```gramaire\nA\n  : B 'z'\n  ;\n\nB\n  : 'a' 'b'\n  | 'a'\n  ;\n```\n",
       Vector(Vec("abz", true), Vec("az", true), Vec("a", false), Vec("abc", false))
     ),
     Case(
       "direct left recursion — classic expression grammar (Phase 2)",
-      "```gramaire\nE\n  : E '+' T\n  | E '-' T\n  | T\n\nT\n  : T '*' F\n  | F\n\nF\n  : '(' E ')'\n  | 'n'\n```\n",
+      "```gramaire\nE\n  : E '+' T\n  | E '-' T\n  | T\n  ;\n\nT\n  : T '*' F\n  | F\n  ;\n\nF\n  : '(' E ')'\n  | 'n'\n  ;\n```\n",
       Vector(
         Vec("n", true),
         Vec("n+n", true),
@@ -75,7 +75,7 @@ class LlSuite extends munit.FunSuite:
     ),
     Case(
       "left recursion with two distinct base alternatives (multi-base fold)",
-      "```gramaire\nA\n  : A '+' 'x'\n  | 'y'\n  | 'z'\n```\n",
+      "```gramaire\nA\n  : A '+' 'x'\n  | 'y'\n  | 'z'\n  ;\n```\n",
       Vector(
         Vec("y", true),
         Vec("z", true),
@@ -101,7 +101,7 @@ class LlSuite extends munit.FunSuite:
     // full PredictionContext DAG — see docs/all-star-port-plan.md §6) resolves correctly today.
     Case(
       "indirect left recursion — mutual A/B, A a bare pass-through (Paull's algorithm)",
-      "```gramaire\nA\n  : B\n\nB\n  : A 'z'\n  | 'w'\n```\n",
+      "```gramaire\nA\n  : B\n  ;\n\nB\n  : A 'z'\n  | 'w'\n  ;\n```\n",
       Vector(
         Vec("w", true),
         Vec("wz", true),
@@ -117,7 +117,7 @@ class LlSuite extends munit.FunSuite:
     // A-layer) rather than just one.
     Case(
       "indirect left recursion — three-rule cycle A/B/C, both intermediates bare pass-throughs",
-      "```gramaire\nA\n  : B\n\nB\n  : C\n\nC\n  : A 'z'\n  | 'w'\n```\n",
+      "```gramaire\nA\n  : B\n  ;\n\nB\n  : C\n  ;\n\nC\n  : A 'z'\n  | 'w'\n  ;\n```\n",
       Vector(
         Vec("w", true),
         Vec("wz", true),
@@ -209,7 +209,7 @@ class LlSuite extends munit.FunSuite:
     // the fresh atom rule still self-referencing `expr`, which would blow up the ATN closure
     // computation (regression: it used to). Bailing out on stratification for this rule is the
     // correct fallback, matching the no-operators-covered case.
-    val grammar = "```gramaire\nexpr\n  : expr '+' expr\n  | expr '%' expr\n  | 'n'\n```\n"
+    val grammar = "```gramaire\nexpr\n  : expr '+' expr\n  | expr '%' expr\n  | 'n'\n  ;\n```\n"
     Lr.parse(grammar) match
       case Left(e) => fail(s"grammar should parse: $e")
       case Right(g) =>
@@ -229,7 +229,7 @@ class LlSuite extends munit.FunSuite:
   // are the same literal `'n'` throughout, since the Cst comparison is structural (which
   // production reduced where), not about distinguishing operand values.
   private def precTestGrammar(op: String, assoc: String): String =
-    s"```gramaire\nexpr\n  : expr '$op' expr\n  | 'n'\n```\n\n" +
+    s"```gramaire\nexpr\n  : expr '$op' expr\n  | 'n'\n  ;\n```\n\n" +
       s"## Precedence\n\n```gramaire\n$assoc '$op'\n```\n"
 
   test("Ll.parse handles %right (right-associative operator) matching the LR oracle") {
@@ -321,7 +321,7 @@ class LlSuite extends munit.FunSuite:
   }
 
   test("Ll.parseTraced's trace ends in Accept, with a Match step per consumed token in order") {
-    val grammar = "```gramaire\nS\n  : 'a' 'b' 'c'\n```\n"
+    val grammar = "```gramaire\nS\n  : 'a' 'b' 'c'\n  ;\n```\n"
     Lr.parse(grammar) match
       case Left(e) => fail(s"grammar should parse: $e")
       case Right(g) =>
@@ -343,7 +343,7 @@ class LlSuite extends munit.FunSuite:
 
   test("Ll.parseTraced's ruleStack reflects nested rule calls") {
     // A : B 'z' ; B : 'a' 'b' | 'a' — inside B's Match steps, the stack must be [A, B].
-    val grammar = "```gramaire\nA\n  : B 'z'\n\nB\n  : 'a' 'b'\n  | 'a'\n```\n"
+    val grammar = "```gramaire\nA\n  : B 'z'\n  ;\n\nB\n  : 'a' 'b'\n  | 'a'\n  ;\n```\n"
     Lr.parse(grammar) match
       case Left(e) => fail(s"grammar should parse: $e")
       case Right(g) =>
@@ -408,7 +408,7 @@ class LlSuite extends munit.FunSuite:
   }
 
   test("Ll.parseTraced reports trailing input as an LlError expecting `$`") {
-    val grammar = "```gramaire\nS\n  : 'x'\n```\n"
+    val grammar = "```gramaire\nS\n  : 'x'\n  ;\n```\n"
     Lr.parse(grammar) match
       case Left(e) => fail(s"grammar should parse: $e")
       case Right(g) =>
@@ -425,7 +425,7 @@ class LlSuite extends munit.FunSuite:
   }
 
   test("Ll.parseTraced reports an unmatched terminal as an LlError naming it as expected") {
-    val grammar = "```gramaire\nS\n  : 'a' 'b'\n```\n"
+    val grammar = "```gramaire\nS\n  : 'a' 'b'\n  ;\n```\n"
     Lr.parse(grammar) match
       case Left(e) => fail(s"grammar should parse: $e")
       case Right(g) =>
@@ -454,7 +454,7 @@ class LlSuite extends munit.FunSuite:
   test(
     "Ll.parseTraced's declaration-order-resolved Cst is one of the GLR forest's real parses, for a genuinely ambiguous grammar"
   ) {
-    val grammar = "```gramaire\nE\n  : E E\n  | 'x'\n```\n"
+    val grammar = "```gramaire\nE\n  : E E\n  | 'x'\n  ;\n```\n"
     Lr.parse(grammar) match
       case Left(e) => fail(s"grammar should parse: $e")
       case Right(g) =>
@@ -487,7 +487,7 @@ class LlSuite extends munit.FunSuite:
   test("a tracking cache records a genuine SLL ambiguity, resolved by declaration order") {
     // S has no way to tell A from B by lookahead alone — both derive exactly "x" — so every
     // config reaching S's end is tied between alt 0 (A) and alt 1 (B); first-alt-wins picks A.
-    val grammar = "```gramaire\nS\n  : A\n  | B\n\nA\n  : 'x'\n\nB\n  : 'x'\n```\n"
+    val grammar = "```gramaire\nS\n  : A\n  | B\n  ;\n\nA\n  : 'x'\n  ;\n\nB\n  : 'x'\n  ;\n```\n"
     Lr.parse(grammar) match
       case Left(e) => fail(s"grammar should parse: $e")
       case Right(g) =>
@@ -515,7 +515,7 @@ class LlSuite extends munit.FunSuite:
   test(
     "the declaration-order tie-break builds the first alternative's own Cst, not just records it as the winner"
   ) {
-    val grammar = "```gramaire\nS\n  : A\n  | B\n\nA\n  : 'x'\n\nB\n  : 'x'\n```\n"
+    val grammar = "```gramaire\nS\n  : A\n  | B\n  ;\n\nA\n  : 'x'\n  ;\n\nB\n  : 'x'\n  ;\n```\n"
     Lr.parse(grammar) match
       case Left(e) => fail(s"grammar should parse: $e")
       case Right(g) =>

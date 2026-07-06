@@ -12,7 +12,7 @@ class FenceModelSuite extends munit.FunSuite:
       |## Tokens
       |
       |```gramaire tokens
-      |NUMBER : /[0-9]+/
+      |NUMBER : /[0-9]+/ ;
       |```
       |
       |## S
@@ -20,6 +20,7 @@ class FenceModelSuite extends munit.FunSuite:
       |```gramaire
       |S
       |  : NUMBER
+      |  ;
       |```
       |""".stripMargin
     Lr.parseWith(Method.Canonical, md) match
@@ -42,6 +43,7 @@ class FenceModelSuite extends munit.FunSuite:
       |```gramaire
       |S
       |  : 'x'
+      |  ;
       |```
       |
       |```gramaire errors
@@ -67,7 +69,7 @@ class FenceModelSuite extends munit.FunSuite:
       |## Tokens
       |
       |```gramaire
-      |NUMBER : [0-9]+
+      |NUMBER : [0-9]+ ;
       |```
       |
       |## S
@@ -75,6 +77,7 @@ class FenceModelSuite extends munit.FunSuite:
       |```gramaire
       |S
       |  : NUMBER
+      |  ;
       |```
       |""".stripMargin
     Lr.parseWith(Method.Canonical, md) match
@@ -100,6 +103,7 @@ class FenceModelSuite extends munit.FunSuite:
       |```gramaire
       |S
       |  : 'x'
+      |  ;
       |```
       |""".stripMargin
     assertEquals(Lr.nameOf(md), Some("Calc"))
@@ -107,7 +111,7 @@ class FenceModelSuite extends munit.FunSuite:
   }
 
   test("nameOf is None when no %name directive is present") {
-    assertEquals(Lr.nameOf("```gramaire\nS\n  : 'x'\n```\n"), None)
+    assertEquals(Lr.nameOf("```gramaire\nS\n  : 'x'\n  ;\n```\n"), None)
   }
 
   test("actionLangOf ignores a `%lang`-looking sentence in prose, only reading fenced settings") {
@@ -118,6 +122,7 @@ class FenceModelSuite extends munit.FunSuite:
       |```gramaire
       |S
       |  : 'x'
+      |  ;
       |```
       |""".stripMargin
     assertEquals(Lr.actionLangOf(md), None)
@@ -126,7 +131,7 @@ class FenceModelSuite extends munit.FunSuite:
   test(
     "precedenceOf reads a Precedence-role fence in a fence-free `.gram` (regression: toFenced used to drop precedence lines entirely)"
   ) {
-    val gram = "%name T\n\nS\n  : S '+' S\n  | 'x'\n\n%left '+'\n"
+    val gram = "%name T\n\nS\n  : S '+' S\n  | 'x'\n  ;\n\n%left '+'\n"
     val prec = Lr.precedenceOf(gram)
     assertEquals(prec.terms.get("+").map(_.assoc), Some(Assoc.LeftA))
   }
@@ -148,6 +153,7 @@ class FenceModelSuite extends munit.FunSuite:
       |```gramaire
       |S
       |  : 'x'
+      |  ;
       |```
       |""".stripMargin
     val stripped = Lr.strip(md)

@@ -19,6 +19,7 @@ class DocCommentsSuite extends munit.FunSuite:
       |Expr
       |  : Expr '+' Term
       |  | Term
+      |  ;
       |```
       |
       |## Term
@@ -26,6 +27,7 @@ class DocCommentsSuite extends munit.FunSuite:
       |```gramaire
       |Term
       |  : 'x'
+      |  ;
       |```
       |""".stripMargin
 
@@ -34,7 +36,7 @@ class DocCommentsSuite extends munit.FunSuite:
   }
 
   test("docCommentsOf finds nothing for a section with no prose before its fence") {
-    val bare = "## Term\n\n```gramaire\nTerm\n  : 'x'\n```\n"
+    val bare = "## Term\n\n```gramaire\nTerm\n  : 'x'\n  ;\n```\n"
     assertEquals(Lr.docCommentsOf(bare), Map.empty[String, String])
   }
 
@@ -62,6 +64,7 @@ class DocCommentsSuite extends munit.FunSuite:
         |Expr
         |  : Expr '+' Term
         |  | Term
+        |  ;
         |```
         |
         |</details>
@@ -77,7 +80,7 @@ class DocCommentsSuite extends munit.FunSuite:
       "not just a bare rule name"
   ) {
     val withAttr =
-      "## Inner\n\nAn inlined helper rule.\n\n```gramaire\n#[inline] Inner\n  : 'x'\n```\n"
+      "## Inner\n\nAn inlined helper rule.\n\n```gramaire\n#[inline] Inner\n  : 'x'\n  ;\n```\n"
     assertEquals(Lr.docCommentsOf(withAttr), Map("Inner" -> "An inlined helper rule."))
   }
 

@@ -12,11 +12,9 @@ object ConformanceLexers:
   // A language's input lexer: source text to tokens, or a reason it cannot.
   type Lexer = String => Either[String, Vector[Token]]
 
-  /** The `lr` notation's lexer, adapted to a `Lexer`. The trailing newline lets the final rule's
-    * `AltTail` close.
-    */
+  /** The `lr` notation's lexer, adapted to a `Lexer`. */
   val lrLexer: Lexer = input =>
-    Lexer.tokenize(input + "\n") match
+    Lexer.tokenize(input) match
       case Left(e)     => Left(e.toString)
       case Right(toks) => Right(Lexer.normalizeNewlines(toks))
 
