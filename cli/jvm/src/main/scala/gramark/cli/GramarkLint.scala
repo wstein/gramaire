@@ -1,6 +1,7 @@
 package gramark.cli
 
 import gramark.IR
+import gramark.IRTerminal
 
 // `gramark lint --target <name> <file>`: a preflight compat gate answering "will this grammar
 // survive export to this backend, and if not, what specifically breaks?" Deliberately reuses the
@@ -9,7 +10,7 @@ import gramark.IR
 // below is a pure, located `Vector[String]` finding list against a resolved backend name, the
 // exact shape `GramarkCheck.GateResult` already uses for `check`'s own structure/drift gates.
 //
-// A first version, not an exhaustive compatibility auditor: three checks, each verified empirically
+// A first version, not an exhaustive compatibility auditor: six checks, each verified empirically
 // against the current backends rather than assumed from the notation's own docs.
 object GramarkLint:
 
@@ -67,6 +68,84 @@ object GramarkLint:
           "the delegate reference that names it"
       }
 
+  // Confirmed empirically: ANTLR4 has a genuine, native `# Name` alt-label syntax (ADR D26) —
+  // `BackendAntlr.scala`'s `parserRule`/`altText` never reads `r.label` at all, so a labeled
+  // alternative renders as a bare, unlabeled alt even though the target format could carry the
+  // label losslessly. (`BackendTs.scala`, checked for contrast, DOES read `r.label` to prefer it
+  // over its own fallback name — so this is a real gap in `BackendAntlr` specifically, not an
+  // inherent notation mismatch; deliberately scoped to `antlr`/`bison` only, since only those two
+  // were verified here.) Real Bison/yacc has no alt-label concept at all — no `.y` syntax names
+  // one alternative of a rule — so the loss there is structural, not a missed opportunity, but
+  // still real: an author relying on the label for downstream tooling loses it either way.
+  def altLabelLoss(ir: IR, backendName: String): Vector[String] =
+    if backendName != "antlr" && backendName != "bison" then Vector.empty
+    else
+      val ntNameById = ir.grammar.nonterminals.map(n => n.id -> n.name).toMap
+      ir.grammar.rules.collect {
+        case r if r.label.isDefined =>
+          val lbl = r.label.get
+          val rule = ntNameById.getOrElse(r.lhs, s"nt${r.lhs}")
+          val why =
+            if backendName == "antlr" then
+              "ANTLR4 has native `# Name` alt-label syntax, but this backend never emits it"
+            else "Bison/yacc has no alt-label concept at all for it to go into"
+          s"rule `$rule`'s alternative is labeled `# $lbl`; $why, so the label vanishes on " +
+            "export (visitor/accessor method names and CST-node naming that depend on it are lost)"
+      }
+
+  // Confirmed empirically: ANTLR4's `.g4` syntax has no case-insensitive-terminal flag (no
+  // `@caseless`-equivalent token option — real ANTLR4 needs either the `caseInsensitive` grammar
+  // option (4.10+) or a manual `[Ss][Ee]...`-style character-class expansion, neither of which
+  // this backend does). `BackendAntlr.scala`'s `lexerRule` renders `cls.pattern` through
+  // `patternText`/`regexToAntlr` completely UNCHANGED, ignoring `IRTokenClass.caseless` (ADR D35)
+  // entirely — worse than a dropped decoration: the emitted `.g4` lexer rule matches only the
+  // EXACT case spelled in the source pattern, so it silently accepts a strictly NARROWER language
+  // than the caseless token class actually specifies (e.g. a caseless `SELECT` keyword no longer
+  // matches `select`/`Select` after export). `BackendBison.scala` never emits token patterns at
+  // all (`%token` declares only names — Bison itself has no lexer section, that's Flex's job, a
+  // separate `.l` file this exporter doesn't produce), so there is no pattern for it to get wrong
+  // there; this check is deliberately `antlr`-only.
+  def caselessLoss(ir: IR, backendName: String): Vector[String] =
+    if backendName != "antlr" then Vector.empty
+    else
+      val termById = ir.grammar.terminals.map(t => t.id -> t).toMap
+      ir.lexer match
+        case None => Vector.empty
+        case Some(lx) =>
+          lx.classes.collect {
+            case c if c.caseless =>
+              val name = termById
+                .get(c.terminal)
+                .collect { case IRTerminal.IRClass(_, n) => n }
+                .getOrElse(s"T${c.terminal}")
+              s"token class `$name` is declared `@caseless`; ANTLR4 has no case-insensitive-" +
+                "terminal syntax and this backend does no case-folding, so the exported `.g4` " +
+                "lexer rule matches only the exact case written — silently accepting a NARROWER " +
+                "language than the source grammar, not merely losing a decoration"
+          }
+
+  // Confirmed empirically (same grep as `delegateLoss`/`externalsLoss`): neither backend — nor any
+  // other first-party textual/code backend, `js` included, unlike `delegate`/`externals` which
+  // `BackendJs` was specifically extended to render (D51) — reads `IRRule.predicate` at all. A
+  // rule whose alternative only fires under a semantic guard (`{%? %}`, D-predicates) renders as a
+  // bare, unconditional alt: the guard vanishes, so the exported grammar accepts every input the
+  // ungated alternative shape allows. If the predicate existed to rule out an ambiguity or a
+  // context the bare BNF shape alone can't express, this is a real change to the accepted
+  // language, not merely a lost comment — exempted only for `ir`, which serializes the predicate
+  // marker as JSON and so loses nothing.
+  def predicateLoss(ir: IR, backendName: String): Vector[String] =
+    if backendName == "ir" then Vector.empty
+    else
+      val ntNameById = ir.grammar.nonterminals.map(n => n.id -> n.name).toMap
+      ir.grammar.rules.collect {
+        case r if r.predicate.isDefined =>
+          val rule = ntNameById.getOrElse(r.lhs, s"nt${r.lhs}")
+          s"rule `$rule`'s alternative carries a semantic predicate (`{%? %}`); the " +
+            s"'$backendName' backend never reads `IRRule.predicate`, so the guard vanishes and " +
+            "the alternative becomes unconditionally available on export — a different accepted " +
+            "language, not just a lost decoration"
+      }
+
   /** All of `lint`'s checks against `ir` for the named target backend, one `GateResult` per check —
     * mirrors `GramarkCheck.checkStructure`/`checkDrift`'s pass-is-empty convention exactly, so
     * `runLint` can present them the same way `runCheck` presents its own gates.
@@ -75,5 +154,8 @@ object GramarkLint:
     Vector(
       GramarkCheck.GateResult("precedence", precedenceLoss(ir, backendName)),
       GramarkCheck.GateResult("delegate", delegateLoss(ir, backendName)),
-      GramarkCheck.GateResult("externals", externalsLoss(ir, backendName))
+      GramarkCheck.GateResult("externals", externalsLoss(ir, backendName)),
+      GramarkCheck.GateResult("altLabel", altLabelLoss(ir, backendName)),
+      GramarkCheck.GateResult("caseless", caselessLoss(ir, backendName)),
+      GramarkCheck.GateResult("predicate", predicateLoss(ir, backendName))
     )
