@@ -44,7 +44,8 @@ from the concatenated content of every fenced code block whose info string is
   fully self-describing independent of how it was loaded (a file on disk, pasted
   into the Lab, piped over stdin).
 - **Nonterminal rules.** A Rule-role fence's own head (`Name` on its own line,
-  then `:` and its alternatives) names the nonterminal — never a heading.
+  then `:` and its alternatives, ending with a mandatory `;`) names the
+  nonterminal — never a heading.
 - **Presentational headings.** Every heading level, including the `# H1` and
   `## H2` layers, is free grouping the analyzer entirely ignores.
   `gramaire fmt`'s canonical output still uses `## Tokens` / `## <Nonterminal>` /
@@ -71,7 +72,7 @@ Inside an `lr` productions block the lexer emits these token classes:
 | ------------------------- | ------------------------ | ---------------------------------------------------- |
 | `IDENT`                   | `[A-Za-z_][A-Za-z0-9_]*` | a nonterminal (mixed-case) or token class (ALL-CAPS) |
 | `TERM_LIT`                | `` `…` ``                | a backtick-delimited literal terminal                |
-| `:` / `\|`                | `:` / `\|`               | rule-head colon / alternative separator              |
+| `:` / `\|` / `;`          | `:` / `\|` / `;`         | rule-head colon / alternative separator / terminator |
 | `ACTION`                  | `{% … %}`                | a semantic action; body kept verbatim                |
 | `LABEL`                   | `# Name`                 | an alternative label (visitor / accessor name)       |
 | `ATTR`                    | `#[name]`                | a rule attribute (e.g. `#[inline]`)                  |
@@ -86,22 +87,23 @@ tokenization itself is per-language: the `lr` lexer reads the grammar; a separat
 lexer turns _input_ strings into tokens whose `terminal` names match the
 grammar's terminals.
 
-## 3. Newline normalization (Option A)
+## 3. Rule/token termination and newline normalization (Option A)
 
-A line break **inside an alternative is insignificant** — `|` is the only
-alternative separator, so a long alternative may wrap across physical lines. Only
-two newlines are structural, and a normalization pass keeps exactly those before
-the parser runs:
+A rule or token definition **ends with `;`** — mirroring Bison/YACC/ANTLR4's own
+convention, it's the one explicit terminator the notation needs. A line break
+**inside an alternative is insignificant**: `|` is the only alternative
+separator, so a long alternative may still wrap across physical lines with no
+continuation marker — it's the terminating `;`, not layout, that marks exactly
+where a rule ends. Only one newline is structural, and a normalization pass
+keeps exactly that one before the parser runs:
 
 - the **head** `NL` inside `IDENT NL :` (or `ATTR IDENT NL :`), which is what
-  distinguishes a rule head from a same-line `name:Sym` field (`IDENT : Sym`);
-  and
-- the **boundary** `NL` immediately before the next head.
+  distinguishes a rule head from a same-line `name:Sym` field (`IDENT : Sym`).
 
 Every other newline — between two symbols, before a `|`, before a label or
-action, at a block edge — is dropped. The lookahead that classifies a newline
-happens once, in this pass, so the grammar stays LR(1) on one token of lookahead
-with no `;` terminators.
+action, at a block edge, and (before `;` existed) the boundary newline that
+used to separate consecutive rules — is dropped. The lookahead that classifies
+a newline happens once, in this pass.
 
 <Aside type="caution">
   A consequence: a `name:Sym` field MUST stay on one line. Splitting it across a
@@ -193,6 +195,7 @@ expr
   : expr '*' term   # MulDiv
   | expr '+' term   # AddSub
   | NUM             # Int
+  ;
 ```
 
 emits `interface Visitor<T> { MulDiv(c): T; AddSub(c): T; Int(c): T; … }` — you

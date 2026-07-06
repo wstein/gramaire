@@ -120,28 +120,33 @@ _why_ Gramaire fences pass a rule that bare ` ``` ` fences fail. GFM treats
 fence contents as opaque literal text, so `{%`, `%}`, `\`, `|`, and `+`
 inside a payload have no Markdown meaning and present no lint surface.
 
-### Line continuation inside `gramaire` blocks (Option A)
+### Rule/token termination and line continuation inside `gramaire` blocks (Option A)
 
-Within an `gramaire` productions block a **line break inside an alternative is
+A rule or token definition **ends with `;`** — mirroring Bison/YACC/ANTLR4's own
+convention, it's the one explicit terminator the notation needs. Within a
+`gramaire` productions block a **line break inside an alternative is
 insignificant** — `|` is the only alternative separator, so a long alternative
-may wrap across physical lines with no continuation marker. The two grammars
-below parse identically:
+may still wrap across physical lines with no continuation marker; it's the
+terminating `;`, not layout, that marks exactly where a rule ends. The two
+grammars below parse identically:
 
 ```text
 Expr                          Expr
   : Expr `+` Term `-` Term      : Expr `+` Term
-  | Term                            `-` Term
+  | Term ;                          `-` Term
                                 | Term
+                                ;
 ```
 
-Only two newlines are structural: the one inside a **rule head** `IDENT NL :`
+Only one newline is structural: the one inside a **rule head** `IDENT NL :`
 (which is exactly what distinguishes a head from a same-line `name:Sym` field,
-`IDENT : Sym`), and the **boundary** newline before the next head. The lexer's
-`normalizeNewlines` pass keeps those two and drops every other newline before
-the LR parser sees the stream, so the notation needs no `;` terminators and
-stays LR(1). A consequence: a `name:Sym` field must stay on one line — splitting
-it reads the name as a head. `fmt` keeps an alternative on one line when it fits
-and may wrap longer ones; wrapping is parse-invariant by construction.
+`IDENT : Sym`). The lexer's `normalizeNewlines` pass keeps that one and drops
+every other newline before the LR parser sees the stream — including, now, the
+boundary newline that used to separate consecutive rules before `;` existed;
+the mandatory terminator replaced that job outright, not alongside it. A
+consequence: a `name:Sym` field must stay on one line — splitting it reads the
+name as a head. `fmt` keeps an alternative on one line when it fits and may
+wrap longer ones; wrapping is parse-invariant by construction.
 
 ### Railroad diagrams
 
@@ -193,6 +198,7 @@ fence behind a disclosure:
 Value
   : STRING
   | NUMBER
+  ;
 ```
 
 </details>
