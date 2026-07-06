@@ -20,20 +20,51 @@
 #     simpler global one.
 #
 # Usage:
-#   ./mirror-rebrand.sh <source-repo-url-or-path> [work-dir]
+#   ./mirror-rebrand.sh [--check] <source-repo-url-or-path> [work-dir]
 #
 # Example:
 #   ./mirror-rebrand.sh git@github.com:wstein/gramark.git ./gramark-mirror-work
+#   ./mirror-rebrand.sh --check .
 #
 # Requires: git-filter-repo (brew install git-filter-repo / pip install git-filter-repo)
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SOURCE_URL="${1:?usage: $0 <source-repo-url-or-path> [work-dir]}"
+CHECK_ONLY=0
+
+usage() {
+  echo "usage: $0 [--check] <source-repo-url-or-path> [work-dir]" >&2
+}
+
+if [[ "${1:-}" == "--check" ]]; then
+  CHECK_ONLY=1
+  shift
+fi
+
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  usage
+  exit 1
+fi
+
+SOURCE_URL="$1"
 WORK_DIR="${2:-$SCRIPT_DIR/gramark-rebrand-work}"
 MIRROR_DIR="$WORK_DIR/gramark-mirror.git"
 REVIEW_CHECKOUT_DIR="$WORK_DIR/gramaire-review-checkout"
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "error: python3 not found on PATH." >&2
+  exit 1
+fi
+
+echo "== Preflight checks =="
+python3 "$SCRIPT_DIR/preflight_rebrand.py" "$SOURCE_URL"
+
+if [[ $CHECK_ONLY -eq 1 ]]; then
+  echo
+  echo "Check mode finished. No mirror clone was created and no history was rewritten."
+  exit 0
+fi
 
 if ! command -v git-filter-repo >/dev/null 2>&1; then
   echo "error: git-filter-repo not found on PATH." >&2

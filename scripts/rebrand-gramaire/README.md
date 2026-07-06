@@ -9,6 +9,8 @@ disposable `--mirror` clone — the source repo (and your real working checkout)
 ## Files
 
 - `mirror-rebrand.sh` — the orchestrating script. Run this.
+- `preflight_rebrand.py` — validates `replace-text-rules.txt`, loads `rename_paths_callback.py`
+  into a local test harness, and previews path renames from a local checkout.
 - `replace-text-rules.txt` — content-substitution rules, passed to `--replace-text`.
 - `rename_paths_callback.py` — path-rename logic, spliced into `--filename-callback`.
 
@@ -16,10 +18,16 @@ disposable `--mirror` clone — the source repo (and your real working checkout)
 
 ```sh
 ./mirror-rebrand.sh <source-repo-url-or-path> [work-dir]
+./mirror-rebrand.sh --check <local-checkout-or-source-path>
 ```
 
 Prints manual next steps at the end (review the checkout, then push to a **new** remote
 yourself — this script never pushes anything).
+
+`--check` stops after preflight validation, before any mirror clone or history rewrite. It checks
+that every non-empty `replace-text-rules.txt` line is a real `find==>replace` rule, runs sample
+path assertions against `rename_paths_callback.py`, and, for a local git checkout, prints a small
+preview of tracked paths that would be renamed.
 
 ## `replace-text-rules.txt` has NO comment syntax — do not add `#` lines
 
@@ -38,6 +46,12 @@ that file, re-run `mirror-rebrand.sh` against a throwaway local mirror and grep 
 
 ```sh
 git -C <mirror-or-checkout> grep -l '\*\*\*REMOVED\*\*\*' -- . || echo "clean"
+```
+
+For a cheaper local guard before doing any clone at all, run:
+
+```sh
+./mirror-rebrand.sh --check .
 ```
 
 ## Verified against this repo (2026-07-05) — re-check before reusing later
