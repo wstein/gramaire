@@ -39,10 +39,16 @@ object Sym:
     case Sym.Any             => Vector.empty
     case Sym.Not(set)        => set.flatMap(refs)
 
+// A `-> IDENT` / `-> IDENT(args...)` alternative delegate (ADR D48, extended for parameterized
+// args): `name` is the identifier after `->`; `args` is empty for the bare form, or each
+// parenthesized argument's literal source text for the `-> IDENT(a, 'b', 42)` form — an
+// identifier's name, a literal's unescaped content, or a number's digit string, in order.
+final case class DelegateSpec(name: String, args: Vector[String])
+
 // An alternative: a sequence of right-hand symbols, an optional `# Label`
 // naming the alternative (per-alternative visitor methods and CST
 // accessors, ADR D26), an optional semantic action kept as raw source
-// text for emission, and an optional `-> IDENT` delegate name (ADR D48):
+// text for emission, and an optional `-> IDENT` / `-> IDENT(args...)` delegate (ADR D48):
 // mutually exclusive with `action` by construction (the grammar has no
 // production combining both at once, so a document writing both is a
 // parse error, not a runtime check) — the named implementation resolves
@@ -52,7 +58,7 @@ final case class Alt(
     syms: Vector[Sym],
     label: Option[String],
     action: Option[String],
-    delegate: Option[String] = None
+    delegate: Option[DelegateSpec] = None
 )
 
 // A rule: a left-hand nonterminal name, its `#[attr]` attributes (e.g.

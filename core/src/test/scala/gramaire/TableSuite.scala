@@ -85,6 +85,8 @@ class TableSuite extends munit.FunSuite:
     "Action" -> set(t("ACTION")),
     "Label" -> set(t("LABEL")),
     "Delegate" -> set(t("ARROW")),
+    "ArgList" -> set(t("IDENT"), t("TERM_LIT"), t("NUMBER")),
+    "Arg" -> set(t("IDENT"), t("TERM_LIT"), t("NUMBER")),
     "GroupBody" -> set(t("IDENT"), t("TERM_LIT"), t("("), t("."), t("~")),
     "Atom" -> set(t("."), t("~")),
     "NotArg" -> set(t("IDENT"), t("TERM_LIT"), t("(")),
@@ -130,6 +132,8 @@ class TableSuite extends munit.FunSuite:
     "Action" -> set(t(";"), t("|")),
     "Label" -> set(t("ACTION"), t("ARROW"), t(";"), t("|")),
     "Delegate" -> set(t(";"), t("|")),
+    "ArgList" -> set(t(")"), t("COMMA")),
+    "Arg" -> set(t(")"), t("COMMA")),
     "GroupBody" -> set(t(")"), t("|")),
     "Atom" -> bigFollow,
     "NotArg" -> bigFollow,
@@ -137,8 +141,8 @@ class TableSuite extends munit.FunSuite:
     "SetItem" -> bigFollow
   )
 
-  test("bootstrapGrammar flattens to 48 productions") {
-    assertEquals(Table.productions(Bootstrap.bootstrapGrammar).length, 48)
+  test("bootstrapGrammar flattens to 54 productions") {
+    assertEquals(Table.productions(Bootstrap.bootstrapGrammar).length, 54)
   }
 
   test("start symbol is Grammar") {

@@ -165,7 +165,7 @@ class IRSuite extends munit.FunSuite:
             r.alts.headOption match
               case None => fail("an alternative should be present")
               case Some(alt) =>
-                assertEquals(alt.delegate, Some("Add"))
+                assertEquals(alt.delegate, Some(DelegateSpec("Add", Vector.empty)))
                 assertEquals(alt.action, None, "a delegate slot carries no inline action")
   }
 
@@ -180,7 +180,7 @@ class IRSuite extends munit.FunSuite:
             ir.grammar.rules.headOption match
               case None => fail("a rule should be present")
               case Some(r) =>
-                assertEquals(r.delegate, Some("Add"))
+                assertEquals(r.delegate, Some(IRDelegate("Add", Vector.empty)))
                 assertEquals(r.actions, Map.empty, "a delegate slot has no action body")
             assertEquals(
               IRValidate.validate(ir),
@@ -200,6 +200,70 @@ class IRSuite extends munit.FunSuite:
     Lr.parse(md) match
       case Left(_)  => () // expected: the grammar has no production combining both
       case Right(_) => fail("a delegate and an inline action together should not parse")
+  }
+
+  // ADR D48 extension: `-> IDENT(args...)` — the same delegate slot, parenthesized with a
+  // comma-separated argument list, each argument carried through as its own literal source text.
+  test("`-> IDENT(IDENT)` parses to a delegate with one bare-identifier argument") {
+    val md = "```gramaire\nExpr\n  : NUM -> channel(HIDDEN)\n  ;\n```\n"
+    Lr.parse(md) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        g.rules.headOption.flatMap(_.alts.headOption) match
+          case None => fail("an alternative should be present")
+          case Some(alt) =>
+            assertEquals(alt.delegate, Some(DelegateSpec("channel", Vector("HIDDEN"))))
+  }
+
+  test("`-> IDENT(a, b, 42)` parses to a delegate with mixed-shape arguments, in order") {
+    val md = "```gramaire\nExpr\n  : NUM -> my_custom(arg1, arg2, 42)\n  ;\n```\n"
+    Lr.parse(md) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        g.rules.headOption.flatMap(_.alts.headOption) match
+          case None => fail("an alternative should be present")
+          case Some(alt) =>
+            assertEquals(
+              alt.delegate,
+              Some(DelegateSpec("my_custom", Vector("arg1", "arg2", "42")))
+            )
+  }
+
+  test("`-> IDENT('literal')` parses to a delegate with a TERM_LIT argument's unescaped content") {
+    val md = "```gramaire\nExpr\n  : NUM -> my_custom('literal')\n  ;\n```\n"
+    Lr.parse(md) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        g.rules.headOption.flatMap(_.alts.headOption) match
+          case None => fail("an alternative should be present")
+          case Some(alt) =>
+            assertEquals(alt.delegate, Some(DelegateSpec("my_custom", Vector("literal"))))
+  }
+
+  test(
+    "a parameterized `-> IDENT(...)` delegate round-trips through IR JSON, and validates clean"
+  ) {
+    val md = "```gramaire\nExpr\n  : NUM -> channel(HIDDEN)\n  ;\n```\n"
+    Lr.parse(md) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        IR.buildIR(Method.Canonical, "DelegatedArgs", g) match
+          case Left(e) => fail(s"delegate grammar should build: $e")
+          case Right(ir) =>
+            ir.grammar.rules.headOption match
+              case None => fail("a rule should be present")
+              case Some(r) =>
+                assertEquals(r.delegate, Some(IRDelegate("channel", Vector("HIDDEN"))))
+                assertEquals(r.actions, Map.empty, "a delegate slot has no action body")
+            assertEquals(
+              IRValidate.validate(ir),
+              Vector.empty,
+              "a real parameterized -> IDENT(...) delegate validates clean"
+            )
+            Json.parse(Json.stringify(IR.toJson(ir))).flatMap(IRDecode.decode) match
+              case Left(e) => fail(s"delegate round-trip failed: $e")
+              case Right(back) =>
+                assertEquals(back, ir, "the parameterized delegate survives serialize -> decode")
   }
 
   test("`{%? p %}` survives Desugar's Opt/Star sugar-enumeration wrap") {

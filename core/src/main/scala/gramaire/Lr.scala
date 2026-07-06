@@ -23,6 +23,8 @@ enum SemVal:
   case VSyms(syms: Vector[Sym])
   case VGroupBody(alts: Vector[Vector[Sym]])
   case VMaybeStr(m: Option[String])
+  case VArgs(args: Vector[String])
+  case VMaybeDelegate(m: Option[DelegateSpec])
   case VAlt(a: Alt)
   case VAlts(alts: Vector[Alt])
   case VRule(r: Rule)
@@ -37,6 +39,7 @@ object Lr:
     case "ACTION"   => SemVal.VStr(tok.text.trim)
     case "LABEL"    => SemVal.VStr(tok.text)
     case "ATTR"     => SemVal.VStr(tok.text)
+    case "NUMBER"   => SemVal.VStr(tok.text)
     case _          => SemVal.VIgnore // NL, `:`, `|`
 
   // Unquote a `TERM_LIT` lexeme to the terminal's spelling (ADR D34).
@@ -76,13 +79,13 @@ object Lr:
       SemVal.VAlts(bs :+ a) // Body : Body `|` Alt
     case (7, Vector(SemVal.VSyms(syms), SemVal.VMaybeStr(lbl), SemVal.VMaybeStr(act))) =>
       SemVal.VAlt(Alt(syms, lbl, act, None)) // Alt : SymList Label Action
-    case (8, Vector(SemVal.VSyms(syms), SemVal.VMaybeStr(lbl), SemVal.VMaybeStr(deleg))) =>
+    case (8, Vector(SemVal.VSyms(syms), SemVal.VMaybeStr(lbl), SemVal.VMaybeDelegate(deleg))) =>
       SemVal.VAlt(Alt(syms, lbl, None, deleg)) // Alt : SymList Label Delegate
     case (9, Vector(SemVal.VSyms(syms), SemVal.VMaybeStr(lbl))) =>
       SemVal.VAlt(Alt(syms, lbl, None, None)) // Alt : SymList Label
     case (10, Vector(SemVal.VSyms(syms), SemVal.VMaybeStr(act))) =>
       SemVal.VAlt(Alt(syms, None, act, None)) // Alt : SymList Action
-    case (11, Vector(SemVal.VSyms(syms), SemVal.VMaybeStr(deleg))) =>
+    case (11, Vector(SemVal.VSyms(syms), SemVal.VMaybeDelegate(deleg))) =>
       SemVal.VAlt(Alt(syms, None, None, deleg)) // Alt : SymList Delegate
     case (12, Vector(SemVal.VSyms(syms))) =>
       SemVal.VAlt(Alt(syms, None, None, None)) // Alt : SymList
@@ -119,19 +122,29 @@ object Lr:
     case (35, Vector(SemVal.VStr(a))) => SemVal.VMaybeStr(Some(a)) // Action : ACTION
     case (36, Vector(SemVal.VStr(l))) => SemVal.VMaybeStr(Some(l)) // Label : LABEL
     case (37, Vector(_, SemVal.VStr(name))) =>
-      SemVal.VMaybeStr(Some(name)) // Delegate : ARROW IDENT
-    case (38, Vector(SemVal.VSyms(syms))) => SemVal.VGroupBody(Vector(syms)) // GroupBody : SymList
-    case (39, Vector(SemVal.VGroupBody(alts), _, SemVal.VSyms(syms))) =>
+      SemVal.VMaybeDelegate(Some(DelegateSpec(name, Vector.empty))) // Delegate : ARROW IDENT
+    case (38, Vector(_, SemVal.VStr(name), _, SemVal.VArgs(args), _)) =>
+      SemVal.VMaybeDelegate(
+        Some(DelegateSpec(name, args))
+      ) // Delegate : ARROW IDENT `(` ArgList `)`
+    case (39, Vector(SemVal.VStr(a))) => SemVal.VArgs(Vector(a)) // ArgList : Arg
+    case (40, Vector(SemVal.VArgs(as2), _, SemVal.VStr(a))) =>
+      SemVal.VArgs(as2 :+ a) // ArgList : ArgList COMMA Arg
+    case (41, Vector(SemVal.VStr(i)))     => SemVal.VStr(i) // Arg : IDENT
+    case (42, Vector(SemVal.VStr(t)))     => SemVal.VStr(t) // Arg : TERM_LIT
+    case (43, Vector(SemVal.VStr(n)))     => SemVal.VStr(n) // Arg : NUMBER
+    case (44, Vector(SemVal.VSyms(syms))) => SemVal.VGroupBody(Vector(syms)) // GroupBody : SymList
+    case (45, Vector(SemVal.VGroupBody(alts), _, SemVal.VSyms(syms))) =>
       SemVal.VGroupBody(alts :+ syms) // GroupBody : GroupBody `|` SymList
-    case (40, Vector(_))                       => SemVal.VSym(Any) // Atom : `.`
-    case (41, Vector(_, SemVal.VSyms(set)))    => SemVal.VSym(Not(set)) // Atom : `~` NotArg
-    case (42, Vector(SemVal.VSym(i)))          => SemVal.VSyms(Vector(i)) // NotArg : SetItem
-    case (43, Vector(_, SemVal.VSyms(set), _)) => SemVal.VSyms(set) // NotArg : `(` SetBody `)`
-    case (44, Vector(SemVal.VSym(i)))          => SemVal.VSyms(Vector(i)) // SetBody : SetItem
-    case (45, Vector(SemVal.VSyms(set), _, SemVal.VSym(i))) =>
+    case (46, Vector(_))                       => SemVal.VSym(Any) // Atom : `.`
+    case (47, Vector(_, SemVal.VSyms(set)))    => SemVal.VSym(Not(set)) // Atom : `~` NotArg
+    case (48, Vector(SemVal.VSym(i)))          => SemVal.VSyms(Vector(i)) // NotArg : SetItem
+    case (49, Vector(_, SemVal.VSyms(set), _)) => SemVal.VSyms(set) // NotArg : `(` SetBody `)`
+    case (50, Vector(SemVal.VSym(i)))          => SemVal.VSyms(Vector(i)) // SetBody : SetItem
+    case (51, Vector(SemVal.VSyms(set), _, SemVal.VSym(i))) =>
       SemVal.VSyms(set :+ i) // SetBody : SetBody `|` SetItem
-    case (46, Vector(SemVal.VStr(i))) => SemVal.VSym(Ref(i)) // SetItem : IDENT
-    case (47, Vector(SemVal.VStr(t))) => SemVal.VSym(Lit(t)) // SetItem : TERM_LIT
+    case (52, Vector(SemVal.VStr(i))) => SemVal.VSym(Ref(i)) // SetItem : IDENT
+    case (53, Vector(SemVal.VStr(t))) => SemVal.VSym(Lit(t)) // SetItem : TERM_LIT
     case _                            => SemVal.VErr(s"unexpected reduce shape for production $p")
 
   // A `.gram.md` grammar has exactly one fence tag — ```gramaire — and its four possible roles are
@@ -633,6 +646,7 @@ object Lr:
     case "RANGLE"   => "`>`"
     case "COMMA"    => "`,`"
     case "ARROW"    => "`->`"
+    case "NUMBER"   => "a number"
     case lit        => s"`$lit`"
 
   // Build the located, note-carrying diagnostic for a rejected `lr`-notation parse: the failing

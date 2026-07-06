@@ -43,16 +43,21 @@ single `NL`, and emits these classes:
 - `LABEL` — a `# Name` alternative label; the name is the payload.
 - `ATTR` — a `#[name]` rule attribute (e.g. `#[inline]`); the name is the payload.
 - `PLUS` / `STAR` / `QUESTION` — bare `+` / `*` / `?` repetition postfixes.
-- `LANGLE` / `RANGLE` / `COMMA` — `<` / `>` / `,` for macro calls.
-- `ARROW` — bare `->`, opening a `-> IDENT` alternative delegate slot (ADR D48).
+- `LANGLE` / `RANGLE` / `COMMA` — `<` / `>` / `,` for macro calls (`COMMA` also
+  separates a `-> IDENT(...)` delegate's own argument list, ADR D48).
+- `ARROW` — bare `->`, opening a `-> IDENT` / `-> IDENT(args...)` alternative
+  delegate slot (ADR D48).
+- `NUMBER` — a bare-digit number, `[0-9]+`, used only as a delegate argument.
 - `NL` — one or more line breaks.
 
 Semantic actions build this AST as plain tagged JS objects: `{ tag: "Grammar",
 rules }`, `{ tag: "Rule", name, attrs, alts }`, `{ tag: "Alt", syms, label,
 action, delegate }` (`label`/`action`/`delegate` are `null` when absent — an
-alternative picks at most one of `action`/`delegate`, ADR D48), and one tagged object per
-`Sym` case — `Ref`, `Lit`, `Rep`, `Star`, `Opt`, `Macro`, `Field`, `Group`,
-`Any`, `Not` — mirroring the real Scala types in
+alternative picks at most one of `action`/`delegate`, ADR D48; when present,
+`delegate` is `{ name, args }`, with `args` an array of each parenthesized
+argument's literal source text, empty for the bare `-> IDENT` form), and one
+tagged object per `Sym` case — `Ref`, `Lit`, `Rep`, `Star`, `Opt`, `Macro`,
+`Field`, `Group`, `Any`, `Not` — mirroring the real Scala types in
 [`Syntax.scala`](../core/src/main/scala/gramaire/Syntax.scala).
 
 <details>
@@ -90,6 +95,7 @@ LANGLE   : "<" ;
 RANGLE   : ">" ;
 COMMA    : "," ;
 ARROW    : "->" ;
+NUMBER   : /[0-9]+/ ;
 ```
 
 ## Grammar
@@ -324,6 +330,10 @@ or, in a later phase, to a fenced implementation elsewhere in the same file.
 Mutually exclusive with an inline action at the same slot (`Alt`'s six
 alternatives have no production combining both).
 
+A delegate may carry a parenthesised, comma-separated argument list —
+`-> IDENT(args...)` — enabling host commands like `-> channel(HIDDEN)` or
+`-> my_custom(arg1, arg2, 42)`. `args` is empty for the bare form.
+
 ![Railroad diagram for the Delegate rule](diagrams-Productions/delegate.svg)
 
 <details>
@@ -331,7 +341,47 @@ alternatives have no production combining both).
 
 ```gramaire
 Delegate
-  : ARROW IDENT   {% (c) => c[1] %}
+  : ARROW IDENT                    {% (c) => ({ name: c[1], args: [] }) %}
+  | ARROW IDENT '(' ArgList ')'    {% (c) => ({ name: c[1], args: c[3] }) %}
+  ;
+```
+
+</details>
+
+## ArgList
+
+The comma-separated argument list of a parenthesised `-> IDENT(...)` delegate.
+
+![Railroad diagram for the ArgList rule](diagrams-Productions/arglist.svg)
+
+<details>
+<summary>Source</summary>
+
+```gramaire
+ArgList
+  : Arg                 {% (c) => [c[0]] %}
+  | ArgList COMMA Arg   {% (c) => [...c[0], c[2]] %}
+  ;
+```
+
+</details>
+
+## Arg
+
+A single delegate argument: a bare identifier, a quoted literal, or a bare
+number — carried through as its own literal source text (the IR never
+interprets it further, ADR D48).
+
+![Railroad diagram for the Arg rule](diagrams-Productions/arg.svg)
+
+<details>
+<summary>Source</summary>
+
+```gramaire
+Arg
+  : IDENT      {% (c) => c[0] %}
+  | TERM_LIT   {% (c) => c[0] %}
+  | NUMBER     {% (c) => c[0] %}
   ;
 ```
 
@@ -460,6 +510,8 @@ after Body, lookahead is ATTR or IDENT (the shape of a new rule's own head):
 | `Action`    | `ACTION`                       | `;` `\|`                                                                                                       |
 | `Label`     | `LABEL`                        | `;` `\|` `ACTION` `ARROW`                                                                                      |
 | `Delegate`  | `ARROW`                        | `;` `\|`                                                                                                       |
+| `ArgList`   | `IDENT` `TERM_LIT` `NUMBER`    | `)` `COMMA`                                                                                                    |
+| `Arg`       | `IDENT` `TERM_LIT` `NUMBER`    | `)` `COMMA`                                                                                                    |
 | `GroupBody` | `IDENT` `TERM_LIT` `(` `.` `~` | `\|` `)`                                                                                                       |
 | `Atom`      | `.` `~`                        | `IDENT` `;` `\|` `TERM_LIT` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `ARROW` `.` `~` |
 | `NotArg`    | `IDENT` `TERM_LIT` `(`         | `IDENT` `;` `\|` `TERM_LIT` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `ARROW` `.` `~` |

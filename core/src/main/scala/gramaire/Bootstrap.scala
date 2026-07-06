@@ -43,7 +43,8 @@ object Bootstrap:
     "LANGLE   : \"<\" ;",
     "RANGLE   : \">\" ;",
     "COMMA    : \",\" ;",
-    "ARROW    : \"->\" ;"
+    "ARROW    : \"->\" ;",
+    "NUMBER   : /[0-9]+/ ;"
   ).mkString("\n")
 
   val bootstrapGrammar: Grammar = Grammar(
@@ -270,7 +271,39 @@ object Bootstrap:
       Rule(
         "Delegate",
         Vector.empty,
-        Vector(Alt(Vector(Ref("ARROW"), Ref("IDENT")), None, Some("\\_ _ -> (c) => c[1]")))
+        Vector(
+          Alt(
+            Vector(Ref("ARROW"), Ref("IDENT")),
+            None,
+            Some("\\_ _ -> (c) => ({ name: c[1], args: [] })")
+          ),
+          Alt(
+            Vector(Ref("ARROW"), Ref("IDENT"), Lit("("), Ref("ArgList"), Lit(")")),
+            None,
+            Some("\\_ _ _ _ _ -> (c) => ({ name: c[1], args: c[3] })")
+          )
+        )
+      ),
+      Rule(
+        "ArgList",
+        Vector.empty,
+        Vector(
+          Alt(Vector(Ref("Arg")), None, Some("\\_ -> (c) => [c[0]]")),
+          Alt(
+            Vector(Ref("ArgList"), Ref("COMMA"), Ref("Arg")),
+            None,
+            Some("\\_ _ _ -> (c) => [...c[0], c[2]]")
+          )
+        )
+      ),
+      Rule(
+        "Arg",
+        Vector.empty,
+        Vector(
+          Alt(Vector(Ref("IDENT")), None, Some("\\_ -> (c) => c[0]")),
+          Alt(Vector(Ref("TERM_LIT")), None, Some("\\_ -> (c) => c[0]")),
+          Alt(Vector(Ref("NUMBER")), None, Some("\\_ -> (c) => c[0]"))
+        )
       ),
       Rule(
         "GroupBody",

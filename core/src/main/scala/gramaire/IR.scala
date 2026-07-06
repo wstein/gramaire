@@ -130,11 +130,17 @@ enum IRRef derives CanEqual:
   case IRRefNT(id: Int, field: Option[String])
   case IRRefT(id: Int, field: Option[String])
 
+// An alternative's `-> IDENT` / `-> IDENT(args...)` delegate (ADR D48, extended for parameterized
+// args) — mirrors `DelegateSpec` exactly. `args` is empty for the bare form; each element is a
+// parenthesized argument's literal source text (an identifier's name, a literal's unescaped
+// content, or a number's digit string), in order.
+final case class IRDelegate(name: String, args: Vector[String])
+
 // A single production. `actions` maps a profile name to its opaque,
 // untrusted host-language text; empty when the alternative has no
 // action. Kept as a `Map` (not an ordered array of pairs, as the prior
 // reference implementation used) since it's genuinely keyed lookup data.
-// `delegate` (ADR D48) is this alternative's `-> IDENT` name — mutually
+// `delegate` (ADR D48) is this alternative's `-> IDENT`/`-> IDENT(args...)` delegate — mutually
 // exclusive with a populated `actions` map by construction (the front end's
 // grammar has no production combining both); omitted from JSON when
 // absent, same convention as `label`/`predicate`. Resolving the name (to a
@@ -147,7 +153,7 @@ final case class IRRule(
     label: Option[String],
     actions: Map[String, String],
     predicate: Option[IRPredicateEffect] = None,
-    delegate: Option[String] = None
+    delegate: Option[IRDelegate] = None
 )
 
 // Declares a rule's action an ALL(*) semantic predicate (D-predicates,
@@ -361,7 +367,7 @@ object IR:
           actions = actions,
           predicate =
             if isPredicate then Some(IRPredicateEffect(Vector.empty, Vector.empty)) else None,
-          delegate = delegate
+          delegate = delegate.map(d => IRDelegate(d.name, d.args))
         )
     }
 
@@ -555,10 +561,18 @@ object IR:
         )
       )
 
+    def delegateJson(d: IRDelegate): Json =
+      Json.JObject(
+        Vector(
+          "name" -> Json.JString(d.name),
+          "args" -> Json.JArray(d.args.map(Json.JString(_)))
+        )
+      )
+
     def ruleJson(r: IRRule): Json =
       val labelEntry = r.label.map(l => "label" -> Json.JString(l)).toVector
       val predicateEntry = r.predicate.map(p => "predicate" -> predicateEffectJson(p)).toVector
-      val delegateEntry = r.delegate.map(d => "delegate" -> Json.JString(d)).toVector
+      val delegateEntry = r.delegate.map(d => "delegate" -> delegateJson(d)).toVector
       Json.JObject(
         Vector(
           "id" -> Json.JInt(r.id),
