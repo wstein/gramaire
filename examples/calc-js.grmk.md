@@ -7,8 +7,8 @@ of inline `{% … %}` actions.
 <summary>Declarations</summary>
 
 ```gramark
-%name Calc-js
-%lang javascript
+name: Calc-js
+lang: javascript
 ```
 
 </details>
@@ -17,7 +17,7 @@ of inline `{% … %}` actions.
 
 ```gramark
 NUMBER : /[0-9]+(?:\.[0-9]+)?/ ;
-WS     : /[ \t\r\n]+/   %skip ;
+WS     : /[ \t\r\n]+/   -> skip ;
 ```
 
 ## Expr

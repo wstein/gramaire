@@ -2,7 +2,7 @@ package gramark
 
 // Regression coverage for the bug fixed in BackendJs.unwrapBinder: `Desugar.scala` generates
 // action text in a small, closed set of PureScript-flavored lambda shapes (see that function's own
-// header comment for the full grammar) regardless of `%lang`, and `--backend js`/the Lab's
+// header comment for the full grammar) regardless of `lang:`, and `--backend js`/the Lab's
 // evaluator (LabApi.evaluatorJsFor, which reuses this exact code path) used to splice that text
 // verbatim into a JS array whenever an alternative combined an inline `{% %}` action with `?`/`*`
 // sugar — non-executable output (`(Just p2)`, `Nothing`, `snoc xs x` are not JS). Runtime
@@ -14,14 +14,14 @@ package gramark
 class BackendJsSuite extends munit.FunSuite:
   import Sym.*
 
-  // For a hand-built `Grammar` (no `.grmk` text, so no `%lang` to read) — the action-lang key
+  // For a hand-built `Grammar` (no `.grmk` text, so no `lang:` to read) — the action-lang key
   // BackendJs looks for is the *normalized* form ("js", not "javascript"; see Lr.normalizeLang).
   private def emitJs(name: String, g: Grammar): String =
     IR.buildIR(Method.Canonical, name, g) match
       case Left(conflicts) => fail(s"$name should build with no conflicts: $conflicts")
       case Right(ir)       => BackendJs.emit(IR.withActionLang(Some("js"), ir).grammar)
 
-  // For real `.grmk` text (must declare `%lang javascript` itself), mirroring the
+  // For real `.grmk` text (must declare `lang: javascript` itself), mirroring the
   // `gramark emit --backend js` pipeline exactly (BackendGoldenSuite's own convention).
   private def emitJsFromSource(name: String, md: String): String =
     Lr.parse(md) match
@@ -51,7 +51,7 @@ class BackendJsSuite extends munit.FunSuite:
 
   test("Comma<X> alone (no ?/* in the same alternative) was never wrapped, stays a plain action") {
     val md =
-      "%name Item\n%lang javascript\n\nNAME : /[a-z]+/ ;\n\nItem\n  : names:Comma<NAME>   {% (c) => c.names %}\n  ;\n"
+      "name: Item\nlang: javascript\n\nNAME : /[a-z]+/ ;\n\nItem\n  : names:Comma<NAME>   {% (c) => c.names %}\n  ;\n"
     val js = emitJsFromSource("Item", md)
     assert(js.contains("const actions = [(c) => c.names,"), js)
     noPureScriptLeaks(js)
@@ -59,7 +59,7 @@ class BackendJsSuite extends munit.FunSuite:
 
   test("X? combined with an action recovers the real action, not the Just/Nothing wrapper") {
     val md =
-      "%name Item\n%lang javascript\n\nNAME : /[a-z]+/ ;\n\nItem\n  : head:NAME tail:NAME?   {% (c) => ({ head: c.head, tail: c.tail }) %}\n  ;\n"
+      "name: Item\nlang: javascript\n\nNAME : /[a-z]+/ ;\n\nItem\n  : head:NAME tail:NAME?   {% (c) => ({ head: c.head, tail: c.tail }) %}\n  ;\n"
     val js = emitJsFromSource("Item", md)
     // Two enumerated productions (tail present / absent) both recover the identical real action —
     // fields[] (not Just/Nothing) is what distinguishes them at runtime.
@@ -72,7 +72,7 @@ class BackendJsSuite extends munit.FunSuite:
     "X* combined with an action recovers the real action, and the list rule builds a real array"
   ) {
     val md =
-      "%name Item\n%lang javascript\n\nNAME : /[a-z]+/ ;\n\nItem\n  : head:NAME rest:NAME*   {% (c) => ({ head: c.head, rest: c.rest }) %}\n  ;\n"
+      "name: Item\nlang: javascript\n\nNAME : /[a-z]+/ ;\n\nItem\n  : head:NAME rest:NAME*   {% (c) => ({ head: c.head, rest: c.rest }) %}\n  ;\n"
     val js = emitJsFromSource("Item", md)
     assert(js.contains("(c) => ({ head: c.head, rest: c.rest })"), js)
     assert(js.contains("(c) => [c[0]]"), js)
@@ -82,7 +82,7 @@ class BackendJsSuite extends munit.FunSuite:
 
   test("Sep<X,S>'s separator-skipping list action translates with the discard slot skipped") {
     val md =
-      "%name Item\n%lang javascript\n\nNAME : /[a-z]+/ ;\n\nItem\n  : xs:Sep<NAME, ';'>   {% (c) => c.xs %}\n  ;\n"
+      "name: Item\nlang: javascript\n\nNAME : /[a-z]+/ ;\n\nItem\n  : xs:Sep<NAME, ';'>   {% (c) => c.xs %}\n  ;\n"
     val js = emitJsFromSource("Item", md)
     assert(js.contains("(c) => [c[0]]"), js)
     assert(js.contains("(c) => [...c[0], c[2]]"), js) // index 1 is the discarded ';' separator
@@ -93,7 +93,7 @@ class BackendJsSuite extends munit.FunSuite:
     "the originally-failing shape (Comma<X> mixed with ? and * in one alternative) is now valid JS"
   ) {
     val md =
-      "%name Item\n%lang javascript\n\nNAME : /[a-z]+/ ;\n\nItem\n  : names:Comma<NAME> '|' tail:NAME? '|' rest:NAME*" +
+      "name: Item\nlang: javascript\n\nNAME : /[a-z]+/ ;\n\nItem\n  : names:Comma<NAME> '|' tail:NAME? '|' rest:NAME*" +
         "   {% (c) => ({ names: c.names, tail: c.tail, rest: c.rest }) %}\n  ;\n"
     val js = emitJsFromSource("Item", md)
     val expected = "(c) => ({ names: c.names, tail: c.tail, rest: c.rest })"

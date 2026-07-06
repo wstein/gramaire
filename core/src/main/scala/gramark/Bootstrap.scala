@@ -11,7 +11,7 @@ import Sym.*
 // to a value equal to `bootstrapGrammar` (the dogfood test), this literal
 // is deleted and the `.grmk.md` file becomes the single source of truth.
 //
-// Each action string is the exact `%lang javascript` text between `{%` and
+// Each action string is the exact `lang: javascript` text between `{%` and
 // `%}` in the corresponding rule of `Productions.grmk.md` — real, executable JS
 // (`gramark emit --backend js` bakes it into a working evaluator), but
 // still not what drives this file's own self-hosting proof: `CodegenScala`'s
@@ -25,8 +25,8 @@ object Bootstrap:
   // encoded here so the parse path can build its scanner without reading
   // the file.
   val lrTokensSource: String = List(
-    "WS       : /[ \\t]+/                       %skip ;",
-    "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/      %external(layout) ;",
+    "WS       : /[ \\t]+/                       -> skip ;",
+    "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/      -> layout ;",
     "ATTR     : /#\\[([A-Za-z_][A-Za-z0-9_]*)\\]/ ;",
     "IDENT    : /[A-Za-z_][A-Za-z0-9_]*/ ;",
     // A literal never spans a newline: excluding `\n` from the class means an unclosed `'…`

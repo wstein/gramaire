@@ -30,7 +30,7 @@ split) is called out inline where it happens.
 <summary>Declarations</summary>
 
 ```gramark
-%name Luau
+name: Luau
 ```
 
 </details>
@@ -57,9 +57,9 @@ section). `NUMBER` covers decimal, hexadecimal, and binary integer literals
 NAME          : /[A-Za-z_][A-Za-z0-9_]*/ ;
 NUMBER        : /0[xX][0-9a-fA-F_]+|0[bB][01_]+|(?:[0-9][0-9_]*(?:\.[0-9_]*)?|\.[0-9_]+)(?:[eE][+-]?[0-9]+)?/ ;
 STRING        : /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|\[\[(?:[^\]]|\]+[^\]])*\]+\]/ ;
-LONG_COMMENT  : /--\[\[(?:[^\]]|\]+[^\]])*\]+\]/          %skip ;
-LINE_COMMENT  : /--(?:[^\n\[][^\n]*|\[(?:[^\n\[][^\n]*)?)?/ %skip ;
-WS            : /[ \t\r\n]+/                              %skip ;
+LONG_COMMENT  : /--\[\[(?:[^\]]|\]+[^\]])*\]+\]/          -> skip ;
+LINE_COMMENT  : /--(?:[^\n\[][^\n]*|\[(?:[^\n\[][^\n]*)?)?/ -> skip ;
+WS            : /[ \t\r\n]+/                              -> skip ;
 ```
 
 ## chunk

@@ -12,7 +12,7 @@ fenced `lr` blocks; everything around them is documentation that travels with
 the grammar.
 
 Here is what a rule looks like — productions on the left, an optional
-`%lang`-tagged semantic action between `{%` and `%}` carried verbatim to
+`lang:`-tagged semantic action between `{%` and `%}` carried verbatim to
 codegen:
 
 ```gramark
@@ -43,7 +43,7 @@ the shape of its own lines (see the
 [language spec](site/src/content/docs/specs/grammar-format.mdx) and the
 [fmt output contract](docs/fmt-output-contract.md)):
 
-- A required **`%name <name>`** directive, the grammar's real name — never a
+- A required **`name: <name>`** directive, the grammar's real name — never a
   heading or the file's path.
 - **One `gramark` fence per nonterminal**, named by the fence's own head, with
   an optional linked railroad diagram; `fmt`'s canonical layout gives each its
@@ -55,10 +55,10 @@ the shape of its own lines (see the
 A grammar with no actions at all is already complete: it fully defines the
 recognized language and a concrete syntax tree (CST) every backend can walk.
 Semantic actions are opt-in — written between `{%` and `%}` as raw,
-language-tagged text (`%lang javascript`, say) and preserved verbatim through
+language-tagged text (`lang: javascript`, say) and preserved verbatim through
 to code generation — [`examples/calc-js.grmk.md`](examples/calc-js.grmk.md)
 bakes its actions into a self-contained JS evaluator this way. `{% … %}` text
-with no declared `%lang` is carried through unexecuted, not run by an
+with no declared `lang:` is carried through unexecuted, not run by an
 implicit default language. Because fence contents are opaque to Markdown,
 `{%`, `|`, `+`, and backslashes inside a payload never trip the renderer or
 the linter.

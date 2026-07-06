@@ -284,7 +284,7 @@ class LabApiSuite extends munit.FunSuite:
   test("evaluate: forest surfaces every derivation of a genuinely ambiguous grammar") {
     // Ambiguous grammars have real conflicts under every method, so buildOk is false here —
     // the forest must still be populated (this is the All-parses tab's whole reason to exist).
-    // No spaces: this fixture has no `## Tokens`/`%skip` block, so whitespace isn't lexable.
+    // No spaces: this fixture has no `## Tokens`/`-> skip` block, so whitespace isn't lexable.
     val resp = LabApi.evaluate(LabRequest(ambiguousMd, Some("xxx"), Method.Canonical))
     assert(!resp.buildOk)
     resp.forest match
@@ -501,7 +501,7 @@ class LabApiSuite extends munit.FunSuite:
       case Some(js) =>
         assert(js.contains("export function evaluateTraced(cst)"))
         assert(js.contains("const actions = ["))
-        // calc.grmk.md declares `%lang javascript`, so its {% %} bodies must actually bake in,
+        // calc.grmk.md declares `lang: javascript`, so its {% %} bodies must actually bake in,
         // not just an all-null action table.
         assert(
           js.contains("Add") || js.contains("tag"),
@@ -541,8 +541,8 @@ class LabApiSuite extends munit.FunSuite:
     )
   }
 
-  test("evaluate: a grammar with no `%lang` declaration bakes an all-null action table") {
-    // No %lang line, so IRRule.actions stays tagged "default" — BackendJs only reads the "js" tag
+  test("evaluate: a grammar with no `lang:` declaration bakes an all-null action table") {
+    // No lang: line, so IRRule.actions stays tagged "default" — BackendJs only reads the "js" tag
     // — this is the real gramark emit --backend js behavior, not a Lab-specific shortcut.
     val noLangMd = """# NoLang
       |

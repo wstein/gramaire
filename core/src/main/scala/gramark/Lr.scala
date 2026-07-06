@@ -300,7 +300,7 @@ object Lr:
   // The preamble (H1 + intro, before the first `## ` heading) carries the headless Settings fence
   // (fmt-output-contract.md's canonical layout puts it right after the intro, with no heading of
   // its own) — split it from the banner-worthy prose before it, so `banner` never swallows a real
-  // fence into a comment (which would both discard `%name`/`%lang` and, worse, leave a literal
+  // fence into a comment (which would both discard `name:`/`lang:` and, worse, leave a literal
   // "```gramark" substring inside the comment text that fools `toFenced`'s already-fenced check).
   private def splitPreamble(pre: Vector[String]): (Vector[String], Option[String]) =
     val idx = pre.indexWhere(keepableOpen)
@@ -436,25 +436,26 @@ object Lr:
     val t = l.trim
     Vector("%left ", "%right ", "%nonassoc ").exists(t.startsWith)
 
-  // A document-level settings directive (the `## General settings` block): `%name <Ident>`
-  // (required) or `%lang <host>` (optional) — broadened to any `%word ` shape (excluding
-  // Precedence's own `%left`/`%right`/`%nonassoc`, or this fence-shape check would misfire ahead
-  // of `isPrecDecl` in `classifyFenceContent`'s if-chain) rather than JUST those two known names.
-  // A typo'd directive (`%naqme Calc-js`) still keeps this SHAPE, so the whole fence stays
-  // classified `Settings` and reaches `unknownSettingWarnings` (which already knows how to name
-  // an unrecognized directive) — narrowing to only `%lang `/`%name ` meant one typo'd line failed
-  // `forall`, so the ENTIRE fence fell through to `Rule` and got lexed as grammar-rule text
-  // instead, cascading into a run of misleading "unexpected character" diagnostics naming
-  // unrelated characters from later in the very same fence (reported directly: `%naqme Calc-js`
-  // produced three separate "unexpected character" errors, one of them the `-` inside `Calc-js`).
+  // A document-level settings directive (the `## General settings` block): `name: <Ident>`
+  // (required) or `lang: <host>` (optional) — YAML-style `key: value` lines, broadened to any
+  // `lowercase-key:` shape (excluding Precedence's own `%left`/`%right`/`%nonassoc`, or this
+  // fence-shape check would misfire ahead of `isPrecDecl` in `classifyFenceContent`'s if-chain)
+  // rather than JUST those two known keys. A typo'd directive (`naqme: Calc-js`) still keeps this
+  // SHAPE, so the whole fence stays classified `Settings` and reaches `unknownSettingWarnings`
+  // (which already knows how to name an unrecognized directive) — narrowing to only `lang:`/
+  // `name:` meant one typo'd line failed `forall`, so the ENTIRE fence fell through to `Rule` and
+  // got lexed as grammar-rule text instead, cascading into a run of misleading "unexpected
+  // character" diagnostics naming unrelated characters from later in the very same fence (reported
+  // directly: `naqme: Calc-js` produced three separate "unexpected character" errors, one of them
+  // the `-` inside `Calc-js`).
   //
-  // Regression: the shape above claimed to cover "any `%word `", but the character class excluded
-  // `-`/`_` and required a literal trailing argument — so a real, client-side-only directive like
-  // `%pdf-figure-scale 0.4` (paperPdf.ts) or `%paper-font-scale 1.5` (document.ts) still failed
-  // `forall` and fell through to `Rule` exactly like the typo case this comment already describes
-  // fixing. `[A-Za-z0-9_-]*` allows a hyphenated/underscored directive name; `(\s|$)` accepts a
-  // bare, argument-less flag directive too (previously required a trailing space unconditionally).
-  private val settingDeclShapeRe = "^%[A-Za-z][A-Za-z0-9_-]*(\\s|$)".r
+  // The shape is deliberately broad: any `lowercase-key:` line qualifies (a real, client-side-only
+  // directive like `pdf-figure-scale: 0.4` (paperPdf.ts) or `paper-font-scale: 1.5` (document.ts)
+  // still matches). `[A-Za-z0-9_-]*` allows a hyphenated/underscored key name; `(\s|$)` accepts a
+  // bare, argument-less flag directive too (the value after `:` is optional). The key must start
+  // lowercase so this can never collide with `isTokenDef`'s ALL-CAPS-only test, nor with a bare
+  // rule-head line (which never has a `:` on the same line as its name).
+  private val settingDeclShapeRe = "^[a-z][A-Za-z0-9_-]*:(\\s|$)".r
   private def isSettingDecl(l: String): Boolean =
     val t = l.trim
     settingDeclShapeRe.findPrefixOf(t).isDefined && !isPrecDecl(l)
@@ -716,7 +717,7 @@ object Lr:
       case Left(diags) => Left(Diagnostic.renderAll(diags, "<grammar>", toFenced(md)))
 
   private val knownAttrs: Vector[String] = Vector("inline")
-  private val knownSettingDirectives: Vector[String] = Vector("%lang", "%name")
+  private val knownSettingDirectives: Vector[String] = Vector("lang", "name")
 
   // Every `#[attr]` the author wrote that isn't `inline` (the only attribute Desugar recognizes) —
   // today these are silently ignored, so a typo like `#[inlien]` has no effect and no signal.
@@ -740,7 +741,7 @@ object Lr:
       .filter(_.kind == FenceKind.Settings)
       .flatMap(_.content.split("\n", -1).toVector)
 
-  // Every `%directive` line in a General-settings fence that isn't `%lang`/`%name` (the only
+  // Every `key: value` line in a General-settings fence whose key isn't `lang`/`name` (the only
   // directives `Lr` recognizes) — same silent-typo risk as an unknown `#[attr]`. Walks
   // `fenceOrigins` directly (rather than the plain-string `settingsLinesOf`, which `actionLangOf`/
   // `nameOf` also share and which would need updating at both call sites for no benefit there) so
@@ -754,7 +755,7 @@ object Lr:
         val t = line.trim
         if t.isEmpty || t.startsWith("//") then None
         else
-          val directive = t.split("\\s+", 2).headOption.getOrElse(t)
+          val directive = t.split(":", 2).headOption.getOrElse(t).trim
           if knownSettingDirectives.contains(directive) then None
           else
             val directiveStart = lineStarts(i) + (line.length - line.stripLeading().length)
@@ -797,7 +798,7 @@ object Lr:
             )
           )
 
-  // A declared, non-`%skip` token class no rule ever references by name — almost always a typo'd
+  // A declared, non-`-> skip` token class no rule ever references by name — almost always a typo'd
   // reference (the intended rule then silently resolves the misspelled name as a phantom terminal,
   // per `Diagnostics.checkDefined`'s own ALL-CAPS carve-out) or a leftover declaration.
   private def unusedTokenWarnings(md: String, g: Grammar): Vector[Diagnostic] =
@@ -847,24 +848,24 @@ object Lr:
     val blocks = fenceOrigins(toFenced(md)).filter(_.kind == FenceKind.Tokens)
     if blocks.isEmpty then None else Some(blocks.map(_.content).mkString("\n"))
 
-  /** The declared inline-action host language of a `.grmk.md` — its General-settings fence's `%lang
+  /** The declared inline-action host language of a `.grmk.md` — its General-settings fence's `lang:
     * <ident>` line. The ident is normalized: `js`, `javascript`, `ecmascript`, and
     * `esNNNN`/`esnext` all fold to `"js"`.
     */
   def actionLangOf(md: String): Option[String] =
     settingsLinesOf(md)
       .map(_.trim)
-      .collectFirst { case t if t.startsWith("%lang ") => t.stripPrefix("%lang ").trim }
+      .collectFirst { case t if t.startsWith("lang:") => t.stripPrefix("lang:").trim }
       .map(normalizeLang)
 
-  /** The grammar's required `%name <Ident>` directive, from its General-settings fence — `None` if
-    * absent (a `.grmk.md`/`.grmk` with no `%name` is incomplete; callers that need a name reject
+  /** The grammar's required `name: <Ident>` directive, from its General-settings fence — `None` if
+    * absent (a `.grmk.md`/`.grmk` with no `name:` is incomplete; callers that need a name reject
     * this outright rather than falling back to a heading or a file path).
     */
   def nameOf(md: String): Option[String] =
     settingsLinesOf(md)
       .map(_.trim)
-      .collectFirst { case t if t.startsWith("%name ") => t.stripPrefix("%name ").trim }
+      .collectFirst { case t if t.startsWith("name:") => t.stripPrefix("name:").trim }
       .filter(_.nonEmpty)
 
   // Fold the recognized JavaScript aliases onto the canonical `"js"`

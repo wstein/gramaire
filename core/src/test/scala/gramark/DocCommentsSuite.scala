@@ -8,7 +8,7 @@ class DocCommentsSuite extends munit.FunSuite:
     """# Test
       |
       |```gramark
-      |%name Test
+      |name: Test
       |```
       |
       |## Expr

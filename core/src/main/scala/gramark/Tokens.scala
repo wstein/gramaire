@@ -7,9 +7,11 @@ package gramark
 //   NAME : <definition> [ modifiers ] ;
 //
 // where `NAME` is ALL-CAPS, `<definition>` is an exact `"string"` or a
-// `/regex/` in the regular sublanguage (`Regex`), `modifiers` are zero
-// or more of `%skip`, `%prec N`, `%external(pass)`, and the trailing `;`
-// is mandatory (matching Bison/YACC/ANTLR4's own lexer-rule terminator).
+// `/regex/` in the regular sublanguage (`Regex`), `modifiers` are zero or more of `-> skip` /
+// `-> pass` (ANTLR4's own `-> command` lexer-command syntax, borrowed verbatim: a bare `skip`
+// names the one builtin command, any other bare identifier names a host post-lex pass), plus
+// `@caseless`, `@prec(N)`, and the trailing `;` is mandatory (matching Bison/YACC/ANTLR4's own
+// lexer-rule terminator).
 // Ported from src/Gramark/Tokens.purs.
 
 // A token's pattern: an exact string (a literal class) or a regular
@@ -23,10 +25,10 @@ enum TokenPattern derives CanEqual:
 final case class TokenDef(
     name: String,
     pattern: TokenPattern,
-    skip: Boolean, // `%skip`: matched but not a grammar symbol (extras)
-    prec: Option[Int], // `%prec N`: explicit tie-break priority
-    external: Option[String], // `%external(pass)`: a host post-lex pass name
-    caseless: Boolean // `/…/i` flag or `%caseless`: ASCII case-insensitive (D35)
+    skip: Boolean, // `-> skip`: matched but not a grammar symbol (extras)
+    prec: Option[Int], // `@prec(N)`: explicit tie-break priority
+    external: Option[String], // `-> pass`: a host post-lex pass name
+    caseless: Boolean // `/…/i` flag or `@caseless`: ASCII case-insensitive (D35)
 )
 
 object Tokens:
@@ -140,25 +142,24 @@ object Tokens:
   private def parseModifiers(ws: Vector[String]): Either[String, Mods] =
     def go(acc: Mods, rest: List[String]): Either[String, Mods] =
       rest match
-        case Nil                                 => Right(acc)
-        case head :: tail if head == "%skip"     => go(acc.copy(skip = true), tail)
-        case head :: tail if head == "%caseless" => go(acc.copy(caseless = true), tail)
-        case head :: tail if head == "%prec" =>
-          tail match
-            case n :: rest2 =>
-              parseIntStr(n) match
-                case Some(p) => go(acc.copy(prec = Some(p)), rest2)
-                case None    => Left(s"`%prec` expects a number, got: $n")
-            case Nil => Left("`%prec` expects a number")
-        case head :: tail if externalPass(head).isDefined =>
-          go(acc.copy(external = externalPass(head)), tail)
+        case Nil                    => Right(acc)
+        case "->" :: "skip" :: tail => go(acc.copy(skip = true), tail)
+        case "->" :: name :: tail   => go(acc.copy(external = Some(name)), tail)
+        case "->" :: Nil            => Left("`->` must be followed by `skip` or a pass name")
+        case head :: tail if head == "@caseless" => go(acc.copy(caseless = true), tail)
+        case head :: tail if precN(head).isDefined =>
+          precN(head).get match
+            case Right(p) => go(acc.copy(prec = Some(p)), tail)
+            case Left(n)  => Left(s"`@prec` expects a number, got: $n")
         case head :: _ => Left(s"unknown token modifier: $head")
     go(Mods(), ws.toList)
 
-  // `%external(pass)` → `pass`.
-  private def externalPass(w: String): Option[String] =
-    if w.startsWith("%external(") && w.endsWith(")") then
-      Some(w.substring("%external(".length, w.length - 1))
+  // `@prec(N)` → `Right(N)` if the parenthesized argument is numeric, `Left(raw)` otherwise —
+  // `None` if `w` isn't even `@prec(...)` shaped.
+  private def precN(w: String): Option[Either[String, Int]] =
+    if w.startsWith("@prec(") && w.endsWith(")") then
+      val n = w.substring("@prec(".length, w.length - 1)
+      Some(parseIntStr(n).toRight(n))
     else None
 
   private def parseIntStr(s: String): Option[Int] =

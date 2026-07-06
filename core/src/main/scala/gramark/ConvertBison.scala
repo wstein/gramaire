@@ -527,7 +527,7 @@ object ConvertBison:
     case Assoc.NonA   => "%nonassoc"
 
   private def render(p: Parsed, name: String): Imported =
-    val settingsSection: Vector[String] = Vector("```gramark", s"%name $name", "```\n")
+    val settingsSection: Vector[String] = Vector("```gramark", s"name: $name", "```\n")
 
     val precSection: Vector[String] =
       val nonEmpty = p.precedence.filter(_._2.nonEmpty)
@@ -560,7 +560,7 @@ object ConvertBison:
     Imported(markdown, p.warnings)
 
   /** Import a Bison/yacc `.y` grammar, producing a rendered `.grmk.md` and any features that could
-    * not be represented (ADR D38). `name` becomes the grammar's own `%name` — Bison has no `grammar
+    * not be represented (ADR D38). `name` becomes the grammar's own `name:` — Bison has no `grammar
     * Name;`-equivalent declaration (unlike ANTLR), so, unlike `ConvertAntlr.importAntlr`, the
     * caller must supply one (e.g. the input file's own base name).
     */

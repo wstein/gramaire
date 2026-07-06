@@ -10,7 +10,7 @@ SHOULD, MAY per RFC 2119. Amends the
 [line-continuation](line-continuation.md) (the `NL` case).
 
 The open questions of an earlier draft are resolved here, recorded as ADRs **D32**
-(capture groups) and **D33** (the `%external` interface) in the
+(capture groups) and **D33** (the `-> pass` interface) in the
 [implementation plan](../docs/multi-backend-implementation-plan.md).
 
 ## 1. Why this exists
@@ -37,12 +37,12 @@ NAME : <definition> [ modifiers ]
   already used in productions.
 - `<definition>` is either a **string literal** `"…"` (an exact match) or a
   **regular expression** `/…/` (§3).
-- `modifiers` are zero or more of `%skip`, `%prec N`, `%caseless`, `%external(pass)`
+- `modifiers` are zero or more of `-> skip`, `@prec(N)`, `@caseless`, `-> pass`
   (§6); a `/regex/` may also carry a glued `i` case-insensitivity flag (`/…/i`).
 
 A grammar MUST place all its named classes here; an ALL-CAPS symbol used in a
 production but absent from a Tokens-role fence is an error ("token class `X`
-used but never defined") unless the block is in `%external` mode (§6).
+used but never defined") unless the block is in external mode (§6).
 
 Like the Settings- and Precedence-role fences, a Tokens-role fence is a
 hand-parsed sidecar notation, not itself a `gramark` grammar — but unlike
@@ -110,7 +110,7 @@ only the open-ended classes.
   among all tokens.
 - **M2 (priority on ties).** When two tokens match the same length, priority
   decides, highest first: implicit literals and `"…"` string-literal classes, then
-  `/regex/` classes in **declaration order** (earlier wins). An explicit `%prec N`
+  `/regex/` classes in **declaration order** (earlier wins). An explicit `@prec(N)`
   (higher N = higher priority) overrides the default order.
 - **M3 (keyword reservation).** Because implicit literals outrank classes (M2), a
   quoted keyword beats an overlapping class: with `IDENT : /[A-Za-z_]\w*/` and a
@@ -139,21 +139,21 @@ only the open-ended classes.
 
 ## 6. Modifiers, extras, and the external hook
 
-- **`%skip`** — the token is matched but is **not** a grammar symbol: the parser
+- **`-> skip`** — the token is matched but is **not** a grammar symbol: the parser
   skips it. Skip tokens are exactly the grammar's **extras** — they populate the IR
   `extras` field and are preserved in the CST as leading trivia (incremental-spec
-  §3). Whitespace and comments are `%skip`. `%skip` is the **only** extras
+  §3). Whitespace and comments are `-> skip`. `-> skip` is the **only** extras
   mechanism for an in-file lexer; a block-level `%extras` list is reserved for
-  naming externally-defined tokens (`%external` mode), where there is no in-file
-  pattern to carry `%skip`.
-- **`%prec N`** — explicit tie-break priority (§5, M2).
-- **`%caseless`** — the class matches **ASCII case-insensitively** (ADR D35):
-  every `Lit` and `Class` in its pattern folds case, so `KW : "select" %caseless`
+  naming externally-defined tokens (external mode), where there is no in-file
+  pattern to carry `-> skip`.
+- **`@prec(N)`** — explicit tie-break priority (§5, M2).
+- **`@caseless`** — the class matches **ASCII case-insensitively** (ADR D35):
+  every `Lit` and `Class` in its pattern folds case, so `KW : "select" @caseless`
   matches `SELECT`, `Select`, … . The equivalent on a regex is the glued **`i`
   flag** — `KW : /select/i` — identical in meaning; an author may write either.
   The matched **text** stays the source casing (`SeLeCt` lexes as itself). Unicode
   case folding is deferred with `\p{…}` (§13); v0 folds ASCII only.
-- **`%external(pass)`** — after the regular scan, a named, host-supplied **post-lex
+- **`-> pass`** — after the regular scan, a named, host-supplied **post-lex
   pass** may reclassify or transform the token stream. It is the escape hatch for
   the genuinely non-regular fraction of lexing (indentation/offside, semicolon
   insertion, the `gramark` continuation keep/drop). **Interface (D33):** a pass is a
@@ -162,11 +162,11 @@ only the open-ended classes.
   do payload extraction — that is capture's job (M5) — so the canonical `NL` pass
   decides only which `NL`s to keep or drop (line-continuation §3), while capture
   already gave each its `\n` text.
-- **Block-level `%external`** — the _entire_ scanner is supplied out of band; the
+- **Block-level external mode** — the _entire_ scanner is supplied out of band; the
   block then lists class names with **no** patterns, and the grammar declares it
   brings its own lexer (today's behaviour, preserved for fully context-sensitive
   languages). Default mode is in-file regular lexing.
-- **Out of scope:** `%external` reclassifies tokens from lexical context (surrounding
+- **Out of scope:** an external pass reclassifies tokens from lexical context (surrounding
   characters, offside runs); it does not and will not carry _parse_ state back into
   the scanner (the classic C-typedef "lexer hack"), since the scanner runs as a
   parse-independent pre-pass (§8's self-host oracle depends on that). That class of
@@ -190,8 +190,8 @@ implemented in `Gramark.IR`):
 ```
 
 The lexis lives in this one object keyed by terminal id, rather than on each
-`terminal`, to keep `IRTerminal` unchanged. `%skip` classes also populate
-`grammar.extras`. Token classes a grammar never uses in a production (the `%skip`
+`terminal`, to keep `IRTerminal` unchanged. `-> skip` classes also populate
+`grammar.extras`. Token classes a grammar never uses in a production (the `-> skip`
 ones) get fresh appended terminal ids. Backends compile the DFA from `pattern`s
 (small, deterministic) rather than the IR shipping a serialized DFA; a backend MAY
 cache one. Implicit literals are already in the IR as `kind: "literal"` terminals.
@@ -233,7 +233,7 @@ and the whole grammar corpus are themselves an end-to-end check on it.
 The `gramark` notation, defining its own tokens, with capture groups (M5) for the
 payload-bearing classes and `ATTR` ordered before `IDENT` / `LABEL` so `#[name]`
 out-matches a `# Name` label. `NL` is significant (the continuation pass refines
-its keep/drop via `%external`, while capture gives it a `\n` text); `WS` is
+its keep/drop via an external pass, while capture gives it a `\n` text); `WS` is
 skipped (extras); operator tokens use the string-literal form; `` `:` ``,
 `` `|` ``, and `` `;` `` stay implicit literals from the productions. Every
 line ends with a mandatory `;` (mirroring Bison/YACC/ANTLR4's own convention)
@@ -241,8 +241,8 @@ line ends with a mandatory `;` (mirroring Bison/YACC/ANTLR4's own convention)
 terminator.
 
 ```gramark
-WS       : /[ \t]+/                       %skip ;
-NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      %external(layout) ;
+WS       : /[ \t]+/                       -> skip ;
+NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      -> layout ;
 ATTR     : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/ ;
 IDENT    : /[A-Za-z_][A-Za-z0-9_]*/ ;
 TERM_LIT : /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/ ;
@@ -266,7 +266,7 @@ match as their text (no capture), and use non-capturing groups for structure.
 ```gramark
 STRING : /"(?:[^"\\]|\\.)*"/ ;
 NUMBER : /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/ ;
-WS     : /[ \t\r\n]+/    %skip ;
+WS     : /[ \t\r\n]+/    -> skip ;
 ```
 
 All first characters are disjoint (`"` for STRING, a digit or `-` for NUMBER,
@@ -280,7 +280,7 @@ tie-breaks needed.
   with a clear message.
 - **L2 (munch + keywords).** `trueish` → one `IDENT`; `true` → the keyword
   (M1/M3); longest-match and priority cases from a token-level corpus.
-- **L3 (extras populate the IR).** `%skip` tokens appear in `grammar.extras` and
+- **L3 (extras populate the IR).** `-> skip` tokens appear in `grammar.extras` and
   as CST trivia (incremental-spec §3).
 - **L4 (self-host lexer).** The generated `gramark` lexer reproduces the bootstrap
   lexer's token stream on `grammar/Productions.grmk.md` (§8) — terminals now, text once
@@ -298,8 +298,8 @@ tie-breaks needed.
 2. **Token fragments** — **deferred.** Patterns are short enough flat for now; a
    non-emitting `%fragment NAME : /…/` for reuse (a shared `DIGIT`) is revisited
    when a real grammar feels the pain.
-3. **Per-token vs block extras** — `%skip` is the sole in-file mechanism; a
-   block-level `%extras` list is reserved for `%external` mode only (§6).
-4. **`%external` contract** — pinned in §6 (D33): a scalar, host-registered
+3. **Per-token vs block extras** — `-> skip` is the sole in-file mechanism; a
+   block-level `%extras` list is reserved for external mode only (§6).
+4. **The `-> pass` contract** — pinned in §6 (D33): a scalar, host-registered
    `Array Token -> Array Token` pass run after the scan; line-continuation is its
-   canonical instance. Capture (M5), not `%external`, owns token text.
+   canonical instance. Capture (M5), not the external pass, owns token text.

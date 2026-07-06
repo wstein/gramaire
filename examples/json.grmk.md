@@ -23,8 +23,8 @@ members }`, `{ tag: "Arr", elements }`, `{ tag: "Str", value }`, `{ tag:
 <summary>Declarations</summary>
 
 ```gramark
-%name Json
-%lang javascript
+name: Json
+lang: javascript
 ```
 
 </details>
@@ -39,7 +39,7 @@ here. With this block the grammar is self-contained — no hand-written scanner.
 ```gramark
 STRING : /"(?:[^"\\]|\\.)*"/ ;
 NUMBER : /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/ ;
-WS     : /[ \t\r\n]+/    %skip ;
+WS     : /[ \t\r\n]+/    -> skip ;
 ```
 
 ## Value

@@ -165,7 +165,7 @@ object GramarkCheck:
     if h1s.length != 1 then fails += s"expected exactly one H1, found ${h1s.length} (MD025)"
 
     // Canonical order: H1, then the optional General settings section
-    // (document-level directives like `%lang`), then the optional Tokens
+    // (document-level directives like `lang:`), then the optional Tokens
     // section (alphabet before grammar; lexer-spec §9), then each
     // lr-nonterminal as an H2 in block order, then the optional Precedence
     // section, then Error messages and Generated tables. Only the H1 and H2
@@ -198,7 +198,7 @@ object GramarkCheck:
         "```gramark fence — run `gramark fmt --migrate`"
 
     if Lr.nameOf(doc.src).isEmpty then
-      fails += "missing required `%name` directive (add `%name <name>` inside a General-settings ```gramark fence)"
+      fails += "missing required `name:` directive (add `name: <name>` inside a General-settings ```gramark fence)"
 
     if !doc.src.endsWith("\n") then fails += "file does not end with a newline (MD047)"
     if doc.src.endsWith("\n\n") then fails += "file ends with more than one trailing newline"
@@ -471,7 +471,7 @@ object GramarkCheck:
   // The inverse of `toInlineLayout`: every rule fence (one whose content matches a known rule)
   // that has its own image link directly after it is rewritten to image-first, fence collapsed
   // behind `<details><summary>Source</summary>`. A rule with no existing image link is left
-  // untouched (nothing to hoist in front of it). The Settings fence (`%name`/`%lang` — content
+  // untouched (nothing to hoist in front of it). The Settings fence (`name:`/`lang:` — content
   // shape "case is law", per `Lr.classifyFenceContent`) has no diagram to pair with, so it's
   // collapsed behind `<details><summary>Declarations</summary>` instead, with nothing hoisted
   // above it. Tokens and Precedence fences are left alone — collapsing them was explicitly
@@ -759,7 +759,7 @@ object GramarkCheck:
 
   def checkNativeStructure(src: String): Vector[String] =
     val fails = Vector.newBuilder[String]
-    if Lr.nameOf(src).isEmpty then fails += "missing required `%name` directive"
+    if Lr.nameOf(src).isEmpty then fails += "missing required `name:` directive"
     Lr.parse(src) match
       case Left(err) => fails += s"grammar does not parse: $err"
       case Right(_)  => ()

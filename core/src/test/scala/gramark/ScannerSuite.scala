@@ -4,7 +4,7 @@ package gramark
 class ScannerSuite extends munit.FunSuite:
 
   private val idTokens = List(
-    "WS    : /[ \\t]+/   %skip ;",
+    "WS    : /[ \\t]+/   -> skip ;",
     "IDENT : /[A-Za-z_][A-Za-z0-9_]*/ ;"
   ).mkString("\n")
 
@@ -26,9 +26,9 @@ class ScannerSuite extends munit.FunSuite:
     assertEquals(toks.map(_.text), Vector("123.45e-6"))
   }
 
-  test("%caseless (on a string) and /…/i (on a regex) fold case (D35)") {
+  test("@caseless (on a string) and /…/i (on a regex) fold case (D35)") {
     val defs = Tokens
-      .parseTokens("WS : /[ ]+/   %skip ;\nKW : \"begin\"   %caseless ;\nEE : /end/i ;")
+      .parseTokens("WS : /[ ]+/   -> skip ;\nKW : \"begin\"   @caseless ;\nEE : /end/i ;")
       .getOrElse(fail("caseless tokens should parse"))
     val toks = Scanner.scan(Scanner.buildItems(defs, Vector.empty), "BEGIN eNd")
     assertEquals(toks.map(_.terminal), Vector("KW", "EE"))

@@ -14,8 +14,8 @@ stratification and needs no precedence block.
 <summary>Declarations</summary>
 
 ```gramark
-%name Calc (precedence)
-%lang javascript
+name: Calc (precedence)
+lang: javascript
 ```
 
 </details>
@@ -24,7 +24,7 @@ stratification and needs no precedence block.
 
 ```gramark
 NUM : /[0-9]+/ ;
-WS  : /[ \t\r\n]+/   %skip ;
+WS  : /[ \t\r\n]+/   -> skip ;
 ```
 
 ## expr

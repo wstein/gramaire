@@ -84,16 +84,16 @@ class MainSuite extends munit.FunSuite:
     assertEquals(Main.parseExplain(Vector("--input")), Left("--input requires a value"))
   }
 
-  test("grammarName: reads the required %name directive from a General-settings fence") {
-    val md = "# Ignored heading\n\n## General settings\n\n```gramark\n%name Calc\n```\n"
+  test("grammarName: reads the required name: directive from a General-settings fence") {
+    val md = "# Ignored heading\n\n## General settings\n\n```gramark\nname: Calc\n```\n"
     assertEquals(Main.grammarName(md), Right("Calc"))
   }
 
-  test("grammarName: missing %name is a hard error — no H1 or file-name fallback") {
+  test("grammarName: missing name: is a hard error — no H1 or file-name fallback") {
     assertEquals(
       Main.grammarName("# Calc\n\nno settings fence here"),
       Left(
-        "missing required `%name` directive (add `%name <name>` inside a General-settings ```gramark fence)"
+        "missing required `name:` directive (add `name: <name>` inside a General-settings ```gramark fence)"
       )
     )
   }
@@ -174,7 +174,7 @@ class MainSuite extends munit.FunSuite:
       case Left(e) => fail(s"should import: $e")
       case Right(imp) =>
         assert(
-          imp.markdown.contains("%name My-parser"),
+          imp.markdown.contains("name: My-parser"),
           s"expected a clean `My-parser` name, got:\n${imp.markdown}"
         )
         assert(!imp.markdown.contains(".yy"), "the `.yy` suffix must not survive into the name")
@@ -187,7 +187,7 @@ class MainSuite extends munit.FunSuite:
       """# G
         |
         |```gramark
-        |%name G
+        |name: G
         |```
         |
         |## R

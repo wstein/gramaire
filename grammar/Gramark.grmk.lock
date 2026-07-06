@@ -2,7 +2,7 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "486c13783723eb5e26f7e06bea2b16c165fa6a077f0b199d47db4fa9681902f1",
+  "grammarSha256": "62ac40ea6f67f29094f11ffe6beb7a87356f705ef8475ee4852871104ccf92a8",
   "artifacts": [
     {
       "kind": "railroad",
@@ -26,7 +26,7 @@
       "kind": "railroad",
       "nonterminal": "SettingDecl",
       "path": "diagrams-Gramark/settingdecl.svg",
-      "sourceSha256": "0c1097142b776d5e45d3475a23bc43d21644eb7b34f4a7304a16a735d4061370"
+      "sourceSha256": "a0907ff9e4ddf710379eaa296e06d18e8753a8d9cfffedcc4d7e102fe6362e12"
     },
     {
       "kind": "railroad",
@@ -56,7 +56,7 @@
       "kind": "railroad",
       "nonterminal": "Modifier",
       "path": "diagrams-Gramark/modifier.svg",
-      "sourceSha256": "05b8524793dd840df2cc0b0c6923f7a680f78973ec44d4b24ba06cea6ad061b0"
+      "sourceSha256": "bd021df50f2b8ad75a60c606f15b50d338d17b1ecb719e81032ac0ff309fd8f1"
     },
     {
       "kind": "railroad",
@@ -169,7 +169,7 @@
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "486c13783723eb5e26f7e06bea2b16c165fa6a077f0b199d47db4fa9681902f1"
+      "sourceSha256": "62ac40ea6f67f29094f11ffe6beb7a87356f705ef8475ee4852871104ccf92a8"
     }
   ]
 }

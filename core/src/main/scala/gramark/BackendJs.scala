@@ -27,7 +27,7 @@ object BackendJs:
     sb.append("\"").toString
 
   // `Desugar.scala` generates action text in one of four shapes, all sharing the same PureScript-
-  // flavored lambda syntax regardless of `%lang` (see its own header comment: "legacy lambda-syntax
+  // flavored lambda syntax regardless of `lang:` (see its own header comment: "legacy lambda-syntax
   // text… carried through as opaque, unexecuted templating"):
   //
   //   NormalizedAction    ::= "\" IDENT (" " IDENT)* " -> " Body     -- Body: opaque {% %} text, verbatim

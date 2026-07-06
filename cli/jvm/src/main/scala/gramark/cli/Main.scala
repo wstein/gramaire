@@ -54,9 +54,9 @@ object Main:
     go(defaultEmit, args)
 
   private val missingNameError: String =
-    "missing required `%name` directive (add `%name <name>` inside a General-settings ```gramark fence)"
+    "missing required `name:` directive (add `name: <name>` inside a General-settings ```gramark fence)"
 
-  /** The grammar's name: its required `%name <name>` directive — never a heading (headings are
+  /** The grammar's name: its required `name: <name>` directive — never a heading (headings are
     * presentation, not grammar semantics) and never a fallback to the file's path (a `.grmk.md`/
     * `.grmk` must be self-describing on its own, independent of how it was loaded).
     */

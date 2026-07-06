@@ -14,7 +14,7 @@ class TransformSuite extends munit.FunSuite:
       |
       |```gramark
       |NUMBER : /[0-9]+(?:\.[0-9]+)?/;
-      |WS     : /[ \t\r\n]+/   %skip;
+      |WS     : /[ \t\r\n]+/   -> skip;
       |```
       |
       |## Expr

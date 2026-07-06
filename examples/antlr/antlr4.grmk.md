@@ -26,26 +26,26 @@ which Gramark defers (ADR D27) — become helper rules (`*Decl`, `*Op`, …). Em
 alternatives are kept verbatim; Gramark accepts them.
 
 ```gramark
-%name ANTLRv4
+name: ANTLRv4
 ```
 
 ## Tokens
 
 Lexer token classes. ANTLR's case rule (a lower-case head is a parser-rule
 reference, an upper-case head a token reference) is modelled by splitting `ID`
-into `RULE_REF` / `TOKEN_REF`. Whitespace and comments are `%skip` (ANTLR puts
+into `RULE_REF` / `TOKEN_REF`. Whitespace and comments are `-> skip` (ANTLR puts
 them on hidden channels; Gramark has only skip — flagged below). Regexes are
 DFA-friendly (no non-greedy), so a few are approximations of the ANTLR originals.
 
 ```gramark
-DOC_COMMENT   : /\/\*\*([^*]|\*+[^*\/])*\*+\//   %skip
-BLOCK_COMMENT : /\/\*([^*]|\*+[^*\/])*\*+\//     %skip
-LINE_COMMENT  : /\/\/[^\r\n]*/                   %skip
+DOC_COMMENT   : /\/\*\*([^*]|\*+[^*\/])*\*+\//   -> skip
+BLOCK_COMMENT : /\/\*([^*]|\*+[^*\/])*\*+\//     -> skip
+LINE_COMMENT  : /\/\/[^\r\n]*/                   -> skip
 INT           : /0|[1-9][0-9]*/
 STRING_LITERAL : /'(\\.|[^'\r\n\\])*'/
 RULE_REF      : /[a-z][A-Za-z0-9_]*/
 TOKEN_REF     : /[A-Z][A-Za-z0-9_]*/
-WS            : /[ \t\r\n\f]+/                    %skip
+WS            : /[ \t\r\n\f]+/                    -> skip
 ```
 
 ## grammarSpec
@@ -666,10 +666,10 @@ an adaptive lexer (the ALL(\*) plan's Phase 4):
 - **The brace-balanced `ACTION` token** (`{ … }` with nested braces, strings,
   and comments). Balanced nesting is not a regular language, so it cannot be a
   Gramark token regex; ANTLR matches it with a recursive `fragment NESTED_ACTION`
-  and a lexer action. In Gramark this needs a host hook (`%external`), not a
+  and a lexer action. In Gramark this needs a host hook (`-> pass`), not a
   pattern.
 - **Channels** (`channels { OFF_CHANNEL, COMMENT }`, `-> channel(…)`). Gramark
-  has only `%skip` (one hidden channel), used above for whitespace and comments;
+  has only `-> skip` (one hidden channel), used above for whitespace and comments;
   the distinction between off-channel and a named comment channel is lost.
 - **Lexer member actions** (`@header`, `{ this.handleBeginArgument(); }`) and the
   `options { superClass = LexerAdaptor; }` hook that drives ANTLR's

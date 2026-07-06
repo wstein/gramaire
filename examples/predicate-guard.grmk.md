@@ -39,8 +39,8 @@ default) once a predicate is present — `--strategy ll-star` is required.
 <summary>Declarations</summary>
 
 ```gramark
-%name PredicateGuard
-%lang javascript
+name: PredicateGuard
+lang: javascript
 ```
 
 </details>
@@ -50,7 +50,7 @@ default) once a predicate is present — `--strategy ll-star` is required.
 ```gramark
 NUMBER : /[0-9]+(?:\.[0-9]+)?/ ;
 IDENT  : /[a-zA-Z_][a-zA-Z0-9_]*/ ;
-WS     : /[ \t\r\n]+/   %skip ;
+WS     : /[ \t\r\n]+/   -> skip ;
 ```
 
 ## Stmt
