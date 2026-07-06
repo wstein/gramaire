@@ -86,6 +86,12 @@ echo "== Mirroring $SOURCE_URL into $MIRROR_DIR =="
 # instead, which filter-repo accepts; it's a harmless no-op for a genuine remote URL.
 git clone --no-local --mirror "$SOURCE_URL" "$MIRROR_DIR"
 
+CODEX_REF_DELETE_COMMANDS="$(git -C "$MIRROR_DIR" for-each-ref --format='delete %(refname)' refs/codex)"
+if [ -n "$CODEX_REF_DELETE_COMMANDS" ]; then
+  echo "Dropping local Codex scratch refs from the disposable mirror before rewrite."
+  printf '%s\n' "$CODEX_REF_DELETE_COMMANDS" | git -C "$MIRROR_DIR" update-ref --stdin
+fi
+
 echo
 echo "== About to rewrite ALL history in $MIRROR_DIR =="
 echo "   - rename .gram/.gram.md -> .gram/.gram.md (paths + in-text mentions)"
