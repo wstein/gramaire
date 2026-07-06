@@ -122,9 +122,28 @@ object BackendAntlr:
           case None                                    => s"T$i"
 
     def altText(r: IRRule): String =
-      r.rhs.map(symText) match
+      val rhsText = r.rhs.map(symText) match
         case Vector() => "/* empty */"
         case parts    => parts.mkString(" ")
+      // `IRRule.predicate` flags this alt's action an ALL(*) semantic predicate (D42/D-predicates)
+      // rather than a value-building one — render it back as ANTLR4's own `{ ... }?` syntax
+      // (ADR D54), leading the alt as is idiomatic ANTLR4 style. The body always lives under
+      // whichever single key `actions` carries — `"default"` if this `IR` was never re-tagged by
+      // `IR.withActionLang` (e.g. a hand-built `IR` in a unit test), or the document's declared
+      // `%lang` once it has been (the real `emit` pipeline's `Main.scala` always calls
+      // `withActionLang` before any backend runs) — never both, since `Alt`'s one `action` field
+      // is the sole source for both `actions` and `predicate` (`IR.irGrammarOf`). Reading
+      // `.values.headOption` rather than a hardcoded key name is what makes this correct under
+      // either case. The stored text itself is `Desugar`'s wrapped form (e.g. `\_ -> flag`, a
+      // synthesized binder around the author's real body), not the literal source — `unwrapBinder`
+      // (`BackendJs.scala`, `private[gramark]`, already reused by the Lab for the same "display the
+      // author's real body" reason) strips it back to `flag` regardless of target language, since
+      // that transform is about undoing Gramark's own desugaring wrapper, not about JS specifically.
+      r.predicate match
+        case Some(_) =>
+          val body = BackendJs.unwrapBinder(r.actions.values.headOption.getOrElse(""))
+          s"{$body}? $rhsText"
+        case None => rhsText
 
     def parserRule(nt: IRNonterminal): String =
       val alts = ir.grammar.rules.filter(_.lhs == nt.id)

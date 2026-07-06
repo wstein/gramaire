@@ -407,23 +407,50 @@ object ConvertAntlr:
     case SNone     => false
 
   private def collectWarnings(rules: Vector[G4Rule]): Vector[String] =
-    def elemWarn(inLexer: Boolean, ruleName: String, e: Elem): Vector[String] =
+    // `nested`/`hasAction` exist only to give a dropped `APred` an accurate reason instead of a
+    // generic "no Core equivalent": `nested` (set once recursing into an `AGroup`) and
+    // `hasAction` (set when the alt's own top-level `APred` shares its alt with an `AInline`)
+    // are the two structurally-unfixable cases `promotablePredicate` never promotes — see its
+    // own doc comment and ADR D54 for why neither has a Core equivalent to grow into.
+    def elemWarn(
+        inLexer: Boolean,
+        nested: Boolean,
+        hasAction: Boolean,
+        ruleName: String,
+        e: Elem
+    ): Vector[String] =
       val atomWarn: Vector[String] = e.atom match
         case AInline(a) =>
           Vector(
             s"dropped an inline action `{${shorten(a)}}` in rule `$ruleName` (no Core equivalent)"
           )
+        case APred(a) if inLexer =>
+          Vector(
+            s"dropped a semantic predicate `{${shorten(a)}}?` in rule `$ruleName`" +
+              " (a lexer rule is pure regex; a predicate has no Core equivalent there)"
+          )
+        case APred(a) if nested =>
+          Vector(
+            s"dropped a semantic predicate `{${shorten(a)}}?` in rule `$ruleName`" +
+              " (nested inside a group, which has no action slot of its own to attach it to)"
+          )
+        case APred(a) if hasAction =>
+          Vector(
+            s"dropped a semantic predicate `{${shorten(a)}}?` in rule `$ruleName`" +
+              " (this alternative already carries an action; Gramark's action slot is one-per-alternative, so a predicate and an action can't coexist on it)"
+          )
         case APred(a) =>
           Vector(
             s"dropped a semantic predicate `{${shorten(a)}}?` in rule `$ruleName` (no Core equivalent)"
           )
-        case AGroup(alts) => alts.flatMap(_.flatMap(elemWarn(inLexer, ruleName, _)))
+        case AGroup(alts) =>
+          alts.flatMap(_.flatMap(elemWarn(inLexer, nested = true, hasAction = false, ruleName, _)))
         case ANot(ASet(s)) if !inLexer =>
           Vector(
             s"dropped a negated character set `~[${shorten(s)}]` in parser rule `$ruleName`" +
               " (no Core equivalent — `~.` is not valid Gramark syntax)"
           )
-        case ANot(inner) => elemWarn(inLexer, ruleName, Elem(inner, SNone))
+        case ANot(inner) => elemWarn(inLexer, nested, hasAction, ruleName, Elem(inner, SNone))
         case ASet(s) if !inLexer =>
           Vector(
             s"widened a character set `[${shorten(s)}]` in parser rule `$ruleName` to `$widenedParserCharset`"
@@ -442,7 +469,8 @@ object ConvertAntlr:
       val elems = promotablePredicate(r.lexer, alt) match
         case Some(p) => alt.filterNot(_.atom == APred(p))
         case None    => alt
-      elems.flatMap(e => elemWarn(r.lexer, r.name, e))
+      val hasAction = elems.exists { case Elem(AInline(_), _) => true; case _ => false }
+      elems.flatMap(e => elemWarn(r.lexer, nested = false, hasAction, r.name, e))
     // `.distinct` dedupes only truly identical warnings (e.g. the same dropped action
     // repeated within one rule); every message above is rule-scoped so it can't collapse
     // warnings from two different rules into one.
