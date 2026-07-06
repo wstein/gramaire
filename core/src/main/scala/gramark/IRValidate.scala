@@ -59,7 +59,9 @@ object IRValidate:
         (if r.predicate.isDefined && !r.actions.values.exists(_.trim.nonEmpty) then
            Vector(s"rule ${r.id}: declares a predicate effect but has no action body")
          else Vector.empty) ++
-        r.delegate.toVector.flatMap(nonEmptyKey(r.id, "delegate name must not be empty", _)) ++
+        r.delegate.toVector.flatMap(d =>
+          nonEmptyKey(r.id, "delegate name must not be empty", d.name)
+        ) ++
         (if r.delegate.isDefined && r.actions.values.exists(_.trim.nonEmpty) then
            Vector(s"rule ${r.id}: declares both a delegate name and an action body")
          else Vector.empty)

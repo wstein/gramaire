@@ -255,6 +255,7 @@ LANGLE   : "<" ;
 RANGLE   : ">" ;
 COMMA    : "," ;
 ARROW    : "->" ;
+NUMBER   : /[0-9]+/ ;
 ```
 
 ## 11. Worked example — `json.grmk.md`

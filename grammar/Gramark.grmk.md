@@ -53,6 +53,7 @@ LANGLE        : "<" ;
 RANGLE        : ">" ;
 COMMA         : "," ;
 ARROW         : "->" ;
+NUMBER        : /[0-9]+/ ;
 ```
 
 ## File
@@ -451,7 +452,9 @@ A `-> IDENT` alternative delegate slot (ADR D48), mutually exclusive with an
 inline `Action` at the same slot. Reuses the same `ARROW` token `Modifier`
 already lexes for a token definition's `-> skip`/`-> pass` command — the two
 never overlap since they occur in disjoint rule contexts (a production's
-alternative vs. a token definition's modifier list).
+alternative vs. a token definition's modifier list). May carry a
+parenthesised, comma-separated argument list — `-> IDENT(args...)` — `args` is
+empty for the bare form.
 
 ![Railroad diagram for the Delegate rule](diagrams-Gramark/delegate.svg)
 
@@ -460,7 +463,46 @@ alternative vs. a token definition's modifier list).
 
 ```gramark
 Delegate
-  : ARROW IDENT   {% (c) => c[1] %}
+  : ARROW IDENT                    {% (c) => ({ name: c[1], args: [] }) %}
+  | ARROW IDENT '(' ArgList ')'    {% (c) => ({ name: c[1], args: c[3] }) %}
+  ;
+```
+
+</details>
+
+## ArgList
+
+The comma-separated argument list of a parenthesised `-> IDENT(...)` delegate.
+
+![Railroad diagram for the ArgList rule](diagrams-Gramark/arglist.svg)
+
+<details>
+<summary>Source</summary>
+
+```gramark
+ArgList
+  : Arg                 {% (c) => [c[0]] %}
+  | ArgList COMMA Arg   {% (c) => [...c[0], c[2]] %}
+  ;
+```
+
+</details>
+
+## Arg
+
+A single delegate argument: a bare identifier, a quoted literal, or a bare
+number.
+
+![Railroad diagram for the Arg rule](diagrams-Gramark/arg.svg)
+
+<details>
+<summary>Source</summary>
+
+```gramark
+Arg
+  : IDENT      {% (c) => c[0] %}
+  | TERM_LIT   {% (c) => c[0] %}
+  | NUMBER     {% (c) => c[0] %}
   ;
 ```
 
@@ -590,6 +632,8 @@ after Alt, lookahead is '%left':
 | `Action`        | `ACTION`                            | `;` `\|`                                                                                                       |
 | `Label`         | `LABEL`                             | `;` `ARROW` `\|` `ACTION`                                                                                      |
 | `Delegate`      | `ARROW`                             | `;` `\|`                                                                                                       |
+| `ArgList`       | `IDENT` `TERM_LIT` `NUMBER`         | `)` `COMMA`                                                                                                    |
+| `Arg`           | `IDENT` `TERM_LIT` `NUMBER`         | `)` `COMMA`                                                                                                    |
 | `GroupBody`     | `IDENT` `TERM_LIT` `(` `.` `~`      | `\|` `)`                                                                                                       |
 | `Atom`          | `.` `~`                             | `IDENT` `;` `TERM_LIT` `ARROW` `\|` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` |
 | `NotArg`        | `IDENT` `TERM_LIT` `(`              | `IDENT` `;` `TERM_LIT` `ARROW` `\|` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` |

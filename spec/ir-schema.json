@@ -294,8 +294,28 @@
           "$ref": "#/$defs/predicateEffect"
         },
         "delegate": {
-          "description": "Optional `-> IDENT` delegate name (ADR D48): this alternative's action is implemented elsewhere (a consumer-supplied implementation at runtime, or in a later phase a fenced implementation in the same file) rather than by `actions`. Mutually exclusive with a non-empty `actions` entry. Absent when the alternative has an ordinary action or none at all.",
+          "$ref": "#/$defs/delegate"
+        }
+      }
+    },
+    "delegate": {
+      "description": "Optional `-> IDENT` / `-> IDENT(args...)` delegate (ADR D48): this alternative's action is implemented elsewhere (a consumer-supplied implementation at runtime, or in a later phase a fenced implementation in the same file) rather than by `actions`. Mutually exclusive with a non-empty `actions` entry. Absent when the alternative has an ordinary action or none at all.",
+      "type": "object",
+      "required": [
+        "name",
+        "args"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
           "type": "string"
+        },
+        "args": {
+          "description": "Each parenthesized argument's literal source text (an identifier's name, a literal's unescaped content, or a number's digit string), in order. Empty for the bare `-> IDENT` form.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
