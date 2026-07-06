@@ -55,6 +55,32 @@ class MainSuite extends munit.FunSuite:
     assertEquals(Main.parseEmit(Vector("--backend")), Left("--backend requires a value"))
   }
 
+  test("parseLint: --target and a bare file are both required, in either order") {
+    assertEquals(
+      Main.parseLint(Vector("--target", "antlr", "foo.gram.md")),
+      Right(Main.LintOpts(Some("foo.gram.md"), Some("antlr")))
+    )
+    assertEquals(
+      Main.parseLint(Vector("foo.gram.md", "--target", "bison")),
+      Right(Main.LintOpts(Some("foo.gram.md"), Some("bison")))
+    )
+  }
+
+  test("parseLint: a missing --target still parses (checked, and rejected, by runLint itself)") {
+    assertEquals(
+      Main.parseLint(Vector("foo.gram.md")),
+      Right(Main.LintOpts(Some("foo.gram.md"), None))
+    )
+  }
+
+  test("parseLint: an unknown option is rejected") {
+    assertEquals(Main.parseLint(Vector("--bogus")), Left("unknown option: --bogus"))
+  }
+
+  test("parseLint: a flag needing a value at the end of argv is rejected") {
+    assertEquals(Main.parseLint(Vector("--target")), Left("--target requires a value"))
+  }
+
   test("parseExplain: a bare file is the positional argument, defaults otherwise") {
     assertEquals(
       Main.parseExplain(Vector("foo.gram.md")),

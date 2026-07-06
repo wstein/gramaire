@@ -139,7 +139,7 @@ JAVA_HOME=/path/to/graalvm sbt cli/nativeImage   # -> cli/jvm/target/native-imag
 | Path         | What lives there                                                       |
 | ------------ | ----------------------------------------------------------------------- |
 | `core/`      | Cross-compiled (JVM + Scala.js) core: lexer, tables, parser, IR, backends. |
-| `cli/jvm/`   | The unified native `gramaire` CLI (`emit`/`import`/`check`/`fmt`/`conformance`). |
+| `cli/jvm/`   | The unified native `gramaire` CLI (`emit`/`import`/`check`/`lint`/`fmt`/`conformance`). |
 | `spec/`      | `ir-schema.json` (IR contract) and `incremental-spec.md` (CST/LSP).     |
 | `grammar/`   | `Productions.gram.md` — the productions notation described in itself.    |
 | `examples/`  | Worked grammars: `json`, `calc`, `calc-js`, and the `readme` meta demo. |
