@@ -65,12 +65,12 @@ object Lr:
   def reduce(p: Int, kids: Vector[SemVal]): SemVal = (p, kids) match
     case (0, Vector(SemVal.VRules(rs))) => SemVal.VGrammar(Grammar(rs)) // Grammar : RuleList
     case (1, Vector(SemVal.VRule(r)))   => SemVal.VRules(Vector(r)) // RuleList : Rule
-    case (2, Vector(SemVal.VRules(rs), _, SemVal.VRule(r))) =>
-      SemVal.VRules(rs :+ r) // RuleList : RuleList NL Rule
-    case (3, Vector(SemVal.VStr(attr), SemVal.VStr(lhs), _, _, SemVal.VAlts(alts))) =>
-      SemVal.VRule(Rule(lhs, Vector(attr), alts)) // Rule : ATTR IDENT NL `:` Body
-    case (4, Vector(SemVal.VStr(lhs), _, _, SemVal.VAlts(alts))) =>
-      SemVal.VRule(Rule(lhs, Vector.empty, alts)) // Rule : IDENT NL `:` Body
+    case (2, Vector(SemVal.VRules(rs), SemVal.VRule(r))) =>
+      SemVal.VRules(rs :+ r) // RuleList : RuleList Rule
+    case (3, Vector(SemVal.VStr(attr), SemVal.VStr(lhs), _, _, SemVal.VAlts(alts), _)) =>
+      SemVal.VRule(Rule(lhs, Vector(attr), alts)) // Rule : ATTR IDENT NL `:` Body `;`
+    case (4, Vector(SemVal.VStr(lhs), _, _, SemVal.VAlts(alts), _)) =>
+      SemVal.VRule(Rule(lhs, Vector.empty, alts)) // Rule : IDENT NL `:` Body `;`
     case (5, Vector(SemVal.VAlt(a))) => SemVal.VAlts(Vector(a)) // Body : Alt
     case (6, Vector(SemVal.VAlts(bs), _, SemVal.VAlt(a))) =>
       SemVal.VAlts(bs :+ a) // Body : Body `|` Alt
@@ -504,12 +504,12 @@ object Lr:
     (fenced, fenced != src)
 
   // The production lexer for `lr` grammar source: the scanner built from
-  // the notation's own `## Tokens` block, with `:` and `|` as the
-  // implicit literals.
+  // the notation's own `## Tokens` block, with `:`, `|`, and the rule/token-
+  // terminating `;` as the implicit literals.
   private lazy val lrScanItems: Vector[ScanItem] =
     Scanner.buildItems(
       Tokens.parseTokens(Bootstrap.lrTokensSource).getOrElse(Vector.empty),
-      Vector(":", "|", "(", ")", ".", "~")
+      Vector(":", "|", "(", ")", ".", "~", ";")
     )
 
   // A block's virtual (concatenated-source) offset range and where it starts in the document —

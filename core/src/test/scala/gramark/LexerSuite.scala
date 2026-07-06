@@ -100,7 +100,13 @@ class LexerSuite extends munit.FunSuite:
     )
   }
 
-  test("normalizeNewlines keeps a boundary NL before a head (Sym NL IDENT NL :)") {
+  // Regression: a boundary NL before the NEXT rule's own head used to survive normalization too —
+  // the second of two shapes `RuleList : RuleList NL Rule` needed to tell consecutive rules apart.
+  // A mandatory trailing `;` (Bootstrap.scala's `Rule`) now does that job unambiguously, so this
+  // boundary NL is just another insignificant line break and is dropped like any other.
+  test(
+    "normalizeNewlines drops a boundary NL before a head — `;` disambiguates rule starts now, not a preserved boundary newline"
+  ) {
     assertEquals(
       Lexer
         .normalizeNewlines(
@@ -113,11 +119,11 @@ class LexerSuite extends munit.FunSuite:
           )
         )
         .map(_.terminal),
-      Vector("TERM_LIT", "NL", "IDENT", "NL", ":")
+      Vector("TERM_LIT", "IDENT", "NL", ":")
     )
   }
 
-  test("normalizeNewlines recognizes an ATTR-prefixed head as a boundary") {
+  test("normalizeNewlines drops a boundary NL before an ATTR-prefixed head the same way") {
     assertEquals(
       Lexer
         .normalizeNewlines(
@@ -131,7 +137,7 @@ class LexerSuite extends munit.FunSuite:
           )
         )
         .map(_.terminal),
-      Vector("TERM_LIT", "NL", "ATTR", "IDENT", "NL", ":")
+      Vector("TERM_LIT", "ATTR", "IDENT", "NL", ":")
     )
   }
 

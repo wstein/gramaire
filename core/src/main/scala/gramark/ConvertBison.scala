@@ -551,7 +551,7 @@ object ConvertBison:
       val doc = r.doc.map(d => d + "\n\n").getOrElse("")
       s"## ${r.name}\n\n$doc```gramark\n${r.name}\n  : " + r.alts
         .map(altText)
-        .mkString("\n  | ") + "\n```\n"
+        .mkString("\n  | ") + "\n  ;\n```\n"
 
     val markdown =
       (Vector(s"# $name\n") ++ settingsSection ++ precSection ++ tokensNote ++ p.rules.map(

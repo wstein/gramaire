@@ -197,6 +197,7 @@ class MainSuite extends munit.FunSuite:
         |```gramark
         |R
         |  : 'x'
+        |  ;
         |```
         |""".stripMargin
     Lr.parseWith(Method.Canonical, md) match

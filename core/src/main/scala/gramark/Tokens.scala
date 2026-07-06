@@ -4,11 +4,12 @@ package gramark
 //
 // Each non-blank line defines one named token class:
 //
-//   NAME : <definition> [ modifiers ]
+//   NAME : <definition> [ modifiers ] ;
 //
 // where `NAME` is ALL-CAPS, `<definition>` is an exact `"string"` or a
-// `/regex/` in the regular sublanguage (`Regex`), and `modifiers` are zero
-// or more of `%skip`, `%prec N`, `%external(pass)`.
+// `/regex/` in the regular sublanguage (`Regex`), `modifiers` are zero
+// or more of `%skip`, `%prec N`, `%external(pass)`, and the trailing `;`
+// is mandatory (matching Bison/YACC/ANTLR4's own lexer-rule terminator).
 // Ported from src/Gramark/Tokens.purs.
 
 // A token's pattern: an exact string (a literal class) or a regular
@@ -42,21 +43,29 @@ object Tokens:
     }
 
   private def parseLine(line: String): Either[String, TokenDef] =
-    splitFirstColon(line) match
-      case None => Left(s"token line has no `:` separator: $line")
-      case Some((rawName, rawRest)) =>
-        for
-          name <- validateName(rawName.trim)
-          d <- parseDefinition(rawRest.trim)
-          mods <- parseModifiers(words(d.rest))
-        yield TokenDef(
-          name = name,
-          pattern = d.pattern,
-          skip = mods.skip,
-          prec = mods.prec,
-          external = mods.external,
-          caseless = d.iflag || mods.caseless
-        )
+    for
+      body <- stripTerminator(line)
+      (rawName, rawRest) <- splitFirstColon(body).toRight(s"token line has no `:` separator: $line")
+      name <- validateName(rawName.trim)
+      d <- parseDefinition(rawRest.trim)
+      mods <- parseModifiers(words(d.rest))
+    yield TokenDef(
+      name = name,
+      pattern = d.pattern,
+      skip = mods.skip,
+      prec = mods.prec,
+      external = mods.external,
+      caseless = d.iflag || mods.caseless
+    )
+
+  // The mandatory trailing `;` (Bison/YACC/ANTLR4 convention) — the line's own `body` is
+  // everything before it. `line` arrives already trimmed (`parseTokens`), so a bare `;` at the very
+  // end is unambiguous: the definition/modifiers before it are already closed by their own
+  // delimiters (a quote, a `/`, or a modifier keyword), never themselves ending in an unterminated
+  // `;`.
+  private def stripTerminator(line: String): Either[String, String] =
+    if line.endsWith(";") then Right(line.dropRight(1).stripTrailing())
+    else Left(s"token line must end with `;`: $line")
 
   // The name part ends at the first `:`; a `:` inside the definition
   // cannot be reached because an ALL-CAPS name never contains one.

@@ -24,6 +24,7 @@ class LabApiSuite extends munit.FunSuite:
     |E
     |: E E
     || 'x'
+    |;
     |```
     |""".stripMargin
 
@@ -49,6 +50,7 @@ class LabApiSuite extends munit.FunSuite:
     |```gramark
     |Expr
     |: Baz
+    |;
     |```
     |""".stripMargin
 
@@ -180,7 +182,7 @@ class LabApiSuite extends munit.FunSuite:
     // it isn't. The Lab frontend only ever has `request.source` verbatim (the literal textarea
     // content), so exposing a span computed against the projection would select/highlight the
     // wrong region for this shape of input — LabApi drops it instead.
-    val fenceFreeGrmk = "Expr\n: Baz\n"
+    val fenceFreeGrmk = "Expr\n: Baz\n;\n"
     val resp = LabApi.evaluate(LabRequest(fenceFreeGrmk, None, Method.Canonical))
     assert(!resp.buildOk)
     assertEquals(resp.diagnostics.length, 1)
@@ -247,10 +249,10 @@ class LabApiSuite extends munit.FunSuite:
       Vector(
         ("settings", None, 9, 12),
         ("tokens", None, 18, 21),
-        ("rule", Some("Expr"), 32, 37),
-        ("rule", Some("Term"), 50, 55),
-        ("rule", Some("Factor"), 68, 72),
-        ("precedence", None, 80, 83)
+        ("rule", Some("Expr"), 32, 38),
+        ("rule", Some("Term"), 51, 57),
+        ("rule", Some("Factor"), 70, 75),
+        ("precedence", None, 83, 86)
       )
     )
   }
@@ -432,7 +434,7 @@ class LabApiSuite extends munit.FunSuite:
       |## Tokens
       |
       |```gramark
-      |A : /a/
+      |A : /a/ ;
       |```
       |
       |## s
@@ -440,6 +442,7 @@ class LabApiSuite extends munit.FunSuite:
       |```gramark
       |s
       |: A
+      |;
       |```
       |""".stripMargin
     val plainResp = LabApi.evaluate(LabRequest(plainMd, None, Method.Canonical))
@@ -520,12 +523,13 @@ class LabApiSuite extends munit.FunSuite:
       |```gramark
       |S
       |: NUM {%? isKeyword %}
+      |;
       |```
       |
       |## Tokens
       |
       |```gramark
-      |NUM : /[0-9]+/
+      |NUM : /[0-9]+/ ;
       |```
       |""".stripMargin
     val resp = LabApi.evaluate(LabRequest(predicateMd, None, Method.Canonical))
@@ -547,6 +551,7 @@ class LabApiSuite extends munit.FunSuite:
       |```gramark
       |S
       |: 'x' {% (c) => c.x %}
+      |;
       |```
       |""".stripMargin
     val resp2 = LabApi.evaluate(LabRequest(noLangMd, None, Method.Canonical))

@@ -5,7 +5,7 @@ package gramark
 // It turns the raw text of an `lr` block into a flat token stream the
 // generated parser consumes: skips spaces/indentation, collapses runs of
 // blank lines to a single `NL`, and emits IDENT/TERM_LIT/ACTION/LABEL/
-// ATTR/PLUS/STAR/QUESTION/LANGLE/RANGLE/COMMA/NL and the raw `:`/`|`
+// ATTR/PLUS/STAR/QUESTION/LANGLE/RANGLE/COMMA/NL and the raw `:`/`|`/`;`
 // punctuation.
 // Ported from src/Gramark/Lexer.purs.
 
@@ -73,6 +73,7 @@ object Lexer:
             val e = skipWhile(isLayout, i + 1)
             go(e, acc :+ sp("NL", "\n", i, e))
           else if c == ':' then go(i + 1, acc :+ sp(":", ":", i, i + 1))
+          else if c == ';' then go(i + 1, acc :+ sp(";", ";", i, i + 1))
           else if c == '|' then go(i + 1, acc :+ sp("|", "|", i, i + 1))
           else if c == '+' then go(i + 1, acc :+ sp("PLUS", "+", i, i + 1))
           else if c == '*' then go(i + 1, acc :+ sp("STAR", "*", i, i + 1))
@@ -113,29 +114,23 @@ object Lexer:
 
     go(0, Vector.empty)
 
-  /** Reclassify newlines for the parser (line-continuation spec, §3). Only rule-structural `NL`s
-    * survive: the head separator inside `IDENT NL :` (or `ATTR IDENT NL :`) and a boundary `NL`
-    * immediately before such a head. Every other `NL` is dropped, so a line break inside an
-    * alternative is insignificant.
+  /** Reclassify newlines for the parser (line-continuation spec, §3). Only ONE `NL` shape survives:
+    * the head separator inside `IDENT NL :` (or `ATTR IDENT NL :`). Every other `NL` is dropped, so
+    * a line break inside an alternative is insignificant — including, now, the newline between two
+    * consecutive rules, since a mandatory trailing `;` (Bootstrap.scala's `Rule`) unambiguously
+    * ends each rule without needing a preserved boundary newline to tell them apart. A prior
+    * revision of this function also kept that boundary `NL` (the one immediately before the next
+    * rule's own head) for exactly that disambiguation job; `;` replaced it, not layered alongside
+    * it.
     */
   def normalizeNewlines(toks: Vector[Token]): Vector[Token] =
     def term(j: Int): Option[String] =
       if j >= 0 && j < toks.length then Some(toks(j).terminal) else None
 
-    // A rule head begins at p: `IDENT NL :`, optionally prefixed by an `ATTR`.
-    def isHead(p: Int): Boolean =
-      (term(p) == Some("IDENT") && term(p + 1) == Some("NL") && term(p + 2) == Some(":")) ||
-        (term(p) == Some("ATTR") && term(p + 1) == Some("IDENT") && term(p + 2) == Some(
-          "NL"
-        ) && term(
-          p + 3
-        ) == Some(":"))
-
     def decide(i: Int, t: Token): Option[Token] =
       if t.terminal != "NL" then Some(t)
-      else if term(i - 1) == Some("IDENT") && term(i + 1) == Some(":") then Some(t) // N1: head `NL`
-      else if isHead(i + 1) then Some(t) // N2: boundary `NL` before a head
-      else None // N3: continuation `NL`, dropped
+      else if term(i - 1) == Some("IDENT") && term(i + 1) == Some(":") then Some(t) // head `NL`
+      else None // every other NL, dropped
 
     toks.zipWithIndex.flatMap { case (t, i) => decide(i, t) }
 
@@ -149,18 +144,9 @@ object Lexer:
     def term(j: Int): Option[String] =
       if j >= 0 && j < toks.length then Some(toks(j).terminal) else None
 
-    def isHead(p: Int): Boolean =
-      (term(p) == Some("IDENT") && term(p + 1) == Some("NL") && term(p + 2) == Some(":")) ||
-        (term(p) == Some("ATTR") && term(p + 1) == Some("IDENT") && term(p + 2) == Some(
-          "NL"
-        ) && term(
-          p + 3
-        ) == Some(":"))
-
     def decide(i: Int, t: Spanned): Option[Spanned] =
       if t.terminal != "NL" then Some(t)
       else if term(i - 1) == Some("IDENT") && term(i + 1) == Some(":") then Some(t)
-      else if isHead(i + 1) then Some(t)
       else None
 
     toks.zipWithIndex.flatMap { case (t, i) => decide(i, t) }

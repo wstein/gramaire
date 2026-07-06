@@ -60,9 +60,9 @@ object CodegenScala:
   val lrActionsScala: Map[Int, String] = Map(
     0 -> "(rs) => Grammar(rs)", // Grammar : RuleList
     1 -> "(r) => Vector(r)", // RuleList : Rule
-    2 -> "(rs, _, r) => rs :+ r", // RuleList : RuleList NL Rule
-    3 -> "(attr, lhs, _, _, alts) => Rule(lhs, Vector(attr), alts)", // Rule : ATTR IDENT NL ':' Body
-    4 -> "(lhs, _, _, alts) => Rule(lhs, Vector.empty, alts)", // Rule : IDENT NL ':' Body
+    2 -> "(rs, r) => rs :+ r", // RuleList : RuleList Rule
+    3 -> "(attr, lhs, _, _, alts, _) => Rule(lhs, Vector(attr), alts)", // Rule : ATTR IDENT NL ':' Body ';'
+    4 -> "(lhs, _, _, alts, _) => Rule(lhs, Vector.empty, alts)", // Rule : IDENT NL ':' Body ';'
     5 -> "(a) => Vector(a)", // Body : Alt
     6 -> "(bs, _, a) => bs :+ a", // Body : Body '|' Alt
     7 -> "(syms, lbl, act) => Alt(syms, lbl, act)", // Alt : SymList Label Action

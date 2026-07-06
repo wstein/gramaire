@@ -25,24 +25,24 @@ object Bootstrap:
   // encoded here so the parse path can build its scanner without reading
   // the file.
   val lrTokensSource: String = List(
-    "WS       : /[ \\t]+/                       %skip",
-    "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/      %external(layout)",
-    "ATTR     : /#\\[([A-Za-z_][A-Za-z0-9_]*)\\]/",
-    "IDENT    : /[A-Za-z_][A-Za-z0-9_]*/",
+    "WS       : /[ \\t]+/                       %skip ;",
+    "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/      %external(layout) ;",
+    "ATTR     : /#\\[([A-Za-z_][A-Za-z0-9_]*)\\]/ ;",
+    "IDENT    : /[A-Za-z_][A-Za-z0-9_]*/ ;",
     // A literal never spans a newline: excluding `\n` from the class means an unclosed `'…`
     // fails to match here (rather than greedily swallowing across lines into the next rule/cell,
     // which misaligned every downstream quote and produced a cascade of misleading "unexpected
     // character" errors). `Lr.tokenizeDocument` then reports the lone unmatched quote as a
     // located "unterminated string literal".
-    "TERM_LIT : /'(?:[^'\\\\\\n]|\\\\.)*'|\"(?:[^\"\\\\\\n]|\\\\.)*\"/",
-    "ACTION   : /\\{%((?:[^%]|%[^}])*)%\\}/",
-    "LABEL    : /#[ \\t]*([A-Za-z_][A-Za-z0-9_]*)/",
-    "PLUS     : \"+\"",
-    "STAR     : \"*\"",
-    "QUESTION : \"?\"",
-    "LANGLE   : \"<\"",
-    "RANGLE   : \">\"",
-    "COMMA    : \",\""
+    "TERM_LIT : /'(?:[^'\\\\\\n]|\\\\.)*'|\"(?:[^\"\\\\\\n]|\\\\.)*\"/ ;",
+    "ACTION   : /\\{%((?:[^%]|%[^}])*)%\\}/ ;",
+    "LABEL    : /#[ \\t]*([A-Za-z_][A-Za-z0-9_]*)/ ;",
+    "PLUS     : \"+\" ;",
+    "STAR     : \"*\" ;",
+    "QUESTION : \"?\" ;",
+    "LANGLE   : \"<\" ;",
+    "RANGLE   : \">\" ;",
+    "COMMA    : \",\" ;"
   ).mkString("\n")
 
   val bootstrapGrammar: Grammar = Grammar(
@@ -58,15 +58,19 @@ object Bootstrap:
           )
         )
       ),
+      // A `;` now terminates every rule (matching Bison/YACC/ANTLR4's own convention), so
+      // `RuleList` no longer needs a boundary `NL` between consecutive rules to tell them apart —
+      // `;` already does that job unambiguously. `Lexer.normalizeNewlines` correspondingly stopped
+      // preserving that boundary newline; only the `IDENT NL ':'` HEAD newline still survives.
       Rule(
         "RuleList",
         Vector.empty,
         Vector(
           Alt(Vector(Ref("Rule")), None, Some("\\_ -> (c) => [c[0]]")),
           Alt(
-            Vector(Ref("RuleList"), Ref("NL"), Ref("Rule")),
+            Vector(Ref("RuleList"), Ref("Rule")),
             None,
-            Some("\\_ _ _ -> (c) => [...c[0], c[2]]")
+            Some("\\_ _ -> (c) => [...c[0], c[1]]")
           )
         )
       ),
@@ -75,14 +79,16 @@ object Bootstrap:
         Vector.empty,
         Vector(
           Alt(
-            Vector(Ref("ATTR"), Ref("IDENT"), Ref("NL"), Lit(":"), Ref("Body")),
+            Vector(Ref("ATTR"), Ref("IDENT"), Ref("NL"), Lit(":"), Ref("Body"), Lit(";")),
             None,
-            Some("\\_ _ _ _ _ -> (c) => ({ tag: \"Rule\", name: c[1], attrs: [c[0]], alts: c[4] })")
+            Some(
+              "\\_ _ _ _ _ _ -> (c) => ({ tag: \"Rule\", name: c[1], attrs: [c[0]], alts: c[4] })"
+            )
           ),
           Alt(
-            Vector(Ref("IDENT"), Ref("NL"), Lit(":"), Ref("Body")),
+            Vector(Ref("IDENT"), Ref("NL"), Lit(":"), Ref("Body"), Lit(";")),
             None,
-            Some("\\_ _ _ _ -> (c) => ({ tag: \"Rule\", name: c[0], attrs: [], alts: c[3] })")
+            Some("\\_ _ _ _ _ -> (c) => ({ tag: \"Rule\", name: c[0], attrs: [], alts: c[3] })")
           )
         )
       ),

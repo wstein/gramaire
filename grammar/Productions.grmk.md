@@ -9,16 +9,20 @@ claims to.
 The notation is LR(1) by construction. Three conventions keep it
 unambiguous with a single token of lookahead:
 
-- **Line breaks inside an alternative are insignificant.** `|` is the only
-  alternative separator, and an alternative runs until the next `|` or the
-  next rule head — so a long alternative may wrap across physical lines with
-  no continuation marker. The only newlines that matter are *structural*: the
-  one inside a rule head `IDENT NL :` (which a `name:Sym` field, written
-  `IDENT : Sym` with no break, must not have), and the boundary newline before
-  the next head. A normalization pass in the lexer keeps exactly those two and
-  drops the rest, so the decision is made once, before the LR parser, and the
-  notation stays LR(1) on one token of lookahead without `;` terminators. (This
-  resolves the newline-significance question as "Option A"; see
+- **A rule or token definition ends with `;`.** Mirroring Bison/YACC/ANTLR4's
+  own convention, `;` is the one explicit terminator the notation needs —
+  every rule's `Body` and every token-definition line ends with one. Line
+  breaks inside an alternative stay insignificant: `|` is the only
+  alternative separator, so a long alternative may still wrap across
+  physical lines with no continuation marker — it's the terminating `;`,
+  not layout, that marks exactly where a rule ends. The only newline that
+  remains structural is the one inside a rule head `IDENT NL :` (which a
+  `name:Sym` field, written `IDENT : Sym` with no break, must not have). A
+  normalization pass in the lexer keeps exactly that one newline and drops
+  every other one — including what used to be a load-bearing *boundary*
+  newline separating consecutive rules before `;` existed; the mandatory
+  terminator replaced that job outright, not alongside it. (This resolves
+  the newline-significance question as "Option A"; see
   `docs/fmt-output-contract.md`.)
 - **Terminals** are written either as quoted literals — `'x'` or `"x"` (such
   as `':'` and `'|'`) — or as ALL-CAPS lexer token classes (`IDENT`,
@@ -66,23 +70,23 @@ capture their text: `ACTION` its body, `LABEL` / `ATTR` the bare name, `NL` a
 single `\n`. `TERM_LIT` matches a terminal literal in either of two
 interchangeable delimiters (ADR D34) — `'x'` or `"x"` — as the whole lexeme;
 the consumer unquotes it. `ATTR` precedes `IDENT` / `LABEL` so a `#[name]`
-attribute out-matches a `# Name` label; `WS` is skipped; `':'` and `'|'` stay
-implicit literals from the productions.
+attribute out-matches a `# Name` label; `WS` is skipped; `':'`, `'|'`, and
+`';'` stay implicit literals from the productions.
 
 ```gramark
-WS       : /[ \t]+/                       %skip
-NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      %external(layout)
-ATTR     : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/
-IDENT    : /[A-Za-z_][A-Za-z0-9_]*/
-TERM_LIT : /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/
-ACTION   : /\{%((?:[^%]|%[^}])*)%\}/
-LABEL    : /#[ \t]*([A-Za-z_][A-Za-z0-9_]*)/
-PLUS     : "+"
-STAR     : "*"
-QUESTION : "?"
-LANGLE   : "<"
-RANGLE   : ">"
-COMMA    : ","
+WS       : /[ \t]+/                       %skip ;
+NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      %external(layout) ;
+ATTR     : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/ ;
+IDENT    : /[A-Za-z_][A-Za-z0-9_]*/ ;
+TERM_LIT : /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/ ;
+ACTION   : /\{%((?:[^%]|%[^}])*)%\}/ ;
+LABEL    : /#[ \t]*([A-Za-z_][A-Za-z0-9_]*)/ ;
+PLUS     : "+" ;
+STAR     : "*" ;
+QUESTION : "?" ;
+LANGLE   : "<" ;
+RANGLE   : ">" ;
+COMMA    : "," ;
 ```
 
 ## Grammar
@@ -97,14 +101,16 @@ A grammar is a non-empty list of rules.
 ```gramark
 Grammar
   : RuleList   {% (c) => ({ tag: "Grammar", rules: c[0] }) %}
+  ;
 ```
 
 </details>
 
 ## RuleList
 
-Left recursion accumulates rules in source order. The `NL` between two rules is
-the one boundary newline the normalization pass keeps (see the intro).
+Left recursion accumulates rules in source order. Consecutive rules need no
+separator at all — each `Rule` already ends with its own mandatory `;`, so
+`RuleList` simply concatenates them.
 
 ![Railroad diagram for the RuleList rule](diagrams-Productions/rulelist.svg)
 
@@ -113,16 +119,18 @@ the one boundary newline the normalization pass keeps (see the intro).
 
 ```gramark
 RuleList
-  : Rule               {% (c) => [c[0]] %}
-  | RuleList NL Rule   {% (c) => [...c[0], c[2]] %}
+  : Rule            {% (c) => [c[0]] %}
+  | RuleList Rule   {% (c) => [...c[0], c[1]] %}
+  ;
 ```
 
 </details>
 
 ## Rule
 
-A rule is its name on its own line, then `:` and its `|`-separated alternatives.
-The `NL` between the name and its `:` is load-bearing: it is the only thing that
+A rule is its name on its own line, then `:` and its `|`-separated alternatives,
+ending with a mandatory `;` (mirroring Bison/YACC/ANTLR4's own convention). The
+`NL` between the name and its `:` is load-bearing: it is the only thing that
 tells a rule head (`IDENT NL :`) from a `name:Sym` field (`IDENT : Sym`), so the
 head form is fixed and never written inline.
 
@@ -136,8 +144,9 @@ folds into use sites) before its name.
 
 ```gramark
 Rule
-  : ATTR IDENT NL ':' Body   {% (c) => ({ tag: "Rule", name: c[1], attrs: [c[0]], alts: c[4] }) %}
-  | IDENT NL ':' Body        {% (c) => ({ tag: "Rule", name: c[0], attrs: [], alts: c[3] }) %}
+  : ATTR IDENT NL ':' Body ';'   {% (c) => ({ tag: "Rule", name: c[1], attrs: [c[0]], alts: c[4] }) %}
+  | IDENT NL ':' Body ';'        {% (c) => ({ tag: "Rule", name: c[0], attrs: [], alts: c[3] }) %}
+  ;
 ```
 
 </details>
@@ -157,6 +166,7 @@ across physical lines.
 Body
   : Alt            {% (c) => [c[0]] %}
   | Body '|' Alt   {% (c) => [...c[0], c[2]] %}
+  ;
 ```
 
 </details>
@@ -177,6 +187,7 @@ Alt
   | SymList Label          {% (c) => ({ tag: "Alt", syms: c[0], label: c[1], action: null }) %}
   | SymList Action         {% (c) => ({ tag: "Alt", syms: c[0], label: null, action: c[1] }) %}
   | SymList                {% (c) => ({ tag: "Alt", syms: c[0], label: null, action: null }) %}
+  ;
 ```
 
 </details>
@@ -192,6 +203,7 @@ Alt
 SymList
   : Sym           {% (c) => [c[0]] %}
   | SymList Sym   {% (c) => [...c[0], c[1]] %}
+  ;
 ```
 
 </details>
@@ -238,6 +250,7 @@ Sym
   | Atom PLUS                     {% (c) => ({ tag: "Rep", sym: c[0] }) %}
   | Atom STAR                      {% (c) => ({ tag: "Star", sym: c[0] }) %}
   | Atom QUESTION                 {% (c) => ({ tag: "Opt", sym: c[0] }) %}
+  ;
 ```
 
 </details>
@@ -255,6 +268,7 @@ The comma-separated argument list of a macro call.
 Args
   : Sym               {% (c) => [c[0]] %}
   | Args COMMA Sym    {% (c) => [...c[0], c[2]] %}
+  ;
 ```
 
 </details>
@@ -269,6 +283,7 @@ Args
 ```gramark
 Action
   : ACTION   {% (c) => c[0] %}
+  ;
 ```
 
 </details>
@@ -286,6 +301,7 @@ CST accessors.
 ```gramark
 Label
   : LABEL   {% (c) => c[0] %}
+  ;
 ```
 
 </details>
@@ -305,6 +321,7 @@ with these alternatives.
 GroupBody
   : SymList                  {% (c) => [c[0]] %}
   | GroupBody '|' SymList    {% (c) => [...c[0], c[2]] %}
+  ;
 ```
 
 </details>
@@ -324,6 +341,7 @@ grammar's closed terminal alphabet (D-token-ops).
 Atom
   : '.'             {% (c) => ({ tag: "Any" }) %}
   | '~' NotArg      {% (c) => ({ tag: "Not", set: c[1] }) %}
+  ;
 ```
 
 </details>
@@ -339,6 +357,7 @@ Atom
 NotArg
   : SetItem            {% (c) => [c[0]] %}
   | '(' SetBody ')'    {% (c) => c[1] %}
+  ;
 ```
 
 </details>
@@ -354,6 +373,7 @@ NotArg
 SetBody
   : SetItem               {% (c) => [c[0]] %}
   | SetBody '|' SetItem   {% (c) => [...c[0], c[2]] %}
+  ;
 ```
 
 </details>
@@ -371,6 +391,7 @@ A set element is a single terminal — a token class or a literal.
 SetItem
   : IDENT      {% (c) => ({ tag: "Ref", name: c[0] }) %}
   | TERM_LIT   {% (c) => ({ tag: "Lit", text: c[0] }) %}
+  ;
 ```
 
 </details>
@@ -385,31 +406,32 @@ after IDENT NL:
   A rule is its name on one line, then `:` and the first alternative
   on the next.
 
-after Alt NL, lookahead is IDENT:
-  This looks like the start of a new rule, so the previous rule ended
-  here. If you meant to continue it, begin the line with `|`.
+after Body, lookahead is ATTR or IDENT (the shape of a new rule's own head):
+  Expected `;` to end the previous rule. A rule (like a token definition)
+  always ends with `;` — if you meant to continue the SAME rule instead
+  of starting a new one, add another `|`-prefixed alternative.
 ```
 
 ## Generated tables
 
 <!-- Generated by Gramark — do not edit; run `gramark fmt` to refresh. -->
 
-| Nonterminal | FIRST                          | FOLLOW                                                                                                      |
-| ----------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `Grammar`   | `ATTR` `IDENT`                 | `$`                                                                                                         |
-| `RuleList`  | `ATTR` `IDENT`                 | `NL` `$`                                                                                                    |
-| `Rule`      | `ATTR` `IDENT`                 | `NL` `$`                                                                                                    |
-| `Body`      | `IDENT` `TERM_LIT` `(` `.` `~` | `NL` `\|` `$`                                                                                               |
-| `Alt`       | `IDENT` `TERM_LIT` `(` `.` `~` | `NL` `\|` `$`                                                                                               |
-| `SymList`   | `IDENT` `TERM_LIT` `(` `.` `~` | `NL` `IDENT` `\|` `TERM_LIT` `(` `)` `ACTION` `LABEL` `.` `~` `$`                                           |
-| `Sym`       | `IDENT` `TERM_LIT` `(` `.` `~` | `NL` `IDENT` `\|` `TERM_LIT` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` `$`                          |
-| `Args`      | `IDENT` `TERM_LIT` `(` `.` `~` | `RANGLE` `COMMA`                                                                                            |
-| `Action`    | `ACTION`                       | `NL` `\|` `$`                                                                                               |
-| `Label`     | `LABEL`                        | `NL` `\|` `ACTION` `$`                                                                                      |
-| `GroupBody` | `IDENT` `TERM_LIT` `(` `.` `~` | `\|` `)`                                                                                                    |
-| `Atom`      | `.` `~`                        | `NL` `IDENT` `\|` `TERM_LIT` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` `$` |
-| `NotArg`    | `IDENT` `TERM_LIT` `(`         | `NL` `IDENT` `\|` `TERM_LIT` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` `$` |
-| `SetBody`   | `IDENT` `TERM_LIT`             | `\|` `)`                                                                                                    |
-| `SetItem`   | `IDENT` `TERM_LIT`             | `NL` `IDENT` `\|` `TERM_LIT` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` `$` |
+| Nonterminal | FIRST                          | FOLLOW                                                                                                 |
+| ----------- | ------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `Grammar`   | `ATTR` `IDENT`                 | `$`                                                                                                    |
+| `RuleList`  | `ATTR` `IDENT`                 | `ATTR` `IDENT` `$`                                                                                     |
+| `Rule`      | `ATTR` `IDENT`                 | `ATTR` `IDENT` `$`                                                                                     |
+| `Body`      | `IDENT` `TERM_LIT` `(` `.` `~` | `;` `\|`                                                                                               |
+| `Alt`       | `IDENT` `TERM_LIT` `(` `.` `~` | `;` `\|`                                                                                               |
+| `SymList`   | `IDENT` `TERM_LIT` `(` `.` `~` | `IDENT` `;` `\|` `TERM_LIT` `(` `)` `ACTION` `LABEL` `.` `~`                                           |
+| `Sym`       | `IDENT` `TERM_LIT` `(` `.` `~` | `IDENT` `;` `\|` `TERM_LIT` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~`                          |
+| `Args`      | `IDENT` `TERM_LIT` `(` `.` `~` | `RANGLE` `COMMA`                                                                                       |
+| `Action`    | `ACTION`                       | `;` `\|`                                                                                               |
+| `Label`     | `LABEL`                        | `;` `\|` `ACTION`                                                                                      |
+| `GroupBody` | `IDENT` `TERM_LIT` `(` `.` `~` | `\|` `)`                                                                                               |
+| `Atom`      | `.` `~`                        | `IDENT` `;` `\|` `TERM_LIT` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` |
+| `NotArg`    | `IDENT` `TERM_LIT` `(`         | `IDENT` `;` `\|` `TERM_LIT` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` |
+| `SetBody`   | `IDENT` `TERM_LIT`             | `\|` `)`                                                                                               |
+| `SetItem`   | `IDENT` `TERM_LIT`             | `IDENT` `;` `\|` `TERM_LIT` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` |
 
 No shift/reduce or reduce/reduce conflicts: the grammar is LR(1).

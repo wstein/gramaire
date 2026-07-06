@@ -34,7 +34,7 @@ class ScalaSelfHostSuite extends munit.FunSuite:
     val src = Lr.lrBlocks(md).mkString("\n") + "\n"
     val items = Scanner.buildItems(
       Tokens.parseTokens(Bootstrap.lrTokensSource).getOrElse(Vector.empty),
-      Vector(":", "|", "(", ")", ".", "~")
+      Vector(":", "|", "(", ")", ".", "~", ";")
     )
     val raw = Scanner.scan(items, src)
     assert(!Scanner.hasError(raw), "grammar/Productions.grmk.md should scan cleanly")

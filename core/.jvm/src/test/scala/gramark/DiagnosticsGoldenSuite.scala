@@ -103,6 +103,7 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       |Expr
       |: Expr "+" Factr
       || Factr
+      |;
       |```
       |
       |## Factor
@@ -110,6 +111,7 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       |```gramark
       |Factor
       |: NUMBER
+      |;
       |```
       |""".stripMargin
     Lr.parseWith(Method.Canonical, md) match
@@ -144,6 +146,7 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       |E
       |: E E
       || 'x'
+      |;
       |```
       |""".stripMargin
     Lr.parse(md) match
@@ -176,6 +179,7 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       |S
       |: A
       || B
+      |;
       |```
       |
       |## A
@@ -183,6 +187,7 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       |```gramark
       |A
       |: 'x'
+      |;
       |```
       |
       |## B
@@ -190,6 +195,7 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       |```gramark
       |B
       |: 'x'
+      |;
       |```
       |""".stripMargin
     Lr.parse(md) match
@@ -215,7 +221,7 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
   test("tab-indented line: the caret pad preserves the tab so the underline stays aligned") {
     // A tab before the rule body (legal — the `lr` notation's own WS token is /[ \t]+/).
     val md =
-      "# T\n\n## Rule\n\n```gramark\nRule\n\t: NUMBER Undefined\n```\n\n## Tokens\n\n```gramark\nNUMBER : /[0-9]+/\n```\n"
+      "# T\n\n## Rule\n\n```gramark\nRule\n\t: NUMBER Undefined\n;\n```\n\n## Tokens\n\n```gramark\nNUMBER : /[0-9]+/ ;\n```\n"
     Lr.parseWith(Method.Canonical, md) match
       case Right(_) => fail("expected an undefined-nonterminal diagnostic")
       case Left(diags) =>
@@ -273,6 +279,7 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       |```gramark
       |Expr
       |: NUMBER
+      |;
       |```
       |""".stripMargin
     Lr.parseWith(Method.Canonical, md) match
@@ -308,6 +315,7 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       |Expr
       |: Expr '+' Expr
       || NUMBER
+      |;
       |```
       |
       |## Precedence
@@ -344,6 +352,7 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       |```gramark
       |Expr
       |: NUMBER
+      |;
       |```
       |""".stripMargin
     Lr.parseWith(Method.Canonical, md) match
@@ -368,6 +377,7 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       |```gramark
       |#[inlien] Aux
       |: NUMBER
+      |;
       |```
       |
       |## Expr
@@ -375,6 +385,7 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       |```gramark
       |Expr
       |: NUMBER
+      |;
       |```
       |""".stripMargin
     val warnings = Lr.warningsFor(md)

@@ -4,11 +4,11 @@ package gramark
 class ScannerSuite extends munit.FunSuite:
 
   private val idTokens = List(
-    "WS    : /[ \\t]+/   %skip",
-    "IDENT : /[A-Za-z_][A-Za-z0-9_]*/"
+    "WS    : /[ \\t]+/   %skip ;",
+    "IDENT : /[A-Za-z_][A-Za-z0-9_]*/ ;"
   ).mkString("\n")
 
-  private val numberTokens = "NUMBER : /-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/"
+  private val numberTokens = "NUMBER : /-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/ ;"
 
   test("a literal keyword beats an overlapping class, longer is one IDENT (M1–M3)") {
     val defs = Tokens.parseTokens(idTokens).getOrElse(fail("tokens should parse"))
@@ -28,7 +28,7 @@ class ScannerSuite extends munit.FunSuite:
 
   test("%caseless (on a string) and /…/i (on a regex) fold case (D35)") {
     val defs = Tokens
-      .parseTokens("WS : /[ ]+/   %skip\nKW : \"begin\"   %caseless\nEE : /end/i")
+      .parseTokens("WS : /[ ]+/   %skip ;\nKW : \"begin\"   %caseless ;\nEE : /end/i ;")
       .getOrElse(fail("caseless tokens should parse"))
     val toks = Scanner.scan(Scanner.buildItems(defs, Vector.empty), "BEGIN eNd")
     assertEquals(toks.map(_.terminal), Vector("KW", "EE"))

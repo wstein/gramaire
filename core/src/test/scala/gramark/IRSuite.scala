@@ -132,7 +132,7 @@ class IRSuite extends munit.FunSuite:
   }
 
   test("`{%? p %}` round-trips end to end through Lr.parse, not just the IR builder directly") {
-    val md = "```gramark\nS\n  : NUM {%? isKeyword %}\n```\n"
+    val md = "```gramark\nS\n  : NUM {%? isKeyword %}\n  ;\n```\n"
     Lr.parse(md) match
       case Left(e) => fail(s"grammar should parse: $e")
       case Right(g) =>
@@ -155,7 +155,7 @@ class IRSuite extends munit.FunSuite:
     // Opt/Star element) used to bury a predicate's leading `?` mid-string — inside the parens
     // around the already-`?`-prefixed action — so IR.irGrammarOf's startsWith("?") check never
     // fired and the predicate silently degraded into an ordinary value action.
-    val md = "```gramark\nS\n  : 'x' NUM?   {%? isKeyword %}\n```\n"
+    val md = "```gramark\nS\n  : 'x' NUM?   {%? isKeyword %}\n  ;\n```\n"
     Lr.parse(md) match
       case Left(e) => fail(s"grammar should parse: $e")
       case Right(g) =>
@@ -181,7 +181,7 @@ class IRSuite extends munit.FunSuite:
     // outer alt's own `?`-prefixed action, composed around an inlined reference, buried the
     // flag the same way.
     val md =
-      "```gramark\n#[inline] Inner\n  : NUM   {% (c) => c[0] %}\n\nS\n  : Inner   {%? isKeyword %}\n```\n"
+      "```gramark\n#[inline] Inner\n  : NUM   {% (c) => c[0] %}\n  ;\n\nS\n  : Inner   {%? isKeyword %}\n  ;\n```\n"
     Lr.parse(md) match
       case Left(e) => fail(s"grammar should parse: $e")
       case Right(g) =>

@@ -13,9 +13,9 @@ object LrReduce:
   def reduce(p: Int, kids: Vector[SemVal]): SemVal = (p, kids) match
     case (0, Vector(SemVal.VRules(rs))) => SemVal.VGrammar(Grammar(rs))
     case (1, Vector(SemVal.VRule(r))) => SemVal.VRules(Vector(r))
-    case (2, Vector(SemVal.VRules(rs), _, SemVal.VRule(r))) => SemVal.VRules(rs :+ r)
-    case (3, Vector(SemVal.VStr(attr), SemVal.VStr(lhs), _, _, SemVal.VAlts(alts))) => SemVal.VRule(Rule(lhs, Vector(attr), alts))
-    case (4, Vector(SemVal.VStr(lhs), _, _, SemVal.VAlts(alts))) => SemVal.VRule(Rule(lhs, Vector.empty, alts))
+    case (2, Vector(SemVal.VRules(rs), SemVal.VRule(r))) => SemVal.VRules(rs :+ r)
+    case (3, Vector(SemVal.VStr(attr), SemVal.VStr(lhs), _, _, SemVal.VAlts(alts), _)) => SemVal.VRule(Rule(lhs, Vector(attr), alts))
+    case (4, Vector(SemVal.VStr(lhs), _, _, SemVal.VAlts(alts), _)) => SemVal.VRule(Rule(lhs, Vector.empty, alts))
     case (5, Vector(SemVal.VAlt(a))) => SemVal.VAlts(Vector(a))
     case (6, Vector(SemVal.VAlts(bs), _, SemVal.VAlt(a))) => SemVal.VAlts(bs :+ a)
     case (7, Vector(SemVal.VSyms(syms), SemVal.VMaybeStr(lbl), SemVal.VMaybeStr(act))) => SemVal.VAlt(Alt(syms, lbl, act))

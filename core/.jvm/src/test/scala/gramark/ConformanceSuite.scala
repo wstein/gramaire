@@ -26,7 +26,7 @@ class ConformanceSuite extends munit.FunSuite:
       ConformanceLexers.lrLexer,
       Method.Canonical,
       Bootstrap.bootstrapGrammar,
-      "Foo\n: 'x'"
+      "Foo\n: 'x' ;"
     ) match
       case Left(e) => fail(s"expected a CST: $e")
       case Right(cst) =>
