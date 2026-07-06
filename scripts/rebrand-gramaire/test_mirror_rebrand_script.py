@@ -29,6 +29,11 @@ class MirrorRebrandScriptTests(unittest.TestCase):
         self.assertIn("return file_info_callback.file_info_callback(filename, mode, blob_id, value)", script)
         self.assertNotIn("def callback(blob, metadata=None):", script)
 
+    def test_script_drops_codex_scratch_refs_from_disposable_mirror(self) -> None:
+        script = SCRIPT_PATH.read_text(encoding="utf-8")
+        self.assertIn("for-each-ref --format='delete %(refname)' refs/codex", script)
+        self.assertIn('git -C "$MIRROR_DIR" update-ref --stdin', script)
+
     def test_commit_message_callback_rewrites_messages(self) -> None:
         rewritten = commit_msg_callback.rewrite_message(
             b"Gramark and grimoire",
