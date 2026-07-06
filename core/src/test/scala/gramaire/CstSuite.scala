@@ -2,9 +2,10 @@ package gramaire
 
 // A self-contained equivalent of test/Test/Cst.purs's contract checks
 // (render/JSON shape/validate), built by hand rather than through a real
-// parse (which needs Conformance/Conformance.Lexers, Phase 1.6, plus a
-// golden-file harness) — revisit once those land to also cover the
-// golden-locked `Productions.gram.md` sample parse.
+// parse, so it stays cross-platform (this suite runs under both coreJS and
+// coreJVM). The golden-locked `grammar/Productions.gram.md` sample parse
+// (real lex+parse via `Conformance.parseCst`, JVM-only for file I/O) lives
+// in `CstGoldenSuite`.
 class CstSuite extends munit.FunSuite:
 
   // Sum : Sum '+' NUM | NUM, parsed by hand for "1+2+3":
