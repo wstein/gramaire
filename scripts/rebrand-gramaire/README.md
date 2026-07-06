@@ -11,6 +11,8 @@ disposable `--mirror` clone — the source repo (and your real working checkout)
 - `mirror-rebrand.sh` — the orchestrating script. Run this.
 - `preflight_rebrand.py` — validates `replace-text-rules.txt`, loads `rename_paths_callback.py`
   into a local test harness, and previews path renames from a local checkout.
+- `test_preflight_rebrand.py` — tiny fixture-based regression tests for the validator, suitable
+  for CI.
 - `replace-text-rules.txt` — content-substitution rules, passed to `--replace-text`.
 - `rename_paths_callback.py` — path-rename logic, spliced into `--filename-callback`.
 
@@ -52,6 +54,12 @@ For a cheaper local guard before doing any clone at all, run:
 
 ```sh
 ./mirror-rebrand.sh --check .
+```
+
+For a CI-friendly regression check of the validator itself, run:
+
+```sh
+python3 scripts/rebrand-gramaire/test_preflight_rebrand.py
 ```
 
 ## Verified against this repo (2026-07-05) — re-check before reusing later

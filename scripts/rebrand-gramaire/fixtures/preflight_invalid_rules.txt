@@ -1,0 +1,6 @@
+.grmk.md==>.gram.md
+.grmk==>.gram
+Grmk==>Gram
+grmk==>gram
+Gramark==>Gramaire
+# this should fail because it has no separator
