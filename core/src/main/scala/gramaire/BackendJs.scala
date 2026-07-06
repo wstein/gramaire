@@ -159,11 +159,22 @@ object BackendJs:
   // ignore the trailing args (e.g. an embedded `(c) => ...` that never mentions them) simply does,
   // the ordinary JS way; one written to accept them (e.g. `(c, chan) => ...`) receives them for real.
   private def delegateAction(d: IRDelegate, externalsMap: Map[String, IRExternal]): String =
-    val fn = externalsMap.get(d.name).flatMap(jsImplOf) match
-      case Some(code) => code.trim
-      case None       => s"externals[${jsStr(d.name)}]"
-    if d.args.isEmpty then fn
-    else s"(c) => ($fn)(c, ${d.args.map(renderArg).mkString(", ")})"
+    val embedded = externalsMap.get(d.name).flatMap(jsImplOf)
+    val fn = embedded.getOrElse(s"externals[${jsStr(d.name)}]").trim
+    if d.args.nonEmpty then s"(c) => ($fn)(c, ${d.args.map(renderArg).mkString(", ")})"
+    else
+      embedded match
+        case Some(_) => fn // already a real function value (the spliced fence) — use it directly
+        case None    =>
+          // `externals[name]` is a property READ, not a function value: storing it bare as an
+          // `actions[]` element would evaluate it once, eagerly, at module-load time (before a
+          // consumer's own `setExternals(...)` call has any chance to run) and freeze whatever it
+          // read then (`undefined`, permanently) into the array — `setExternals` reassigns the
+          // `externals` *binding* itself, which can never retroactively change an already-read
+          // array element. Wrapping in a closure defers the lookup to CALL time, i.e. every actual
+          // `evaluate(cst)`, by which point a host that wants this delegate resolved has had its
+          // chance to call `setExternals` first.
+          s"(c) => ($fn)(c)"
 
   // A namedtuple: the child values as a real Array (index / spread / map all work) with each
   // named position also reachable by its field name. Shared verbatim by `runtime`/`tracedRuntime`

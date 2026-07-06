@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "mode": "sidecar",
+  "sourceLayout": "collapsed",
+  "grammarSha256": "611b2a7c81522234299df585c2c02b00a92ec97222093c6bae8c47ac86e7af22",
+  "artifacts": [
+    {
+      "kind": "railroad",
+      "nonterminal": "Expr",
+      "path": "diagrams-calc-delegate/expr.svg",
+      "sourceSha256": "ff851e2d4d46072503531e209164506f3f0329e22534a77260bf3028d83cfe7d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Term",
+      "path": "diagrams-calc-delegate/term.svg",
+      "sourceSha256": "178ff966ea10b622602a18c620b224f8c617afaad14130f2543545667b049afe"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Power",
+      "path": "diagrams-calc-delegate/power.svg",
+      "sourceSha256": "631a755408e2f018d3e404a190f08cdd03ad1adb03e98fe11bd3cdb26e579b21"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Factor",
+      "path": "diagrams-calc-delegate/factor.svg",
+      "sourceSha256": "b7bf9771bf7f4597f138e80149cc259727efac30693fb3716e7c409ad16cb2b2"
+    },
+    {
+      "kind": "tables",
+      "section": "Generated tables",
+      "sourceSha256": "611b2a7c81522234299df585c2c02b00a92ec97222093c6bae8c47ac86e7af22"
+    }
+  ]
+}

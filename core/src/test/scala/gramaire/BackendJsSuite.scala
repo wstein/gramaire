@@ -170,7 +170,8 @@ class BackendJsSuite extends munit.FunSuite:
   }
 
   test(
-    "a bare `-> name` delegate with NO embedded implementation compiles to a runtime-lookup call"
+    "a bare `-> name` delegate with NO embedded implementation compiles to a LAZY runtime-lookup " +
+      "call, not a bare `externals[name]` value"
   ) {
     val md =
       """```gramaire
@@ -186,7 +187,14 @@ class BackendJsSuite extends munit.FunSuite:
         |```
         |""".stripMargin
     val js = emitJsWithExternals("Item", md)
-    assert(js.contains("const actions = [externals[\"Add\"],"), js)
+    // NOT a bare `externals["Add"]` value: that would be a property READ evaluated once, eagerly,
+    // at `const actions = [...]` construction time — before a consumer's own `setExternals(...)`
+    // call could possibly have run yet — permanently freezing `undefined` into the array. Wrapped
+    // in a closure, the lookup happens at every real `evaluate(cst)` call instead, by which point
+    // `setExternals` has had its chance (a real bug this project's own executed-JS example,
+    // examples/calc-delegate.gram.md's `Call` delegate, caught — BackendJsExternalsExecSuite).
+    assert(js.contains("const actions = [(c) => (externals[\"Add\"])(c),"), js)
+    assert(!js.contains("[externals[\"Add\"],"), js)
     noPureScriptLeaks(js)
   }
 

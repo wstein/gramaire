@@ -405,29 +405,31 @@ object GramaireCheck:
                   val isRuleFence = Lr.classifyFenceContent(contentStr) == Lr.FenceKind.Rule
                   val ruleNameOpt =
                     if isRuleFence then
-                      contentStr.split("\n", -1).toVector
+                      contentStr
+                        .split("\n", -1)
+                        .toVector
                         .find(_.trim.nonEmpty)
                         .flatMap { first =>
                           first.trim.split("\\s+", -1).headOption.filter(_.nonEmpty)
                         }
                     else None
-                  
+
                   out += line
                   out ++= lines.slice(i + 1, j)
                   out += lines(j)
-                  
+
                   // After the rule fence, check if there's a diagram reference
                   val afterFenceIdx = j + 1
                   val hasDiagramAfter = lines.lift(afterFenceIdx) match
                     case Some(nextLine) =>
                       imageRe.findFirstMatchIn(nextLine).isDefined ||
-                        (fenceMatch
-                          .flatMap(_ =>
-                            lines.lift(afterFenceIdx + 1).flatMap(mermaidTagRe.findFirstMatchIn)
-                          )
-                          .isDefined)
+                      (fenceMatch
+                        .flatMap(_ =>
+                          lines.lift(afterFenceIdx + 1).flatMap(mermaidTagRe.findFirstMatchIn)
+                        )
+                        .isDefined)
                     case None => false
-                  
+
                   // If this is a rule fence without a diagram and we haven't seen it yet, insert one
                   if isRuleFence && ruleNameOpt.isDefined && !hasDiagramAfter && !processedNonterminals
                       .contains(ruleNameOpt.get)
@@ -442,7 +444,7 @@ object GramaireCheck:
                       stem
                     )
                     processedNonterminals += ruleName
-                  
+
                   i = afterFenceIdx
                 case _ =>
                   out += line
