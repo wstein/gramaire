@@ -113,13 +113,6 @@ const TEMPLATE = `
     white-space: nowrap;
   }
   .wm .ink { color: var(--fg, #16181d); }
-  .wm .split {
-    background: linear-gradient(90deg, var(--fg, #16181d) 0 50%, var(--accent, #0a8f63) 50% 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-  }
   .wm .accent { color: var(--accent, #0a8f63); }
 
   .divider { width: 1px; height: 18px; background: var(--border, #ddd6f8); flex: none; }
@@ -269,7 +262,7 @@ const TEMPLATE = `
         <rect x="33" y="36" width="30" height="24" rx="12" fill="var(--node, #10b981)" stroke="var(--fg, #16181d)" stroke-width="6"></rect>
       </g>
     </svg>
-    <span class="wm"><span class="ink">Gra</span><span class="split">m</span><span class="accent">aire</span></span>
+    <span class="wm"><span class="ink">Gram</span><span class="accent">aire</span></span>
   </a>
 
   <div class="divider" id="tools-divider"></div>

@@ -30,3 +30,13 @@ test("site wordmark component does not reintroduce a hard-stop gradient on the m
   expect(component).not.toContain("linear-gradient");
   expect(component).not.toContain("background-clip:text");
 });
+
+test("shared topbar wordmark uses the same Gram/aire split as the brand assets", () => {
+  const topbar = readRepoFile("site/src/shared/gramaire-topbar.mjs");
+
+  expect(topbar).toContain('<span class="ink">Gram</span>');
+  expect(topbar).toContain('<span class="accent">aire</span>');
+  expect(topbar).not.toContain('class="split"');
+  expect(topbar).not.toContain("linear-gradient");
+  expect(topbar).not.toContain("background-clip");
+});
