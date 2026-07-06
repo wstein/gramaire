@@ -537,7 +537,7 @@ matching the gold-standard mock screenshot's own "step 7/14" 1+2*3 example.
 The Evaluate tab is also done — the last of the ten mock tabs. It
 deliberately reuses `BackendJs`, the CLI's own `gramaire emit --backend js`
 artifact, rather than a second, hand-rolled evaluator reading
-`IRRule.actions` directly: `BackendJs.emitTraced(grammar: IRGrammar):
+`IRRule.actions` directly: `BackendJs.emitTraced(grammar: IRGrammar, externals: Vector[IRExternal] = Vector.empty):
 String` is a sibling of `emit`, sharing `emit`'s exact `actions`/`fields`
 tables (`tablesBlock`) so the two can never bake different actions for the
 same grammar, wrapped in a runtime whose `fold` returns an _annotated
