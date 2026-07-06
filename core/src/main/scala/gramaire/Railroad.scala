@@ -94,19 +94,19 @@ object Railroad:
     }
     Production(name, alts.map(Alt(_)))
 
-  // ---- geometry ---------------------------------------------------------
+  // ---- geometry (Enhanced Style) ----------------------------------------
 
-  private val FS = 13
-  private val CHARW = 7.8
-  private val PADX = 11
-  private val BOXH = 26
-  private val GAP = 18
-  private val VGAP = 16
-  private val MARGIN = 14
-  private val STUB = 12
-  private val BRANCH = 22
-  private val MINW = 26
-  private val CAPR = 3
+  private val FS = 14
+  private val CHARW = 8.2
+  private val PADX = 14
+  private val BOXH = 30
+  private val GAP = 24
+  private val VGAP = 20
+  private val MARGIN = 18
+  private val STUB = 16
+  private val BRANCH = 28
+  private val MINW = 30
+  private val CAPR = 4
   private val ACTIONGAP = GAP
   private val ACTION_MAX_CHARS = 44
 
@@ -160,18 +160,18 @@ object Railroad:
   // font-family alone — this explicit feature-settings pair is what actually enables them.
   private val ligatures = """font-feature-settings:"liga" 1,"calt" 1;"""
   private val styleFixed =
-    ".rr-track{fill:none;stroke:#6B7280;stroke-width:2}" +
-      ".rr-term{fill:#fff;stroke:#15B879;stroke-width:2}" +
-      ".rr-nonterm{fill:#F5F6F3;stroke:#16181D;stroke-width:2}" +
+    ".rr-track{fill:none;stroke:#6B7280;stroke-width:2.5}" +
+      ".rr-term{fill:#fff;stroke:#15B879;stroke-width:2.5}" +
+      ".rr-nonterm{fill:#F5F6F3;stroke:#16181D;stroke-width:2.5}" +
       s".rr-text{fill:#16181D;font:$font;$ligatures}" +
       // Muted, matching `.rr-track`'s own gray — a plain textbook-figure caption, not a colorful
       // callout (no box/dashed border to draw the eye anymore either, see renderSvg above).
       s".rr-action-text{fill:#6B7280;font:$font;font-style:italic;$ligatures}" +
       ".rr-cap{fill:#16181D}"
   private val styleThemed =
-    ".rr-track{fill:none;stroke:var(--rr-track,#6B7280);stroke-width:2}" +
-      ".rr-term{fill:var(--rr-term-fill,#fff);stroke:var(--rr-term-stroke,#15B879);stroke-width:2}" +
-      ".rr-nonterm{fill:var(--rr-nonterm-fill,#F5F6F3);stroke:var(--rr-ink,#16181D);stroke-width:2}" +
+    ".rr-track{fill:none;stroke:var(--rr-track,#6B7280);stroke-width:2.5}" +
+      ".rr-term{fill:var(--rr-term-fill,#fff);stroke:var(--rr-term-stroke,#15B879);stroke-width:2.5}" +
+      ".rr-nonterm{fill:var(--rr-nonterm-fill,#F5F6F3);stroke:var(--rr-ink,#16181D);stroke-width:2.5}" +
       s".rr-text{fill:var(--rr-ink,#16181D);font:$font;$ligatures}" +
       s".rr-action-text{fill:var(--rr-action-stroke,#6B7280);font:$font;font-style:italic;$ligatures}" +
       ".rr-cap{fill:var(--rr-ink,#16181D)}"
@@ -209,7 +209,7 @@ object Railroad:
     // and vertically (90°) and every direction change turns through a small
     // quarter-round — the classic railroad look, never a diagonal and never a
     // hard corner. Clamped to fit the shortest branch arm.
-    val R = math.min(math.min(10, BRANCH), math.min(STUB, (BOXH + VGAP) / 2))
+    val R = math.min(math.min(16, BRANCH), math.min(STUB, (BOXH + VGAP) / 2))
 
     val p = Vector.newBuilder[String]
     p += s"""<circle class="rr-cap" cx="$MARGIN" cy="${fmtNum(mainY)}" r="$CAPR"/>"""
@@ -240,7 +240,7 @@ object Railroad:
         if sym.term then
           p += s"""<rect class="rr-term" x="$cx" y="$top" width="$bw" height="$BOXH" rx="${BOXH / 2}"/>"""
         else
-          p += s"""<rect class="rr-nonterm" x="$cx" y="$top" width="$bw" height="$BOXH" rx="5"/>"""
+          p += s"""<rect class="rr-nonterm" x="$cx" y="$top" width="$bw" height="$BOXH" rx="8"/>"""
         p += s"""<text class="rr-text" x="${fmtNum(cx + bw / 2.0)}" y="${fmtNum(
             yi
           )}" text-anchor="middle" dominant-baseline="central">${escXml(sym.label)}</text>"""
