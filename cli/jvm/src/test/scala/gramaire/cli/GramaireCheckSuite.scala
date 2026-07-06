@@ -83,6 +83,36 @@ class GramaireCheckSuite extends munit.FunSuite:
     assertEquals(GramaireCheck.checkStructure(doc), Vector.empty)
   }
 
+  // ADR D49: `## Externals` is a new reserved H2, slotting in after the optional `## Precedence`
+  // and before the optional `## Error messages`/the always-present `## Generated tables` — the
+  // `### name` subsections underneath it are `###`+ headings, deliberately ignored by this gate
+  // exactly like any other free presentational grouping (ADR D29); only the `## Externals` H2
+  // itself is structural.
+  test(
+    "checkStructure: a document with a `## Externals` section between Precedence and Error messages passes"
+  ) {
+    val doc = GramaireCheck.parse(
+      "# T\n\n## General settings\n\n```gramaire\nname: T\n```\n\n## A\n\n```gramaire\nA\n  : 'x' -> Add\n  ;\n```\n\n## Precedence\n\n```gramaire\n%left '+'\n```\n\n## Externals\n\n### Add\n\n```javascript\n() => null\n```\n\n## Error messages\n\nx\n\n## Generated tables\n\n| a |\n"
+    )
+    assertEquals(GramaireCheck.checkStructure(doc), Vector.empty)
+  }
+
+  test("checkStructure: a document with no ## Externals section still passes (optional)") {
+    val doc = GramaireCheck.parse(
+      "# T\n\n## General settings\n\n```gramaire\nname: T\n```\n\n## A\n\n```gramaire\nA\n  : 'x'\n  ;\n```\n\n## Generated tables\n\n| a |\n"
+    )
+    assertEquals(GramaireCheck.checkStructure(doc), Vector.empty)
+  }
+
+  test(
+    "checkStructure: a `## Externals` section placed BEFORE the rule sections fails (out of canonical order)"
+  ) {
+    val doc = GramaireCheck.parse(
+      "# T\n\n## General settings\n\n```gramaire\nname: T\n```\n\n## Externals\n\n### Add\n\n```javascript\n() => null\n```\n\n## A\n\n```gramaire\nA\n  : 'x' -> Add\n  ;\n```\n\n## Generated tables\n\n| a |\n"
+    )
+    assert(GramaireCheck.checkStructure(doc).exists(_.contains("out of canonical order")))
+  }
+
   test("checkStructure: a missing name: directive fails, even when everything else is clean") {
     val doc = GramaireCheck.parse(
       "# T\n\n## A\n\n```gramaire\nA\n  : 'x'\n  ;\n```\n\n## Error messages\n\nx\n\n## Generated tables\n\n| a |\n"

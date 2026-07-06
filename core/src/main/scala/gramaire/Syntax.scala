@@ -73,9 +73,23 @@ final case class Rule(
     doc: Option[String] = None
 )
 
-// A grammar is an ordered list of rules.
+// One `### <name>` subsection's own embedded implementation(s) under the document's `## Externals`
+// section (ADR D49): the delegate name it implements (mirrors an `Alt.delegate`'s own `name`) and,
+// per real-language fence found under that heading, that fence's language tag mapped to its code
+// text — "one or more fences, one per target profile" (e.g. `{"javascript": "...", "rust":
+// "..."}`). Attached to `Grammar` the same way `Rule.doc` is (ADR D39): never populated by
+// `Lr.parseWith`/`parse` themselves (a self-hosted parse's raw output must stay exactly equal to a
+// hand-written `Grammar` literal, e.g. `SelfHostSuite`'s `Bootstrap.bootstrapGrammar`), only by an
+// explicit opt-in caller (`Lr.withExternals`/`parseWithDocs`).
+final case class GrammarExternal(name: String, impl: Map[String, String])
+
+// A grammar is an ordered list of rules, plus the document's own `## Externals` embedded
+// implementations (ADR D49) — document-level metadata, not itself a grammar rule, so it survives
+// every rule-rewriting pass (Desugar, PrecClimb, LeftRec) untouched simply by defaulting to empty
+// on every `Grammar(...)` those passes construct positionally.
 //
 // Structural equality (free via `derives CanEqual` + case-class/enum
 // equals) lets the self-hosting test assert that the parser, once
 // generated, reads `Productions.gram.md` back to a value equal to the literal.
-final case class Grammar(rules: Vector[Rule]) derives CanEqual
+final case class Grammar(rules: Vector[Rule], externals: Vector[GrammarExternal] = Vector.empty)
+    derives CanEqual
