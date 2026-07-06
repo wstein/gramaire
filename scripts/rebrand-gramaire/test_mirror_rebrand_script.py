@@ -21,6 +21,8 @@ class MirrorRebrandScriptTests(unittest.TestCase):
         script = SCRIPT_PATH.read_text(encoding="utf-8")
         self.assertIn('mkdir -p "$WORK_DIR"', script)
         self.assertIn('cat > "$BLOB_CALLBACK_FILE" <<PY', script)
+        self.assertIn('--blob-callback "$(cat "$BLOB_CALLBACK_FILE")"', script)
+        self.assertNotIn('--blob-callback "$BLOB_CALLBACK_FILE"', script)
 
 
 if __name__ == "__main__":

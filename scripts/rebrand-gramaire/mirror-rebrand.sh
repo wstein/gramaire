@@ -131,7 +131,7 @@ PY
 
 git -C "$MIRROR_DIR" filter-repo \
   --filename-callback "$(cat "$SCRIPT_DIR/rename_paths_callback.py")" \
-  --blob-callback "$BLOB_CALLBACK_FILE" \
+  --blob-callback "$(cat "$BLOB_CALLBACK_FILE")" \
   --message-callback "$COMMIT_MSG_CALLBACK_CODE"
 
 git -C "$MIRROR_DIR" filter-repo \
