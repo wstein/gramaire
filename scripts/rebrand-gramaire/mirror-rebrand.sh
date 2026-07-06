@@ -105,7 +105,6 @@ COMMIT_MSG_CALLBACK_CODE="import subprocess, sys; return subprocess.check_output
 
 git -C "$MIRROR_DIR" filter-repo \
   --filename-callback "$(cat "$SCRIPT_DIR/rename_paths_callback.py")" \
-  --file-info-callback "$(cat "$SCRIPT_DIR/file_info_callback.py")" \
   --message-callback "$COMMIT_MSG_CALLBACK_CODE"
 
 git -C "$MIRROR_DIR" filter-repo \
