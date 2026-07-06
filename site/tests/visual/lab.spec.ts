@@ -277,8 +277,8 @@ test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthro
     "# Sum",
     "",
     "```gramaire",
-    "%name Sum",
-    "%lang javascript",
+    "name: Sum",
+    "lang: javascript",
     "```",
     "",
     "## Tokens",
@@ -332,8 +332,8 @@ test("the Lab's Evaluate tab renders a non-primitive action result as a collapse
     "# Node",
     "",
     "```gramaire",
-    "%name Node",
-    "%lang javascript",
+    "name: Node",
+    "lang: javascript",
     "```",
     "",
     "## Tokens",
@@ -1169,14 +1169,14 @@ test("Lowered Core shows the ALL(*) precedence-stratification rewrite, and hides
     "# PrecTest",
     "",
     "```gramaire",
-    "%name PrecTest",
+    "name: PrecTest",
     "```",
     "",
     "## Tokens",
     "",
     "```gramaire",
     "NUMBER : /[0-9]+/ ;",
-    "WS     : /[ \\t\\r\\n]+/   %skip ;",
+    "WS     : /[ \\t\\r\\n]+/   -> skip ;",
     "```",
     "",
     "## expr",
@@ -1225,7 +1225,7 @@ test("Lowered Core shows the ALL(*) precedence-stratification rewrite, and hides
   await page
     .locator(".lab__pane--grammar .lab__editor")
     .fill(
-      "# NoRewrite\n\n```gramaire\n%name NoRewrite\n```\n\n## Tokens\n\n```gramaire\nA : /a/ ;\n```\n\n## s\n\n```gramaire\ns\n  : A\n  ;\n```\n",
+      "# NoRewrite\n\n```gramaire\nname: NoRewrite\n```\n\n## Tokens\n\n```gramaire\nA : /a/ ;\n```\n\n## s\n\n```gramaire\ns\n  : A\n  ;\n```\n",
     );
   await expect(page.locator(".lab__status")).toHaveText("ok", {
     timeout: 5000,
