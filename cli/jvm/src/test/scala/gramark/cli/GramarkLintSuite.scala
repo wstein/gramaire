@@ -209,19 +209,29 @@ class GramarkLintSuite extends munit.FunSuite:
       case Right(ir) => assertEquals(GramarkLint.caselessLoss(ir, "antlr"), Vector.empty)
   }
 
-  test("predicateLoss: a semantic predicate is reported lost against antlr") {
+  test("predicateLoss: the same grammar is reported lost against bison") {
     IR.buildIR(Method.Canonical, "P", predicateGrammar) match
       case Left(e) => fail(s"should build: $e")
       case Right(ir) =>
-        val findings = GramarkLint.predicateLoss(ir, "antlr")
+        val findings = GramarkLint.predicateLoss(ir, "bison")
         assert(findings.nonEmpty, "expected a predicate-loss finding")
         assert(findings.head.contains("Expr"), findings.head)
   }
 
-  test("predicateLoss: the same grammar is also reported lost against bison") {
+  test(
+    "predicateLoss: still reported lost against js (BackendJs doesn't render predicates either)"
+  ) {
     IR.buildIR(Method.Canonical, "P", predicateGrammar) match
       case Left(e)   => fail(s"should build: $e")
-      case Right(ir) => assert(GramarkLint.predicateLoss(ir, "bison").nonEmpty)
+      case Right(ir) => assert(GramarkLint.predicateLoss(ir, "js").nonEmpty)
+  }
+
+  test(
+    "predicateLoss: the `antlr` backend is exempt as of D54 (BackendAntlr now renders `{ ... }?`)"
+  ) {
+    IR.buildIR(Method.Canonical, "P", predicateGrammar) match
+      case Left(e)   => fail(s"should build: $e")
+      case Right(ir) => assertEquals(GramarkLint.predicateLoss(ir, "antlr"), Vector.empty)
   }
 
   test("predicateLoss: the `ir` backend is exempt (it serializes the predicate marker as JSON)") {
@@ -274,7 +284,10 @@ class GramarkLintSuite extends munit.FunSuite:
         )
   }
 
-  test("gates: an alt-label/caseless/predicate-losing grammar fails exactly those three gates") {
+  test(
+    "gates: an alt-label/caseless-losing grammar fails exactly those two gates against antlr" +
+      " (its predicate is NOT one of them — D54 exempts antlr from predicateLoss)"
+  ) {
     val g = Grammar(
       Vector(
         Rule(
@@ -301,7 +314,7 @@ class GramarkLintSuite extends munit.FunSuite:
             "externals" -> false,
             "altLabel" -> true,
             "caseless" -> true,
-            "predicate" -> true
+            "predicate" -> false
           )
         )
   }
