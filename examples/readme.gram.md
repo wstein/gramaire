@@ -42,6 +42,7 @@ A readme is the whole pitch: a non-empty run of sentences.
 ```gramaire
 Readme
   : SentenceList    {% (c) => ({ tag: "Readme", sentences: c.sentencelist }) %}
+  ;
 ```
 
 </details>
@@ -59,6 +60,7 @@ Left recursion accumulates sentences in reading order.
 SentenceList
   : Sentence                  {% (c) => [c.sentence] %}
   | SentenceList Sentence     {% (c) => [...c.sentencelist, c.sentence] %}
+  ;
 ```
 
 </details>
@@ -77,6 +79,7 @@ one.
 ```gramaire
 Sentence
   : Words '.'    {% (c) => ({ tag: "Sentence", words: c.words }) %}
+  ;
 ```
 
 </details>
@@ -92,6 +95,7 @@ Sentence
 Words
   : WORD          {% (c) => [c.word] %}
   | Words WORD    {% (c) => [...c.words, c.word] %}
+  ;
 ```
 
 </details>

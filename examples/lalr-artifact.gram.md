@@ -33,6 +33,7 @@ S
   | 'b' B 'd'
   | 'a' B 'e'
   | 'b' A 'e'
+  ;
 ```
 
 </details>
@@ -47,6 +48,7 @@ S
 ```gramaire
 A
   : 'c'
+  ;
 ```
 
 </details>
@@ -61,6 +63,7 @@ A
 ```gramaire
 B
   : 'c'
+  ;
 ```
 
 </details>

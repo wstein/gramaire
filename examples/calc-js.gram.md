@@ -16,8 +16,8 @@ of inline `{% … %}` actions.
 ## Tokens
 
 ```gramaire
-NUMBER : /[0-9]+(?:\.[0-9]+)?/
-WS     : /[ \t\r\n]+/   %skip
+NUMBER : /[0-9]+(?:\.[0-9]+)?/ ;
+WS     : /[ \t\r\n]+/   %skip ;
 ```
 
 ## Expr
@@ -32,6 +32,7 @@ Expr
   : Expr '+' Term   {% (c) => c.expr + c.term %}
   | Expr '-' Term   {% (c) => c.expr - c.term %}
   | Term
+  ;
 ```
 
 </details>
@@ -48,6 +49,7 @@ Term
   : Term '*' Factor   {% (c) => c.term * c.factor %}
   | Term '/' Factor   {% (c) => c.term / c.factor %}
   | Factor
+  ;
 ```
 
 </details>
@@ -63,6 +65,7 @@ Term
 Factor
   : '(' Expr ')'  {% (c) => c.expr %}
   | NUMBER        {% (c) => parseFloat(c.number) %}
+  ;
 ```
 
 </details>

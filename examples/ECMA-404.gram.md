@@ -49,7 +49,7 @@ other characters represented with the backslash notation defined by the
 standard.
 
 ```gramaire
-STRING : /"(?:[^"\\]|\\.)*"/
+STRING : /"(?:[^"\\]|\\.)*"/ ;
 ```
 
 ### Number
@@ -59,7 +59,7 @@ integer part, a fractional part, and an exponent. The grammar intentionally
 rejects octal and hexadecimal notation.
 
 ```gramaire
-NUMBER : /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/
+NUMBER : /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/ ;
 ```
 
 ### Whitespace
@@ -68,7 +68,7 @@ Whitespace is allowed between any pair of tokens. The grammar below uses a
 skipped token for this purpose.
 
 ```gramaire
-WS     : /[ \t\r\n]+/    %skip
+WS     : /[ \t\r\n]+/    %skip ;
 ```
 
 ## Json
@@ -84,6 +84,7 @@ The grammar therefore defines a complete JSON document as one value.
 ```gramaire
 Json
   : Value
+  ;
 ```
 
 </details>
@@ -108,6 +109,7 @@ Value
   | 'true'
   | 'false'
   | 'null'
+  ;
 ```
 
 </details>
@@ -127,6 +129,7 @@ colon, and the name/value pairs are separated by commas.
 Object
   : '{' '}'
   | '{' Members '}'
+  ;
 ```
 
 </details>
@@ -146,6 +149,7 @@ JSON value.
 Members
   : Member
   | Members ',' Member
+  ;
 ```
 
 </details>
@@ -162,6 +166,7 @@ A member is a string key, a colon, and a value.
 ```gramaire
 Member
   : STRING ':' Value
+  ;
 ```
 
 </details>
@@ -181,6 +186,7 @@ commas.
 Array
   : '[' ']'
   | '[' Elements ']'
+  ;
 ```
 
 </details>
@@ -199,6 +205,7 @@ elements in source order and allows each element to be any JSON value.
 Elements
   : Value
   | Elements ',' Value
+  ;
 ```
 
 </details>

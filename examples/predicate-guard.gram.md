@@ -48,9 +48,9 @@ default) once a predicate is present — `--strategy ll-star` is required.
 ## Tokens
 
 ```gramaire
-NUMBER : /[0-9]+(?:\.[0-9]+)?/
-IDENT  : /[a-zA-Z_][a-zA-Z0-9_]*/
-WS     : /[ \t\r\n]+/   %skip
+NUMBER : /[0-9]+(?:\.[0-9]+)?/ ;
+IDENT  : /[a-zA-Z_][a-zA-Z0-9_]*/ ;
+WS     : /[ \t\r\n]+/   %skip ;
 ```
 
 ## Stmt
@@ -64,6 +64,7 @@ WS     : /[ \t\r\n]+/   %skip
 Stmt
   : 'let' Name '=' Expr   {% (c) => ({ name: c.name, value: c.expr }) %}
   | Expr
+  ;
 ```
 
 </details>
@@ -79,6 +80,7 @@ Stmt
 Expr
   : Expr '+' Term   {% (c) => c.expr + c.term %}
   | Term
+  ;
 ```
 
 </details>
@@ -94,6 +96,7 @@ Expr
 Term
   : NUMBER   {% (c) => parseFloat(c.number) %}
   | Name
+  ;
 ```
 
 </details>
@@ -108,6 +111,7 @@ Term
 ```gramaire
 Name
   : IDENT {%? (c) => c.ident !== "if" %}
+  ;
 ```
 
 </details>

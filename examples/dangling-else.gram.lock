@@ -2,18 +2,18 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "ea30dc53cda1273f9fd632a7abe465ca4d68b31f8a261a4950b6d3b7ecf70bb4",
+  "grammarSha256": "dc037fe393a416f9e70ea4572959752612b5610cf5f6f17d0f5f0be699b6d274",
   "artifacts": [
     {
       "kind": "railroad",
       "nonterminal": "Stmt",
       "path": "diagrams-dangling-else/stmt.svg",
-      "sourceSha256": "e32a2f62b21426237bd7c9468bdf5d1913d9d101b63a3996d6b1ec0b4251799d"
+      "sourceSha256": "95d0e83791ca67e6588743351b547438e6975c7e1b41d544b2d5f2942cb4f6c5"
     },
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "ea30dc53cda1273f9fd632a7abe465ca4d68b31f8a261a4950b6d3b7ecf70bb4"
+      "sourceSha256": "dc037fe393a416f9e70ea4572959752612b5610cf5f6f17d0f5f0be699b6d274"
     }
   ]
 }

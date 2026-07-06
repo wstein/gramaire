@@ -2,48 +2,48 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "52722d2daf25eee25765efe0653d28ffd3239c85123765aafb0caf06cff933a2",
+  "grammarSha256": "e0a66d6392ea1adeafac3c0fb2b2dcc802590c2c8c165cc70de0d0d3a78d77c3",
   "artifacts": [
     {
       "kind": "railroad",
       "nonterminal": "Value",
       "path": "diagrams-json/value.svg",
-      "sourceSha256": "e178dd85b3331d029f51c07780b0c4a8536d17c3c62d30c6acd6b43ade17b981"
+      "sourceSha256": "13bdeb07b647827e95979f0b4afbfeca8268532af415d90b7e0a68b6cca48da0"
     },
     {
       "kind": "railroad",
       "nonterminal": "Object",
       "path": "diagrams-json/object.svg",
-      "sourceSha256": "6ee598eb0e7777e2aafd48030fb065643d088faecab913a71417233506d8a502"
+      "sourceSha256": "248d0da20ba1c8d870872bc6586893baf3e07bdbc8fb2a40a81ad6c72f13980b"
     },
     {
       "kind": "railroad",
       "nonterminal": "Members",
       "path": "diagrams-json/members.svg",
-      "sourceSha256": "9d84d32776d45a9d228288cbf828948a2d80a24a84cf32486bc78f49891f35f6"
+      "sourceSha256": "902711c91ed34e1999d675747b24dbe34c7e312ad671f0de283a3b65511ab7ee"
     },
     {
       "kind": "railroad",
       "nonterminal": "Member",
       "path": "diagrams-json/member.svg",
-      "sourceSha256": "c3b369acbc3f8cc000e48700f4384382a0d9fac5121428e13eb700ea752a9dbf"
+      "sourceSha256": "f3af285e7a97dbb38a1de2ac2d841c4964ed65539c9bd454d496adb7738d74b7"
     },
     {
       "kind": "railroad",
       "nonterminal": "Array",
       "path": "diagrams-json/array.svg",
-      "sourceSha256": "5b5242d46beca0ca8f6425e0cdc4ce885691f19348ed0accc3e305c230beb65b"
+      "sourceSha256": "c7dc985c36327f59f19d8235c116fffc4a18cc152caff1113b9e542aaf3c2631"
     },
     {
       "kind": "railroad",
       "nonterminal": "Elements",
       "path": "diagrams-json/elements.svg",
-      "sourceSha256": "7788de82fb7f23206e5eadf2be2a35ad111ba2547083a5068fe3b53961092d04"
+      "sourceSha256": "3b33ecade9a7e83b288f513ade79c8fb16741efc6218c976ff60a27d8f2af530"
     },
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "52722d2daf25eee25765efe0653d28ffd3239c85123765aafb0caf06cff933a2"
+      "sourceSha256": "e0a66d6392ea1adeafac3c0fb2b2dcc802590c2c8c165cc70de0d0d3a78d77c3"
     }
   ]
 }

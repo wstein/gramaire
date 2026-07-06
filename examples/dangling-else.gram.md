@@ -35,7 +35,7 @@ the ambiguity itself), but that's this fixture's luck, not a guarantee. See
 ## Tokens
 
 ```gramaire
-WS : /[ \t\r\n]+/   %skip
+WS : /[ \t\r\n]+/   %skip ;
 ```
 
 ## Stmt
@@ -50,6 +50,7 @@ Stmt
   : 'if' 'c' 'then' Stmt
   | 'if' 'c' 'then' Stmt 'else' Stmt
   | 's'
+  ;
 ```
 
 </details>

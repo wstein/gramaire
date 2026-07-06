@@ -2,30 +2,30 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "c3ac6704bc7ae0a3ea544be8c5bd5a391c442841a0f0fce67de4722c985f9590",
+  "grammarSha256": "b0e106950ba5fb350e54acf950545ae24864fdfb82056e148232e02e9bb2bd42",
   "artifacts": [
     {
       "kind": "railroad",
       "nonterminal": "S",
       "path": "diagrams-lalr-artifact/s.svg",
-      "sourceSha256": "7d071147e356b77944cdb64ccf66422b92f1df719e3187b8dfacbc4d83562727"
+      "sourceSha256": "df971c8f407f16e41cae93b42c5ff78a8a33442d0504f85fd0c9b393a28003c3"
     },
     {
       "kind": "railroad",
       "nonterminal": "A",
       "path": "diagrams-lalr-artifact/a.svg",
-      "sourceSha256": "6584421e6bc24aabd36552c64e25682103d0b09d8f3b678507a85b70a6848b70"
+      "sourceSha256": "7421e77a497f649bb183e4f220aad7766dfb7dabd56bb6935e96c9b9949c403e"
     },
     {
       "kind": "railroad",
       "nonterminal": "B",
       "path": "diagrams-lalr-artifact/b.svg",
-      "sourceSha256": "1f336dfd2e3809f69b3db19fbcab673cf6bc87e4219034971268fe0fc57a5470"
+      "sourceSha256": "e5f464ce128736221999ef8778764eb98204d25cc14544eefe5cf8404a1b3311"
     },
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "c3ac6704bc7ae0a3ea544be8c5bd5a391c442841a0f0fce67de4722c985f9590"
+      "sourceSha256": "b0e106950ba5fb350e54acf950545ae24864fdfb82056e148232e02e9bb2bd42"
     }
   ]
 }

@@ -37,9 +37,9 @@ keywords are implicit literals from the productions, so they are not repeated
 here. With this block the grammar is self-contained — no hand-written scanner.
 
 ```gramaire
-STRING : /"(?:[^"\\]|\\.)*"/
-NUMBER : /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/
-WS     : /[ \t\r\n]+/    %skip
+STRING : /"(?:[^"\\]|\\.)*"/ ;
+NUMBER : /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/ ;
+WS     : /[ \t\r\n]+/    %skip ;
 ```
 
 ## Value
@@ -60,6 +60,7 @@ Value
   | 'true'    {% (c) => ({ tag: "Bool", value: true }) %}
   | 'false'   {% (c) => ({ tag: "Bool", value: false }) %}
   | 'null'    {% (c) => ({ tag: "Null" }) %}
+  ;
 ```
 
 </details>
@@ -79,6 +80,7 @@ needs no member to reduce — one token of lookahead settles it.
 Object
   : '{' '}'            {% (c) => ({ tag: "Obj", members: [] }) %}
   | '{' Members '}'    {% (c) => ({ tag: "Obj", members: c.members }) %}
+  ;
 ```
 
 </details>
@@ -96,6 +98,7 @@ Left recursion accumulates members in source order.
 Members
   : Member                {% (c) => [c.member] %}
   | Members ',' Member    {% (c) => [...c.members, c.member] %}
+  ;
 ```
 
 </details>
@@ -112,6 +115,7 @@ A member is a string key, a colon, and a value.
 ```gramaire
 Member
   : STRING ':' Value    {% (c) => ({ key: JSON.parse(c.string), value: c.value }) %}
+  ;
 ```
 
 </details>
@@ -130,6 +134,7 @@ elements, with the empty case split out for the same lookahead reason.
 Array
   : '[' ']'             {% (c) => ({ tag: "Arr", elements: [] }) %}
   | '[' Elements ']'    {% (c) => ({ tag: "Arr", elements: c.elements }) %}
+  ;
 ```
 
 </details>
@@ -147,6 +152,7 @@ Left recursion accumulates elements in source order.
 Elements
   : Value                 {% (c) => [c.value] %}
   | Elements ',' Value    {% (c) => [...c.elements, c.value] %}
+  ;
 ```
 
 </details>
