@@ -103,7 +103,8 @@ fi
 
 git -C "$MIRROR_DIR" filter-repo \
   --replace-text "$SCRIPT_DIR/replace-text-rules.txt" \
-  --filename-callback "$(cat "$SCRIPT_DIR/rename_paths_callback.py")"
+  --filename-callback "$(cat "$SCRIPT_DIR/rename_paths_callback.py")" \
+  --commit-callback "python3 '$SCRIPT_DIR/commit_msg_callback.py'"
 
 git -C "$MIRROR_DIR" filter-repo \
   --force \
