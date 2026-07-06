@@ -125,11 +125,16 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source_repo", nargs="?", help="optional local git checkout to preview renamed paths from")
     parser.add_argument("--preview-limit", type=int, default=20, help="max renamed paths to print when source_repo is local")
+    parser.add_argument("--rules-file", default=str(RULES_PATH), help="path to the replace-text rules file")
+    parser.add_argument("--callback-file", default=str(CALLBACK_PATH), help="path to the filename callback Python file")
     args = parser.parse_args(argv)
 
-    rules = parse_rules(RULES_PATH)
+    rules_path = Path(args.rules_file).resolve()
+    callback_path = Path(args.callback_file).resolve()
+
+    rules = parse_rules(rules_path)
     validate_expected_rules(rules)
-    callback = load_filename_callback(CALLBACK_PATH)
+    callback = load_filename_callback(callback_path)
     validate_sample_paths(callback)
 
     print(f"rules: ok ({len(rules)} replacements)")

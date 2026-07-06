@@ -1,0 +1,6 @@
+.gram.md==>.gram.md
+.gram==>.gram
+Gram==>Gram
+gram==>gram
+Gramaire==>Gramaire
+# this should fail because it has no separator
