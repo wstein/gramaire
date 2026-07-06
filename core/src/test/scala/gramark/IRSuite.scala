@@ -150,6 +150,58 @@ class IRSuite extends munit.FunSuite:
                 )
   }
 
+  // ADR D48: `-> IDENT` names an implementation this alternative's action is delegated to,
+  // in place of an inline `{% %}`/`{%? %}` action — mutually exclusive with one by construction
+  // (the grammar has no production combining both), so a document writing both is a parse error,
+  // not a runtime check.
+  test("`-> IDENT` parses to an Alt with delegate set and no action") {
+    val md = "```gramark\nExpr\n  : NUM '+' NUM -> Add\n  | NUM\n  ;\n```\n"
+    Lr.parse(md) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        g.rules.headOption match
+          case None => fail("a rule should be present")
+          case Some(r) =>
+            r.alts.headOption match
+              case None => fail("an alternative should be present")
+              case Some(alt) =>
+                assertEquals(alt.delegate, Some("Add"))
+                assertEquals(alt.action, None, "a delegate slot carries no inline action")
+  }
+
+  test("a `-> IDENT` delegate carries through IR as IRRule.delegate, with no action") {
+    val md = "```gramark\nExpr\n  : NUM '+' NUM -> Add\n  | NUM\n  ;\n```\n"
+    Lr.parse(md) match
+      case Left(e) => fail(s"grammar should parse: $e")
+      case Right(g) =>
+        IR.buildIR(Method.Canonical, "Delegated", g) match
+          case Left(e) => fail(s"delegate grammar should build: $e")
+          case Right(ir) =>
+            ir.grammar.rules.headOption match
+              case None => fail("a rule should be present")
+              case Some(r) =>
+                assertEquals(r.delegate, Some("Add"))
+                assertEquals(r.actions, Map.empty, "a delegate slot has no action body")
+            assertEquals(
+              IRValidate.validate(ir),
+              Vector.empty,
+              "a real -> IDENT delegate validates clean"
+            )
+            Json.parse(Json.stringify(IR.toJson(ir))).flatMap(IRDecode.decode) match
+              case Left(e) => fail(s"delegate round-trip failed: $e")
+              case Right(back) =>
+                assertEquals(back, ir, "the delegate survives serialize -> decode")
+  }
+
+  test(
+    "`-> IDENT` together with an inline `{% %}` action on the same alternative is a parse error"
+  ) {
+    val md = "```gramark\nExpr\n  : NUM -> Add {% (c) => c[0] %} ;\n```\n"
+    Lr.parse(md) match
+      case Left(_)  => () // expected: the grammar has no production combining both
+      case Right(_) => fail("a delegate and an inline action together should not parse")
+  }
+
   test("`{%? p %}` survives Desugar's Opt/Star sugar-enumeration wrap") {
     // Regression: `wrap` (the enumerated-variant lambda `enumerateAlt` builds for an alt with an
     // Opt/Star element) used to bury a predicate's leading `?` mid-string — inside the parens

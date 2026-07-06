@@ -41,9 +41,19 @@ object Sym:
 
 // An alternative: a sequence of right-hand symbols, an optional `# Label`
 // naming the alternative (per-alternative visitor methods and CST
-// accessors, ADR D26), and an optional semantic action kept as raw source
-// text for emission.
-final case class Alt(syms: Vector[Sym], label: Option[String], action: Option[String])
+// accessors, ADR D26), an optional semantic action kept as raw source
+// text for emission, and an optional `-> IDENT` delegate name (ADR D48):
+// mutually exclusive with `action` by construction (the grammar has no
+// production combining both at once, so a document writing both is a
+// parse error, not a runtime check) — the named implementation resolves
+// either to a consumer-supplied implementation at runtime or, in a later
+// phase, to a fenced implementation elsewhere in the same file.
+final case class Alt(
+    syms: Vector[Sym],
+    label: Option[String],
+    action: Option[String],
+    delegate: Option[String] = None
+)
 
 // A rule: a left-hand nonterminal name, its `#[attr]` attributes (e.g.
 // `inline`, ADR D28), its alternatives, and an optional leading doc-comment

@@ -292,6 +292,10 @@
         },
         "predicate": {
           "$ref": "#/$defs/predicateEffect"
+        },
+        "delegate": {
+          "description": "Optional `-> IDENT` delegate name (ADR D48): this alternative's action is implemented elsewhere (a consumer-supplied implementation at runtime, or in a later phase a fenced implementation in the same file) rather than by `actions`. Mutually exclusive with a non-empty `actions` entry. Absent when the alternative has an ordinary action or none at all.",
+          "type": "string"
         }
       }
     },
