@@ -23,6 +23,21 @@ class BackendAntlrSuite extends munit.FunSuite:
         )
   }
 
+  test("IRNonterminal.comment is rendered as a leading /* ... */ block comment above its rule") {
+    IR.buildIR(Method.Canonical, "Tiny", tiny) match
+      case Left(_) => fail("tiny grammar should build")
+      case Right(ir0) =>
+        val ir = ir0.copy(grammar =
+          ir0.grammar.copy(nonterminals =
+            ir0.grammar.nonterminals.map(n =>
+              if n.name == "S" then n.copy(comment = Some("The start rule.")) else n
+            )
+          )
+        )
+        val g4 = BackendAntlr.emit(ir)
+        assert(g4.contains("/* The start rule. */\ns\n"), s"expected a leading comment on s:\n$g4")
+  }
+
   test("regex→ANTLR keeps char classes, negates with ~, strips (?:, quotes literals") {
     assertEquals(BackendAntlr.regexToAntlr("[0-9]+"), "[0-9]+")
     assertEquals(BackendAntlr.regexToAntlr("[ \t\r\n]+"), "[ \t\r\n]+")

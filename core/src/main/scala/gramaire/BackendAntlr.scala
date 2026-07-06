@@ -5,6 +5,9 @@ package gramaire
 // becomes a parser rule, each token class a lexer rule. The reverse
 // direction (ANTLR -> Gramaire, ConvertAntlr) is the hard half.
 // Ported from src/Gramaire/Backend/Antlr.purs.
+//
+// Also consumes `IRNonterminal.comment` (ADR D39) to reconstruct each parser rule's own leading
+// `/* … */` doc comment — mirrors `BackendBison`'s own use of the same field exactly.
 object BackendAntlr:
   val backend: Backend = Backend(
     name = "antlr",
@@ -125,12 +128,13 @@ object BackendAntlr:
 
     def parserRule(nt: IRNonterminal): String =
       val alts = ir.grammar.rules.filter(_.lhs == nt.id)
-      alts.map(altText) match
+      val body = alts.map(altText) match
         case Vector() => s"${ruleName(nt.name)} : /* (no productions) */ ;\n"
         case texts =>
           s"${ruleName(nt.name)}\n  : ${texts.head}" + texts.tail
             .map(b => s"\n  | $b")
             .mkString + "\n  ;\n"
+      nt.comment.map(c => s"/* $c */\n").getOrElse("") + body
 
     def lexerRule(lx: IRLexer, tid: Int): Option[String] =
       for
