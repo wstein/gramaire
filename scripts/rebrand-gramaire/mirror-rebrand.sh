@@ -137,21 +137,42 @@ git clone "$MIRROR_DIR" "$REVIEW_CHECKOUT_DIR"
 
 echo
 echo "== Quick sanity checks on the rewritten history =="
+
+show_first_or_none() {
+  local path="$1"
+  if [ -s "$path" ]; then
+    head -20 "$path"
+  else
+    echo "  (none)"
+  fi
+}
+
 echo "-- git-filter-repo's own secret-redaction marker (would mean a rules-file line was" \
      "missing '==>' and got treated as 'redact this literal text' instead of a rename -- see" \
      "this folder's README on why replace-text-rules.txt must never contain '#' comments):"
 git -C "$REVIEW_CHECKOUT_DIR" grep -l '\*\*\*REMOVED\*\*\*' -- . 2>/dev/null || echo "  (none -- clean)"
 echo "-- remaining 'gramark' (any case) mentions in the current tree tip, if any:"
-git -C "$REVIEW_CHECKOUT_DIR" grep -ilE 'gramark' -- . 2>/dev/null | grep -v '^design/gramark-site-handoff/' | head -20 || echo "  (none)"
+GRAMARK_HITS="$WORK_DIR/sanity-gramark-hits.txt"
+git -C "$REVIEW_CHECKOUT_DIR" grep -ilE 'gramark' -- . >"$GRAMARK_HITS.raw" 2>/dev/null || true
+grep -v '^design/gramark-site-handoff/' "$GRAMARK_HITS.raw" >"$GRAMARK_HITS" || true
+show_first_or_none "$GRAMARK_HITS"
 echo "-- remaining 'grimoire' (any case) mentions in the current tree tip, if any -- the OLD" \
      "target name the shipped notebook feature was leftover-named after:"
-git -C "$REVIEW_CHECKOUT_DIR" grep -ilE 'grimoire' -- . 2>/dev/null | head -20 || echo "  (none)"
+GRIMOIRE_HITS="$WORK_DIR/sanity-grimoire-hits.txt"
+git -C "$REVIEW_CHECKOUT_DIR" grep -ilE 'grimoire' -- . >"$GRIMOIRE_HITS" 2>/dev/null || true
+show_first_or_none "$GRIMOIRE_HITS"
 echo "-- remaining .grmk/.grmk.md/.grmk.lock paths, if any:"
-git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -E '\.grmk(\.md|\.lock)?$' || echo "  (none)"
+GRMK_PATH_HITS="$WORK_DIR/sanity-grmk-path-hits.txt"
+git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -F '.grmk' >"$GRMK_PATH_HITS" || true
+show_first_or_none "$GRMK_PATH_HITS"
 echo "-- remaining scripts/rebrand-gramaire paths, if any:"
-git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -E '^scripts/rebrand-gramaire(/|$)' || echo "  (none)"
+REBRAND_PATH_HITS="$WORK_DIR/sanity-rebrand-path-hits.txt"
+git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -F 'scripts/rebrand-gramaire' >"$REBRAND_PATH_HITS" || true
+show_first_or_none "$REBRAND_PATH_HITS"
 echo "-- remaining Grimoire*-named paths, if any:"
-git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -iE 'grimoire' || echo "  (none)"
+GRIMOIRE_PATH_HITS="$WORK_DIR/sanity-grimoire-path-hits.txt"
+git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -iF 'grimoire' >"$GRIMOIRE_PATH_HITS" || true
+show_first_or_none "$GRIMOIRE_PATH_HITS"
 echo "-- sample of the renamed grammar package + example + notebook files:"
 git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -E '^(core/src/main/scala/gramaire/IR\.scala|examples/calc\.gram\.md|grammar/Gramaire\.gram\.md|site/src/lab/liveDoc/GramaireNotebookIsland\.tsx)$' || true
 
