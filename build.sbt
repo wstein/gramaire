@@ -21,6 +21,16 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies += "org.scalameta" %%% "munit" % munitVersion % Test,
     testFrameworks += new TestFramework("munit.Framework"),
   )
+  .jvmSettings(
+    // Standalone (JDK-independent — Nashorn was pulled from the JDK itself in 15) pure-Java
+    // ECMAScript engine, JVM-test-only: lets a JVM-only suite (BackendJsExternalsSuite) actually
+    // RUN `BackendJs.emit`'s output — not just diff its text — the strongest proof a delegate/
+    // externals-rendering example works end to end. Deliberately not depended on by any other
+    // module or by production code (core/src/main stays runtime-free per ADR D13); scoped to
+    // `Test` so it never reaches a `coreJVM/package`/`cli` artifact, and `.jvmSettings`-only so
+    // `coreJS/compile` (Scala.js has no JVM classpath at all) is entirely unaffected.
+    libraryDependencies += "org.openjdk.nashorn" % "nashorn-core" % "15.4" % Test
+  )
 
 lazy val coreJS = core.js
 lazy val coreJVM = core.jvm
