@@ -40,23 +40,18 @@ reads cleanly at 16/32/48 px. See
 
 ## Wordmark — "Gramaire"
 
-The single shared middle **m** is the brand hinge. The sanctioned treatment is
-**02 · Split stem**: one weight/size throughout, colored `Gra` = ink,
-`aire` = accent, and the middle **m** bisected left-half ink / right-half accent
-via a hard-stop gradient.
+The sanctioned treatment is one weight/size throughout: `Gram` in ink and
+`aire` in accent. This keeps the grammatical root readable and avoids carrying
+over the old split-**m** treatment from the Gramark portmanteau.
 
 ```css
 font: 700 <size> "IBM Plex Sans";
 letter-spacing: -0.04em;
-/* "Gra"  */ color: var(--fg);
-/* "m"    */ background: linear-gradient(90deg, var(--fg) 0 50%, var(--accent) 50% 100%);
-            -webkit-background-clip: text; background-clip: text; color: transparent;
+/* "Gram" */ color: var(--fg);
 /* "aire" */ color: var(--accent);
 ```
 
 See [brand/gramaire-wordmark.svg](../brand/gramaire-wordmark.svg).
-Sanctioned alternates (documented in the brand book) are `03 · Rule node` and
-`05 · Fork rail`.
 
 ## Color
 
@@ -104,5 +99,4 @@ runs. "Grammars that render themselves" over "revolutionary parsing."
 - Don't recolor the node anything but emerald, or use `#15b879` for text/UI.
 - Don't add a second accent color.
 - Don't echo the Markdown "M↓" tile — the railroad mark is the whole point.
-- Don't stretch, rotate, or add gradients/shadows to the mark (the wordmark's
-  split-`m` gradient is the one sanctioned exception).
+- Don't stretch, rotate, or add gradients/shadows to the mark or wordmark.

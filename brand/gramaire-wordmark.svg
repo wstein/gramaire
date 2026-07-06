@@ -1,34 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 430 96" role="img" aria-label="Gramaire">
   <title>Gramaire</title>
   <style>
-    /* Ink flips with the OS theme; the emerald node + `aire`/right-`m` stay
-       constant emerald. The middle `m` is the brand hinge: its left half is
-       ink, its right half emerald (the "02 · Split stem" treatment).
-       Colors match docs/BRANDING.md's token table (--fg / --accent). */
+    /* Ink flips with the OS theme; the emerald node + `aire` stay constant
+       emerald. Colors match docs/BRANDING.md's token table (--fg / --accent). */
     .ink { stroke: #16181d; }
-    .wm-gra { fill: #16181d; }
-    .wm-m { fill: url(#mSplit); }
+    .wm-gram { fill: #16181d; }
     @media (prefers-color-scheme: dark) {
       .ink { stroke: #eaf2ed; }
-      .wm-gra { fill: #eaf2ed; }
-      .wm-m { fill: url(#mSplitDark); }
+      .wm-gram { fill: #eaf2ed; }
     }
   </style>
-  <defs>
-    <!-- Hard-stop split for the middle `m`, positioned over its glyph box. -->
-    <linearGradient id="mSplit" gradientUnits="userSpaceOnUse" x1="232" y1="0" x2="288" y2="0">
-      <stop offset="0" stop-color="#16181d"/>
-      <stop offset="0.5" stop-color="#16181d"/>
-      <stop offset="0.5" stop-color="#0a8f63"/>
-      <stop offset="1" stop-color="#0a8f63"/>
-    </linearGradient>
-    <linearGradient id="mSplitDark" gradientUnits="userSpaceOnUse" x1="232" y1="0" x2="288" y2="0">
-      <stop offset="0" stop-color="#eaf2ed"/>
-      <stop offset="0.5" stop-color="#eaf2ed"/>
-      <stop offset="0.5" stop-color="#34d399"/>
-      <stop offset="1" stop-color="#34d399"/>
-    </linearGradient>
-  </defs>
 
   <!-- Logomark, scaled into the left of the lockup. Geometry matches the
        gold-standard interactive mock exactly (GramaireMark.dc.html). -->
@@ -41,9 +22,9 @@
     </g>
   </g>
 
-  <!-- Wordmark: Gra (ink) · m (split) · aire (emerald). IBM Plex Sans 700. -->
+  <!-- Wordmark: Gram (ink) · aire (emerald). IBM Plex Sans 700. -->
   <text x="104" y="66" font-family="'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif"
         font-weight="700" font-size="62" letter-spacing="-2.5">
-    <tspan class="wm-gra">Gra</tspan><tspan class="wm-m">m</tspan><tspan fill="#0a8f63">aire</tspan>
+    <tspan class="wm-gram">Gram</tspan><tspan fill="#0a8f63">aire</tspan>
   </text>
 </svg>

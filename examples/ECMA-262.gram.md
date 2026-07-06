@@ -129,6 +129,7 @@ Object
   : '{' '}'
   | '{' Members '}'
 ```
+
 </details>
 
 ## Members
@@ -147,6 +148,7 @@ Members
   : Member
   | Members ',' Member
 ```
+
 </details>
 
 ## Member
@@ -162,6 +164,7 @@ A member is a string key, a colon, and a value.
 Member
   : STRING ':' Value
 ```
+
 </details>
 
 ## Array
@@ -180,6 +183,7 @@ Array
   : '[' ']'
   | '[' Elements ']'
 ```
+
 </details>
 
 ## Elements
@@ -197,6 +201,7 @@ Elements
   : Value
   | Elements ',' Value
 ```
+
 </details>
 
 ## Error messages
