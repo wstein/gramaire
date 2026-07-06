@@ -18,6 +18,23 @@ class ConvertAntlrSuite extends munit.FunSuite:
       |WS     : [ \t\r\n]+ -> skip ;
       |""".stripMargin
 
+  // Mirrors `calcG4` exactly, plus a leading doc comment (ADR D39) on two of its three parser
+  // rules — one `/* … */` block comment, one `//` line comment — to exercise the ANTLR
+  // converter's own comment round-trip (mirroring `ConvertBisonSuite.calcY`).
+  private val calcDocG4: String =
+    """grammar CalcDoc;
+      |
+      |/* An expression: a sum or difference of terms. */
+      |expr   : expr '+' term | expr '-' term | term ;
+      |
+      |// A term: a product or quotient of factors.
+      |term   : term '*' factor | term '/' factor | factor ;
+      |
+      |factor : '(' expr ')' | NUMBER ;
+      |NUMBER : [0-9]+ ;
+      |WS     : [ \t\r\n]+ -> skip ;
+      |""".stripMargin
+
   // A grammar exercising an action: no Core equivalent, always dropped.
   private val flaggedG4: String =
     """grammar P;
@@ -105,6 +122,63 @@ class ConvertAntlrSuite extends munit.FunSuite:
                 ConvertAntlr.importAntlr(g4b) match
                   case Left(e)     => fail(s"re-exported .g4 should re-import: $e")
                   case Right(imp2) => assertEquals(imp2.markdown, imp.markdown)
+  }
+
+  test("convert: a rule's own leading comment (// or /* */) survives the full round trip") {
+    ConvertAntlr.importAntlr(calcDocG4) match
+      case Left(e) => fail(s"calcDoc.g4 should import: $e")
+      case Right(imp) =>
+        assert(
+          imp.markdown.contains("An expression: a sum or difference of terms."),
+          "the block comment becomes expr's own leading prose"
+        )
+        assert(
+          imp.markdown.contains("A term: a product or quotient of factors."),
+          "the line comment becomes term's own leading prose"
+        )
+        Lr.parse(imp.markdown) match
+          case Left(e) => fail(s"imported markdown should parse: $e")
+          case Right(g) =>
+            val g2 = Lr.withDocComments(g, imp.markdown)
+            IR.buildIRWithTokens(defsOf(imp.markdown), Method.Canonical, "CalcDoc", g2) match
+              case Left(_) => fail("imported grammar should build an IR")
+              case Right(ir) =>
+                val g4b = BackendAntlr.emit(ir)
+                assert(
+                  g4b.contains("/* An expression: a sum or difference of terms. */"),
+                  "the comment survives re-export as an ANTLR block comment above the rule"
+                )
+                ConvertAntlr.importAntlr(g4b) match
+                  case Left(e) => fail(s"re-export should re-import: $e")
+                  case Right(imp2) =>
+                    assert(
+                      imp2.markdown.contains("An expression: a sum or difference of terms."),
+                      "the comment survives a full round trip, not just one direction"
+                    )
+  }
+
+  test(
+    "convert: a trailing comment right after a rule's `;` stays with that rule, not the next one"
+  ) {
+    val g4 =
+      """grammar P;
+        |foo : 'x' ;  // trailing note about foo, not about bar
+        |
+        |/* bar's own real leading doc */
+        |bar : 'y' ;
+        |""".stripMargin
+    ConvertAntlr.importAntlr(g4) match
+      case Left(e) => fail(s"should import: $e")
+      case Right(imp) =>
+        assert(
+          !imp.markdown.contains("trailing note about foo"),
+          "a same-line trailing comment on the previous rule must not be carried anywhere, " +
+            "and specifically must not migrate onto the next rule as its own leading doc"
+        )
+        assert(
+          imp.markdown.contains("bar's own real leading doc"),
+          "the genuinely blank-line-separated leading comment for `bar` still survives"
+        )
   }
 
   test("convert: an action with no Core equivalent is flagged and dropped, not invented") {

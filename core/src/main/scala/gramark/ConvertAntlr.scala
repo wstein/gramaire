@@ -10,6 +10,14 @@ package gramark
 // The parser is a small hand-written recursive descent over a `.g4`
 // token stream.
 // Ported from src/Gramark/Convert/Antlr.purs.
+//
+// Also carries ADR D39's comment round-trip (mirroring `ConvertBison`'s own): a `/* ... */` or
+// `//` comment immediately preceding a parser rule's own `name :` head (no other real token in
+// between since the previous rule's own `;`) becomes that rule's own leading prose in the
+// rendered `.grmk.md` — `Lr.docCommentsOf` reads it back out on re-parse. ANTLR itself has no
+// distinct doc-comment token of its own — a `/** ... */` is lexically just an ordinary block
+// comment — so plain `//`/`/* */` capture, identical to what `ConvertBison` already does, is
+// sufficient here too.
 
 /** The result of an import: the rendered `.grmk.md` and any features that could not be represented
   * and were dropped.
@@ -31,6 +39,13 @@ object ConvertAntlr:
     case TArrow // -> lexer command
     case TEq // = / += element-label binders
     case TComma
+    // `blankBefore`: whether a blank line (or start-of-input) precedes this comment — the ADR
+    // D39 doc-comment heuristic (see `leadingDoc`) that a comment is a rule's own LEADING prose
+    // only when set off from whatever came before by a blank line; otherwise it's a TRAILING
+    // note on the previous rule (e.g. `r : 'x' ; // note`), which must not migrate onto the next
+    // rule just because the token stream drops the `;` between them.
+    case TLineComment(s: String, blankBefore: Boolean) // // … (inner text, trimmed)
+    case TBlockComment(s: String, blankBefore: Boolean) // /* … */ (inner text, trimmed)
 
   import Tok.*
 
@@ -62,17 +77,36 @@ object ConvertAntlr:
       case ',' => Some(TComma)
       case _   => None
 
+    // Stops AT the newline itself (not past it) — `TLineComment`'s own slice excludes it, and
+    // `.trim` mops up whatever whitespace remains; mirrors `ConvertBison.lexBison`'s own
+    // `lineEnd`. `case None => j` matches EOF (an unterminated `//` running to end-of-file).
     def lineEnd(j: Int): Int = at(j) match
-      case Some('\n') => j + 1
+      case Some('\n') => j
       case Some(_)    => lineEnd(j + 1)
       case None       => j
-    def blockEnd(j: Int): Int = at(j) match
-      case Some('*') if at(j + 1) == Some('/') => j + 2
-      case Some(_)                             => blockEnd(j + 1)
+    // Stops AT the `*` of the closing `*/` (not past it) — mirrors `ConvertBison.lexBison`'s
+    // own `blockCommentEnd`; the caller advances past the `*/` itself separately.
+    def blockCommentEnd(j: Int): Int = at(j) match
+      case Some('*') if at(j + 1) == Some('/') => j
+      case Some(_)                             => blockCommentEnd(j + 1)
       case None                                => j
     def identEnd(j: Int): Int = at(j) match
       case Some(d) if isIdentPart(d) => identEnd(j + 1)
       case _                         => j
+
+    // Scans BACKWARD from `j` (a comment's own start offset) through pure whitespace, counting
+    // newlines — true if it hits a blank line (2+ newlines) or the start of the input before
+    // any non-whitespace character. See `Tok.TLineComment`/`TBlockComment`'s own doc comment,
+    // and `ConvertBison.lexBison`'s identical `blankLineBefore`, for why this matters.
+    def blankLineBefore(j: Int): Boolean =
+      def back(k: Int, newlines: Int): Boolean =
+        if k < 0 then true
+        else
+          src.charAt(k) match
+            case '\n'              => back(k - 1, newlines + 1)
+            case ' ' | '\t' | '\r' => back(k - 1, newlines)
+            case _                 => newlines >= 2
+      back(j - 1, 0)
 
     def go(i: Int, acc: Vector[Tok]): Either[String, Vector[Tok]] =
       if i >= len then Right(acc)
@@ -110,9 +144,13 @@ object ConvertAntlr:
           go(identEnd(j), acc :+ TId(slice(start, identEnd(j))))
 
         at(i) match
-          case Some(c) if isSpace(c)               => go(i + 1, acc)
-          case Some('/') if at(i + 1) == Some('/') => go(lineEnd(i + 2), acc)
-          case Some('/') if at(i + 1) == Some('*') => go(blockEnd(i + 2), acc)
+          case Some(c) if isSpace(c) => go(i + 1, acc)
+          case Some('/') if at(i + 1) == Some('/') =>
+            val e = lineEnd(i + 2)
+            go(e, acc :+ TLineComment(slice(i + 2, e).trim, blankLineBefore(i)))
+          case Some('/') if at(i + 1) == Some('*') =>
+            val e = blockCommentEnd(i + 2)
+            go(math.min(e + 2, len), acc :+ TBlockComment(slice(i + 2, e).trim, blankLineBefore(i)))
           case Some('\'')                          => str(i + 1, StringBuilder())
           case Some('[')                           => setLit(i + 1, StringBuilder())
           case Some('{')                           => action(i + 1, 1, StringBuilder())
@@ -164,7 +202,8 @@ object ConvertAntlr:
       name: String,
       lexer: Boolean,
       alts: Vector[Vector[Elem]],
-      skip: Boolean
+      skip: Boolean,
+      doc: Option[String] = None
   )
   private final case class Parsed(name: String, rules: Vector[G4Rule], warnings: Vector[String])
 
@@ -301,16 +340,43 @@ object ConvertAntlr:
       case TId("import") :: tail => skipPrequel(dropThrough(TSemi, tail))
       case _                     => ts
 
-  private def rulesOf(ts: List[Tok], acc: Vector[G4Rule]): Either[String, Vector[G4Rule]] =
-    skipPrequel(ts) match
-      case Nil => Right(acc)
-      case ts2 =>
-        ts2 match
-          case TId("mode") :: tail => rulesOf(dropThrough(TSemi, tail), acc)
-          case _ =>
-            parseRule(ts2) match
-              case Left(e)             => Left(e)
-              case Right((rule, rest)) => rulesOf(rest, acc :+ rule)
+  // A rule's own leading doc-comment (ADR D39, mirroring `ConvertBison.leadingDoc` exactly):
+  // comments immediately preceding its name, back to (and including) the last one set off from
+  // whatever came before by a blank line. A comment with NO blank line before it — right after
+  // the previous rule's own `;` — is that PREVIOUS rule's trailing note, not this rule's
+  // heading, and every comment before the last blank-line-set-off one is discarded rather than
+  // misattributed to this rule.
+  private def leadingDoc(pending: Vector[(String, Boolean)]): Option[String] =
+    pending.lastIndexWhere(_._2) match
+      case -1 => None
+      case i  => Some(pending.drop(i).map(_._1).mkString("\n").trim).filter(_.nonEmpty)
+
+  private def rulesOf(ts0: List[Tok], acc0: Vector[G4Rule]): Either[String, Vector[G4Rule]] =
+    def go(
+        ts: List[Tok],
+        pendingDoc: Vector[(String, Boolean)],
+        acc: Vector[G4Rule]
+    ): Either[String, Vector[G4Rule]] = ts match
+      case Nil                             => Right(acc)
+      case TLineComment(s, blank) :: tail  => go(tail, pendingDoc :+ (s, blank), acc)
+      case TBlockComment(s, blank) :: tail => go(tail, pendingDoc :+ (s, blank), acc)
+      case _ =>
+        val stripped = skipPrequel(ts)
+        // A prequel construct (options/tokens/channels/@header/import) actually consumed here
+        // is decl-like, not a rule — any pending comment run belonged to IT (or nothing), never
+        // to whatever real rule eventually follows, so it's discarded here exactly as
+        // `ConvertBison.parseDecls` unconditionally discards every comment in its own
+        // declarations section.
+        if stripped != ts then go(stripped, Vector.empty, acc)
+        else
+          stripped match
+            case TId("mode") :: tail => go(dropThrough(TSemi, tail), Vector.empty, acc)
+            case _ =>
+              parseRule(stripped) match
+                case Left(e) => Left(e)
+                case Right((rule, rest)) =>
+                  go(rest, Vector.empty, acc :+ rule.copy(doc = leadingDoc(pendingDoc)))
+    go(ts0, Vector.empty, acc0)
 
   private def dropToGrammar(ts: List[Tok]): Option[List[Tok]] = ts match
     case TId("grammar") :: tail => Some(tail)
@@ -581,7 +647,8 @@ object ConvertAntlr:
         )
 
     def ruleSection(r: G4Rule): String =
-      s"## ${r.name}\n\n```gramark\n${r.name}\n  : " + r.alts
+      val doc = r.doc.map(d => d + "\n\n").getOrElse("")
+      s"## ${r.name}\n\n$doc```gramark\n${r.name}\n  : " + r.alts
         .map(renderTopAlt)
         .mkString("\n  | ") + "\n  ;\n```\n"
 
