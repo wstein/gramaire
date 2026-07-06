@@ -102,6 +102,7 @@ if [ "$CONFIRM" != "yes" ]; then
 fi
 
 COMMIT_MSG_CALLBACK_CODE="import subprocess, sys; return subprocess.check_output([sys.executable, r'$SCRIPT_DIR/commit_msg_callback.py'], input=message)"
+mkdir -p "$WORK_DIR"
 BLOB_CALLBACK_FILE="$WORK_DIR/blob_callback.py"
 cat > "$BLOB_CALLBACK_FILE" <<PY
 import importlib.util
