@@ -2375,14 +2375,14 @@ test("+ Rule inserts a rule skeleton that reclassifies as a real rule cell after
     .click();
 
   const editor = page.locator(".cm-content").first();
-  await expect(editor).toHaveText("NewRule  : 'TODO'");
+  await expect(editor).toHaveText("NewRule  : 'TODO'  ;");
 
   // Select-all + retype rather than End+append: the placeholder already ends in a quoted
   // literal (so the fresh cell builds clean immediately, with no syntax error), and this
   // replaces it wholesale instead of appending after it.
   await editor.click();
   await page.keyboard.press("ControlOrMeta+a");
-  await page.keyboard.type("NewRule\n  : 'x'");
+  await page.keyboard.type("NewRule\n  : 'x'\n  ;");
   await page.locator(".gramaire__statusbar").click();
   await page.waitForTimeout(1500);
 
@@ -2400,7 +2400,7 @@ test("+ Rule inserts a rule skeleton that reclassifies as a real rule cell after
 // picking it (buildOk true, only the expected class of harmless warning, same as + Rule's own
 // "unreachable" one), not just assumed from its shape.
 for (const [label, placeholder, kind] of [
-  ["Tokens", "TODO : /x/", "tokens"],
+  ["Tokens", "TODO : /x/ ;", "tokens"],
   ["Settings", "%TODO placeholder", "settings"],
   ["Precedence", "%left 'TODO'", "precedence"],
 ] as const) {
