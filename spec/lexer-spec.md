@@ -91,7 +91,7 @@ The effective token set a grammar lexes is the union of:
 
 1. **Named classes** — defined in the Tokens-role `gramark` fence (§2).
 2. **Implicit literals** — every terminal literal that appears in a production
-   (`'{'`, `','`, `'true'`, and in `gramark` itself `':'` / `'|'`) is a token defined
+   (`'{'`, `','`, `'true'`, and in `gramark` itself `':'` / `'|'` / `';'`) is a token defined
    by its exact spelling. These need **no** Tokens-role fence entry; the productions
    define them. A literal may be written in either of two interchangeable
    delimiters — `'x'` or `"x"` — all identical (ADR D34); the author picks
@@ -234,23 +234,26 @@ The `gramark` notation, defining its own tokens, with capture groups (M5) for th
 payload-bearing classes and `ATTR` ordered before `IDENT` / `LABEL` so `#[name]`
 out-matches a `# Name` label. `NL` is significant (the continuation pass refines
 its keep/drop via `%external`, while capture gives it a `\n` text); `WS` is
-skipped (extras); operator tokens use the string-literal form; `` `:` `` and
-`` `|` `` stay implicit literals from the productions.
+skipped (extras); operator tokens use the string-literal form; `` `:` ``,
+`` `|` ``, and `` `;` `` stay implicit literals from the productions. Every
+line ends with a mandatory `;` (mirroring Bison/YACC/ANTLR4's own convention)
+— the notation's token definitions are rules too, subject to the same
+terminator.
 
 ```gramark
-WS       : /[ \t]+/                       %skip
-NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      %external(layout)
-ATTR     : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/
-IDENT    : /[A-Za-z_][A-Za-z0-9_]*/
-TERM_LIT : /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/
-ACTION   : /\{%((?:[^%]|%[^}])*)%\}/
-LABEL    : /#[ \t]*([A-Za-z_][A-Za-z0-9_]*)/
-PLUS     : "+"
-STAR     : "*"
-QUESTION : "?"
-LANGLE   : "<"
-RANGLE   : ">"
-COMMA    : ","
+WS       : /[ \t]+/                       %skip ;
+NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      %external(layout) ;
+ATTR     : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/ ;
+IDENT    : /[A-Za-z_][A-Za-z0-9_]*/ ;
+TERM_LIT : /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/ ;
+ACTION   : /\{%((?:[^%]|%[^}])*)%\}/ ;
+LABEL    : /#[ \t]*([A-Za-z_][A-Za-z0-9_]*)/ ;
+PLUS     : "+" ;
+STAR     : "*" ;
+QUESTION : "?" ;
+LANGLE   : "<" ;
+RANGLE   : ">" ;
+COMMA    : "," ;
 ```
 
 ## 11. Worked example — `json.grmk.md`
@@ -261,9 +264,9 @@ productions, so they are not repeated here. `STRING` and `NUMBER` carry the whol
 match as their text (no capture), and use non-capturing groups for structure.
 
 ```gramark
-STRING : /"(?:[^"\\]|\\.)*"/
-NUMBER : /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/
-WS     : /[ \t\r\n]+/    %skip
+STRING : /"(?:[^"\\]|\\.)*"/ ;
+NUMBER : /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/ ;
+WS     : /[ \t\r\n]+/    %skip ;
 ```
 
 All first characters are disjoint (`"` for STRING, a digit or `-` for NUMBER,
