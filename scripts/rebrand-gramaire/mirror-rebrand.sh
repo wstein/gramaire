@@ -103,9 +103,11 @@ fi
 
 COMMIT_MSG_CALLBACK_CODE="import subprocess, sys; return subprocess.check_output([sys.executable, r'$SCRIPT_DIR/commit_msg_callback.py'], input=message)"
 
+BLOB_CALLBACK_CODE="import importlib.util, os, sys; spec = importlib.util.spec_from_file_location('rebrand_logic', r'$SCRIPT_DIR/rebrand_logic.py'); mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod);\n\ndef callback(blob, metadata=None):\n    if not blob.data:\n        return\n    if b'\\0' in blob.data[:8192]:\n        return\n    path = metadata.get('path') if metadata else None\n    if path is None:\n        path = metadata.get('filename') if metadata else None\n    if path is None:\n        path = b''\n    if isinstance(path, bytes):\n        path = path.decode('utf-8', 'surrogateescape')\n    rewritten = mod.rewrite_text(blob.data, path)\n    if rewritten != blob.data:\n        blob.data = rewritten"
+
 git -C "$MIRROR_DIR" filter-repo \
   --filename-callback "$(cat "$SCRIPT_DIR/rename_paths_callback.py")" \
-  --blob-callback "$(cat "$SCRIPT_DIR/blob_callback.py")" \
+  --blob-callback "$BLOB_CALLBACK_CODE" \
   --message-callback "$COMMIT_MSG_CALLBACK_CODE"
 
 git -C "$MIRROR_DIR" filter-repo \
