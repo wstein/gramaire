@@ -16,8 +16,8 @@ Operators are left-associative; `*` and `/` bind tighter than `+` and `-`.
 ## Tokens
 
 ```gramark
-NUMBER : /[0-9]+/
-WS     : /[ \t\r\n]+/   %skip
+NUMBER : /[0-9]+/ ;
+WS     : /[ \t\r\n]+/   %skip ;
 ```
 
 ## Expr
@@ -34,6 +34,7 @@ Expr
   : Expr '+' Term   {% (c) => ({ tag: "Add", left: c.expr, right: c.term }) %}
   | Expr '-' Term   {% (c) => ({ tag: "Sub", left: c.expr, right: c.term }) %}
   | Term
+  ;
 ```
 
 </details>
@@ -52,6 +53,7 @@ Term
   : Term '*' Factor {% (c) => ({ tag: "Mul", left: c.term, right: c.factor }) %}
   | Term '/' Factor {% (c) => ({ tag: "Div", left: c.term, right: c.factor }) %}
   | Factor
+  ;
 ```
 
 </details>
@@ -69,6 +71,7 @@ A factor is a number or a parenthesised expression.
 Factor
   : '(' Expr ')'    {% (c) => c.expr %}
   | NUMBER          {% (c) => ({ tag: "Lit", value: Number(c.number) }) %}
+  ;
 ```
 
 </details>

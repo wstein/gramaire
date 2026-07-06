@@ -42,13 +42,13 @@
 /// literal keyword (`'and'`, `'function'`, ...) beats an overlapping identifier class
 /// automatically, via the same maximal-munch precedence every other Gramark grammar
 /// relies on.
-NAME : /[A-Za-z_][A-Za-z0-9_]*/
+NAME : /[A-Za-z_][A-Za-z0-9_]*/ ;
 
 /// A numeral: decimal (optionally fractional, optionally exponented) or hexadecimal
 /// (optionally fractional, with a `p`/`P` exponent instead of `e`/`E`). All non-capturing
 /// — the action reads the token's own full matched text, the convention every Gramark
 /// example uses (see e.g. examples/json.grmk.md's NUMBER).
-NUMBER : /0[xX](?:[0-9a-fA-F]+(?:\.[0-9a-fA-F]*)?|\.[0-9a-fA-F]+)(?:[pP][-+]?[0-9]+)?|(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][-+]?[0-9]+)?/
+NUMBER : /0[xX](?:[0-9a-fA-F]+(?:\.[0-9a-fA-F]*)?|\.[0-9a-fA-F]+)(?:[pP][-+]?[0-9]+)?|(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][-+]?[0-9]+)?/ ;
 
 /// A short string, single- or double-quoted, with backslash escapes. Gramark's regex
 /// dialect forbids backreferences, so "the same quote that opened it" can't be expressed
@@ -59,24 +59,24 @@ NUMBER : /0[xX](?:[0-9a-fA-F]+(?:\.[0-9a-fA-F]*)?|\.[0-9a-fA-F]+)(?:[pP][-+]?[0-
 /// Lua's escape forms (`\n`, `\ddd`, `\xXX`, `\u{XXX}`, `\z`, ...) is a runtime concern
 /// orthogonal to the grammar's actual purpose (syntax, not evaluation), so it's left to
 /// whatever consumes the AST.
-STRING : /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/
+STRING : /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/ ;
 
 /// A long-bracket string, level 0 only (`[[...]]`) — see the file banner's note on why
 /// `=`-leveled long brackets (`[=[...]=]` and deeper) are out of scope.
-LONGSTRING : /\[\[(?:[^\]]|\][^\]])*\]\]/
+LONGSTRING : /\[\[(?:[^\]]|\][^\]])*\]\]/ ;
 
 /// A long-bracket comment, level 0 only (`--[[...]]`) — same limitation as LONGSTRING.
 /// Declared before the line-comment token below; maximal munch prefers whichever
 /// actually matches longer at a given position, so a `--[[` that has no matching `]]`
 /// anywhere in the file simply falls through to a same-line line comment instead — never
 /// a lexical error, just a shorter match.
-LONGCOMMENT : /--\[\[(?:[^\]]|\][^\]])*\]\]/   %skip
+LONGCOMMENT : /--\[\[(?:[^\]]|\][^\]])*\]\]/   %skip ;
 
 /// A line comment, running to end of line.
-COMMENT : /--[^\n]*/   %skip
+COMMENT : /--[^\n]*/   %skip ;
 
 /// Whitespace, including newlines — Lua has no layout-sensitive syntax.
-WS : /[ \t\r\n]+/   %skip
+WS : /[ \t\r\n]+/   %skip ;
 
 /// A block is a sequence of statements, each terminated by `;` (see the file banner's
 /// note on why the separator is mandatory here), optionally ending in a `return`.
@@ -88,20 +88,24 @@ WS : /[ \t\r\n]+/   %skip
 /// empty/whitespace-only source file is the one thing this grammar cannot accept.
 Chunk
   : Block   {% (c) => c.block %}
+  ;
 
 Block
   : stmts:Stmt+ ret:ReturnStat?   {% (c) => ({ tag: "Block", statements: c.stmts, ret: c.ret ?? null }) %}
   | ret:ReturnStat                 {% (c) => ({ tag: "Block", statements: [], ret: c.ret }) %}
+  ;
 
 /// One statement plus its mandatory terminator — never itself a semantic node in the AST.
 Stmt
   : Statement ';'   {% (c) => c.statement %}
+  ;
 
 /// A `return`, always the last thing in a block (so, unlike every other statement, its
 /// trailing `;` can stay genuinely optional — nothing ever follows a `return` for the
 /// mandatory-separator rule to disambiguate against).
 ReturnStat
   : 'return' values:ExprList? ';'?   {% (c) => ({ tag: "Return", values: c.values ?? [] }) %}
+  ;
 
 /// A statement. Matches Lua's own reference grammar's `stat` production directly, one
 /// alternative per real Lua statement form.
@@ -152,11 +156,13 @@ Statement
       {% (c) => ({ tag: "Assign", targets: c.targets, values: c.values }) %}
   | FunctionCall
       {% (c) => c.functionCall %}
+  ;
 
 /// One `elseif` branch of an `if` statement.
 ElseifClause
   : 'elseif' cond:Expr 'then' body:Block?
       {% (c) => ({ cond: c.cond, body: c.body ?? { tag: "Block", statements: [], ret: null } }) %}
+  ;
 
 /// An `if` statement's trailing `else` branch. Its own explicit `'else'` keyword is what
 /// makes the position unambiguous — without one, an empty `elseif`/`then` body would be
@@ -164,44 +170,54 @@ ElseifClause
 ElsePart
   : 'else' body:Block?
       {% (c) => c.body ?? { tag: "Block", statements: [], ret: null } %}
+  ;
 
 /// The optional `, step` clause of a numeric `for`.
 ForStep
   : ',' step:Expr   {% (c) => c.step %}
+  ;
 
 /// A `local` declaration: a comma-separated list of attributed names and an optional
 /// initializer list.
 LocalDecl
   : 'local' names:AttribNameList init:LocalInit?
       {% (c) => ({ tag: "Local", names: c.names, init: c.init ?? [] }) %}
+  ;
 
 /// The `= expr, ...` initializer of a `local` declaration.
 LocalInit
   : '=' values:ExprList   {% (c) => c.values %}
+  ;
 
 /// A comma-separated list of one or more attributed names.
 AttribNameList
   : names:Comma<AttribName>   {% (c) => c.names %}
+  ;
 
 /// A name with its optional `<const>`/`<close>` attribute (Lua 5.4).
 AttribName
   : name:NAME attrib:Attrib?   {% (c) => ({ name: c.name, attrib: c.attrib ?? null }) %}
+  ;
 
 /// A `<const>`/`<close>` variable attribute.
 Attrib
   : '<' name:NAME '>'   {% (c) => c.name %}
+  ;
 
 /// A function declaration's name: a base name, zero or more dotted path segments, and an
 /// optional trailing `:method` name.
 FuncName
   : base:NAME path:FuncNamePath* method:FuncNameMethod?
       {% (c) => ({ tag: "FuncName", base: c.base, path: c.path ?? [], method: c.method ?? null }) %}
+  ;
 
 FuncNamePath
   : '.' name:NAME   {% (c) => c.name %}
+  ;
 
 FuncNameMethod
   : ':' name:NAME   {% (c) => c.name %}
+  ;
 
 /// A function body: a parameter list and a block, sharing `end` with its enclosing
 /// `function`/`local function` statement or `function` expression.
@@ -218,6 +234,7 @@ FuncBody
              body: c.body ?? { tag: "Block", statements: [], ret: null }
            };
          } %}
+  ;
 
 /// A parameter list: a comma-separated name list with an optional trailing `...`, or a
 /// bare `...` (a function taking only varargs).
@@ -232,21 +249,26 @@ FuncBody
 Param
   : NAME    {% (c) => ({ tag: "Name", name: c.name }) %}
   | '...'   {% (c) => ({ tag: "Vararg" }) %}
+  ;
 
 ParList
   : params:Comma<Param>   {% (c) => c.params %}
+  ;
 
 /// A comma-separated list of one or more names.
 NameList
   : names:Comma<NAME>   {% (c) => c.names %}
+  ;
 
 /// A comma-separated list of one or more assignment targets.
 VarList
   : vars:Comma<Var>   {% (c) => c.vars %}
+  ;
 
 /// A comma-separated list of one or more expressions.
 ExprList
   : exprs:Comma<Expr>   {% (c) => c.exprs %}
+  ;
 
 /// A prefix expression: a variable, a function call, or a parenthesized expression.
 /// Parenthesizing truncates a call's multiple results to exactly one value under real
@@ -255,6 +277,7 @@ PrefixExpr
   : Var                    {% (c) => c.var %}
   | FunctionCall           {% (c) => c.functionCall %}
   | '(' expr:Expr ')'      {% (c) => c.expr %}
+  ;
 
 /// An assignable location: a bare name, an indexed table field, or a dotted field.
 /// Mutually recursive with PrefixExpr/FunctionCall, matching Lua's own reference
@@ -266,6 +289,7 @@ Var
   : NAME                                  {% (c) => ({ tag: "Name", name: c.name }) %}
   | base:PrefixExpr '[' index:Expr ']'    {% (c) => ({ tag: "Index", base: c.base, index: c.index }) %}
   | base:PrefixExpr '.' field:NAME        {% (c) => ({ tag: "Field", base: c.base, field: c.field }) %}
+  ;
 
 /// A function or method call.
 FunctionCall
@@ -273,6 +297,7 @@ FunctionCall
       {% (c) => ({ tag: "Call", callee: c.callee, method: null, args: c.args }) %}
   | callee:PrefixExpr ':' method:NAME args:Args
       {% (c) => ({ tag: "Call", callee: c.callee, method: c.method, args: c.args }) %}
+  ;
 
 /// A call's arguments: a parenthesized expression list, a bare table constructor, or a
 /// bare string literal — the latter two are Lua's syntactic sugar for a single-argument
@@ -281,18 +306,22 @@ Args
   : '(' args:ExprList? ')'   {% (c) => c.args ?? [] %}
   | TableConstructor          {% (c) => [c.tableConstructor] %}
   | STRING                    {% (c) => [{ tag: "Str", value: c.string.slice(1, -1) }] %}
+  ;
 
 /// A table constructor: `{}`, or a brace-delimited list of fields.
 TableConstructor
   : '{' fields:FieldList? '}'   {% (c) => ({ tag: "Table", fields: c.fields ?? [] }) %}
+  ;
 
 /// A comma- or semicolon-separated list of one or more table fields, with an optional
 /// trailing separator.
 FieldList
   : fields:Sep<Field, FieldSep> trailing:FieldSep?   {% (c) => c.fields %}
+  ;
 
 FieldSep
   : ',' | ';'
+  ;
 
 /// A table field: `[expr] = expr` (a computed key), `name = expr` (a string key), or a
 /// bare expression (a positional/array-style element). Structurally identical to Lua's
@@ -302,78 +331,94 @@ Field
   : '[' key:Expr ']' '=' value:Expr   {% (c) => ({ tag: "ComputedField", key: c.key, value: c.value }) %}
   | key:NAME '=' value:Expr            {% (c) => ({ tag: "NamedField", key: c.key, value: c.value }) %}
   | value:Expr                         {% (c) => ({ tag: "PosField", value: c.value }) %}
+  ;
 
 /// The full expression grammar is a strict precedence-climbing chain, lowest tier first
 /// (see the file banner's note on why — no `%left`/`%right` declarations anywhere below).
 Expr
   : OrExpr   {% (c) => c.orExpr %}
+  ;
 
 /// Tier 1 (lowest): logical or, left-associative.
 OrExpr
   : left:OrExpr 'or' right:AndExpr   {% (c) => ({ tag: "Or", left: c.left, right: c.right }) %}
   | AndExpr                           {% (c) => c.andExpr %}
+  ;
 
 /// Tier 2: logical and, left-associative.
 AndExpr
   : left:AndExpr 'and' right:CmpExpr   {% (c) => ({ tag: "And", left: c.left, right: c.right }) %}
   | CmpExpr                             {% (c) => c.cmpExpr %}
+  ;
 
 /// Tier 3: relational/equality comparisons, left-associative.
 CmpExpr
   : left:CmpExpr op:CmpOp right:BOrExpr
       {% (c) => ({ tag: "Cmp", op: c.op, left: c.left, right: c.right }) %}
   | BOrExpr   {% (c) => c.bOrExpr %}
+  ;
 
 CmpOp
   : '<' | '>' | '<=' | '>=' | '~=' | '=='
+  ;
 
 /// Tier 4: bitwise or, left-associative.
 BOrExpr
   : left:BOrExpr '|' right:BXorExpr   {% (c) => ({ tag: "BOr", left: c.left, right: c.right }) %}
   | BXorExpr                            {% (c) => c.bXorExpr %}
+  ;
 
 /// Tier 5: bitwise xor (binary `~`), left-associative — distinct from unary bnot, which
 /// lives at the unary tier further down and shares the same token.
 BXorExpr
   : left:BXorExpr '~' right:BAndExpr   {% (c) => ({ tag: "BXor", left: c.left, right: c.right }) %}
   | BAndExpr                             {% (c) => c.bAndExpr %}
+  ;
 
 /// Tier 6: bitwise and, left-associative.
 BAndExpr
   : left:BAndExpr '&' right:ShiftExpr   {% (c) => ({ tag: "BAnd", left: c.left, right: c.right }) %}
   | ShiftExpr                             {% (c) => c.shiftExpr %}
+  ;
 
 /// Tier 7: bit shifts, left-associative.
 ShiftExpr
   : left:ShiftExpr op:ShiftOp right:ConcatExpr
       {% (c) => ({ tag: "Shift", op: c.op, left: c.left, right: c.right }) %}
   | ConcatExpr   {% (c) => c.concatExpr %}
+  ;
 
 ShiftOp
   : '<<' | '>>'
+  ;
 
 /// Tier 8: string concatenation, right-associative (`a..b..c` is `a..(b..c)`).
 ConcatExpr
   : left:AddExpr '..' right:ConcatExpr   {% (c) => ({ tag: "Concat", left: c.left, right: c.right }) %}
   | AddExpr                                {% (c) => c.addExpr %}
+  ;
 
 /// Tier 9: addition/subtraction, left-associative — distinct from unary minus, which
 /// shares the `-` token but lives at the unary tier further down.
 AddExpr
   : left:AddExpr op:AddOp right:MulExpr   {% (c) => ({ tag: "Arith", op: c.op, left: c.left, right: c.right }) %}
   | MulExpr                                 {% (c) => c.mulExpr %}
+  ;
 
 AddOp
   : '+' | '-'
+  ;
 
 /// Tier 10: multiplication/division/floor-division/modulo, left-associative.
 MulExpr
   : left:MulExpr op:MulOp right:UnaryExpr
       {% (c) => ({ tag: "Arith", op: c.op, left: c.left, right: c.right }) %}
   | UnaryExpr   {% (c) => c.unaryExpr %}
+  ;
 
 MulOp
   : '*' | '/' | '//' | '%'
+  ;
 
 /// Tier 11: unary operators (`not`, `#`, `-`, `~`), binding tighter than every binary
 /// operator above but looser than `^` below. Recurses into itself (not a binary tier),
@@ -384,9 +429,11 @@ MulOp
 UnaryExpr
   : op:UnaryOp operand:UnaryExpr   {% (c) => ({ tag: "Unary", op: c.op, operand: c.operand }) %}
   | PowExpr                          {% (c) => c.powExpr %}
+  ;
 
 UnaryOp
   : 'not' | '#' | '-' | '~'
+  ;
 
 /// Tier 12 (highest): exponentiation, right-associative, and binding tighter than unary
 /// on its LEFT but allowing unary on its RIGHT (`-2^2` is `-(2^2)`; `2^-2` is valid) —
@@ -394,6 +441,7 @@ UnaryOp
 PowExpr
   : base:PrimaryExpr '^' exp:UnaryExpr   {% (c) => ({ tag: "Pow", base: c.base, exp: c.exp }) %}
   | PrimaryExpr                            {% (c) => c.primaryExpr %}
+  ;
 
 /// An atomic expression: a literal, a vararg, a function definition, a prefix
 /// expression (variable/call/parenthesized), or a table constructor.
@@ -408,3 +456,4 @@ PrimaryExpr
   | 'function' body:FuncBody    {% (c) => ({ tag: "Function", body: c.body }) %}
   | PrefixExpr                  {% (c) => c.prefixExpr %}
   | TableConstructor             {% (c) => c.tableConstructor %}
+  ;

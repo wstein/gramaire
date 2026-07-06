@@ -4,8 +4,10 @@ This grammar describes the complete fence-free `.grmk` projection produced by
 `gramark strip`: settings, token definitions, productions, and precedence
 declarations in canonical order. Markdown/GFM envelope handling is pre-lexical
 and remains the job of `strip`; comments are modeled here as skipped token
-classes; and newline significance follows `Lexer.normalizeNewlines`, where only
-rule-head and rule-boundary newlines survive.
+classes. Every rule and token definition ends with a mandatory `;` (mirroring
+Bison/YACC/ANTLR4's own convention); newline significance follows
+`Lexer.normalizeNewlines`, where only the rule-head newline survives — the
+`;` terminator, not layout, now marks where a rule or token definition ends.
 
 Token classes stay semantic rather than lexical: ALL-CAPS validation for token
 definition names is enforced by the fold, matching `Tokens.validateName`.
@@ -31,24 +33,24 @@ terminals; the fold rejects single-quoted exact token definitions where the
 current hand parser does.
 
 ```gramark
-WS            : /[ \t]+/                                  %skip
-LINE_COMMENT  : /\/\/[^\n]*/                              %skip
-BLOCK_COMMENT : /\/\*(?:[^*]|\*+[^*\/])*\*+\//            %skip
-NL            : /(\r?\n)(?:[ \t]*\r?\n)*/                 %external(layout)
-ATTR          : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/
-EXTERNAL      : /%external\(([A-Za-z_][A-Za-z0-9_]*)\)/
-IDENT         : /[A-Za-z_][A-Za-z0-9_]*/
-INT           : /[0-9]+/
-REGEX_LIT     : /\/(?:[^\/\\\n\r]|\\.)*\/i?/
-TERM_LIT      : /'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/
-ACTION        : /\{%((?:[^%]|%[^}])*)%\}/
-LABEL         : /#[ \t]*([A-Za-z_][A-Za-z0-9_]*)/
-PLUS          : "+"
-STAR          : "*"
-QUESTION      : "?"
-LANGLE        : "<"
-RANGLE        : ">"
-COMMA         : ","
+WS            : /[ \t]+/                                  %skip ;
+LINE_COMMENT  : /\/\/[^\n]*/                              %skip ;
+BLOCK_COMMENT : /\/\*(?:[^*]|\*+[^*\/])*\*+\//            %skip ;
+NL            : /(\r?\n)(?:[ \t]*\r?\n)*/                 %external(layout) ;
+ATTR          : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/ ;
+EXTERNAL      : /%external\(([A-Za-z_][A-Za-z0-9_]*)\)/ ;
+IDENT         : /[A-Za-z_][A-Za-z0-9_]*/ ;
+INT           : /[0-9]+/ ;
+REGEX_LIT     : /\/(?:[^\/\\\n\r]|\\.)*\/i?/ ;
+TERM_LIT      : /'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/ ;
+ACTION        : /\{%((?:[^%]|%[^}])*)%\}/ ;
+LABEL         : /#[ \t]*([A-Za-z_][A-Za-z0-9_]*)/ ;
+PLUS          : "+" ;
+STAR          : "*" ;
+QUESTION      : "?" ;
+LANGLE        : "<" ;
+RANGLE        : ">" ;
+COMMA         : "," ;
 ```
 
 ## File
@@ -70,6 +72,7 @@ File
   | RuleList PrecList               {% (c) => ({ tag: "File", preamble: null, rules: c[0], precedence: c[1] }) %}
   | NL RuleList                     {% (c) => ({ tag: "File", preamble: null, rules: c[1], precedence: [] }) %}
   | NL RuleList PrecList            {% (c) => ({ tag: "File", preamble: null, rules: c[1], precedence: c[2] }) %}
+  ;
 ```
 
 </details>
@@ -86,6 +89,7 @@ Preamble
   : SettingList                 {% (c) => ({ tag: "Preamble", settings: c[0], tokens: [] }) %}
   | TokenDeclList               {% (c) => ({ tag: "Preamble", settings: [], tokens: c[0] }) %}
   | SettingList TokenDeclList   {% (c) => ({ tag: "Preamble", settings: c[0], tokens: c[1] }) %}
+  ;
 ```
 
 </details>
@@ -101,6 +105,7 @@ Preamble
 SettingList
   : SettingDecl               {% (c) => [c[0]] %}
   | SettingList SettingDecl   {% (c) => [...c[0], c[1]] %}
+  ;
 ```
 
 </details>
@@ -116,6 +121,7 @@ SettingList
 SettingDecl
   : '%name' IDENT   {% (c) => ({ tag: "Name", value: c[1] }) %}
   | '%lang' IDENT   {% (c) => ({ tag: "Lang", value: c[1] }) %}
+  ;
 ```
 
 </details>
@@ -131,6 +137,7 @@ SettingDecl
 TokenDeclList
   : TokenDecl                 {% (c) => [c[0]] %}
   | TokenDeclList TokenDecl   {% (c) => [...c[0], c[1]] %}
+  ;
 ```
 
 </details>
@@ -144,8 +151,9 @@ TokenDeclList
 
 ```gramark
 TokenDecl
-  : IDENT ':' TokenPattern           {% (c) => ({ tag: "TokenDecl", name: c[0], pattern: c[2], modifiers: [] }) %}
-  | IDENT ':' TokenPattern ModList   {% (c) => ({ tag: "TokenDecl", name: c[0], pattern: c[2], modifiers: c[3] }) %}
+  : IDENT ':' TokenPattern ';'           {% (c) => ({ tag: "TokenDecl", name: c[0], pattern: c[2], modifiers: [] }) %}
+  | IDENT ':' TokenPattern ModList ';'   {% (c) => ({ tag: "TokenDecl", name: c[0], pattern: c[2], modifiers: c[3] }) %}
+  ;
 ```
 
 </details>
@@ -161,6 +169,7 @@ TokenDecl
 TokenPattern
   : REGEX_LIT   {% (c) => ({ tag: "RegexPat", source: c[0] }) %}
   | TERM_LIT    {% (c) => ({ tag: "ExactPat", source: c[0] }) %}
+  ;
 ```
 
 </details>
@@ -176,6 +185,7 @@ TokenPattern
 ModList
   : Modifier               {% (c) => [c[0]] %}
   | ModList Modifier       {% (c) => [...c[0], c[1]] %}
+  ;
 ```
 
 </details>
@@ -193,6 +203,7 @@ Modifier
   | '%caseless'   {% (c) => ({ tag: "Caseless" }) %}
   | '%prec' INT   {% (c) => ({ tag: "PrecMod", value: c[1] }) %}
   | EXTERNAL      {% (c) => ({ tag: "External", value: c[0] }) %}
+  ;
 ```
 
 </details>
@@ -208,6 +219,7 @@ Modifier
 PrecList
   : PrecDecl             {% (c) => [c[0]] %}
   | PrecList PrecDecl    {% (c) => [...c[0], c[1]] %}
+  ;
 ```
 
 </details>
@@ -224,6 +236,7 @@ PrecDecl
   : '%left' PrecTermList      {% (c) => ({ tag: "PrecDecl", assoc: "left", terms: c[1] }) %}
   | '%right' PrecTermList     {% (c) => ({ tag: "PrecDecl", assoc: "right", terms: c[1] }) %}
   | '%nonassoc' PrecTermList  {% (c) => ({ tag: "PrecDecl", assoc: "nonassoc", terms: c[1] }) %}
+  ;
 ```
 
 </details>
@@ -239,6 +252,7 @@ PrecDecl
 PrecTermList
   : PrecTerm                {% (c) => [c[0]] %}
   | PrecTermList PrecTerm   {% (c) => [...c[0], c[1]] %}
+  ;
 ```
 
 </details>
@@ -254,6 +268,7 @@ PrecTermList
 PrecTerm
   : TERM_LIT   {% (c) => ({ tag: "Lit", text: c[0] }) %}
   | IDENT      {% (c) => ({ tag: "Ref", name: c[0] }) %}
+  ;
 ```
 
 </details>
@@ -265,13 +280,15 @@ PrecTerm
 <details>
 <summary>Source</summary>
 
-Left recursion accumulates rules in source order. The `NL` between two rules is
-the boundary newline that the normalization pass keeps.
+Left recursion accumulates rules in source order. Consecutive rules need no
+separator at all — each `Rule` already ends with its own mandatory `;`, so
+`RuleList` simply concatenates them.
 
 ```gramark
 RuleList
-  : Rule               {% (c) => [c[0]] %}
-  | RuleList NL Rule   {% (c) => [...c[0], c[2]] %}
+  : Rule            {% (c) => [c[0]] %}
+  | RuleList Rule   {% (c) => [...c[0], c[1]] %}
+  ;
 ```
 
 </details>
@@ -283,14 +300,16 @@ RuleList
 <details>
 <summary>Source</summary>
 
-A rule is its name on its own line, followed by `:` and its `|`-separated alternatives.
-The `NL` between the name and its `:` distinguishes a rule head from a
-`name:Sym` field.
+A rule is its name on its own line, followed by `:` and its `|`-separated
+alternatives, ending with a mandatory `;` (mirroring Bison/YACC/ANTLR4's own
+convention). The `NL` between the name and its `:` distinguishes a rule head
+from a `name:Sym` field.
 
 ```gramark
 Rule
-  : ATTR IDENT NL ':' Body   {% (c) => ({ tag: "Rule", name: c[1], attrs: [c[0]], alts: c[4] }) %}
-  | IDENT NL ':' Body        {% (c) => ({ tag: "Rule", name: c[0], attrs: [], alts: c[3] }) %}
+  : ATTR IDENT NL ':' Body ';'   {% (c) => ({ tag: "Rule", name: c[1], attrs: [c[0]], alts: c[4] }) %}
+  | IDENT NL ':' Body ';'        {% (c) => ({ tag: "Rule", name: c[0], attrs: [], alts: c[3] }) %}
+  ;
 ```
 
 </details>
@@ -306,6 +325,7 @@ Rule
 Body
   : Alt            {% (c) => [c[0]] %}
   | Body '|' Alt   {% (c) => [...c[0], c[2]] %}
+  ;
 ```
 
 </details>
@@ -323,6 +343,7 @@ Alt
   | SymList Label          {% (c) => ({ tag: "Alt", syms: c[0], label: c[1], action: null }) %}
   | SymList Action         {% (c) => ({ tag: "Alt", syms: c[0], label: null, action: c[1] }) %}
   | SymList                {% (c) => ({ tag: "Alt", syms: c[0], label: null, action: null }) %}
+  ;
 ```
 
 </details>
@@ -338,6 +359,7 @@ Alt
 SymList
   : Sym           {% (c) => [c[0]] %}
   | SymList Sym   {% (c) => [...c[0], c[1]] %}
+  ;
 ```
 
 </details>
@@ -369,6 +391,7 @@ Sym
   | Atom PLUS       {% (c) => ({ tag: "Rep", sym: c[0] }) %}
   | Atom STAR       {% (c) => ({ tag: "Star", sym: c[0] }) %}
   | Atom QUESTION   {% (c) => ({ tag: "Opt", sym: c[0] }) %}
+  ;
 ```
 
 </details>
@@ -384,6 +407,7 @@ Sym
 Args
   : Sym              {% (c) => [c[0]] %}
   | Args COMMA Sym   {% (c) => [...c[0], c[2]] %}
+  ;
 ```
 
 </details>
@@ -398,6 +422,7 @@ Args
 ```gramark
 Action
   : ACTION   {% (c) => c[0] %}
+  ;
 ```
 
 </details>
@@ -412,6 +437,7 @@ Action
 ```gramark
 Label
   : LABEL   {% (c) => c[0] %}
+  ;
 ```
 
 </details>
@@ -427,6 +453,7 @@ Label
 GroupBody
   : SymList                 {% (c) => [c[0]] %}
   | GroupBody '|' SymList   {% (c) => [...c[0], c[2]] %}
+  ;
 ```
 
 </details>
@@ -442,6 +469,7 @@ GroupBody
 Atom
   : '.'          {% (c) => ({ tag: "Any" }) %}
   | '~' NotArg   {% (c) => ({ tag: "Not", set: c[1] }) %}
+  ;
 ```
 
 </details>
@@ -457,6 +485,7 @@ Atom
 NotArg
   : SetItem           {% (c) => [c[0]] %}
   | '(' SetBody ')'   {% (c) => c[1] %}
+  ;
 ```
 
 </details>
@@ -472,6 +501,7 @@ NotArg
 SetBody
   : SetItem              {% (c) => [c[0]] %}
   | SetBody '|' SetItem  {% (c) => [...c[0], c[2]] %}
+  ;
 ```
 
 </details>
@@ -487,6 +517,7 @@ SetBody
 SetItem
   : IDENT      {% (c) => ({ tag: "Ref", name: c[0] }) %}
   | TERM_LIT   {% (c) => ({ tag: "Lit", text: c[0] }) %}
+  ;
 ```
 
 </details>
@@ -510,32 +541,32 @@ after Alt, lookahead is '%left':
 
 <!-- Generated by Gramark — do not edit; run `gramark fmt` to refresh. -->
 
-| Nonterminal     | FIRST                                  | FOLLOW                                                                                                                                   |
-| --------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `File`          | `NL` `%name` `IDENT` `%lang` `ATTR`    | `$`                                                                                                                                      |
-| `Preamble`      | `%name` `IDENT` `%lang`                | `NL`                                                                                                                                     |
-| `SettingList`   | `%name` `%lang`                        | `NL` `%name` `IDENT` `%lang`                                                                                                             |
-| `SettingDecl`   | `%name` `%lang`                        | `NL` `%name` `IDENT` `%lang`                                                                                                             |
-| `TokenDeclList` | `IDENT`                                | `NL` `IDENT`                                                                                                                             |
-| `TokenDecl`     | `IDENT`                                | `NL` `IDENT`                                                                                                                             |
-| `TokenPattern`  | `REGEX_LIT` `TERM_LIT`                 | `NL` `IDENT` `%skip` `%caseless` `%prec` `EXTERNAL`                                                                                      |
-| `ModList`       | `%skip` `%caseless` `%prec` `EXTERNAL` | `NL` `IDENT` `%skip` `%caseless` `%prec` `EXTERNAL`                                                                                      |
-| `Modifier`      | `%skip` `%caseless` `%prec` `EXTERNAL` | `NL` `IDENT` `%skip` `%caseless` `%prec` `EXTERNAL`                                                                                      |
-| `PrecList`      | `%left` `%right` `%nonassoc`           | `%left` `%right` `%nonassoc` `$`                                                                                                         |
-| `PrecDecl`      | `%left` `%right` `%nonassoc`           | `%left` `%right` `%nonassoc` `$`                                                                                                         |
-| `PrecTermList`  | `IDENT` `TERM_LIT`                     | `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `$`                                                                                      |
-| `PrecTerm`      | `IDENT` `TERM_LIT`                     | `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `$`                                                                                      |
-| `RuleList`      | `IDENT` `ATTR`                         | `NL` `%left` `%right` `%nonassoc` `$`                                                                                                    |
-| `Rule`          | `IDENT` `ATTR`                         | `NL` `%left` `%right` `%nonassoc` `$`                                                                                                    |
-| `Body`          | `IDENT` `TERM_LIT` `(` `.` `~`         | `NL` `%left` `%right` `%nonassoc` `\|` `$`                                                                                               |
-| `Alt`           | `IDENT` `TERM_LIT` `(` `.` `~`         | `NL` `%left` `%right` `%nonassoc` `\|` `$`                                                                                               |
-| `SymList`       | `IDENT` `TERM_LIT` `(` `.` `~`         | `NL` `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `\|` `(` `)` `ACTION` `LABEL` `.` `~` `$`                                           |
-| `Sym`           | `IDENT` `TERM_LIT` `(` `.` `~`         | `NL` `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `\|` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` `$`                          |
-| `Args`          | `IDENT` `TERM_LIT` `(` `.` `~`         | `RANGLE` `COMMA`                                                                                                                         |
-| `Action`        | `ACTION`                               | `NL` `%left` `%right` `%nonassoc` `\|` `$`                                                                                               |
-| `Label`         | `LABEL`                                | `NL` `%left` `%right` `%nonassoc` `\|` `ACTION` `$`                                                                                      |
-| `GroupBody`     | `IDENT` `TERM_LIT` `(` `.` `~`         | `\|` `)`                                                                                                                                 |
-| `Atom`          | `.` `~`                                | `NL` `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `\|` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` `$` |
-| `NotArg`        | `IDENT` `TERM_LIT` `(`                 | `NL` `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `\|` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` `$` |
-| `SetBody`       | `IDENT` `TERM_LIT`                     | `\|` `)`                                                                                                                                 |
-| `SetItem`       | `IDENT` `TERM_LIT`                     | `NL` `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `\|` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` `$` |
+| Nonterminal     | FIRST                                  | FOLLOW                                                                                                 |
+| --------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `File`          | `NL` `%name` `IDENT` `%lang` `ATTR`    | `$`                                                                                                    |
+| `Preamble`      | `%name` `IDENT` `%lang`                | `NL`                                                                                                   |
+| `SettingList`   | `%name` `%lang`                        | `NL` `%name` `IDENT` `%lang`                                                                           |
+| `SettingDecl`   | `%name` `%lang`                        | `NL` `%name` `IDENT` `%lang`                                                                           |
+| `TokenDeclList` | `IDENT`                                | `NL` `IDENT`                                                                                           |
+| `TokenDecl`     | `IDENT`                                | `NL` `IDENT`                                                                                           |
+| `TokenPattern`  | `REGEX_LIT` `TERM_LIT`                 | `;` `%skip` `%caseless` `%prec` `EXTERNAL`                                                             |
+| `ModList`       | `%skip` `%caseless` `%prec` `EXTERNAL` | `;` `%skip` `%caseless` `%prec` `EXTERNAL`                                                             |
+| `Modifier`      | `%skip` `%caseless` `%prec` `EXTERNAL` | `;` `%skip` `%caseless` `%prec` `EXTERNAL`                                                             |
+| `PrecList`      | `%left` `%right` `%nonassoc`           | `%left` `%right` `%nonassoc` `$`                                                                       |
+| `PrecDecl`      | `%left` `%right` `%nonassoc`           | `%left` `%right` `%nonassoc` `$`                                                                       |
+| `PrecTermList`  | `IDENT` `TERM_LIT`                     | `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `$`                                                    |
+| `PrecTerm`      | `IDENT` `TERM_LIT`                     | `IDENT` `TERM_LIT` `%left` `%right` `%nonassoc` `$`                                                    |
+| `RuleList`      | `IDENT` `ATTR`                         | `IDENT` `%left` `%right` `%nonassoc` `ATTR` `$`                                                        |
+| `Rule`          | `IDENT` `ATTR`                         | `IDENT` `%left` `%right` `%nonassoc` `ATTR` `$`                                                        |
+| `Body`          | `IDENT` `TERM_LIT` `(` `.` `~`         | `;` `\|`                                                                                               |
+| `Alt`           | `IDENT` `TERM_LIT` `(` `.` `~`         | `;` `\|`                                                                                               |
+| `SymList`       | `IDENT` `TERM_LIT` `(` `.` `~`         | `IDENT` `;` `TERM_LIT` `\|` `(` `)` `ACTION` `LABEL` `.` `~`                                           |
+| `Sym`           | `IDENT` `TERM_LIT` `(` `.` `~`         | `IDENT` `;` `TERM_LIT` `\|` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~`                          |
+| `Args`          | `IDENT` `TERM_LIT` `(` `.` `~`         | `RANGLE` `COMMA`                                                                                       |
+| `Action`        | `ACTION`                               | `;` `\|`                                                                                               |
+| `Label`         | `LABEL`                                | `;` `\|` `ACTION`                                                                                      |
+| `GroupBody`     | `IDENT` `TERM_LIT` `(` `.` `~`         | `\|` `)`                                                                                               |
+| `Atom`          | `.` `~`                                | `IDENT` `;` `TERM_LIT` `\|` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` |
+| `NotArg`        | `IDENT` `TERM_LIT` `(`                 | `IDENT` `;` `TERM_LIT` `\|` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` |
+| `SetBody`       | `IDENT` `TERM_LIT`                     | `\|` `)`                                                                                               |
+| `SetItem`       | `IDENT` `TERM_LIT`                     | `IDENT` `;` `TERM_LIT` `\|` `PLUS` `STAR` `QUESTION` `RANGLE` `(` `)` `COMMA` `ACTION` `LABEL` `.` `~` |

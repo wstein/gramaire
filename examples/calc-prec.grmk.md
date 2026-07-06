@@ -23,8 +23,8 @@ stratification and needs no precedence block.
 ## Tokens
 
 ```gramark
-NUM : /[0-9]+/
-WS  : /[ \t\r\n]+/   %skip
+NUM : /[0-9]+/ ;
+WS  : /[ \t\r\n]+/   %skip ;
 ```
 
 ## expr
@@ -42,6 +42,7 @@ expr
   | expr '/' expr   # Div   {% (c) => ({ tag: "Div", left: c[0], right: c[2] }) %}
   | '(' expr ')'    # Paren {% (c) => c[1] %}
   | NUM             # Lit   {% (c) => ({ tag: "Lit", value: Number(c[0]) }) %}
+  ;
 ```
 
 </details>

@@ -2,174 +2,174 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "a6c15d9fa5fa2f222bbd997906347c0bfc068e9660e2087bc6f9e2b5a09fccaa",
+  "grammarSha256": "486c13783723eb5e26f7e06bea2b16c165fa6a077f0b199d47db4fa9681902f1",
   "artifacts": [
     {
       "kind": "railroad",
       "nonterminal": "File",
       "path": "diagrams-Gramark/file.svg",
-      "sourceSha256": "29d9aa799d6ca7fe2c9498d72df0e99b6f100cecd06447b9db9b987f96a7ba73"
+      "sourceSha256": "53a6f7fc955aff87a9aedbf1fcd28bd5b3cd4c6ded12eab288f7250a8171a93b"
     },
     {
       "kind": "railroad",
       "nonterminal": "Preamble",
       "path": "diagrams-Gramark/preamble.svg",
-      "sourceSha256": "ec344e686207b6eeff697c6610620f53b34c25aa5fc89d7303d396fbff05426a"
+      "sourceSha256": "f33965e345b92e49b7e474da1007a0befecf28e972a2918143f22d1d6da433e2"
     },
     {
       "kind": "railroad",
       "nonterminal": "SettingList",
       "path": "diagrams-Gramark/settinglist.svg",
-      "sourceSha256": "62dd2df318a003cae92ce9a62f3c063390528e3979a5086e2febbbee4a3bbdf4"
+      "sourceSha256": "cf786d634e321dbc1f00e950349cd1bc4dfdff9def26ffd8806f3175e38891f0"
     },
     {
       "kind": "railroad",
       "nonterminal": "SettingDecl",
       "path": "diagrams-Gramark/settingdecl.svg",
-      "sourceSha256": "53a91c7e0853fde9ff8fcbf00a4fe99b9a8a8ea5a778bdc8b5a61a0d152b0334"
+      "sourceSha256": "0c1097142b776d5e45d3475a23bc43d21644eb7b34f4a7304a16a735d4061370"
     },
     {
       "kind": "railroad",
       "nonterminal": "TokenDeclList",
       "path": "diagrams-Gramark/tokendecllist.svg",
-      "sourceSha256": "b564e09b0447c625cace1d7926c8d79af8ab1f9e0dbe1d305eb4ff7e2105fc1d"
+      "sourceSha256": "a6da92630a0cc08d8b0e791ec6d3742a6311ff2648c0f2a8da0a6bbded76a373"
     },
     {
       "kind": "railroad",
       "nonterminal": "TokenDecl",
       "path": "diagrams-Gramark/tokendecl.svg",
-      "sourceSha256": "644f542d539481f3903e2b0a18f5ba03e35b0d6986b1fb8a526d1f4681e177b4"
+      "sourceSha256": "a566aa0460c867e72b01f42378cb095d86446cbd1a19133bee2dc718859e7edb"
     },
     {
       "kind": "railroad",
       "nonterminal": "TokenPattern",
       "path": "diagrams-Gramark/tokenpattern.svg",
-      "sourceSha256": "9e9664f61783179786de1c346829cc6327f3e6868d8b6ffb84f6f222259b38b7"
+      "sourceSha256": "4055dee18b10e08be3e762a57d24e820eb185fd7209ca54792bb4ec9b86873e7"
     },
     {
       "kind": "railroad",
       "nonterminal": "ModList",
       "path": "diagrams-Gramark/modlist.svg",
-      "sourceSha256": "0279c32b4e87ce05717634c5a39814740b3f655df560c19cdba14a240d74bab2"
+      "sourceSha256": "a9de17188f6c0be49200387650f92070b1bf51371ba27b945fdede57e8cbb374"
     },
     {
       "kind": "railroad",
       "nonterminal": "Modifier",
       "path": "diagrams-Gramark/modifier.svg",
-      "sourceSha256": "d7a4a26fb9f587d9f93d9f1d6774d9f04e95232b182b33fce096849cde9c0948"
+      "sourceSha256": "05b8524793dd840df2cc0b0c6923f7a680f78973ec44d4b24ba06cea6ad061b0"
     },
     {
       "kind": "railroad",
       "nonterminal": "PrecList",
       "path": "diagrams-Gramark/preclist.svg",
-      "sourceSha256": "bc72712920b6704f64fb891c1cdb183d207ab6aa13ca24a4ed851672b9346f95"
+      "sourceSha256": "3bada5ba95e22bd9e309a5ca534382408d00305fd5abb42662c23c5f2eda5417"
     },
     {
       "kind": "railroad",
       "nonterminal": "PrecDecl",
       "path": "diagrams-Gramark/precdecl.svg",
-      "sourceSha256": "c17be4331e16dad4cfc36a7d2bd1d71cb76a75a5da442efa1305b49dd5296cb5"
+      "sourceSha256": "a14c26b72f4d5d247690d62f8ea0c8ec6e59d2aa117009a8c0e48cb0e6367f63"
     },
     {
       "kind": "railroad",
       "nonterminal": "PrecTermList",
       "path": "diagrams-Gramark/prectermlist.svg",
-      "sourceSha256": "573cbf3e1b9ffddff7544f649dc18500d1f9de1e644e6df77a9442c2185d5fb7"
+      "sourceSha256": "1a5d5c91ae521174220da1ec7b6f0d010ca1c44ecb72b40ca8af78a7ba5f8ec9"
     },
     {
       "kind": "railroad",
       "nonterminal": "PrecTerm",
       "path": "diagrams-Gramark/precterm.svg",
-      "sourceSha256": "b6ae983c7bd42b5d3248b7e152159dc0da994f01f2fad163901d869e7debf982"
+      "sourceSha256": "3b47555c49e9276146933a72ff5d43714b3e63eaa137b73f4732cc4afc8d8c69"
     },
     {
       "kind": "railroad",
       "nonterminal": "RuleList",
       "path": "diagrams-Gramark/rulelist.svg",
-      "sourceSha256": "91e48fca6a172e639b6e18c1b67b5741dd840ffe6d984d63be17c7d4d149877d"
+      "sourceSha256": "2653de94559c9bd20c737ddb7b6ce3ca21c7cd71a46b70ef1d664a2635b5f7ac"
     },
     {
       "kind": "railroad",
       "nonterminal": "Rule",
       "path": "diagrams-Gramark/rule.svg",
-      "sourceSha256": "3314230857ff9e16991f61ec404bbed8c988689e0c9bb9e1cde62eda1be0f072"
+      "sourceSha256": "baf5caf00882d6e120800598fbde1d1dff7f1fd34a485140f7da4f09bc61a922"
     },
     {
       "kind": "railroad",
       "nonterminal": "Body",
       "path": "diagrams-Gramark/body.svg",
-      "sourceSha256": "49e78523237525c54a5add2a4528f47aef810a6d20486956cc0428bf812d9bd3"
+      "sourceSha256": "5d34ed308d4617aaec82b1349baed3ff0199c15573fe94fec161aa35f07f24d4"
     },
     {
       "kind": "railroad",
       "nonterminal": "Alt",
       "path": "diagrams-Gramark/alt.svg",
-      "sourceSha256": "f43a3f629956cee13753e04f956ecad4fe90294883ced216ef397871073221dd"
+      "sourceSha256": "d4171663cd6def250078009cd4768f4000b0c928a03b1993d45bb83780247013"
     },
     {
       "kind": "railroad",
       "nonterminal": "SymList",
       "path": "diagrams-Gramark/symlist.svg",
-      "sourceSha256": "11450fdf9553c7af8c0eff02224cbb6bb2a75aca8e2997262dab75742b449417"
+      "sourceSha256": "7469a1ea7f55e3ab99c63f84216b4241a35f063d5bcc2b2529a8a5f71a1ceece"
     },
     {
       "kind": "railroad",
       "nonterminal": "Sym",
       "path": "diagrams-Gramark/sym.svg",
-      "sourceSha256": "f426df8d1df2f1d4687b120b856c01c84320e0412c4d96ca59be1b03def1630e"
+      "sourceSha256": "e526cd95687f605ddf6feed4f3f32e0362b3331209973db8aa9f54565b554d38"
     },
     {
       "kind": "railroad",
       "nonterminal": "Args",
       "path": "diagrams-Gramark/args.svg",
-      "sourceSha256": "3e7db47a90bd2abf5b4cea571256ee3b7dea1dca631c79ec00de5c89b6305e5e"
+      "sourceSha256": "bee5119e00fe6487d06ae94c53f38a2a90716d2b7f239212b112074a2c0972f3"
     },
     {
       "kind": "railroad",
       "nonterminal": "Action",
       "path": "diagrams-Gramark/action.svg",
-      "sourceSha256": "37ba09d1c18eab2498e4bdc097312c141c9e7963c6b720cce6ed0010dbd56887"
+      "sourceSha256": "5301af8ca7953e2485fbc96efec1efbfca3e9066ae99adf4f11f0ed9632c62b0"
     },
     {
       "kind": "railroad",
       "nonterminal": "Label",
       "path": "diagrams-Gramark/label.svg",
-      "sourceSha256": "061463afa308c0ed362f10acd775b10e2609088d50bf84d6bd7bc2a085d93597"
+      "sourceSha256": "62ca48e27efc2a8a5f53a4ed97a6d2363326eb694e5eec63e2f2ff7e788ef312"
     },
     {
       "kind": "railroad",
       "nonterminal": "GroupBody",
       "path": "diagrams-Gramark/groupbody.svg",
-      "sourceSha256": "4546453aa3b26a39cfbfd8030b45b48411ab9aa2122ecd5d5cc4b7bfeeb81374"
+      "sourceSha256": "4ecebd4ad05ead833f978eff982a73e73aee0fcefd2bdb9d0403730a87e6e3d7"
     },
     {
       "kind": "railroad",
       "nonterminal": "Atom",
       "path": "diagrams-Gramark/atom.svg",
-      "sourceSha256": "dce9bf5baedd5b95cf2d01ea41e57e9f63a0600398ecc3ac3254b11bff610499"
+      "sourceSha256": "35f85b54bbd0d900c5f9fed12984d450149e213118f06c14fc59741ba8ec8a9b"
     },
     {
       "kind": "railroad",
       "nonterminal": "NotArg",
       "path": "diagrams-Gramark/notarg.svg",
-      "sourceSha256": "61da58b3bb0ba3a2338319fab3a44c3b9a537c2c2990a673f97dcaa78429a2cd"
+      "sourceSha256": "59452e39ee24a2218c888e2b7da03a6fdc2c636de19e37047b7e274d30fc5732"
     },
     {
       "kind": "railroad",
       "nonterminal": "SetBody",
       "path": "diagrams-Gramark/setbody.svg",
-      "sourceSha256": "171b0c8dce7a07975a4b59e6797ec6ad6cba07e51b61b42ced1839bfb3b1013d"
+      "sourceSha256": "3611f239bbec780c2a6ad85cb2001c5cdcc9a223fb0c18a64562c91b72220851"
     },
     {
       "kind": "railroad",
       "nonterminal": "SetItem",
       "path": "diagrams-Gramark/setitem.svg",
-      "sourceSha256": "c8bda2153e62464e3221e0b498ff609f99c6a379dd95411744477b9e82353a2e"
+      "sourceSha256": "bf381f7734f78fe00ac34a28fa81fa40d3e6fc955ff9eaff5713bc578916b9d1"
     },
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "a6c15d9fa5fa2f222bbd997906347c0bfc068e9660e2087bc6f9e2b5a09fccaa"
+      "sourceSha256": "486c13783723eb5e26f7e06bea2b16c165fa6a077f0b199d47db4fa9681902f1"
     }
   ]
 }

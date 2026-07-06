@@ -54,12 +54,12 @@ section). `NUMBER` covers decimal, hexadecimal, and binary integer literals
 (with `_` digit separators) and decimal floats with an optional exponent.
 
 ```gramark
-NAME          : /[A-Za-z_][A-Za-z0-9_]*/
-NUMBER        : /0[xX][0-9a-fA-F_]+|0[bB][01_]+|(?:[0-9][0-9_]*(?:\.[0-9_]*)?|\.[0-9_]+)(?:[eE][+-]?[0-9]+)?/
-STRING        : /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|\[\[(?:[^\]]|\]+[^\]])*\]+\]/
-LONG_COMMENT  : /--\[\[(?:[^\]]|\]+[^\]])*\]+\]/          %skip
-LINE_COMMENT  : /--(?:[^\n\[][^\n]*|\[(?:[^\n\[][^\n]*)?)?/ %skip
-WS            : /[ \t\r\n]+/                              %skip
+NAME          : /[A-Za-z_][A-Za-z0-9_]*/ ;
+NUMBER        : /0[xX][0-9a-fA-F_]+|0[bB][01_]+|(?:[0-9][0-9_]*(?:\.[0-9_]*)?|\.[0-9_]+)(?:[eE][+-]?[0-9]+)?/ ;
+STRING        : /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|\[\[(?:[^\]]|\]+[^\]])*\]+\]/ ;
+LONG_COMMENT  : /--\[\[(?:[^\]]|\]+[^\]])*\]+\]/          %skip ;
+LINE_COMMENT  : /--(?:[^\n\[][^\n]*|\[(?:[^\n\[][^\n]*)?)?/ %skip ;
+WS            : /[ \t\r\n]+/                              %skip ;
 ```
 
 ## chunk
@@ -74,6 +74,7 @@ The entry point: a Luau source file is a single `block`.
 ```gramark
 chunk
   : block
+  ;
 ```
 
 </details>
@@ -103,6 +104,7 @@ flagged, minor gap, not a silent one.
 block
   : StatWithSemi+ LastStatWithSemi?
   | LastStatWithSemi
+  ;
 ```
 
 </details>
@@ -119,6 +121,7 @@ Helper for `stat [';']`.
 ```gramark
 StatWithSemi
   : stat ';'?
+  ;
 ```
 
 </details>
@@ -135,6 +138,7 @@ Helper for `laststat [';']`.
 ```gramark
 LastStatWithSemi
   : laststat ';'?
+  ;
 ```
 
 </details>
@@ -164,6 +168,7 @@ stat
   | 'const' bindinglist '=' explist
   | 'export'? 'type' NAME TypeParamsWithDefaults? '=' Type
   | 'export'? 'type' 'function' NAME funcbody
+  ;
 ```
 
 </details>
@@ -180,6 +185,7 @@ Helper for the repeated `{'elseif' exp 'then' block}` group.
 ```gramark
 ElseifBlock
   : 'elseif' exp 'then' block?
+  ;
 ```
 
 </details>
@@ -196,6 +202,7 @@ Helper for the optional `['else' block]` group.
 ```gramark
 ElseBlock
   : 'else' block?
+  ;
 ```
 
 </details>
@@ -212,6 +219,7 @@ Helper for the optional `[',' exp]` step in a numeric `for`.
 ```gramark
 ForStep
   : ',' exp
+  ;
 ```
 
 </details>
@@ -228,6 +236,7 @@ Helper for the optional `['=' explist]` initializer in a `local` declaration.
 ```gramark
 LocalInit
   : '=' explist
+  ;
 ```
 
 </details>
@@ -245,6 +254,7 @@ Helper for the optional `['<' GenericTypeListWithDefaults '>']` group on a
 ```gramark
 TypeParamsWithDefaults
   : '<' GenericTypeListWithDefaults '>'
+  ;
 ```
 
 </details>
@@ -261,6 +271,7 @@ laststat
   : 'return' explist?
   | 'break'
   | 'continue'
+  ;
 ```
 
 </details>
@@ -275,6 +286,7 @@ laststat
 ```gramark
 funcname
   : NAME DotName* MethodName?
+  ;
 ```
 
 </details>
@@ -292,6 +304,7 @@ name).
 ```gramark
 DotName
   : '.' NAME
+  ;
 ```
 
 </details>
@@ -309,6 +322,7 @@ t:name()`).
 ```gramark
 MethodName
   : ':' NAME
+  ;
 ```
 
 </details>
@@ -323,6 +337,7 @@ MethodName
 ```gramark
 funcbody
   : GenericTypeParams? '(' parlist? ')' ReturnAnnotation? block? 'end'
+  ;
 ```
 
 </details>
@@ -341,6 +356,7 @@ Helper for the optional `['<' GenericTypeList '>']` group in `funcbody`
 ```gramark
 GenericTypeParams
   : '<' GenericTypeList '>'
+  ;
 ```
 
 </details>
@@ -357,6 +373,7 @@ Helper for the optional `[':' ReturnType]` group.
 ```gramark
 ReturnAnnotation
   : ':' ReturnType
+  ;
 ```
 
 </details>
@@ -372,6 +389,7 @@ ReturnAnnotation
 parlist
   : bindinglist TrailingVararg?
   | '...' VarargAnnotation?
+  ;
 ```
 
 </details>
@@ -389,6 +407,7 @@ Helper for the optional `[',' '...' [':' (GenericTypePack | Type)]]` group
 ```gramark
 TrailingVararg
   : ',' '...' VarargAnnotation?
+  ;
 ```
 
 </details>
@@ -405,6 +424,7 @@ Helper for the optional `[':' (GenericTypePack | Type)]` group.
 ```gramark
 VarargAnnotation
   : ':' VarargType
+  ;
 ```
 
 </details>
@@ -422,6 +442,7 @@ Helper for the inline `(GenericTypePack | Type)` group.
 VarargType
   : GenericTypePack
   | Type
+  ;
 ```
 
 </details>
@@ -438,6 +459,7 @@ VarargType
 ```gramark
 explist
   : Sep<exp, ','>
+  ;
 ```
 
 </details>
@@ -452,6 +474,7 @@ explist
 ```gramark
 binding
   : NAME TypeAnnotation?
+  ;
 ```
 
 </details>
@@ -469,6 +492,7 @@ Type]` shape in this grammar.
 ```gramark
 TypeAnnotation
   : ':' Type
+  ;
 ```
 
 </details>
@@ -486,6 +510,7 @@ the same language as `Sep<binding, ','>`.
 ```gramark
 bindinglist
   : Sep<binding, ','>
+  ;
 ```
 
 </details>
@@ -502,6 +527,7 @@ var
   : NAME
   | prefixexp '[' exp ']'
   | prefixexp '.' NAME
+  ;
 ```
 
 </details>
@@ -516,6 +542,7 @@ var
 ```gramark
 varlist
   : Sep<var, ','>
+  ;
 ```
 
 </details>
@@ -532,6 +559,7 @@ prefixexp
   : var
   | functioncall
   | '(' exp ')'
+  ;
 ```
 
 </details>
@@ -547,6 +575,7 @@ prefixexp
 functioncall
   : prefixexp funcargs
   | prefixexp ':' NAME funcargs
+  ;
 ```
 
 </details>
@@ -577,6 +606,7 @@ Precedence` block at all — the cascade's shape *is* the precedence.
 exp
   : exp 'or' AndExpr
   | AndExpr
+  ;
 ```
 
 </details>
@@ -592,6 +622,7 @@ exp
 AndExpr
   : AndExpr 'and' CmpExpr
   | CmpExpr
+  ;
 ```
 
 </details>
@@ -607,6 +638,7 @@ AndExpr
 CmpExpr
   : CmpExpr cmpop ConcatExpr
   | ConcatExpr
+  ;
 ```
 
 </details>
@@ -628,6 +660,7 @@ cmpop
   | '>='
   | '=='
   | '~='
+  ;
 ```
 
 </details>
@@ -645,6 +678,7 @@ cmpop
 ConcatExpr
   : AddExpr '..' ConcatExpr
   | AddExpr
+  ;
 ```
 
 </details>
@@ -661,6 +695,7 @@ AddExpr
   : AddExpr '+' MulExpr
   | AddExpr '-' MulExpr
   | MulExpr
+  ;
 ```
 
 </details>
@@ -679,6 +714,7 @@ MulExpr
   | MulExpr '//' UnaryExpr
   | MulExpr '%' UnaryExpr
   | UnaryExpr
+  ;
 ```
 
 </details>
@@ -699,6 +735,7 @@ UnaryExpr
   | '#' UnaryExpr
   | '-' UnaryExpr
   | PowExpr
+  ;
 ```
 
 </details>
@@ -718,6 +755,7 @@ may itself start with a unary operator (`2^-2`), so it recurses into
 PowExpr
   : asexp '^' UnaryExpr
   | asexp
+  ;
 ```
 
 </details>
@@ -732,6 +770,7 @@ PowExpr
 ```gramark
 ifelseexp
   : 'if' exp 'then' exp ElseifExpClause* 'else' exp
+  ;
 ```
 
 </details>
@@ -748,6 +787,7 @@ Helper for the repeated `{'elseif' exp 'then' exp}` group.
 ```gramark
 ElseifExpClause
   : 'elseif' exp 'then' exp
+  ;
 ```
 
 </details>
@@ -763,6 +803,7 @@ ElseifExpClause
 asexp
   : simpleexp
   | simpleexp '::' Type
+  ;
 ```
 
 </details>
@@ -780,6 +821,7 @@ cannot be modeled as regular-language tokens — see the limitations section.
 ```gramark
 stringinterp
   : INTERP_BEGIN exp InterpMidPart* INTERP_END
+  ;
 ```
 
 </details>
@@ -796,6 +838,7 @@ Helper for the repeated `{INTERP_MID exp}` group.
 ```gramark
 InterpMidPart
   : INTERP_MID exp
+  ;
 ```
 
 </details>
@@ -820,6 +863,7 @@ simpleexp
   | prefixexp
   | ifelseexp
   | stringinterp
+  ;
 ```
 
 </details>
@@ -836,6 +880,7 @@ funcargs
   : '(' explist? ')'
   | tableconstructor
   | STRING
+  ;
 ```
 
 </details>
@@ -850,6 +895,7 @@ funcargs
 ```gramark
 tableconstructor
   : '{' fieldlist? '}'
+  ;
 ```
 
 </details>
@@ -867,6 +913,7 @@ trailing separator, the same shape as `idList` in the ANTLR v4 conversion.
 ```gramark
 fieldlist
   : Sep<field, fieldsep> fieldsep?
+  ;
 ```
 
 </details>
@@ -883,6 +930,7 @@ field
   : '[' exp ']' '=' exp
   | NAME '=' exp
   | exp
+  ;
 ```
 
 </details>
@@ -898,6 +946,7 @@ field
 fieldsep
   : ','
   | ';'
+  ;
 ```
 
 </details>
@@ -919,6 +968,7 @@ compoundop
   | '%='
   | '^='
   | '..='
+  ;
 ```
 
 </details>
@@ -933,6 +983,7 @@ compoundop
 ```gramark
 littable
   : '{' litfieldlist? '}'
+  ;
 ```
 
 </details>
@@ -947,6 +998,7 @@ littable
 ```gramark
 litfieldlist
   : Sep<litfield, fieldsep> fieldsep?
+  ;
 ```
 
 </details>
@@ -961,6 +1013,7 @@ litfieldlist
 ```gramark
 litfield
   : LitFieldKey? literal
+  ;
 ```
 
 </details>
@@ -977,6 +1030,7 @@ Helper for the optional `[NAME '=']` group.
 ```gramark
 LitFieldKey
   : NAME '='
+  ;
 ```
 
 </details>
@@ -996,6 +1050,7 @@ literal
   | NUMBER
   | STRING
   | littable
+  ;
 ```
 
 </details>
@@ -1010,6 +1065,7 @@ literal
 ```gramark
 litlist
   : Sep<literal, ','>
+  ;
 ```
 
 </details>
@@ -1026,6 +1082,7 @@ pars
   : '(' litlist? ')'
   | littable
   | STRING
+  ;
 ```
 
 </details>
@@ -1040,6 +1097,7 @@ pars
 ```gramark
 parattr
   : NAME pars?
+  ;
 ```
 
 </details>
@@ -1055,6 +1113,7 @@ parattr
 attribute
   : '@' NAME
   | '@[' Sep<parattr, ','> ']'
+  ;
 ```
 
 </details>
@@ -1076,6 +1135,7 @@ function) mark it `attributes?` instead, since each already has a required
 ```gramark
 attributes
   : attribute+
+  ;
 ```
 
 </details>
@@ -1113,6 +1173,7 @@ SimpleType
   | TableType
   | GenericFunctionType
   | ParenTypeOrFunctionType
+  ;
 ```
 
 </details>
@@ -1130,6 +1191,7 @@ The explicit-generics half of the source's `FunctionType`; see
 ```gramark
 GenericFunctionType
   : GenericTypeParams '(' BoundTypeList? ')' '->' ReturnType
+  ;
 ```
 
 </details>
@@ -1160,6 +1222,7 @@ below and the ambiguity note near `## Precedence`).
 ParenTypeOrFunctionType
   : '(' BoundTypeList ')' FunctionArrow?
   | '(' ')' FunctionArrow
+  ;
 ```
 
 </details>
@@ -1178,6 +1241,7 @@ of a grouped `Type`.
 ```gramark
 FunctionArrow
   : '->' ReturnType
+  ;
 ```
 
 </details>
@@ -1195,6 +1259,7 @@ module, `Module.TypeName`).
 ```gramark
 QualifiedTypeName
   : '.' NAME
+  ;
 ```
 
 </details>
@@ -1211,6 +1276,7 @@ Helper for the optional `['<' [TypeParams] '>']` group.
 ```gramark
 TypeArgs
   : '<' TypeParams? '>'
+  ;
 ```
 
 </details>
@@ -1227,6 +1293,7 @@ SingletonType
   : STRING
   | 'true'
   | 'false'
+  ;
 ```
 
 </details>
@@ -1270,6 +1337,7 @@ picks the *other* reading (`(A | B) & C`).
 ```gramark
 Type
   : Union
+  ;
 ```
 
 </details>
@@ -1285,6 +1353,7 @@ Type
 Union
   : Union '|' Intersection
   | Intersection
+  ;
 ```
 
 </details>
@@ -1300,6 +1369,7 @@ Union
 Intersection
   : Intersection '&' QuestionedType
   | QuestionedType
+  ;
 ```
 
 </details>
@@ -1319,6 +1389,7 @@ past the first.
 QuestionedType
   : QuestionedType '?'
   | SimpleType
+  ;
 ```
 
 </details>
@@ -1333,6 +1404,7 @@ QuestionedType
 ```gramark
 GenericTypePackParameter
   : NAME '...'
+  ;
 ```
 
 </details>
@@ -1348,6 +1420,7 @@ GenericTypePackParameter
 GenericTypeList
   : NAME GenericTypeListTail?
   | Sep<GenericTypePackParameter, ','>
+  ;
 ```
 
 </details>
@@ -1364,6 +1437,7 @@ Helper for the optional `[',' GenericTypeList]` group.
 ```gramark
 GenericTypeListTail
   : ',' GenericTypeList
+  ;
 ```
 
 </details>
@@ -1378,6 +1452,7 @@ GenericTypeListTail
 ```gramark
 GenericTypePackParameterWithDefault
   : NAME '...' '=' TypePackDefault
+  ;
 ```
 
 </details>
@@ -1397,6 +1472,7 @@ TypePackDefault
   : TypePack
   | VariadicTypePack
   | GenericTypePack
+  ;
 ```
 
 </details>
@@ -1412,6 +1488,7 @@ TypePackDefault
 GenericTypeListWithDefaults
   : NAME TypeDefault? GenericTypeListWithDefaultsTail?
   | Sep<GenericTypePackParameterWithDefault, ','>
+  ;
 ```
 
 </details>
@@ -1428,6 +1505,7 @@ Helper for the optional `['=' Type]` group.
 ```gramark
 TypeDefault
   : '=' Type
+  ;
 ```
 
 </details>
@@ -1444,6 +1522,7 @@ Helper for the optional `[',' GenericTypeListWithDefaults]` group.
 ```gramark
 GenericTypeListWithDefaultsTail
   : ',' GenericTypeListWithDefaults
+  ;
 ```
 
 </details>
@@ -1472,6 +1551,7 @@ re-deriving `Type` inside a right-recursive optional-tail shape.
 TypeList
   : Sep<Type, ','> TypeListVarargTail?
   | '...' Type
+  ;
 ```
 
 </details>
@@ -1488,6 +1568,7 @@ Helper for the trailing `[',' '...' Type]` marker.
 ```gramark
 TypeListVarargTail
   : ',' '...' Type
+  ;
 ```
 
 </details>
@@ -1509,6 +1590,7 @@ BoundTypeList
   : Sep<BoundTypeItem, ','> BoundTypeListPackTail?
   | GenericTypePack
   | VariadicTypePack
+  ;
 ```
 
 </details>
@@ -1525,6 +1607,7 @@ Helper for a single `[NAME ':'] Type` list element.
 ```gramark
 BoundTypeItem
   : BoundName? Type
+  ;
 ```
 
 </details>
@@ -1542,6 +1625,7 @@ type, e.g. `(count: number) -> string`).
 ```gramark
 BoundName
   : NAME ':'
+  ;
 ```
 
 </details>
@@ -1559,6 +1643,7 @@ Helper for a trailing `,`-separated `GenericTypePack`/`VariadicTypePack`
 ```gramark
 BoundTypeListPackTail
   : ',' BoundTypeListPack
+  ;
 ```
 
 </details>
@@ -1574,6 +1659,7 @@ BoundTypeListPackTail
 BoundTypeListPack
   : GenericTypePack
   | VariadicTypePack
+  ;
 ```
 
 </details>
@@ -1588,6 +1674,7 @@ BoundTypeListPack
 ```gramark
 TypeParams
   : TypeParamItem TypeParamsTail?
+  ;
 ```
 
 </details>
@@ -1612,6 +1699,7 @@ TypeParamItem
   | TypePack
   | VariadicTypePack
   | GenericTypePack
+  ;
 ```
 
 </details>
@@ -1628,6 +1716,7 @@ Helper for the optional `[',' TypeParams]` group.
 ```gramark
 TypeParamsTail
   : ',' TypeParams
+  ;
 ```
 
 </details>
@@ -1642,6 +1731,7 @@ TypeParamsTail
 ```gramark
 TypePack
   : '(' TypeList? ')'
+  ;
 ```
 
 </details>
@@ -1656,6 +1746,7 @@ TypePack
 ```gramark
 GenericTypePack
   : NAME '...'
+  ;
 ```
 
 </details>
@@ -1670,6 +1761,7 @@ GenericTypePack
 ```gramark
 VariadicTypePack
   : '...' Type
+  ;
 ```
 
 </details>
@@ -1687,6 +1779,7 @@ ReturnType
   | TypePack
   | GenericTypePack
   | VariadicTypePack
+  ;
 ```
 
 </details>
@@ -1701,6 +1794,7 @@ ReturnType
 ```gramark
 TableIndexer
   : AccessMod? '[' Type ']' ':' Type
+  ;
 ```
 
 </details>
@@ -1719,6 +1813,7 @@ Helper for the optional `['read' | 'write']` group, shared with
 AccessMod
   : 'read'
   | 'write'
+  ;
 ```
 
 </details>
@@ -1733,6 +1828,7 @@ AccessMod
 ```gramark
 TableProp
   : AccessMod? NAME ':' Type
+  ;
 ```
 
 </details>
@@ -1748,6 +1844,7 @@ TableProp
 PropList
   : TableProp PropListTail?
   | TableIndexer TablePropItem*
+  ;
 ```
 
 </details>
@@ -1764,6 +1861,7 @@ Helper for the optional `[fieldsep PropList]` group.
 ```gramark
 PropListTail
   : fieldsep PropList
+  ;
 ```
 
 </details>
@@ -1780,6 +1878,7 @@ Helper for the repeated `{fieldsep TableProp}` group.
 ```gramark
 TablePropItem
   : fieldsep TableProp
+  ;
 ```
 
 </details>
@@ -1795,6 +1894,7 @@ TablePropItem
 TableType
   : '{' Type '}'
   | '{' PropList? '}'
+  ;
 ```
 
 </details>
