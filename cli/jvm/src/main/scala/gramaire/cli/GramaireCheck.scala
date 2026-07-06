@@ -363,6 +363,12 @@ object GramaireCheck:
   ): String =
     val lines = src.split("\n", -1).toVector
     val out = Vector.newBuilder[String]
+    // Pre-scan to identify which rules already have diagrams anywhere in the source,
+    // so we don't insert duplicates when a diagram appears after its fence
+    var existingDiagrams = Set.empty[String]
+    for line <- lines do
+      imageRe.findFirstMatchIn(line).foreach(m => existingDiagrams += m.group(1))
+      mermaidTagRe.findFirstMatchIn(line).foreach(m => existingDiagrams += m.group(1))
     var processedNonterminals = Set.empty[String]
     var i = 0
     while i < lines.length do
@@ -432,7 +438,7 @@ object GramaireCheck:
 
                   // If this is a rule fence without a diagram and we haven't seen it yet, insert one
                   if isRuleFence && ruleNameOpt.isDefined && !hasDiagramAfter && !processedNonterminals
-                      .contains(ruleNameOpt.get)
+                      .contains(ruleNameOpt.get) && !existingDiagrams.contains(ruleNameOpt.get)
                   then
                     val ruleName = ruleNameOpt.get
                     out += ""
