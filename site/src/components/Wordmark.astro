@@ -2,7 +2,7 @@
 // Split-stem wordmark, ported verbatim from the gold-standard mock
 // (design/gramark-site-handoff/GramaireWordmark.dc.html). "Gra" = ink, the
 // shared middle "m" is bisected ink/accent via a hard-stop text gradient,
-// "ark" = accent. See docs/BRANDING.md → Wordmark for the rationale.
+// "aire" = accent. See docs/BRANDING.md → Wordmark for the rationale.
 interface Props {
   class?: string;
 }
@@ -16,5 +16,5 @@ const { class: className } = Astro.props;
   <span style="color:var(--fg)">Gra</span><span
     style="background:linear-gradient(90deg,var(--fg) 0 50%,var(--accent) 50% 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent"
     >m</span
-  ><span style="color:var(--accent)">ark</span>
+  ><span style="color:var(--accent)">aire</span>
 </span>

@@ -269,7 +269,7 @@ const TEMPLATE = `
         <rect x="33" y="36" width="30" height="24" rx="12" fill="var(--node, #10b981)" stroke="var(--fg, #16181d)" stroke-width="6"></rect>
       </g>
     </svg>
-    <span class="wm"><span class="ink">Gra</span><span class="split">m</span><span class="accent">ark</span></span>
+    <span class="wm"><span class="ink">Gra</span><span class="split">m</span><span class="accent">aire</span></span>
   </a>
 
   <div class="divider" id="tools-divider"></div>

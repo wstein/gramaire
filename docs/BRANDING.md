@@ -9,7 +9,7 @@
 
 ## The idea
 
-The name is a portmanteau — **gram**mar + **mark**(down). A `.gram.md` file
+The name is a portmanteau — **gram**mar + grim**oire**. A `.gram.md` file
 renders as normal documentation on GitHub _and_ is the exact input the
 generator reads. The mark is a **railroad / syntax-diagram** production rule:
 an entry track meets an emerald **rule-node** that forks into two
@@ -42,16 +42,16 @@ reads cleanly at 16/32/48 px. See
 
 The single shared middle **m** is the brand hinge. The sanctioned treatment is
 **02 · Split stem**: one weight/size throughout, colored `Gra` = ink,
-`ark` = accent, and the middle **m** bisected left-half ink / right-half accent
+`aire` = accent, and the middle **m** bisected left-half ink / right-half accent
 via a hard-stop gradient.
 
 ```css
 font: 700 <size> "IBM Plex Sans";
 letter-spacing: -0.04em;
-/* "Gra" */ color: var(--fg);
-/* "m"   */ background: linear-gradient(90deg, var(--fg) 0 50%, var(--accent) 50% 100%);
+/* "Gra"  */ color: var(--fg);
+/* "m"    */ background: linear-gradient(90deg, var(--fg) 0 50%, var(--accent) 50% 100%);
             -webkit-background-clip: text; background-clip: text; color: transparent;
-/* "ark" */ color: var(--accent);
+/* "aire" */ color: var(--accent);
 ```
 
 See [brand/gramaire-wordmark.svg](../brand/gramaire-wordmark.svg).
