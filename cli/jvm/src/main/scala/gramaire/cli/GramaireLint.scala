@@ -124,17 +124,20 @@ object GramaireLint:
                 "language than the source grammar, not merely losing a decoration"
           }
 
-  // Confirmed empirically (same grep as `delegateLoss`/`externalsLoss`): neither backend — nor any
-  // other first-party textual/code backend, `js` included, unlike `delegate`/`externals` which
-  // `BackendJs` was specifically extended to render (D51) — reads `IRRule.predicate` at all. A
-  // rule whose alternative only fires under a semantic guard (`{%? %}`, D-predicates) renders as a
-  // bare, unconditional alt: the guard vanishes, so the exported grammar accepts every input the
-  // ungated alternative shape allows. If the predicate existed to rule out an ambiguity or a
-  // context the bare BNF shape alone can't express, this is a real change to the accepted
-  // language, not merely a lost comment — exempted only for `ir`, which serializes the predicate
-  // marker as JSON and so loses nothing.
+  // Confirmed empirically (same grep as `delegateLoss`/`externalsLoss`): most first-party textual/
+  // code backends read `IRRule.predicate` at all. A rule whose alternative only fires under a
+  // semantic guard (`{%? %}`, D-predicates) renders as a bare, unconditional alt: the guard
+  // vanishes, so the exported grammar accepts every input the ungated alternative shape allows. If
+  // the predicate existed to rule out an ambiguity or a context the bare BNF shape alone can't
+  // express, this is a real change to the accepted language, not merely a lost comment. `ir` is
+  // exempt because it serializes the predicate marker as JSON and so loses nothing; `antlr` is
+  // exempt as of ADR D54 — `BackendAntlr` now renders `IRRule.predicate` back as ANTLR4's own
+  // `{ ... }?` syntax, so `--target antlr` genuinely keeps the guard, unlike every other backend
+  // here (mirrors `delegateLoss`/`externalsLoss`'s own `js` exemption once `BackendJs` gained real
+  // rendering, D51). `bison` stays un-exempted: real yacc has no semantic-predicate concept for a
+  // guard to go into at all.
   def predicateLoss(ir: IR, backendName: String): Vector[String] =
-    if backendName == "ir" then Vector.empty
+    if backendName == "ir" || backendName == "antlr" then Vector.empty
     else
       val ntNameById = ir.grammar.nonterminals.map(n => n.id -> n.name).toMap
       ir.grammar.rules.collect {
