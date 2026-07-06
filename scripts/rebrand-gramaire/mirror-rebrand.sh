@@ -115,7 +115,6 @@ return file_info_callback.file_info_callback(filename, mode, blob_id, value)
 PY
 
 git -C "$MIRROR_DIR" filter-repo \
-  --filename-callback "$(cat "$SCRIPT_DIR/rename_paths_callback.py")" \
   --file-info-callback "$(cat "$FILE_INFO_CALLBACK_FILE")" \
   --message-callback "$COMMIT_MSG_CALLBACK_CODE"
 
