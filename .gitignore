@@ -60,3 +60,6 @@ bun.lock
 # (the fixed driver) is committed.
 codegen-scratch/src/main/scala/gramark/scratch/Generated.scala
 codegen-scratch/vectors.txt
+
+# Python
+__pycache__/
