@@ -8,18 +8,19 @@ package gramaire
 class PlaygroundSuite extends munit.FunSuite:
 
   private val calcJs =
-    """%lang javascript
+    """name: Calc-js
+      |lang: javascript
       |
-      |NUMBER : /[0-9]+/
-      |WS     : /[ \t\r\n]+/   %skip
+      |NUMBER : /[0-9]+/ ;
+      |WS     : /[ \t\r\n]+/   -> skip ;
       |
       |Expr
       |  : Expr '+' Term   {% (c) => c.expr + c.term %}
-      |  | Term
+      |  | Term ;
       |
       |Term
       |  : Term '*' NUMBER {% (c) => c.term * parseFloat(c.number) %}
-      |  | NUMBER          {% (c) => parseFloat(c.number) %}
+      |  | NUMBER          {% (c) => parseFloat(c.number) %} ;
       |""".stripMargin
 
   test("a matching input is accepted, with tokens/tree/trace/cstJson populated") {
@@ -73,7 +74,7 @@ class PlaygroundSuite extends munit.FunSuite:
     // deterministic recognizer) is false — but the CST forest is built from
     // the GLR multi-action table independently of that flag, and finds both
     // derivations of "aaa" under `A : A A | 'a'`.
-    val ambiguous = "```gramaire\nA\n  : A A\n  | 'a'\n```\n"
+    val ambiguous = "```gramaire\nA\n  : A A\n  | 'a' ;\n```\n"
     val r = Playground.evaluate(ambiguous, "aaa", "Canonical")
     assert(r.ok)
     assert(r.allCstJson.length > 1, "an ambiguous grammar yields multiple derivations")

@@ -8,8 +8,8 @@ import gramaire.*
 // Consolidates three previously-separate things into one binary:
 //   - the prior reference-implementation CLI (`emit`, `import`, `strip`,
 //     `conformance`, `explain-conflict`) from `src/Gramaire/Cli.purs`
-//   - the codegen regenerator (`codegen-regen`) from
-//     `src/Gramaire/Codegen/Main.purs`
+//   - the Scala codegen regenerator (`codegen-regen`) for
+//     `gramaire.generated.LrReduce`
 //   - the TypeScript bootstrap bridge's structure/drift checks and
 //     railroad/table regeneration (`check`, `fmt`) from
 //     `bootstrap/gramaire-check.ts` (its third gate, markdownlint, is
@@ -590,8 +590,7 @@ object Main:
             else println(GramaireCheck.fmt(f, GramaireCheck.parse(src), mode, layout))
 
   // `gramaire codegen-regen`: regenerate `Generated/LrReduce.scala` from
-  // the bootstrap grammar (mirrors `Gramaire.Codegen.Main`, the prior
-  // reference implementation's codegen entry point).
+  // the bootstrap grammar and the Scala action profile.
   private def runCodegenRegen(): Unit =
     IR.buildIR(Method.Canonical, "Lr", Bootstrap.bootstrapGrammar) match
       case Left(_) => die("codegen-regen: bootstrapGrammar is not parseable by Canonical LR(1)")

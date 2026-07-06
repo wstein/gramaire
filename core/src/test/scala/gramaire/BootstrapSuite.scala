@@ -1,8 +1,8 @@
 package gramaire
 
-// A structural sanity check only — the real parity gate (the generated
-// parser reads `Productions.gram.md` back to this exact value) lands with the
-// self-hosting proof once `Lr`/`Codegen` are ported.
+// A structural sanity check for the literal bootstrap value. The full parity
+// gates live in the JVM-only self-host suites, which parse `Productions.gram.md`
+// back to this value with both the hand-written and generated reducers.
 class BootstrapSuite extends munit.FunSuite:
   test("bootstrapGrammar has the eighteen `lr` notation rules, in source order") {
     val names = Bootstrap.bootstrapGrammar.rules.map(_.name)
