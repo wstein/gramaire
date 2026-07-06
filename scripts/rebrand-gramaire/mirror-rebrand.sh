@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Mirror a GitHub repo and rewrite its ENTIRE history to rebrand Gramark -> Gramaire (and the
 # already-shipped "Grimoire Notebook" feature naming -> "Gramaire", left over from the project's
-# OLD target name before the 2026-07-05 collision-risk pivot) and rename the .grmk/.grmk.md file
-# extension to .gram/.gram.md, via git-filter-repo.
+# OLD target name before the 2026-07-05 collision-risk pivot), rename the .grmk/.grmk.md file
+# extension to .gram/.gram.md, and remove the rebrand helper tooling under
+# scripts/rebrand-gramaire/ from the mirror history, via git-filter-repo.
 #
 # SAFETY MODEL (read this before running):
 #   - Operates ONLY on a fresh, disposable --mirror clone in $WORK_DIR. Your real working
@@ -91,6 +92,7 @@ echo "   - rename .grmk/.grmk.md -> .gram/.gram.md (paths + in-text mentions)"
 echo "   - rebrand Gramark -> Gramaire, gramark -> gramaire (paths + all text content)"
 echo "   - rebrand Grimoire -> Gramaire, grimoire -> gramaire (paths + all text content --"
 echo "     the shipped Grimoire Notebook feature's leftover old-target-name naming)"
+echo "   - remove scripts/rebrand-gramaire/ from the mirror history entirely"
 echo "   - leaving design/gramark-site-handoff/ paths alone (frozen historical reference)"
 echo
 read -r -p "Type 'yes' to proceed with this irreversible rewrite of the MIRROR clone: " CONFIRM
@@ -102,6 +104,13 @@ fi
 git -C "$MIRROR_DIR" filter-repo \
   --replace-text "$SCRIPT_DIR/replace-text-rules.txt" \
   --filename-callback "$(cat "$SCRIPT_DIR/rename_paths_callback.py")"
+
+git -C "$MIRROR_DIR" filter-repo \
+  --force \
+  --path 'scripts/rebrand-gramaire' \
+  --path-glob 'scripts/rebrand-gramaire/**' \
+  --invert-paths \
+  --prune-empty always
 
 echo
 echo "== Rewrite complete. Checking out a normal working copy for review =="
@@ -120,6 +129,8 @@ echo "-- remaining 'grimoire' (any case) mentions in the current tree tip, if an
 git -C "$REVIEW_CHECKOUT_DIR" grep -ilE 'grimoire' -- . 2>/dev/null | head -20 || echo "  (none)"
 echo "-- remaining .grmk/.grmk.md/.grmk.lock paths, if any:"
 git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -E '\.grmk(\.md|\.lock)?$' || echo "  (none)"
+echo "-- remaining scripts/rebrand-gramaire paths, if any:"
+git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -E '^scripts/rebrand-gramaire(/|$)' || echo "  (none)"
 echo "-- remaining Grimoire*-named paths, if any:"
 git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -iE 'grimoire' || echo "  (none)"
 echo "-- sample of the renamed grammar package + example + notebook files:"
