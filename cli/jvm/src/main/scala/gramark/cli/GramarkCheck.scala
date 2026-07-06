@@ -19,11 +19,11 @@ import gramark.{Analyze, Lr, Railroad}
 object GramarkCheck:
   import Railroad.{DiaSym, Production}
 
-  // The one section every grammar file ends with. `Precedence` and
-  // `Error messages` are each optional and slot in before it, in that order,
-  // when present — a grammar with no operator-precedence declarations, or no
-  // curated per-state messages (a plain ```text fence now, not grammar
-  // notation), omits the corresponding section entirely.
+  // The one section every grammar file ends with. `Precedence`, `Externals`, and `Error messages`
+  // are each optional and slot in before it, in that order, when present — a grammar with no
+  // operator-precedence declarations, no `-> name` delegate embedding its own implementation
+  // (ADR D49), or no curated per-state messages (a plain ```text fence now, not grammar notation),
+  // omits the corresponding section entirely.
   private val alwaysTail: Vector[String] = Vector("Generated tables")
 
   // ---- Domain types (mirror the prior TypeScript/reference-implementation ADTs) -------------
@@ -168,13 +168,17 @@ object GramarkCheck:
     // (document-level directives like `lang:`), then the optional Tokens
     // section (alphabet before grammar; lexer-spec §9), then each
     // lr-nonterminal as an H2 in block order, then the optional Precedence
-    // section, then Error messages and Generated tables. Only the H1 and H2
-    // layers are structural — `###`+ headings are deliberately ignored here
-    // (free presentational grouping; ADR D29).
+    // section, then the optional Externals section (ADR D49: `### name`
+    // subsections embedding a `-> name` delegate's implementation), then
+    // Error messages and Generated tables. Only the H1 and H2 layers are
+    // structural — `###`+ headings are deliberately ignored here (free
+    // presentational grouping; ADR D29) — `## Externals`'s own `### name`
+    // subsections are validated by `Lr.parseWith` itself, not this gate.
     val ruleNames = doc.blocks.filter(_.kind.contains(Lr.FenceKind.Rule)).flatMap(_.nonterminal)
     val h2 = doc.headings.filter(_.level == 2).map(_.text)
     val tail =
       (if h2.contains("Precedence") then Vector("Precedence") else Vector.empty) ++
+        (if h2.contains("Externals") then Vector("Externals") else Vector.empty) ++
         (if h2.contains("Error messages") then Vector("Error messages") else Vector.empty) ++
         alwaysTail
     val expected =

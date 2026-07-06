@@ -92,7 +92,26 @@ object IRDecode:
       strategy <- optStr(o, "strategy")
       atn <- optAtnLexer(o, "atn", decodeAtn)
       rewritten <- optAtnLexer(o, "rewritten", decodeRewrittenGrammar)
-    yield IR(irVersion, strategy.getOrElse("lr"), grammar, tables, conflicts, lexer, atn, rewritten)
+      externals <- optArr(o, "externals", decodeExternal)
+    yield IR(
+      irVersion,
+      strategy.getOrElse("lr"),
+      grammar,
+      tables,
+      conflicts,
+      lexer,
+      atn,
+      rewritten,
+      externals
+    )
+
+  private def decodeExternal(j: Json): Either[String, IRExternal] =
+    for
+      o <- obj(j)
+      name <- field(o, "name").flatMap(str)
+      implKvs <- field(o, "impl").flatMap(obj)
+      impl <- traverseV(implKvs) { case (k, v) => str(v).map(k -> _) }
+    yield IRExternal(name, impl.toMap)
 
   private def optAtnLexer[A](
       kvs: Vector[(String, Json)],

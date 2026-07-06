@@ -83,6 +83,36 @@ class GramarkCheckSuite extends munit.FunSuite:
     assertEquals(GramarkCheck.checkStructure(doc), Vector.empty)
   }
 
+  // ADR D49: `## Externals` is a new reserved H2, slotting in after the optional `## Precedence`
+  // and before the optional `## Error messages`/the always-present `## Generated tables` — the
+  // `### name` subsections underneath it are `###`+ headings, deliberately ignored by this gate
+  // exactly like any other free presentational grouping (ADR D29); only the `## Externals` H2
+  // itself is structural.
+  test(
+    "checkStructure: a document with a `## Externals` section between Precedence and Error messages passes"
+  ) {
+    val doc = GramarkCheck.parse(
+      "# T\n\n## General settings\n\n```gramark\nname: T\n```\n\n## A\n\n```gramark\nA\n  : 'x' -> Add\n  ;\n```\n\n## Precedence\n\n```gramark\n%left '+'\n```\n\n## Externals\n\n### Add\n\n```javascript\n() => null\n```\n\n## Error messages\n\nx\n\n## Generated tables\n\n| a |\n"
+    )
+    assertEquals(GramarkCheck.checkStructure(doc), Vector.empty)
+  }
+
+  test("checkStructure: a document with no ## Externals section still passes (optional)") {
+    val doc = GramarkCheck.parse(
+      "# T\n\n## General settings\n\n```gramark\nname: T\n```\n\n## A\n\n```gramark\nA\n  : 'x'\n  ;\n```\n\n## Generated tables\n\n| a |\n"
+    )
+    assertEquals(GramarkCheck.checkStructure(doc), Vector.empty)
+  }
+
+  test(
+    "checkStructure: a `## Externals` section placed BEFORE the rule sections fails (out of canonical order)"
+  ) {
+    val doc = GramarkCheck.parse(
+      "# T\n\n## General settings\n\n```gramark\nname: T\n```\n\n## Externals\n\n### Add\n\n```javascript\n() => null\n```\n\n## A\n\n```gramark\nA\n  : 'x' -> Add\n  ;\n```\n\n## Generated tables\n\n| a |\n"
+    )
+    assert(GramarkCheck.checkStructure(doc).exists(_.contains("out of canonical order")))
+  }
+
   test("checkStructure: a missing name: directive fails, even when everything else is clean") {
     val doc = GramarkCheck.parse(
       "# T\n\n## A\n\n```gramark\nA\n  : 'x'\n  ;\n```\n\n## Error messages\n\nx\n\n## Generated tables\n\n| a |\n"

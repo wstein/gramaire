@@ -166,6 +166,16 @@ only the open-ended classes.
   block then lists class names with **no** patterns, and the grammar declares it
   brings its own lexer (today's behaviour, preserved for fully context-sensitive
   languages). Default mode is in-file regular lexing.
+- **Not to be confused with `-> IDENT` on a rule alternative (ADR D48/D48-args)** — the
+  `ARROW` token this section's `-> skip`/`-> pass` modifiers use is reused, unambiguously,
+  by a second, unrelated notation: a rule alternative's own trailing `-> IDENT` /
+  `-> IDENT(args...)` slot names an implementation for that ALTERNATIVE's action, not a
+  post-lex pass. The two occur in disjoint grammatical positions (a token-line modifier
+  here vs. an alternative's trailing slot there) and are resolved differently: a `-> pass`
+  name is always a host-registered post-lex function; a rule alternative's `-> name` is
+  resolved, in order, by an embedded `### name` implementation under the document's own
+  `## Externals` section (ADR D49) if one is present, else a consumer-supplied
+  implementation at runtime, exactly like `-> pass` always was.
 - **Out of scope:** an external pass reclassifies tokens from lexical context (surrounding
   characters, offside runs); it does not and will not carry _parse_ state back into
   the scanner (the classic C-typedef "lexer hack"), since the scanner runs as a

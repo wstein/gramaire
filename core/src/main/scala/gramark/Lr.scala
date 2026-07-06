@@ -426,15 +426,133 @@ object Lr:
     val docs = docCommentsOf(md)
     g.copy(rules = g.rules.map(r => if r.doc.isDefined then r else r.copy(doc = docs.get(r.name))))
 
-  /** Parses `md` and attaches its own rules' leading doc comments (ADR D39) in one step — every
-    * real IR-building caller that wants `IRNonterminal.comment` populated (the CLI's `gramark
-    * emit`, and any future `lab`/browser consumer) should build from this, not the bare
-    * `parseWith`, so a rule's own leading prose survives end to end. Lives in `core` (not the
-    * `cli`-only `Main.scala`, where this was first added) so `lab` — which depends on `core` but
-    * not on `cli` — can reach it too, without a second, drifting copy of this same composition.
+  // ---- `## Externals` section (ADR D49): fenced host-language implementations for a `-> name` /
+  // `-> name(args)` alternative delegate ------------------------------------------------------
+
+  // One `### <name>` subsection's own real-language fence: its info-string's first word (the
+  // language tag, e.g. "javascript") and code text — genuine host code, distinct from the
+  // grammar's own bare ```gramark fences (`fenceOrigins`), never parsed here, only carried
+  // through as opaque text for a later backend to emit verbatim.
+  private final case class ExternalFence(lang: String, content: String)
+  private final case class ExternalSubsection(
+      name: String,
+      headingSpan: SrcSpan,
+      fences: Vector[ExternalFence]
+  )
+
+  private val externalsHeadingRe = "^##\\s+Externals\\s*$".r
+  private val anyH2Re = "^##\\s+\\S.*$".r
+  private val externalNameHeadingRe = "^###\\s+(\\S+)\\s*$".r
+  private val anyFenceOpenRe = "^(`{3,})(\\S+)?.*$".r
+  private val anyFenceCloseRe = "^(`{3,})\\s*$".r
+
+  // Every `### <name>` subsection of `fencedMd`'s own `## Externals` section (if it has one),
+  // each with its own real-language fences extracted, in document order. `fencedMd` is assumed
+  // already fenced (a `.grmk.md` always is; a fence-free `.grmk` never has `## ` headings at all,
+  // so there is nothing here for `toFenced` to reconstruct). Empty when the document has no
+  // `## Externals` section.
+  private def externalsSections(fencedMd: String): Vector[ExternalSubsection] =
+    val lines = fencedMd.split("\n", -1).toVector
+    val lineStarts: Vector[Int] = lines.scanLeft(0)((acc, l) => acc + l.length + 1).init
+    val startIdx = lines.indexWhere(externalsHeadingRe.matches)
+    if startIdx < 0 then Vector.empty
+    else
+      val endIdx = ((startIdx + 1) until lines.length)
+        .find(i => anyH2Re.matches(lines(i)))
+        .getOrElse(lines.length)
+      val body = lines.slice(startIdx + 1, endIdx)
+      val bodyBase = startIdx + 1
+
+      final case class Sub(name: String, headingLine: Int, lines: Vector[String])
+      val subsBuilder = Vector.newBuilder[Sub]
+      var i = 0
+      while i < body.length do
+        body(i) match
+          case externalNameHeadingRe(name) =>
+            var j = i + 1
+            while j < body.length && externalNameHeadingRe.findFirstIn(body(j)).isEmpty do j += 1
+            subsBuilder += Sub(name, bodyBase + i, body.slice(i + 1, j))
+            i = j
+          case _ => i += 1
+      subsBuilder.result().map { sub =>
+        val fences = Vector.newBuilder[ExternalFence]
+        var k = 0
+        while k < sub.lines.length do
+          sub.lines(k) match
+            case anyFenceOpenRe(backticks, langOpt) =>
+              // A regex extractor binds a non-participating optional group (`(\S+)?` on a bare
+              // ``` opener) to `null`, not `None` — `Regex.unapplySeq` yields a `List[String]`,
+              // never an `Option[String]` per group.
+              val lang = Option(langOpt).map(_.trim).getOrElse("")
+              val len = backticks.length
+              var m = k + 1
+              val content = Vector.newBuilder[String]
+              while m < sub.lines.length && anyFenceCloseRe
+                  .findFirstMatchIn(sub.lines(m))
+                  .forall(_.group(1).length < len)
+              do
+                content += sub.lines(m)
+                m += 1
+              if lang.nonEmpty && lang != "gramark" then
+                fences += ExternalFence(lang, content.result().mkString("\n"))
+              k = m + 1
+            case _ => k += 1
+        val headingSpan =
+          SrcSpan(
+            lineStarts(sub.headingLine),
+            lineStarts(sub.headingLine) + lines(sub.headingLine).length
+          )
+        ExternalSubsection(sub.name, headingSpan, fences.result())
+      }
+
+  // A `### name` subsection with no real-language fence at all is a real, located diagnostic
+  // error — an extractor that silently skipped it would make an author's forgotten implementation
+  // invisible (the delegate it names would then just silently fall back to a consumer-supplied
+  // one, exactly as if the `### name` heading had never been written at all). Checked as a hard
+  // gate every `parseWith`/`parse` caller sees (`tokenizeDocument`), the same way a legacy fence
+  // or a malformed token definition already is.
+  private def externalsDiagnostics(fencedMd: String): Vector[Diagnostic] =
+    externalsSections(fencedMd).collect {
+      case sub if sub.fences.isEmpty =>
+        Diagnostic.error(
+          Stage.Parse,
+          s"external `${sub.name}` has no fenced implementation",
+          Some(sub.headingSpan),
+          Vector(
+            "help: add a real-language fence (e.g. ```javascript) under this heading with the " +
+              "implementation body, or remove the heading"
+          )
+        )
+    }
+
+  /** Every `### <name>` subsection's own real-language fence(s), keyed by name — the `## Externals`
+    * section's embedded-implementation data (ADR D49), attached to a `Grammar` via `withExternals`.
+    * A subsection with no valid fence contributes nothing here; every real `parseWith`/`parse`
+    * caller already rejected that shape as a hard error before this can ever run against it
+    * (`externalsDiagnostics`), so this stays a plain, non-`Either` extraction, same as
+    * `docCommentsOf`.
+    */
+  def externalsOf(md: String): Vector[GrammarExternal] =
+    externalsSections(toFenced(md))
+      .filter(_.fences.nonEmpty)
+      .map(sub => GrammarExternal(sub.name, sub.fences.map(f => f.lang -> f.content).toMap))
+
+  /** Attach the `## Externals` section's embedded implementations (ADR D49) as `Grammar.externals`
+    * — mirrors `withDocComments` exactly: never called by `parseWith`/`parse` themselves, only by a
+    * caller that explicitly wants this data (`parseWithDocs`, and any future IR-building command).
+    */
+  def withExternals(g: Grammar, md: String): Grammar =
+    g.copy(externals = externalsOf(md))
+
+  /** Parses `md` and attaches its own rules' leading doc comments (ADR D39) and its `## Externals`
+    * embedded implementations (ADR D49) in one step — every real IR-building caller (the CLI's
+    * `gramark emit`, and any future `lab`/browser consumer) should build from this, not the bare
+    * `parseWith`, so both survive end to end. Lives in `core` (not the `cli`-only `Main.scala`,
+    * where this was first added) so `lab` — which depends on `core` but not on `cli` — can reach it
+    * too, without a second, drifting copy of this same composition.
     */
   def parseWithDocs(method: Method, md: String): Either[Vector[Diagnostic], Grammar] =
-    parseWith(method, md).map(g => withDocComments(g, md))
+    parseWith(method, md).map(g => withExternals(withDocComments(g, md), md))
 
   // A token-class definition line: an ALL-CAPS name then `:` on one
   // unindented line. A production head is a Mixed-case name on its OWN
@@ -585,17 +703,20 @@ object Lr:
     val legacy = legacyFenceDiagnostics(fenced)
     if legacy.nonEmpty then Left(legacy)
     else
-      val origins = fenceOrigins(fenced)
-      val tokenDiags = tokenValidityDiagnostics(origins)
-      if tokenDiags.nonEmpty then Left(tokenDiags)
+      val extDiags = externalsDiagnostics(fenced)
+      if extDiags.nonEmpty then Left(extDiags)
       else
-        val ruleOrigins = origins.filter(_.kind == FenceKind.Rule)
-        val segs = buildSegs(ruleOrigins)
-        val virtualSrc = ruleOrigins.map(_.content).mkString("\n") + "\n"
-        val docSpanned = Scanner.scanSpanned(lrScanItems, virtualSrc).map(mapSpanned(segs, _))
-        val errorRuns = Scanner.mergeErrorRuns(docSpanned)
-        if errorRuns.nonEmpty then Left(errorRuns.map(unmatchedRunDiagnostic))
-        else Right(Lexer.normalizeNewlinesSpanned(docSpanned))
+        val origins = fenceOrigins(fenced)
+        val tokenDiags = tokenValidityDiagnostics(origins)
+        if tokenDiags.nonEmpty then Left(tokenDiags)
+        else
+          val ruleOrigins = origins.filter(_.kind == FenceKind.Rule)
+          val segs = buildSegs(ruleOrigins)
+          val virtualSrc = ruleOrigins.map(_.content).mkString("\n") + "\n"
+          val docSpanned = Scanner.scanSpanned(lrScanItems, virtualSrc).map(mapSpanned(segs, _))
+          val errorRuns = Scanner.mergeErrorRuns(docSpanned)
+          if errorRuns.nonEmpty then Left(errorRuns.map(unmatchedRunDiagnostic))
+          else Right(Lexer.normalizeNewlinesSpanned(docSpanned))
 
   // A run of unmatched characters, rendered as a lexical diagnostic. A run that STARTS with a
   // quote is almost always an unterminated string literal — since `TERM_LIT` no longer spans
@@ -840,12 +961,33 @@ object Lr:
                 )
               )
 
+  // A `### name` external (ADR D49) defined under `## Externals` but never referenced by any
+  // `-> name`/`-> name(args)` alternative delegate anywhere in the grammar — same "warn on
+  // likely-unused, never hard-fail" philosophy as `unusedTokenWarnings`. The opposite shape (a
+  // `-> name` delegate with NO matching `### name`) is deliberately NOT warned about here: that is
+  // today's default, unchanged, behavior — the consumer/host simply supplies it out-of-band at
+  // runtime.
+  private def unusedExternalWarnings(md: String, g: Grammar): Vector[Diagnostic] =
+    val sections = externalsSections(toFenced(md)).filter(_.fences.nonEmpty)
+    if sections.isEmpty then Vector.empty
+    else
+      val referenced: Set[String] = g.rules.flatMap(_.alts.flatMap(_.delegate.map(_.name))).toSet
+      sections
+        .filterNot(sub => referenced.contains(sub.name))
+        .map(sub =>
+          Diagnostic.warning(
+            Stage.Desugar,
+            s"external `${sub.name}` is defined but never referenced by any `-> ${sub.name}` delegate (ignored)",
+            Some(sub.headingSpan)
+          )
+        )
+
   /** Soft diagnostics for a `.grmk.md`/`.grmk` document that parses cleanly — none of these reject
     * the grammar; they exist to catch an author's typo the compile pipeline would otherwise never
-    * surface (an unrecognized `#[attr]`/`%setting` is silently ignored, an unreachable rule or
-    * unused token class silently does nothing). Computed against the RAW parsed grammar, not the
-    * desugared one `parseWith` returns — see `parseRaw`'s own doc comment. Empty if the document
-    * doesn't even parse (`parseWith`'s own diagnostics already say why).
+    * surface (an unrecognized `#[attr]`/`%setting` is silently ignored, an unreachable rule, unused
+    * token class, or unused `## Externals` entry silently does nothing). Computed against the RAW
+    * parsed grammar, not the desugared one `parseWith` returns — see `parseRaw`'s own doc comment.
+    * Empty if the document doesn't even parse (`parseWith`'s own diagnostics already say why).
     */
   def warningsFor(md: String): Vector[Diagnostic] =
     parseRaw(Method.Canonical, md) match
@@ -853,7 +995,8 @@ object Lr:
       case Right((g, normalized)) =>
         val spans = SpanIndex.build(normalized)
         unknownAttrWarnings(g, spans) ++ unknownSettingWarnings(md) ++
-          unreachableRuleWarnings(g, spans) ++ unusedTokenWarnings(md, g)
+          unreachableRuleWarnings(g, spans) ++ unusedTokenWarnings(md, g) ++
+          unusedExternalWarnings(md, g)
 
   /** The declared operator precedence of a `.grmk.md` (its Precedence-role fence content, gathered
     * across the whole document), or empty if it has none.

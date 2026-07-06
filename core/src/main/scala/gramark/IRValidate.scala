@@ -186,6 +186,16 @@ object IRValidate:
        else Vector(s"rewritten: start '${rg.start}' is not a declared rule")) ++
         rg.rules.flatMap(checkRewrittenRule(ruleNames))
 
+    def checkExternal(idx: Int, e: IRExternal): Vector[String] =
+      (if e.name.nonEmpty then Vector.empty
+       else Vector(s"externals[$idx]: name must not be empty")) ++
+        (if e.impl.nonEmpty then Vector.empty
+         else Vector(s"externals[$idx]: impl must not be empty")) ++
+        e.impl.keys.toVector.flatMap(k =>
+          if k.nonEmpty then Vector.empty
+          else Vector(s"externals[$idx]: impl language tag must not be empty")
+        )
+
     contiguous("terminal", termIds) ++
       contiguous("nonterminal", ntIds) ++
       contiguous("rule", ruleIds) ++
@@ -198,4 +208,5 @@ object IRValidate:
       ir.tables.glr.toVector.flatMap(gl => gl.conflictStates.flatMap(checkConflictState)) ++
       ir.lexer.toVector.flatMap(checkLexer) ++
       ir.atn.toVector.flatMap(checkAtn) ++
-      ir.rewritten.toVector.flatMap(checkRewritten)
+      ir.rewritten.toVector.flatMap(checkRewritten) ++
+      ir.externals.zipWithIndex.flatMap { case (e, i) => checkExternal(i, e) }

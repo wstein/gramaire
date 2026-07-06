@@ -49,6 +49,13 @@
     "rewritten": {
       "$ref": "#/$defs/rewrittenGrammar",
       "description": "The CST-fold-back section: the left-recursion-eliminated, precedence-stratified grammar Ll.parse walks, pre-tagged for a codegen backend. Present under 'll-star' for every grammar that successfully desugars, INCLUDING one with a Paull-substitution-eligible rule (that shape is tested and supported); absent only when Desugar fails, or the grammar's shape is a genuinely indirectly/mutually left-recursive one not yet verified against a reference behavior."
+    },
+    "externals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/external"
+      },
+      "description": "The document's own `## Externals` section (ADR D49): each `### <name>` subsection's embedded implementation(s). Omitted when the document has none. A `-> name`/`-> name(args)` alternative delegate is resolved, in order, by an entry here matching its name if present, else a consumer-supplied implementation at runtime (unchanged from ADR D48/D48-args)."
     }
   },
   "$defs": {
@@ -314,6 +321,27 @@
           "description": "Each parenthesized argument's literal source text (an identifier's name, a literal's unescaped content, or a number's digit string), in order. Empty for the bare `-> IDENT` form.",
           "type": "array",
           "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "external": {
+      "description": "One `### <name>` subsection's own embedded implementation(s) under the document's `## Externals` section (ADR D49). `name` matches the `name` of every `-> name`/`-> name(args)` alternative delegate (`#/$defs/delegate`) it resolves. Document-level: lives directly in the top-level `externals` array, not inside any particular rule.",
+      "type": "object",
+      "required": [
+        "name",
+        "impl"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "impl": {
+          "description": "Maps a real-language fence's language tag (e.g. \"javascript\", \"rust\") to that fence's code text, one entry per target profile the author chose to embed under this heading.",
+          "type": "object",
+          "additionalProperties": {
             "type": "string"
           }
         }

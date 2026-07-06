@@ -136,6 +136,16 @@ enum IRRef derives CanEqual:
 // content, or a number's digit string), in order.
 final case class IRDelegate(name: String, args: Vector[String])
 
+// One `### <name>` subsection's own embedded implementation(s) under the document's `## Externals`
+// section (ADR D49) — mirrors `GrammarExternal` exactly. `name` matches the `IRDelegate.name` of
+// every `-> name`/`-> name(args)` alternative delegate it resolves; `impl` maps a real-language
+// fence's language tag to that fence's code text, one entry per target profile the author chose to
+// embed. Document-level, not per-rule — lives on `IR` itself (alongside `grammar`/`tables`/
+// `conflicts`), not inside `IRRule`: a `-> name` delegate is resolved, in order, by an embedded
+// `### name` implementation here if present, else a consumer-supplied one at runtime (unchanged
+// from ADR D48/D48-args).
+final case class IRExternal(name: String, impl: Map[String, String])
+
 // A single production. `actions` maps a profile name to its opaque,
 // untrusted host-language text; empty when the alternative has no
 // action. Kept as a `Map` (not an ordered array of pairs, as the prior
@@ -225,7 +235,8 @@ final case class IR(
     lexer: Option[IRLexer],
     atn: Option[IRAtn], // the serialized ATN, present under `ll-star`
     rewritten: Option[IRRewrittenGrammar] =
-      None // the CST-fold-back section, see `rewrittenGrammarOf`
+      None, // the CST-fold-back section, see `rewrittenGrammarOf`
+    externals: Vector[IRExternal] = Vector.empty // `## Externals` embedded implementations (D49)
 )
 
 object IR:
@@ -411,7 +422,8 @@ object IR:
             tables = assembleTables(algorithmName(method), termId, ntId, table),
             conflicts = Vector.empty,
             lexer = None,
-            atn = None
+            atn = None,
+            externals = g.externals.map(e => IRExternal(e.name, e.impl))
           )
         )
 
@@ -757,11 +769,22 @@ object IR:
         )
       )
 
+    def externalJson(e: IRExternal): Json =
+      Json.JObject(
+        Vector(
+          "name" -> Json.JString(e.name),
+          "impl" -> Json.JObject(e.impl.toVector.map { case (k, v) => k -> Json.JString(v) })
+        )
+      )
+
     val strategyEntry =
       if ir.strategy == "lr" then Vector.empty else Vector("strategy" -> Json.JString(ir.strategy))
     val lexerEntry = ir.lexer.map(lx => "lexer" -> lexerJson(lx)).toVector
     val atnEntry = ir.atn.map(a => "atn" -> atnJson(a)).toVector
     val rewrittenEntry = ir.rewritten.map(rg => "rewritten" -> rewrittenGrammarJson(rg)).toVector
+    val externalsEntry =
+      if ir.externals.isEmpty then Vector.empty
+      else Vector("externals" -> Json.JArray(ir.externals.map(externalJson)))
 
     Json.JObject(
       Vector("irVersion" -> Json.JInt(ir.irVersion)) ++ strategyEntry ++
@@ -769,7 +792,7 @@ object IR:
           "grammar" -> grammarJson(ir.grammar),
           "tables" -> tablesJson(ir.tables),
           "conflicts" -> Json.JArray(ir.conflicts.map(conflictJson))
-        ) ++ lexerEntry ++ atnEntry ++ rewrittenEntry
+        ) ++ lexerEntry ++ atnEntry ++ rewrittenEntry ++ externalsEntry
     )
 
   /** Build the IR and attach the grammar's lexis (lexer-spec §7). */
