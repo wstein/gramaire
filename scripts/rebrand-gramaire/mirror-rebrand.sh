@@ -103,7 +103,7 @@ fi
 
 COMMIT_MSG_CALLBACK_CODE="import subprocess, sys; return subprocess.check_output([sys.executable, r'$SCRIPT_DIR/commit_msg_callback.py'], input=message)"
 BLOB_CALLBACK_FILE="$WORK_DIR/blob_callback.py"
-cat > "$BLOB_CALLBACK_FILE" <<'PY'
+cat > "$BLOB_CALLBACK_FILE" <<PY
 import importlib.util
 
 spec = importlib.util.spec_from_file_location('rebrand_logic', r'$SCRIPT_DIR/rebrand_logic.py')
