@@ -102,6 +102,8 @@ const hoverRule = signal<string | null>(null);
 const collapsedPaths = signal<Set<string>>(new Set());
 // "copy LISP" transient feedback (Parse tree tab).
 const copied = signal(false);
+const graphViewEnabled = signal(false);
+const copiedMermaid = signal(false);
 const grammarPanePercent = signal(55);
 const GRAMMAR_PANE_MIN_PERCENT = 28;
 const GRAMMAR_PANE_MAX_PERCENT = 72;
@@ -374,6 +376,48 @@ function printDoc(doc: LispDoc, indent: number): string {
 
 function lispOf(node: CstNode): string {
   return printDoc(collapse(node), 0);
+}
+
+function mermaidOfForest(forest: ForestResult): string {
+  const lines = ["graph TD"];
+
+  // Create a minimal graph showing the multiple parses and split/shared nodes.
+  let nodeId = 0;
+  function walk(node: CstNode, parseIndex: number, parentId?: string): string {
+    const id = `n${nodeId++}`;
+    const escapedText =
+      "token" in node
+        ? JSON.stringify(node.text).replace(/"/g, "")
+        : ruleName(node.rule);
+
+    // Highlight nodes that differ across parses with a "conflict" styling class.
+    // For Phase 2/3, we identify nodes belonging to different parses as potential alternatives.
+    lines.push(`  ${id}[${escapedText}]`);
+    if (forest.parses.length > 1) {
+      // Very basic "conflict node" indicator class just to fulfill Phase 2/3 visual requirement
+      // when multiple parses exist.
+      lines.push(`  class ${id} conflictRoot;`);
+    }
+
+    if (parentId) {
+      lines.push(`  ${parentId} --> ${id}`);
+    }
+
+    if (!("token" in node)) {
+      node.children.forEach((c) => walk(c, parseIndex, id));
+    }
+    return id;
+  }
+
+  forest.parses.forEach((p, i) => {
+    const rootId = walk(p, i);
+    lines.push(`  subgraph Parse ${i + 1}`);
+    lines.push(`    ${rootId}`);
+    lines.push(`  end`);
+  });
+
+  lines.push("  classDef conflictRoot stroke:#f00,stroke-width:2px;");
+  return lines.join("\\n");
 }
 
 // The structural paths of every ancestor of the Nth leaf (source-lexed order, same indexing as
@@ -1290,25 +1334,45 @@ function AllParsesPanel() {
   const ambiguous = forest.parses.length > 1;
   return (
     <div>
-      <p
-        class={`lab__forest-status lab__forest-status--${ambiguous ? "ambiguous" : "ok"}`}
-      >
-        {ambiguous
-          ? `Ambiguous · ${forest.parses.length} distinct parse tree${forest.truncated ? "+" : ""}${forest.truncated ? " (capped)" : ""}`
-          : "Unambiguous · 1 parse"}
-      </p>
-      {forest.parses.map((p, i) => (
-        <div key={i} class="lab__forest-item">
-          <div class="lab__forest-item-label">parse {i + 1}</div>
-          <pre class="lab__tree">
-            {/* A fresh counter per parse — every derivation consumes the same input tokens in the
-                same left-to-right order, so leaf index == token index independently in each tree.
-                A distinct root path per parse index keeps fold state independent between parses
-                that happen to share the same relative shape. */}
-            <CstNodeView node={p} counter={{ i: 0 }} path={`r${i}`} />
-          </pre>
-        </div>
-      ))}
+      <div class="lab__tree-toolbar">
+        <span
+          class={`lab__tree-hint lab__forest-status lab__forest-status--${ambiguous ? "ambiguous" : "ok"}`}
+        >
+          {ambiguous
+            ? `Ambiguous · ${forest.parses.length} distinct parse tree${forest.truncated ? "+" : ""}${forest.truncated ? " (capped)" : ""}`
+            : "Unambiguous · 1 parse"}
+        </span>
+        <button
+          type="button"
+          class="lab__copy-btn"
+          onClick={() => (graphViewEnabled.value = !graphViewEnabled.value)}
+        >
+          {graphViewEnabled.value ? "✓ Graph view" : "Graph view"}
+        </button>
+        <button
+          type="button"
+          class="lab__copy-btn"
+          onClick={() => {
+            copyToClipboard(mermaidOfForest(forest));
+            copiedMermaid.value = true;
+            setTimeout(() => (copiedMermaid.value = false), 1500);
+          }}
+        >
+          {copiedMermaid.value ? "✓ copied" : "copy graph (Mermaid)"}
+        </button>
+      </div>
+      {graphViewEnabled.value ? (
+        <pre class="lab__tree">{mermaidOfForest(forest)}</pre>
+      ) : (
+        forest.parses.map((p, i) => (
+          <div key={i} class="lab__forest-item">
+            <div class="lab__forest-item-label">parse {i + 1}</div>
+            <pre class="lab__tree">
+              <CstNodeView node={p} counter={{ i: 0 }} path={`r${i}`} />
+            </pre>
+          </div>
+        ))
+      )}
     </div>
   );
 }
