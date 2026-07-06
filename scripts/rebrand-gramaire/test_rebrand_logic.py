@@ -9,6 +9,10 @@ class RebrandLogicTests(unittest.TestCase):
         self.assertEqual(rewrite_path("brand/gramark-wordmark.svg"), "brand/gramaire-wordmark.svg")
         self.assertEqual(rewrite_path("grammar/Gramark.grmk.md"), "grammar/Gramaire.gram.md")
         self.assertEqual(
+            rewrite_path("examples/lua.grmk.native-grmk.lock"),
+            "examples/lua.gram.native-gram.lock",
+        )
+        self.assertEqual(
             rewrite_path("design/gramark-site-handoff/Gramark Site.dc.html"),
             "design/gramark-site-handoff/Gramark Site.dc.html",
         )
@@ -20,6 +24,15 @@ class RebrandLogicTests(unittest.TestCase):
                 "README.md",
             ),
             b"![Gramaire](brand/gramaire-wordmark.svg)\n```gramaire\nx.gram.md\n```",
+        )
+
+    def test_generated_engine_source_map_reference_is_removed(self) -> None:
+        self.assertEqual(
+            rewrite_text(
+                b"export { evaluate };\n//# sourceMappingURL=gramaire-engine.mjs.map\n",
+                "site/src/generated/gramaire-engine.mjs",
+            ),
+            b"export { evaluate };\n",
         )
 
     def test_plan_docs_are_not_rewritten(self) -> None:
