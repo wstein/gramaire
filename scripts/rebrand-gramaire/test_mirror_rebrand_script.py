@@ -12,6 +12,8 @@ class MirrorRebrandScriptTests(unittest.TestCase):
         script = SCRIPT_PATH.read_text(encoding="utf-8")
         self.assertIn("--message-callback", script)
         self.assertNotIn("--commit-callback", script)
+        self.assertIn('git -C "$MIRROR_DIR" filter-repo \\', script)
+        self.assertIn("--file-info-callback", script)
         self.assertIn("commit_msg_callback.py", script)
 
 
