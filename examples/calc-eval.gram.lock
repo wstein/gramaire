@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mode": "sidecar",
+  "sourceLayout": "collapsed",
+  "grammarSha256": "871fe1f092a8b60a7929f3aceb6c337734d9bd76eccdea184638bce932a496e3",
+  "artifacts": [
+    {
+      "kind": "railroad",
+      "nonterminal": "Expr",
+      "path": "diagrams-calc-eval/expr.svg",
+      "sourceSha256": "9f9b2f02a1b3d2a30be5634b4c0ad854c7e07337718b85a8e5c63ae860e30941"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Term",
+      "path": "diagrams-calc-eval/term.svg",
+      "sourceSha256": "e26cf6bbd5f9bdf3bd44c80dd3d348c12beea329530c06dd853e5193bbb039a6"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Factor",
+      "path": "diagrams-calc-eval/factor.svg",
+      "sourceSha256": "92d907e7d3fc5b54839b7c1fe5435b9fefce4c8032c53c38502ba527f42c9512"
+    },
+    {
+      "kind": "tables",
+      "section": "Generated tables",
+      "sourceSha256": "871fe1f092a8b60a7929f3aceb6c337734d9bd76eccdea184638bce932a496e3"
+    }
+  ]
+}
