@@ -46,6 +46,40 @@ class GramaireLintSuite extends munit.FunSuite:
     Vector(Rule("Expr", Vector.empty, Vector(Alt(Vector(Ref("NUM")), None, None))))
   )
 
+  private val altLabelGrammar = Grammar(
+    Vector(
+      Rule(
+        "Expr",
+        Vector.empty,
+        Vector(
+          Alt(Vector(Ref("NUM")), Some("Num"), None),
+          Alt(Vector(Ref("NUM"), Lit("+"), Ref("NUM")), None, None)
+        )
+      )
+    )
+  )
+
+  private val predicateGrammar = Grammar(
+    Vector(
+      Rule(
+        "Expr",
+        Vector.empty,
+        Vector(
+          Alt(Vector(Ref("NUM")), None, Some("? true")),
+          Alt(Vector(Ref("NUM"), Lit("+"), Ref("NUM")), None, None)
+        )
+      )
+    )
+  )
+
+  private val caselessGrammar = Grammar(
+    Vector(Rule("Stmt", Vector.empty, Vector(Alt(Vector(Ref("SELECT")), None, None))))
+  )
+
+  private val caselessTokenDefs = Vector(
+    TokenDef("SELECT", TokenPattern.Exact("select"), false, None, None, true)
+  )
+
   test("precedenceLoss: a non-empty ## Precedence is reported lost against --target antlr") {
     IR.buildIRP(prec, Method.Canonical, "P", precGrammar) match
       case Left(e) => fail(s"should build: $e")
@@ -130,6 +164,78 @@ class GramaireLintSuite extends munit.FunSuite:
       case Right(ir) => assertEquals(GramaireLint.externalsLoss(ir, "js"), Vector.empty)
   }
 
+  test("altLabelLoss: a labeled alternative is reported lost against --target antlr") {
+    IR.buildIR(Method.Canonical, "P", altLabelGrammar) match
+      case Left(e) => fail(s"should build: $e")
+      case Right(ir) =>
+        val findings = GramaireLint.altLabelLoss(ir, "antlr")
+        assert(findings.nonEmpty, "expected an alt-label-loss finding")
+        assert(findings.head.contains("Num"), findings.head)
+  }
+
+  test("altLabelLoss: the same grammar is also reported lost against bison") {
+    IR.buildIR(Method.Canonical, "P", altLabelGrammar) match
+      case Left(e)   => fail(s"should build: $e")
+      case Right(ir) => assert(GramaireLint.altLabelLoss(ir, "bison").nonEmpty)
+  }
+
+  test("altLabelLoss: a grammar with no alt label reports clean against antlr") {
+    IR.buildIR(Method.Canonical, "P", cleanGrammar) match
+      case Left(e)   => fail(s"should build: $e")
+      case Right(ir) => assertEquals(GramaireLint.altLabelLoss(ir, "antlr"), Vector.empty)
+  }
+
+  test("caselessLoss: a @caseless token class is reported silently narrowed against antlr") {
+    IR.buildIRWithTokens(caselessTokenDefs, Method.Canonical, "P", caselessGrammar) match
+      case Left(e) => fail(s"should build: $e")
+      case Right(ir) =>
+        val findings = GramaireLint.caselessLoss(ir, "antlr")
+        assert(findings.nonEmpty, "expected a caseless-loss finding")
+        assert(findings.head.contains("SELECT"), findings.head)
+  }
+
+  test(
+    "caselessLoss: the same grammar reports clean against bison (no lexer patterns emitted there)"
+  ) {
+    IR.buildIRWithTokens(caselessTokenDefs, Method.Canonical, "P", caselessGrammar) match
+      case Left(e)   => fail(s"should build: $e")
+      case Right(ir) => assertEquals(GramaireLint.caselessLoss(ir, "bison"), Vector.empty)
+  }
+
+  test("caselessLoss: a non-caseless token class reports clean against antlr") {
+    val defs = Vector(TokenDef("SELECT", TokenPattern.Exact("select"), false, None, None, false))
+    IR.buildIRWithTokens(defs, Method.Canonical, "P", caselessGrammar) match
+      case Left(e)   => fail(s"should build: $e")
+      case Right(ir) => assertEquals(GramaireLint.caselessLoss(ir, "antlr"), Vector.empty)
+  }
+
+  test("predicateLoss: a semantic predicate is reported lost against antlr") {
+    IR.buildIR(Method.Canonical, "P", predicateGrammar) match
+      case Left(e) => fail(s"should build: $e")
+      case Right(ir) =>
+        val findings = GramaireLint.predicateLoss(ir, "antlr")
+        assert(findings.nonEmpty, "expected a predicate-loss finding")
+        assert(findings.head.contains("Expr"), findings.head)
+  }
+
+  test("predicateLoss: the same grammar is also reported lost against bison") {
+    IR.buildIR(Method.Canonical, "P", predicateGrammar) match
+      case Left(e)   => fail(s"should build: $e")
+      case Right(ir) => assert(GramaireLint.predicateLoss(ir, "bison").nonEmpty)
+  }
+
+  test("predicateLoss: the `ir` backend is exempt (it serializes the predicate marker as JSON)") {
+    IR.buildIR(Method.Canonical, "P", predicateGrammar) match
+      case Left(e)   => fail(s"should build: $e")
+      case Right(ir) => assertEquals(GramaireLint.predicateLoss(ir, "ir"), Vector.empty)
+  }
+
+  test("predicateLoss: a grammar with no predicate reports clean against antlr") {
+    IR.buildIR(Method.Canonical, "P", cleanGrammar) match
+      case Left(e)   => fail(s"should build: $e")
+      case Right(ir) => assertEquals(GramaireLint.predicateLoss(ir, "antlr"), Vector.empty)
+  }
+
   test("gates: a grammar with neither issue reports every gate clean (would exit 0)") {
     IR.buildIR(Method.Canonical, "P", cleanGrammar) match
       case Left(e) => fail(s"should build: $e")
@@ -155,5 +261,47 @@ class GramaireLintSuite extends munit.FunSuite:
       case Right(ir) =>
         val gates = GramaireLint.gates(ir, "antlr")
         val byName = gates.map(g => g.name -> g.failures.nonEmpty).toMap
-        assertEquals(byName, Map("precedence" -> true, "delegate" -> false, "externals" -> false))
+        assertEquals(
+          byName,
+          Map(
+            "precedence" -> true,
+            "delegate" -> false,
+            "externals" -> false,
+            "altLabel" -> false,
+            "caseless" -> false,
+            "predicate" -> false
+          )
+        )
+  }
+
+  test("gates: an alt-label/caseless/predicate-losing grammar fails exactly those three gates") {
+    val g = Grammar(
+      Vector(
+        Rule(
+          "Expr",
+          Vector.empty,
+          Vector(
+            Alt(Vector(Ref("NUM")), Some("Num"), Some("? true")),
+            Alt(Vector(Ref("NUM"), Lit("+"), Ref("NUM")), None, None),
+            Alt(Vector(Ref("SELECT")), None, None)
+          )
+        )
+      )
+    )
+    IR.buildIRWithTokens(caselessTokenDefs, Method.Canonical, "P", g) match
+      case Left(e) => fail(s"should build: $e")
+      case Right(ir) =>
+        val gates = GramaireLint.gates(ir, "antlr")
+        val byName = gates.map(gt => gt.name -> gt.failures.nonEmpty).toMap
+        assertEquals(
+          byName,
+          Map(
+            "precedence" -> false,
+            "delegate" -> false,
+            "externals" -> false,
+            "altLabel" -> true,
+            "caseless" -> true,
+            "predicate" -> true
+          )
+        )
   }
