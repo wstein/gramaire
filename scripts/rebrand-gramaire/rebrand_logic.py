@@ -35,20 +35,12 @@ def rewrite_path(path):
     name = path
     if name == "design/gramark-site-handoff" or name.startswith("design/gramark-site-handoff/"):
         return name
+    if name == "scripts/rebrand-gramaire" or name.startswith("scripts/rebrand-gramaire/"):
+        return name
+    if name == "docs/rebrand-gramaire-plan.md":
+        return name
 
-    parts = name.split("/")
-    rewritten_parts = []
-    for part in parts:
-        if part in {"Gramaire", "gramaire"}:
-            rewritten_parts.append("Gramaire" if part[0].isupper() else "gramaire")
-        elif part in {"Gramaire", "gramaire"}:
-            rewritten_parts.append("Gramaire" if part[0].isupper() else "gramaire")
-        elif part == "GramaireNotebookIsland.tsx":
-            rewritten_parts.append("GramaireNotebookIsland.tsx")
-        elif part == "gramaireNotebook.css":
-            rewritten_parts.append("gramaireNotebook.css")
-        elif part == "gramark-site-handoff":
-            rewritten_parts.append("gramark-site-handoff")
-        else:
-            rewritten_parts.append(part)
-    return "/".join(rewritten_parts)
+    name = name.replace(".gram.md", ".gram.md").replace(".gram", ".gram")
+    name = name.replace("Gramaire", "Gramaire").replace("gramaire", "gramaire")
+    name = name.replace("Gramaire", "Gramaire").replace("gramaire", "gramaire")
+    return name.replace("gramark-site-handoff", "gramark-site-handoff")
