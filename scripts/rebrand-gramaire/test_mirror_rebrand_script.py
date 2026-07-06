@@ -34,6 +34,12 @@ class MirrorRebrandScriptTests(unittest.TestCase):
         self.assertIn("for-each-ref --format='delete %(refname)' refs/codex", script)
         self.assertIn('git -C "$MIRROR_DIR" update-ref --stdin', script)
 
+    def test_script_removes_generated_engine_source_map_from_mirror(self) -> None:
+        script = SCRIPT_PATH.read_text(encoding="utf-8")
+        self.assertIn("--path 'site/src/generated/gramaire-engine.mjs.map'", script)
+        self.assertIn("sourceMappingURL=gramaire-engine.mjs.map", script)
+        self.assertIn("file:///Users/", script)
+
     def test_commit_message_callback_rewrites_messages(self) -> None:
         rewritten = commit_msg_callback.rewrite_message(
             b"Gramaire and gramaire",

@@ -17,6 +17,9 @@ def rewrite_text(text, path=None):
         return text
 
     value = text
+    if path == "site/src/generated/gramaire-engine.mjs":
+        value = value.replace("\n//# sourceMappingURL=gramaire-engine.mjs.map\n", "\n")
+
     value = value.replace(".gram.md", ".gram.md").replace(".gram", ".gram")
     value = value.replace("Gram", "Gram").replace("gram", "gram")
     value = value.replace("Gramaire", "Gramaire").replace("gramaire", "gramaire")
@@ -41,6 +44,7 @@ def rewrite_path(path):
         return name
 
     name = name.replace(".gram.md", ".gram.md").replace(".gram", ".gram")
+    name = name.replace("Gram", "Gram").replace("gram", "gram")
     name = name.replace("Gramaire", "Gramaire").replace("gramaire", "gramaire")
     name = name.replace("Gramaire", "Gramaire").replace("gramaire", "gramaire")
     return name.replace("gramark-site-handoff", "gramark-site-handoff")

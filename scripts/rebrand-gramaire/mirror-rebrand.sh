@@ -99,6 +99,7 @@ echo "   - rebrand Gramaire -> Gramaire, gramaire -> gramaire (paths + all text 
 echo "   - rebrand Gramaire -> Gramaire, gramaire -> gramaire (paths + all text content --"
 echo "     the shipped Gramaire Notebook feature's leftover old-target-name naming)"
 echo "   - remove scripts/rebrand-gramaire/ from the mirror history entirely"
+echo "   - remove generated engine source maps that contain local absolute build paths"
 echo "   - leaving design/gramark-site-handoff/ paths alone (frozen historical reference)"
 echo
 read -r -p "Type 'yes' to proceed with this irreversible rewrite of the MIRROR clone: " CONFIRM
@@ -128,6 +129,7 @@ git -C "$MIRROR_DIR" filter-repo \
   --force \
   --path 'scripts/rebrand-gramaire' \
   --path-glob 'scripts/rebrand-gramaire/**' \
+  --path 'site/src/generated/gramaire-engine.mjs.map' \
   --invert-paths \
   --prune-empty always
 
@@ -173,6 +175,14 @@ echo "-- remaining Gramaire*-named paths, if any:"
 GRIMOIRE_PATH_HITS="$WORK_DIR/sanity-gramaire-path-hits.txt"
 git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -iF 'gramaire' >"$GRIMOIRE_PATH_HITS" || true
 show_first_or_none "$GRIMOIRE_PATH_HITS"
+echo "-- generated engine source-map leaks, if any:"
+ENGINE_MAP_HITS="$WORK_DIR/sanity-engine-map-hits.txt"
+{
+  git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -F 'site/src/generated/gramaire-engine.mjs.map' || true
+  git -C "$REVIEW_CHECKOUT_DIR" grep -IlF 'file:///Users/' -- site/src/generated 2>/dev/null || true
+  git -C "$REVIEW_CHECKOUT_DIR" grep -IlF 'sourceMappingURL=gramaire-engine.mjs.map' -- site/src/generated 2>/dev/null || true
+} >"$ENGINE_MAP_HITS"
+show_first_or_none "$ENGINE_MAP_HITS"
 echo "-- sample of the renamed grammar package + example + notebook files:"
 git -C "$REVIEW_CHECKOUT_DIR" ls-files | grep -E '^(core/src/main/scala/gramaire/IR\.scala|examples/calc\.gram\.md|grammar/Gramaire\.gram\.md|site/src/lab/liveDoc/GramaireNotebookIsland\.tsx)$' || true
 
