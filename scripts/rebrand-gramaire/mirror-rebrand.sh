@@ -102,11 +102,35 @@ if [ "$CONFIRM" != "yes" ]; then
 fi
 
 COMMIT_MSG_CALLBACK_CODE="import subprocess, sys; return subprocess.check_output([sys.executable, r'$SCRIPT_DIR/commit_msg_callback.py'], input=message)"
-BLOB_CALLBACK_CODE="import importlib.util, sys; spec = importlib.util.spec_from_file_location('rebrand_logic', r'$SCRIPT_DIR/rebrand_logic.py'); mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod);\nif not blob.data: raise SystemExit\nif b'\\0' in blob.data[:8192]: raise SystemExit\npath = metadata.get('path') if metadata else None\nif path is None: path = metadata.get('filename') if metadata else None\nif path is None: path = b''\nif isinstance(path, bytes): path = path.decode('utf-8', 'surrogateescape')\nrewritten = mod.rewrite_text(blob.data, path)\nif rewritten != blob.data: blob.data = rewritten"
+BLOB_CALLBACK_FILE="$WORK_DIR/blob_callback.py"
+cat > "$BLOB_CALLBACK_FILE" <<'PY'
+import importlib.util
+
+spec = importlib.util.spec_from_file_location('rebrand_logic', r'$SCRIPT_DIR/rebrand_logic.py')
+rebrand_logic = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(rebrand_logic)
+
+
+def callback(blob, metadata=None):
+    if not blob.data:
+        return
+    if b'\0' in blob.data[:8192]:
+        return
+    path = metadata.get('path') if metadata else None
+    if path is None:
+        path = metadata.get('filename') if metadata else None
+    if path is None:
+        path = b''
+    if isinstance(path, bytes):
+        path = path.decode('utf-8', 'surrogateescape')
+    rewritten = rebrand_logic.rewrite_text(blob.data, path)
+    if rewritten != blob.data:
+        blob.data = rewritten
+PY
 
 git -C "$MIRROR_DIR" filter-repo \
   --filename-callback "$(cat "$SCRIPT_DIR/rename_paths_callback.py")" \
-  --blob-callback "$BLOB_CALLBACK_CODE" \
+  --blob-callback "$BLOB_CALLBACK_FILE" \
   --message-callback "$COMMIT_MSG_CALLBACK_CODE"
 
 git -C "$MIRROR_DIR" filter-repo \
