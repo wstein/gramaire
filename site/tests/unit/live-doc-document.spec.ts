@@ -506,9 +506,14 @@ test("serializeDocument: a fence with exactly one blank content line collapses t
 // serializeDocument genuinely produces, not by re-deriving the arithmetic by hand (a second,
 // independently-wrong derivation could easily agree with the bug).
 test("blockCharSpans: a later block's contentStart isn't inflated by an earlier empty fence's collapsed line", () => {
-  const source = ["```gramaire", "", "```", "```gramaire", "Foo Bar", "```"].join(
-    "\n",
-  );
+  const source = [
+    "```gramaire",
+    "",
+    "```",
+    "```gramaire",
+    "Foo Bar",
+    "```",
+  ].join("\n");
   const fences = [
     fence(0, "rule", "Empty", 1, 3),
     fence(1, "rule", "Foo", 4, 6),

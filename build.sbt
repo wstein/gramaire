@@ -19,7 +19,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(
     name := "gramaire-core",
     libraryDependencies += "org.scalameta" %%% "munit" % munitVersion % Test,
-    testFrameworks += new TestFramework("munit.Framework"),
+    testFrameworks += new TestFramework("munit.Framework")
   )
   .jvmSettings(
     // Standalone (JDK-independent — Nashorn was pulled from the JDK itself in 15) pure-Java
@@ -49,7 +49,7 @@ lazy val lab = crossProject(JSPlatform, JVMPlatform)
   .settings(
     name := "gramaire-lab",
     libraryDependencies += "org.scalameta" %%% "munit" % munitVersion % Test,
-    testFrameworks += new TestFramework("munit.Framework"),
+    testFrameworks += new TestFramework("munit.Framework")
   )
   .jsSettings(
     // ESModule output so Vite/Astro can `import` the linked bundle directly
@@ -58,7 +58,7 @@ lazy val lab = crossProject(JSPlatform, JVMPlatform)
     // @JSExportTopLevel functions in the JS-only lab/.js/src/main/scala
     // supplementary source dir (LabExports.scala) are called from JS.
     scalaJSUseMainModuleInitializer := false,
-    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.ESModule)),
+    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.ESModule))
   )
 
 lazy val labJS = lab.js
@@ -83,7 +83,7 @@ lazy val cli = project
     // invoked with JAVA_HOME pointed at a GraalVM distribution (this
     // machine: `/Library/Java/JavaVirtualMachines/graalvm-25.jdk/Contents/Home`;
     // CI: `graalvm/setup-graalvm@v1`, per the migration plan's Phase 3).
-    nativeImageGraalHome := file(System.getProperty("java.home")).toPath,
+    nativeImageGraalHome := file(System.getProperty("java.home")).toPath
   )
 
 // A throwaway compile target for the `scala-peg` backend's execute-and-verify parity gate
@@ -107,12 +107,12 @@ lazy val codegenScratch = project
     // each is simply unused (harmlessly) whenever `codegen-scratch` compiles a different backend's
     // output.
     libraryDependencies += "com.lihaoyi" %% "fastparse" % "3.1.1",
-    libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.4.0",
+    libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.4.0"
   )
 
 lazy val root = project
   .in(file("."))
   .aggregate(coreJS, coreJVM, labJS, labJVM, cli)
   .settings(
-    publish / skip := true,
+    publish / skip := true
   )

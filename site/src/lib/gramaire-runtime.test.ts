@@ -79,7 +79,10 @@ test("input no terminal can lex is rejected, not crashed", async () => {
 });
 
 test("precedence is honored: * binds tighter than + (both accepted)", async () => {
-  const result = await parseGramaireDocument(getDefaultGrammar(), "1 + 2 * 3\n");
+  const result = await parseGramaireDocument(
+    getDefaultGrammar(),
+    "1 + 2 * 3\n",
+  );
   assert.equal(result.success, true);
 });
 
@@ -146,7 +149,11 @@ test("prodLhs resolves the CST's numeric rule ids back to nonterminal names", as
 test("the method selector is threaded through and echoed back", async () => {
   const canonical = await parseGramaireDocument(getDefaultGrammar(), "1 + 2");
   assert.equal(canonical.method, "Canonical");
-  const lalr = await parseGramaireDocument(getDefaultGrammar(), "1 + 2", "LALR");
+  const lalr = await parseGramaireDocument(
+    getDefaultGrammar(),
+    "1 + 2",
+    "LALR",
+  );
   assert.equal(lalr.method, "LALR");
   assert.equal(lalr.success, true);
 });

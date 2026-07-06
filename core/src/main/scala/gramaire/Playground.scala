@@ -161,7 +161,7 @@ object Playground:
     */
   private def evalJsOf(source: String, grammar: Grammar): String =
     IR.buildIR(Method.Canonical, "Lab", grammar) match
-      case Left(_)   => ""
+      case Left(_) => ""
       case Right(ir) =>
         val updated = IR.withActionLang(Lr.actionLangOf(source), ir)
         BackendJs.emit(updated.grammar, updated.externals)

@@ -231,7 +231,7 @@ object GramaireCheck:
           // Optional: absent in every lock predating this field, which all mean "inline" — the
           // only layout that existed before source-collapsing was introduced.
           sourceLayout <- m.get("sourceLayout") match
-            case None                                    => Right(SourceLayout.Inline)
+            case None                                     => Right(SourceLayout.Inline)
             case Some(gramaire.Json.JString("inline"))    => Right(SourceLayout.Inline)
             case Some(gramaire.Json.JString("collapsed")) => Right(SourceLayout.Collapsed)
             case Some(other) => Left(s"lock: unknown sourceLayout $other")
@@ -258,7 +258,9 @@ object GramaireCheck:
     case gramaire.Json.JObject(kvs) =>
       val m = kvs.toMap
       def s(k: String): Either[String, String] =
-        m.get(k).collect { case gramaire.Json.JString(v) => v }.toRight(s"lock artifact: missing $k")
+        m.get(k)
+          .collect { case gramaire.Json.JString(v) => v }
+          .toRight(s"lock artifact: missing $k")
       m.get("kind").collect { case gramaire.Json.JString(k) => k } match
         case Some("railroad") =>
           for

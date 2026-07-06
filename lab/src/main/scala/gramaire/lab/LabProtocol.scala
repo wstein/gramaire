@@ -492,13 +492,13 @@ object AtnDiagnostics:
   * Document notebook's cell boundaries and role badge (Settings/Tokens/Precedence/Rule), computed
   * by `Lr.classifyFenceContent`'s "case is law" content-shape rule (the SAME oracle the CLI's
   * structure gate uses, D29/D43) rather than re-inferred in TypeScript. Present whenever the source
-  * has at least one ```gramaire fence, independent of whether the grammar notation parses — a broken
-  * grammar still shows correct cell boundaries to fix it by. Empty for a fence-free native `.gram`
-  * source (there is simply no ```gramaire marker to find there); the notebook view only applies to
-  * `.gram.md` sources. `startLine`/`endLine` are 1-based and inclusive, spanning the opening
-  * \```gramaire marker line through the closing ``` marker line, in `source`'s own line numbering
-  * (never a `Lr.toFenced` projection's), matching what the Lab frontend's textarea — which only
-  * ever holds the raw source — can navigate/highlight directly.
+  * has at least one ```gramaire fence, independent of whether the grammar notation parses — a
+  * broken grammar still shows correct cell boundaries to fix it by. Empty for a fence-free native
+  * `.gram` source (there is simply no ```gramaire marker to find there); the notebook view only
+  * applies to `.gram.md` sources. `startLine`/`endLine` are 1-based and inclusive, spanning the
+  * opening \```gramaire marker line through the closing ``` marker line, in `source`'s own line
+  * numbering (never a `Lr.toFenced` projection's), matching what the Lab frontend's textarea —
+  * which only ever holds the raw source — can navigate/highlight directly.
   */
 final case class FenceInfo(
     index: Int,

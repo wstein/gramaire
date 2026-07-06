@@ -429,7 +429,8 @@ class GramaireCheckSuite extends munit.FunSuite:
     assert(written.contains("<details>\n<summary>Source</summary>"), written)
     assert(written.contains("<details>\n<summary>Declarations</summary>"), written)
     val lockText =
-      java.nio.file.Files.readString(java.nio.file.Path.of(GramaireCheck.lockPathFor(file.toString)))
+      java.nio.file.Files
+        .readString(java.nio.file.Path.of(GramaireCheck.lockPathFor(file.toString)))
     assert(lockText.contains(""""sourceLayout": "collapsed""""), lockText)
 
     // structure/drift are layout-agnostic — a collapsed file is exactly as canonical as an
@@ -459,7 +460,8 @@ class GramaireCheckSuite extends munit.FunSuite:
     val written = java.nio.file.Files.readString(file)
     assert(!written.contains("<details>"), written)
     val lockText =
-      java.nio.file.Files.readString(java.nio.file.Path.of(GramaireCheck.lockPathFor(file.toString)))
+      java.nio.file.Files
+        .readString(java.nio.file.Path.of(GramaireCheck.lockPathFor(file.toString)))
     assert(!lockText.contains("sourceLayout"), lockText)
   }
 
@@ -510,7 +512,9 @@ class GramaireCheckSuite extends munit.FunSuite:
 
   test("checkNativeStructure: a missing name: directive fails") {
     val noName = nativeFixture.replace("name: Throwaway\n\n", "")
-    assert(GramaireCheck.checkNativeStructure(noName).exists(_.contains("missing required `name:`")))
+    assert(
+      GramaireCheck.checkNativeStructure(noName).exists(_.contains("missing required `name:`"))
+    )
   }
 
   test("checkNativeStructure: malformed grammar notation fails to parse") {

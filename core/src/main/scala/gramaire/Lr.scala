@@ -227,7 +227,8 @@ object Lr:
         val help =
           if suffix == "errors" then
             "help: move this content to a plain ```text fence; curated per-state error messages are no longer a grammar-notation feature"
-          else "help: merge this content into a bare ```gramaire fence; run `gramaire fmt --migrate`"
+          else
+            "help: merge this content into a bare ```gramaire fence; run `gramaire fmt --migrate`"
         Vector(
           Diagnostic.error(
             Stage.Parse,
@@ -611,8 +612,8 @@ object Lr:
     }.out
 
   /** Read a fence-free `.gram` projection back to the fenced form the parser expects (a no-op on
-    * already-fenced `.gram.md`). Each classified line-group becomes its own bare ```gramaire fence —
-    * `fenceOrigins`/`classifyFenceContent` re-derive its role from content, exactly as for any
+    * already-fenced `.gram.md`). Each classified line-group becomes its own bare ```gramaire fence
+    * — `fenceOrigins`/`classifyFenceContent` re-derive its role from content, exactly as for any
     * `.gram.md` fence.
     */
   def toFenced(src: String): String =

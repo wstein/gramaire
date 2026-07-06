@@ -40,9 +40,9 @@ object AtnSim:
   /** One decision `predict` could not resolve uniquely for the given input, even after retrying
     * with the real calling context (`predict`'s full-LL fallback): `alts` (2+, in declaration
     * order) all remained viable, and `alts.head` is the one first-alt-wins actually picked —
-    * Gramaire's own idiom for what ANTLR calls a reported ambiguity. A tie only the cheaper SLL pass
-    * hit, and that full context went on to resolve uniquely, is never reported here — it was never
-    * a real ambiguity, just SLL's narrower view running out of information.
+    * Gramaire's own idiom for what ANTLR calls a reported ambiguity. A tie only the cheaper SLL
+    * pass hit, and that full context went on to resolve uniquely, is never reported here — it was
+    * never a real ambiguity, just SLL's narrower view running out of information.
     */
   final case class Ambiguity(rule: String, decision: Int, pos: Int, alts: Vector[Int])
 
@@ -63,10 +63,11 @@ object AtnSim:
     * a `Cache` must not be reused across different grammars/builds. Not thread-safe.
     *
     * `track` opts into two more counters with no behavioral effect on prediction itself: `hits`/
-    * `misses` (the DFA cache's own effectiveness — `gramaire conformance`'s ll-star hit-rate report)
-    * and an `ambiguities` log (every genuine tie `predict` had to break by declaration order —
-    * `conformance`'s ALL(*) diagnostic). Both stay empty/zero, at zero extra cost beyond the flag
-    * check, when `track` is false — the default, and what `Ll.recognize`/`Ll.parse` use internally.
+    * `misses` (the DFA cache's own effectiveness — `gramaire conformance`'s ll-star hit-rate
+    * report) and an `ambiguities` log (every genuine tie `predict` had to break by declaration
+    * order — `conformance`'s ALL(*) diagnostic). Both stay empty/zero, at zero extra cost beyond
+    * the flag check, when `track` is false — the default, and what `Ll.recognize`/`Ll.parse` use
+    * internally.
     */
   final class Cache(track: Boolean = false):
     // Keyed by (decision, seed stack): the SLL pass always seeds `Nil`, so every call to a given

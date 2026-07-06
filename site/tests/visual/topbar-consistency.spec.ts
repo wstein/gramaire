@@ -177,7 +177,8 @@ for (const { name, path } of REPRESENTATIVE_PAGES) {
     await page.locator("gramaire-topbar").waitFor();
     await page.evaluate(() => window.scrollBy(0, 800));
     const y = await page.evaluate(
-      () => document.querySelector("gramaire-topbar")!.getBoundingClientRect().y,
+      () =>
+        document.querySelector("gramaire-topbar")!.getBoundingClientRect().y,
     );
     expect(y, `${name}: topbar should stay at the top after scrolling`).toBe(0);
   });
