@@ -89,6 +89,14 @@ class GramaireLintSuite extends munit.FunSuite:
       case Right(ir) => assertEquals(GramaireLint.delegateLoss(ir, "ir"), Vector.empty)
   }
 
+  test(
+    "delegateLoss: the `js` backend is exempt too, as of D51 (it renders a real generated call)"
+  ) {
+    IR.buildIR(Method.Canonical, "P", delegateGrammar) match
+      case Left(e)   => fail(s"should build: $e")
+      case Right(ir) => assertEquals(GramaireLint.delegateLoss(ir, "js"), Vector.empty)
+  }
+
   test("delegateLoss: a grammar with no delegate reports clean") {
     IR.buildIR(Method.Canonical, "P", cleanGrammar) match
       case Left(e)   => fail(s"should build: $e")
@@ -113,11 +121,31 @@ class GramaireLintSuite extends munit.FunSuite:
       case Right(ir) => assertEquals(GramaireLint.externalsLoss(ir, "bison"), Vector.empty)
   }
 
+  test("externalsLoss: the `js` backend is exempt too, as of D51 (it splices the fence in)") {
+    val g = delegateGrammar.copy(externals =
+      Vector(GrammarExternal("Add", Map("javascript" -> "(c) => c[0] + c[2]")))
+    )
+    IR.buildIR(Method.Canonical, "P", g) match
+      case Left(e)   => fail(s"should build: $e")
+      case Right(ir) => assertEquals(GramaireLint.externalsLoss(ir, "js"), Vector.empty)
+  }
+
   test("gates: a grammar with neither issue reports every gate clean (would exit 0)") {
     IR.buildIR(Method.Canonical, "P", cleanGrammar) match
       case Left(e) => fail(s"should build: $e")
       case Right(ir) =>
         val gates = GramaireLint.gates(ir, "antlr")
+        assert(gates.forall(_.failures.isEmpty), gates.toString)
+  }
+
+  test("gates: a delegate+externals grammar reports every gate clean against --target js (D51)") {
+    val g = delegateGrammar.copy(externals =
+      Vector(GrammarExternal("Add", Map("javascript" -> "(c) => c[0] + c[2]")))
+    )
+    IR.buildIR(Method.Canonical, "P", g) match
+      case Left(e) => fail(s"should build: $e")
+      case Right(ir) =>
+        val gates = GramaireLint.gates(ir, "js")
         assert(gates.forall(_.failures.isEmpty), gates.toString)
   }
 

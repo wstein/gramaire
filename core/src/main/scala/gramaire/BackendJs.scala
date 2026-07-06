@@ -12,7 +12,7 @@ object BackendJs:
     capabilities = Vector(Capability.Actions("js")),
     // Folds actions over the LR-shaped CST built from `IR.tables`; reads no ATN.
     strategies = Backend.lrOnly,
-    emit = ir => Vector(Output(s"${ir.grammar.name}.js", emit(ir.grammar)))
+    emit = ir => Vector(Output(s"${ir.grammar.name}.js", emit(ir.grammar, ir.externals)))
   )
 
   // A JS string literal (double-quoted), escaping the characters that matter.
@@ -122,6 +122,49 @@ object BackendJs:
     case Some(v) => jsStr(v)
     case None    => "null"
 
+  // A `-> name`/`-> name(args)` delegate's own literal call arguments (D51): `IRDelegate.args`
+  // carries each already-decoded (`Lr.unquoteLit` for a `TERM_LIT`, verbatim for a `NUMBER`) but
+  // otherwise untyped source string — a bare-digit string renders as a real JS number literal
+  // (`NUMBER`'s own lexis is `/[0-9]+/`, so this can never misfire on a genuine identifier); every
+  // other arg (an `IDENT` like `HIDDEN`, or an unquoted `TERM_LIT` spelling) renders as a JS string
+  // literal via `jsStr`, since neither survives to here tagged with which of the two it was.
+  private def renderArg(a: String): String =
+    if a.nonEmpty && a.forall(_.isDigit) then a else jsStr(a)
+
+  // Every `## Externals` (`### name`) embedded implementation, keyed by its own delegate name —
+  // `IRExternal.impl`'s language-tag keys are the fence's own raw info-string word (e.g.
+  // "javascript"), never normalized at extraction time (`Lr.externalsOf`), so resolving the `js`
+  // profile out of it reuses `Lr.normalizeLang` — the exact fold `Lr.actionLangOf` already applies
+  // to a document's `lang:` directive — rather than a second, drifting alias list.
+  private def externalsByName(externals: Vector[IRExternal]): Map[String, IRExternal] =
+    externals.map(e => e.name -> e).toMap
+
+  private def jsImplOf(ext: IRExternal): Option[String] =
+    ext.impl.collectFirst { case (lang, code) if Lr.normalizeLang(lang) == "js" => code }
+
+  // A `-> name`/`-> name(args)` alternative's own generated reduce function (D51), resolved in the
+  // same order `## Externals` documents (Lr.scala's own header comment on `withExternals`): an
+  // embedded `### name` `javascript` fence's code first, else a call resolved against a
+  // `externals[name]` function the HOST supplies at runtime (via `setExternals`, below) — a
+  // legitimate, documented fallback, not a compile-time error, since a grammar author may ship a
+  // delegate with no embedded implementation at all and expect the consumer to supply it.
+  //
+  // Both shapes are, in the end, just another function value slotted into `actions[]` exactly like
+  // an inline `{% %}` action (`fold` calls it uniformly as `action(tuple(kids, fields[node.rule]))`)
+  // — no second calling convention. The embedded fence's code is written exactly like an inline
+  // action would be (its own `(c) => ...` shape), so with no args it's used AS the action, verbatim.
+  // With args, both shapes need one more level: the underlying function (embedded or
+  // runtime-resolved) is invoked as `(c, ...args)`, wrapped behind a `(c) => ...` of its own so
+  // `fold`'s own single-argument call convention doesn't have to change — a function written to
+  // ignore the trailing args (e.g. an embedded `(c) => ...` that never mentions them) simply does,
+  // the ordinary JS way; one written to accept them (e.g. `(c, chan) => ...`) receives them for real.
+  private def delegateAction(d: IRDelegate, externalsMap: Map[String, IRExternal]): String =
+    val fn = externalsMap.get(d.name).flatMap(jsImplOf) match
+      case Some(code) => code.trim
+      case None       => s"externals[${jsStr(d.name)}]"
+    if d.args.isEmpty then fn
+    else s"(c) => ($fn)(c, ${d.args.map(renderArg).mkString(", ")})"
+
   // A namedtuple: the child values as a real Array (index / spread / map all work) with each
   // named position also reachable by its field name. Shared verbatim by `runtime`/`tracedRuntime`
   // (D13: a plain/traced drift here would make the two backends disagree on namedtuple semantics
@@ -138,11 +181,32 @@ object BackendJs:
       ""
     )
 
+  // The host-supplied table a `-> name` delegate with no embedded `## Externals` implementation
+  // resolves against at runtime (D51) — a grammar author may ship a delegate naming a function the
+  // consumer is expected to supply; call `setExternals` once, before `evaluate`/`evaluateTraced`,
+  // with an object mapping each such name to a `(c, ...args) => value` function of its own (the same
+  // namedtuple-plus-literal-args shape `actions[]` itself invokes). Left empty (`{}`), calling an
+  // unregistered name throws the ordinary JS "is not a function" `TypeError` — a clear runtime
+  // signal, not a silently-wrong value.
+  private val externalsHelper: Vector[String] =
+    Vector(
+      "// Host-supplied functions resolving `-> name` delegates with no embedded implementation —",
+      "// see setExternals below.",
+      "let externals = {};",
+      "",
+      "// Register the named functions a `-> name` delegate with no embedded `## Externals`",
+      "// implementation resolves against at runtime. Call before evaluate/evaluateTraced.",
+      "export function setExternals(impl) {",
+      "  externals = impl;",
+      "}",
+      ""
+    )
+
   // The fixed runtime: a bottom-up fold where a leaf evaluates to its
   // matched text, and a production with an action applies it to the
   // namedtuple of its children.
   private val runtime: String =
-    (tupleHelper ++ Vector(
+    (tupleHelper ++ externalsHelper ++ Vector(
       "function fold(node) {",
       "  if (node.token !== undefined) return node.text;",
       "  const kids = node.children.map(fold);",
@@ -162,7 +226,7 @@ object BackendJs:
   // the per-reduction intermediate values for its annotated-tree and reductions-list UI, not just
   // the result.
   private val tracedRuntime: String =
-    (tupleHelper ++ Vector(
+    (tupleHelper ++ externalsHelper ++ Vector(
       "function fold(node) {",
       "  if (node.token !== undefined) return { token: node.token, text: node.text, value: node.text };",
       "  const kidsAnnotated = node.children.map(fold);",
@@ -183,9 +247,16 @@ object BackendJs:
 
   // The per-production action table and the aligned field-name table — shared verbatim by `emit`
   // and `emitTraced` (same provenance: `grammar.rules` / `IR.effectiveFields`), so the two
-  // runtimes can never bake different actions for the same grammar.
-  private def tablesBlock(grammar: IRGrammar): String =
-    def actionSlot(r: IRRule): String = jsAction(r).getOrElse("null")
+  // runtimes can never bake different actions for the same grammar. `externals` is `IR.externals`
+  // (D49/D51): a rule's `-> name` delegate (mutually exclusive with an inline action, so exactly
+  // one of `jsAction`/`delegateAction` ever applies) resolves against it, else falls back to the
+  // runtime-supplied `externals[name]` (see `externalsHelper`) baked into `runtime`/`tracedRuntime`.
+  private def tablesBlock(grammar: IRGrammar, externals: Vector[IRExternal]): String =
+    val byName = externalsByName(externals)
+    def actionSlot(r: IRRule): String =
+      r.delegate match
+        case Some(d) => delegateAction(d, byName)
+        case None    => jsAction(r).getOrElse("null")
     def fieldSlot(r: IRRule): String =
       "[" + IR.effectiveFields(grammar, r).map(maybeStr).mkString(", ") + "]"
     Vector(
@@ -200,9 +271,11 @@ object BackendJs:
     * and the fixed folding runtime. Takes just `IRGrammar`, not the full `IR` — this backend never
     * reads `IR.tables` (or `.conflicts`/`.lexer`/`.atn`), so a caller with only a grammar-shape IR
     * (`IR.irGrammarOf`, no automaton build — the Lab's Evaluate tab, M5+) never needs to build one
-    * just to call this.
+    * just to call this. `externals` defaults to empty for exactly that caller (and any other one
+    * with no `## Externals` data at hand): a `-> name` delegate with nothing to resolve against
+    * here simply falls all the way through to the runtime-lookup path (D51).
     */
-  def emit(grammar: IRGrammar): String =
+  def emit(grammar: IRGrammar, externals: Vector[IRExternal] = Vector.empty): String =
     Vector(
       s"// Generated by gramaire --backend js for grammar ${jsStr(grammar.name)}.",
       "// Self-contained bottom-up evaluator: each production's inline action gets a",
@@ -212,7 +285,7 @@ object BackendJs:
       "// through (else the array). `cst` is a gramaire-cst JSON tree",
       "// ({ rule, children } | { token, text }); a leaf's value is its matched text.",
       "",
-      tablesBlock(grammar),
+      tablesBlock(grammar, externals),
       "",
       runtime
     ).mkString("\n")
@@ -226,13 +299,13 @@ object BackendJs:
     * exactly the mistake this project already paid for once with the pre-rebuild site's separate TS
     * reimplementation of evaluation (ADR D13).
     */
-  def emitTraced(grammar: IRGrammar): String =
+  def emitTraced(grammar: IRGrammar, externals: Vector[IRExternal] = Vector.empty): String =
     Vector(
       s"// Generated by gramaire --backend js (traced) for grammar ${jsStr(grammar.name)}.",
       "// Same action/field tables as the plain `js` backend (BackendJs.emit); this runtime",
       "// returns an annotated tree instead of a bare value — see evaluateTraced below.",
       "",
-      tablesBlock(grammar),
+      tablesBlock(grammar, externals),
       "",
       tracedRuntime
     ).mkString("\n")

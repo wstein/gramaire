@@ -28,14 +28,17 @@ object GramaireLint:
       )
     else Vector.empty
 
-  // Confirmed empirically: NEITHER `BackendAntlr.scala` nor `BackendBison.scala` (nor any other
-  // first-party textual backend) reads `IRRule.delegate` at all — each backend's rule-rendering
+  // Confirmed empirically: NEITHER `BackendAntlr.scala` nor `BackendBison.scala` (nor most other
+  // first-party textual backends) reads `IRRule.delegate` at all — each backend's rule-rendering
   // (`altText`) only ever looks at `r.rhs`, so a `-> name`/`-> name(args)` alternative (ADR D48)
   // renders as a bare, actionless alt with no comment or reference to the delegate left behind; the
-  // delegate silently vanishes, not just its resolution. `ir` is the one exception — it serializes
-  // the whole IR (delegate included) as JSON, so nothing is lost exporting there.
+  // delegate silently vanishes, not just its resolution. `ir` is exempt because it serializes the
+  // whole IR (delegate included) as JSON, so nothing is lost exporting there; `js` is exempt too, as
+  // of ADR D51 — `BackendJs` now renders a `-> name` delegate as a real generated call (an embedded
+  // `## Externals` implementation spliced in directly, or a runtime-resolved `externals[name]` call
+  // otherwise), so `--target js` genuinely keeps it, unlike every other textual backend here.
   def delegateLoss(ir: IR, backendName: String): Vector[String] =
-    if backendName == "ir" then Vector.empty
+    if backendName == "ir" || backendName == "js" then Vector.empty
     else
       val ntNameById = ir.grammar.nonterminals.map(n => n.id -> n.name).toMap
       ir.grammar.rules.collect {
@@ -49,12 +52,13 @@ object GramaireLint:
       }
 
   // Confirmed empirically (same grep as `delegateLoss`): `IR.externals` (ADR D49's `## Externals`
-  // embedded fenced implementations) is referenced by no first-party textual backend either — an
-  // author who embedded a delegate's real `-> name` implementation directly in the `.gram.md` gets
-  // it silently dropped too, on top of the reference itself (`delegateLoss`). Scoped the same way:
-  // `ir` carries it through as JSON, so it alone is exempt.
+  // embedded fenced implementations) was, until D51, referenced by no first-party textual backend
+  // either — an author who embedded a delegate's real `-> name` implementation directly in the
+  // `.gram.md` got it silently dropped too, on top of the reference itself (`delegateLoss`). Scoped
+  // the same way as that check: `ir` carries it through as JSON; `js` now splices a matching `###
+  // name` `javascript` fence directly into the generated reduce function (D51) — both exempt.
   def externalsLoss(ir: IR, backendName: String): Vector[String] =
-    if backendName == "ir" || ir.externals.isEmpty then Vector.empty
+    if backendName == "ir" || backendName == "js" || ir.externals.isEmpty then Vector.empty
     else
       ir.externals.map { ext =>
         val langs = ext.impl.keys.toVector.sorted.mkString(", ")

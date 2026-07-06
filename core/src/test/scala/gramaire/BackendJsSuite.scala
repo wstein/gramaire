@@ -31,6 +31,21 @@ class BackendJsSuite extends munit.FunSuite:
           case Left(conflicts) => fail(s"$name should build with no conflicts: $conflicts")
           case Right(ir)       => BackendJs.emit(IR.withActionLang(Lr.actionLangOf(md), ir).grammar)
 
+  // For real `.gram.md` text using a `-> name`/`-> name(args)` delegate (ADR D48) and, optionally,
+  // a `## Externals` section (ADR D49) — mirrors the real `gramaire emit --backend js` pipeline
+  // (`Main.runEmit`) more closely than `emitJsFromSource` above: `parseWithDocs` (not bare `parse`)
+  // so `Grammar.externals` is actually populated, and `IR.buildIRP` (not `buildIR`) so `IR.externals`
+  // carries it into the IR BackendJs.emit now reads (D51).
+  private def emitJsWithExternals(name: String, md: String): String =
+    Lr.parseWithDocs(Method.Canonical, md) match
+      case Left(diags) => fail(s"should parse: ${diags.map(_.message).mkString("; ")}")
+      case Right(g) =>
+        IR.buildIRP(Lr.precedenceOf(md), Method.Canonical, name, g) match
+          case Left(conflicts) => fail(s"$name should build with no conflicts: $conflicts")
+          case Right(ir0) =>
+            val ir = IR.withActionLang(Lr.actionLangOf(md), ir0)
+            BackendJs.emit(ir.grammar, ir.externals)
+
   private def noPureScriptLeaks(js: String): Unit =
     assert(!js.contains("Just"), js)
     assert(!js.contains("Nothing"), js)
@@ -114,4 +129,135 @@ class BackendJsSuite extends munit.FunSuite:
       BackendJs.unwrapBinder("""?\_ -> (c) => c.ident !== "let""""),
       """?(c) => c.ident !== "let""""
     )
+  }
+
+  // D51: `BackendJs` is the first backend to render a `-> name` delegate (ADR D48) and its optional
+  // `## Externals` embedded implementation (ADR D49) at all — every other first-party textual
+  // backend still silently drops both (`GramaireLint.delegateLoss`/`externalsLoss`).
+
+  test(
+    "a bare `-> name` delegate with a matching `## Externals` javascript fence splices its code " +
+      "directly as the action, verbatim"
+  ) {
+    val md =
+      """```gramaire
+        |name: Item
+        |lang: javascript
+        |```
+        |
+        |```gramaire
+        |Item
+        |  : left:NUM '+' right:NUM -> Add
+        |  | NUM
+        |  ;
+        |```
+        |
+        |## Externals
+        |
+        |### Add
+        |
+        |```javascript
+        |(c) => ({ tag: "Add", left: c.left, right: c.right })
+        |```
+        |""".stripMargin
+    val js = emitJsWithExternals("Item", md)
+    assert(
+      js.contains("const actions = [(c) => ({ tag: \"Add\", left: c.left, right: c.right }),"),
+      js
+    )
+    assert(!js.contains("externals[\"Add\"]"), js)
+    noPureScriptLeaks(js)
+  }
+
+  test(
+    "a bare `-> name` delegate with NO embedded implementation compiles to a runtime-lookup call"
+  ) {
+    val md =
+      """```gramaire
+        |name: Item
+        |lang: javascript
+        |```
+        |
+        |```gramaire
+        |Item
+        |  : left:NUM '+' right:NUM -> Add
+        |  | NUM
+        |  ;
+        |```
+        |""".stripMargin
+    val js = emitJsWithExternals("Item", md)
+    assert(js.contains("const actions = [externals[\"Add\"],"), js)
+    noPureScriptLeaks(js)
+  }
+
+  test(
+    "a parameterized `-> name(args...)` delegate with NO embedded implementation threads its " +
+      "literal args through to the runtime-resolved call"
+  ) {
+    val md =
+      """```gramaire
+        |name: Item
+        |lang: javascript
+        |```
+        |
+        |```gramaire
+        |Item
+        |  : left:NUM '+' right:NUM -> combine(mode, 42)
+        |  | NUM
+        |  ;
+        |```
+        |""".stripMargin
+    val js = emitJsWithExternals("Item", md)
+    assert(
+      js.contains("const actions = [(c) => (externals[\"combine\"])(c, \"mode\", 42),"),
+      js
+    )
+    noPureScriptLeaks(js)
+  }
+
+  test(
+    "a parameterized `-> name(args...)` delegate WITH an embedded implementation invokes the " +
+      "spliced function with the namedtuple plus the literal args"
+  ) {
+    val md =
+      """```gramaire
+        |name: Item
+        |lang: javascript
+        |```
+        |
+        |```gramaire
+        |Item
+        |  : left:NUM '+' right:NUM -> combine(mode, 42)
+        |  | NUM
+        |  ;
+        |```
+        |
+        |## Externals
+        |
+        |### combine
+        |
+        |```javascript
+        |(c, m, n) => ({ tag: "Combine", left: c.left, right: c.right, mode: m, n })
+        |```
+        |""".stripMargin
+    val js = emitJsWithExternals("Item", md)
+    assert(
+      js.contains(
+        "const actions = [(c) => ((c, m, n) => ({ tag: \"Combine\", left: c.left, " +
+          "right: c.right, mode: m, n }))(c, \"mode\", 42),"
+      ),
+      js
+    )
+    noPureScriptLeaks(js)
+  }
+
+  test("the always-present externals runtime helper is emitted even with no delegates at all") {
+    val js = emitJs(
+      "Plain",
+      Grammar(
+        Vector(Rule("S", Vector.empty, Vector(Alt(Vector(Lit("x")), None, Some("(c) => 1")))))
+      )
+    )
+    assert(js.contains("let externals = {};"), js)
+    assert(js.contains("export function setExternals(impl)"), js)
   }

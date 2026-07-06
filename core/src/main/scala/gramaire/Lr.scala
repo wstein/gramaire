@@ -1035,7 +1035,11 @@ object Lr:
 
   // Fold the recognized JavaScript aliases onto the canonical `"js"`
   // profile; any other language name is carried through lowercased.
-  private def normalizeLang(raw: String): String =
+  // `private[gramaire]`, not `private`: `BackendJs` reuses this exact fold to match a `## Externals`
+  // fence's own (unnormalized) language tag — e.g. ```javascript — against the "js" key its
+  // `-> name` delegate resolution looks for, the same one convention `actionLangOf` establishes for
+  // inline `{% %}` actions (D51). One normalization rule, not two drifting copies of it.
+  private[gramaire] def normalizeLang(raw: String): String =
     val l = raw.trim.toLowerCase
     def isDigit(c: Char) = c >= '0' && c <= '9'
     def prefixThenDigits(p: String, s: String): Boolean =

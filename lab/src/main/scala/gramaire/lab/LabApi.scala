@@ -24,6 +24,7 @@ import gramaire.{
   Glr,
   Grammar,
   IR,
+  IRExternal,
   LeftRec,
   Ll,
   LlAction,
@@ -505,7 +506,13 @@ object LabApi:
       )
     else
       val tagged = IR.withActionLangGrammar(Lr.actionLangOf(source), irGrammar)
-      Right(BackendJs.emitTraced(tagged))
+      // `grammar.externals` (the `## Externals` embedded implementations attached by
+      // `Lr.parseWithDocs`/`withExternals`) isn't reachable off `irGrammar` — `IRGrammar` carries no
+      // such field, only the full `IR` does (D49) — so it's re-derived here the same one-line way
+      // `IR.buildIRP` itself derives `IR.externals` from `Grammar.externals`, letting a `-> name`
+      // delegate with an embedded implementation resolve in the Lab's own live evaluator too (D51).
+      val externals = grammar.externals.map(e => IRExternal(e.name, e.impl))
+      Right(BackendJs.emitTraced(tagged, externals))
 
   // `evaluatorJsFor`'s Either, folded into the (evaluatorJs, extra-diagnostics) shape both
   // `evaluate` branches build their LabResponse from — shared so the predicate-warning rendering
