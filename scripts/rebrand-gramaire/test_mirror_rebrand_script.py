@@ -16,15 +16,18 @@ class MirrorRebrandScriptTests(unittest.TestCase):
         self.assertNotIn("--commit-callback", script)
         self.assertIn('git -C "$MIRROR_DIR" filter-repo \\', script)
         self.assertIn("--filename-callback", script)
-        self.assertIn("--blob-callback", script)
+        self.assertIn("--file-info-callback", script)
+        self.assertNotIn("--blob-callback", script)
         self.assertIn("commit_msg_callback.py", script)
 
-    def test_script_creates_work_dir_before_writing_blob_callback(self) -> None:
+    def test_script_creates_work_dir_before_writing_file_info_callback(self) -> None:
         script = SCRIPT_PATH.read_text(encoding="utf-8")
         self.assertIn('mkdir -p "$WORK_DIR"', script)
-        self.assertIn('cat > "$BLOB_CALLBACK_FILE" <<PY', script)
-        self.assertIn('--blob-callback "$(cat "$BLOB_CALLBACK_FILE")"', script)
-        self.assertNotIn('--blob-callback "$BLOB_CALLBACK_FILE"', script)
+        self.assertIn('cat > "$FILE_INFO_CALLBACK_FILE" <<PY', script)
+        self.assertIn('--file-info-callback "$(cat "$FILE_INFO_CALLBACK_FILE")"', script)
+        self.assertNotIn('--file-info-callback "$FILE_INFO_CALLBACK_FILE"', script)
+        self.assertIn("return file_info_callback.file_info_callback(filename, mode, blob_id, value)", script)
+        self.assertNotIn("def callback(blob, metadata=None):", script)
 
     def test_commit_message_callback_rewrites_messages(self) -> None:
         rewritten = commit_msg_callback.rewrite_message(

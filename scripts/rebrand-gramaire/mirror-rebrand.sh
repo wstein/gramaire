@@ -103,35 +103,20 @@ fi
 
 COMMIT_MSG_CALLBACK_CODE="import subprocess, sys; return subprocess.check_output([sys.executable, r'$SCRIPT_DIR/commit_msg_callback.py'], input=message)"
 mkdir -p "$WORK_DIR"
-BLOB_CALLBACK_FILE="$WORK_DIR/blob_callback.py"
-cat > "$BLOB_CALLBACK_FILE" <<PY
+FILE_INFO_CALLBACK_FILE="$WORK_DIR/file_info_callback.py"
+cat > "$FILE_INFO_CALLBACK_FILE" <<PY
 import importlib.util
 
-spec = importlib.util.spec_from_file_location('rebrand_logic', r'$SCRIPT_DIR/rebrand_logic.py')
-rebrand_logic = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(rebrand_logic)
+spec = importlib.util.spec_from_file_location('file_info_callback', r'$SCRIPT_DIR/file_info_callback.py')
+file_info_callback = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(file_info_callback)
 
-
-def callback(blob, metadata=None):
-    if not blob.data:
-        return
-    if b'\0' in blob.data[:8192]:
-        return
-    path = metadata.get('path') if metadata else None
-    if path is None:
-        path = metadata.get('filename') if metadata else None
-    if path is None:
-        path = b''
-    if isinstance(path, bytes):
-        path = path.decode('utf-8', 'surrogateescape')
-    rewritten = rebrand_logic.rewrite_text(blob.data, path)
-    if rewritten != blob.data:
-        blob.data = rewritten
+return file_info_callback.file_info_callback(filename, mode, blob_id, value)
 PY
 
 git -C "$MIRROR_DIR" filter-repo \
   --filename-callback "$(cat "$SCRIPT_DIR/rename_paths_callback.py")" \
-  --blob-callback "$(cat "$BLOB_CALLBACK_FILE")" \
+  --file-info-callback "$(cat "$FILE_INFO_CALLBACK_FILE")" \
   --message-callback "$COMMIT_MSG_CALLBACK_CODE"
 
 git -C "$MIRROR_DIR" filter-repo \

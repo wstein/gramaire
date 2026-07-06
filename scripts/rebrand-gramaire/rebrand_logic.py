@@ -1,6 +1,3 @@
-import re
-
-
 PLAN_DOCS = {"docs/rebrand-gramaire-plan.md"}
 
 
@@ -21,16 +18,9 @@ def rewrite_text(text, path=None):
 
     value = text
     value = value.replace(".grmk.md", ".gram.md").replace(".grmk", ".gram")
-
-    for pattern, replacement in [
-        (r"(?<![A-Za-z0-9_./:-])Grmk(?![A-Za-z0-9_./:-])", "Gram"),
-        (r"(?<![A-Za-z0-9_./:-])grmk(?![A-Za-z0-9_./:-])", "gram"),
-        (r"(?<![A-Za-z0-9_./:-])Gramark(?![A-Za-z0-9_./:-])", "Gramaire"),
-        (r"(?<![A-Za-z0-9_./:-])gramark(?![A-Za-z0-9_./:-])", "gramaire"),
-        (r"(?<![A-Za-z0-9_./:-])Grimoire(?![A-Za-z0-9_./:-])", "Gramaire"),
-        (r"(?<![A-Za-z0-9_./:-])grimoire(?![A-Za-z0-9_./:-])", "gramaire"),
-    ]:
-        value = re.sub(pattern, replacement, value)
+    value = value.replace("Grmk", "Gram").replace("grmk", "gram")
+    value = value.replace("Gramark", "Gramaire").replace("gramark", "gramaire")
+    value = value.replace("Grimoire", "Gramaire").replace("grimoire", "gramaire")
 
     value = value.replace("gramaire-site-handoff", "gramark-site-handoff")
     value = value.replace("GrimoireNotebookIsland", "GramaireNotebookIsland")
