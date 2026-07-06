@@ -15,7 +15,7 @@ Pick **Canonical** or **IELR** in the Engine picker to see it build cleanly;
 <summary>Declarations</summary>
 
 ```gramaire
-%name LalrArtifact
+name: LalrArtifact
 ```
 
 </details>

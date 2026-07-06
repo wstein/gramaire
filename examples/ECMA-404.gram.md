@@ -27,7 +27,7 @@ application-level semantics to the consuming implementation.
 <summary>Declarations</summary>
 
 ```gramaire
-%name Json
+name: Json
 ```
 
 </details>
@@ -68,7 +68,7 @@ Whitespace is allowed between any pair of tokens. The grammar below uses a
 skipped token for this purpose.
 
 ```gramaire
-WS     : /[ \t\r\n]+/    %skip ;
+WS     : /[ \t\r\n]+/    -> skip ;
 ```
 
 ## Json

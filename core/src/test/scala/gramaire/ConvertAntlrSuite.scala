@@ -91,7 +91,7 @@ class ConvertAntlrSuite extends munit.FunSuite:
         assert(imp.markdown.contains("expr '+' term"), "a parser rule is rendered")
         assert(imp.markdown.contains("## Tokens"), "a Tokens block is rendered")
         assert(imp.markdown.contains("NUMBER : /[0-9]+/"), "a token class keeps its regex")
-        assert(imp.markdown.contains("%skip"), "a `-> skip` command becomes %skip")
+        assert(imp.markdown.contains("-> skip"), "a `-> skip` command stays `-> skip`")
 
         Lr.parse(imp.markdown) match
           case Left(e) => fail(s"imported calc should parse: $e")

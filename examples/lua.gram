@@ -35,8 +35,8 @@
  * a lower-tier binary operator" — the grammar is unambiguous by construction.
  */
 
-%name Lua
-%lang javascript
+name: Lua
+lang: javascript
 
 /// An identifier. Keyword-vs-identifier overlap needs no special handling — a quoted
 /// literal keyword (`'and'`, `'function'`, ...) beats an overlapping identifier class
@@ -70,13 +70,13 @@ LONGSTRING : /\[\[(?:[^\]]|\][^\]])*\]\]/ ;
 /// actually matches longer at a given position, so a `--[[` that has no matching `]]`
 /// anywhere in the file simply falls through to a same-line line comment instead — never
 /// a lexical error, just a shorter match.
-LONGCOMMENT : /--\[\[(?:[^\]]|\][^\]])*\]\]/   %skip ;
+LONGCOMMENT : /--\[\[(?:[^\]]|\][^\]])*\]\]/   -> skip ;
 
 /// A line comment, running to end of line.
-COMMENT : /--[^\n]*/   %skip ;
+COMMENT : /--[^\n]*/   -> skip ;
 
 /// Whitespace, including newlines — Lua has no layout-sensitive syntax.
-WS : /[ \t\r\n]+/   %skip ;
+WS : /[ \t\r\n]+/   -> skip ;
 
 /// A block is a sequence of statements, each terminated by `;` (see the file banner's
 /// note on why the separator is mandatory here), optionally ending in a `return`.

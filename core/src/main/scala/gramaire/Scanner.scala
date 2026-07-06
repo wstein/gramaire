@@ -8,7 +8,7 @@ package gramaire
 //   - M1 maximal munch: the longest match at each position wins.
 //   - M2 priority on ties: implicit literals and `"exact"` classes outrank
 //     `/regex/` classes, and among regexes, earlier declaration wins; an
-//     explicit `%prec N` overrides.
+//     explicit `@prec(N)` overrides.
 //   - M3 keyword reservation: falls out of M1/M2.
 //   - M4 no match: emit an `ERROR` token and resynchronize at the next
 //     position, so editor/recovery use never aborts.
@@ -32,7 +32,7 @@ final case class ScanItem(
 object Scanner:
   /** Build the scanner's items from a grammar's token-class definitions and its implicit
     * (backtick-literal) terminals. Implicit literals get top priority (0); exact classes 1; regex
-    * classes `2 + declaration index`; an explicit `%prec N` overrides to `-N` so a larger N wins.
+    * classes `2 + declaration index`; an explicit `@prec(N)` overrides to `-N` so a larger N wins.
     */
   def buildItems(defs: Vector[TokenDef], literals: Vector[String]): Vector[ScanItem] =
     def priorityOf(base: Int, prec: Option[Int]): Int = prec match

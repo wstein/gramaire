@@ -14,7 +14,7 @@ class TransformSuite extends munit.FunSuite:
       |
       |```gramaire
       |NUMBER : /[0-9]+(?:\.[0-9]+)?/;
-      |WS     : /[ \t\r\n]+/   %skip;
+      |WS     : /[ \t\r\n]+/   -> skip;
       |```
       |
       |## Expr

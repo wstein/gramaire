@@ -24,8 +24,8 @@ in reading order.
 <summary>Declarations</summary>
 
 ```gramaire
-%name Readme
-%lang javascript
+name: Readme
+lang: javascript
 ```
 
 </details>

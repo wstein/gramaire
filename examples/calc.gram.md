@@ -7,8 +7,8 @@ Operators are left-associative; `*` and `/` bind tighter than `+` and `-`.
 <summary>Declarations</summary>
 
 ```gramaire
-%name Calc
-%lang javascript
+name: Calc
+lang: javascript
 ```
 
 </details>
@@ -17,7 +17,7 @@ Operators are left-associative; `*` and `/` bind tighter than `+` and `-`.
 
 ```gramaire
 NUMBER : /[0-9]+/ ;
-WS     : /[ \t\r\n]+/   %skip ;
+WS     : /[ \t\r\n]+/   -> skip ;
 ```
 
 ## Expr

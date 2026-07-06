@@ -33,7 +33,7 @@ class LexerAtnSuite extends munit.FunSuite:
 
   test("ATN simulation tokenizes identically to the regex scanner (calc-shaped tokens)") {
     val calcTokens = List(
-      "WS     : /[ \\t]+/   %skip ;",
+      "WS     : /[ \\t]+/   -> skip ;",
       "NUMBER : /-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?/ ;"
     ).mkString("\n")
     val defs = Tokens.parseTokens(calcTokens).getOrElse(fail("calc tokens should parse"))
@@ -49,7 +49,7 @@ class LexerAtnSuite extends munit.FunSuite:
     val defs = Tokens
       .parseTokens(
         List(
-          "WS     : /[ \\t]+/   %skip ;",
+          "WS     : /[ \\t]+/   -> skip ;",
           "STRING : /\"([a-z]*)\"/ ;"
         ).mkString("\n")
       )
@@ -88,7 +88,7 @@ class LexerAtnSuite extends munit.FunSuite:
     val jsonTokens = List(
       "STRING : /\"(?:[^\"\\\\]|\\\\.)*\"/ ;",
       "NUMBER : /-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/ ;",
-      "WS     : /[ \\t\\r\\n]+/    %skip ;"
+      "WS     : /[ \\t\\r\\n]+/    -> skip ;"
     ).mkString("\n")
     val defs = Tokens.parseTokens(jsonTokens).getOrElse(fail("json tokens should parse"))
     checkAgreement(

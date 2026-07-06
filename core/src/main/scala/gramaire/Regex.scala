@@ -310,7 +310,7 @@ object Regex:
       case Rx.Star(r) => closure(r)
 
   /** Apply a char predicate, and when `caseless`, also to the char's ASCII case-swap — so `/abc/i`
-    * (or `%caseless`) matches any casing (ADR D35).
+    * (or `@caseless`) matches any casing (ADR D35).
     */
   def ciMatch(caseless: Boolean, p: Char => Boolean)(x: Char): Boolean =
     p(x) || (caseless && p(swapCase(x)))

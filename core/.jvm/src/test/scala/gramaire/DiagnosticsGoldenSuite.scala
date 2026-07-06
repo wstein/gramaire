@@ -258,20 +258,19 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
   }
 
   test(
-    "unknown setting warning: a typo'd %directive is ONE clean warning, not a cascade of unrelated lex errors"
+    "unknown setting warning: a typo'd key: is ONE clean warning, not a cascade of unrelated lex errors"
   ) {
-    // The exact shape reported from the Gramaire Notebook: `%naqme` (a typo of `%name`). The old
-    // isSettingDecl only recognized the literal `%lang `/`%name ` prefixes, so this one bad line
+    // The exact shape reported from the Gramaire Notebook: `naqme:` (a typo of `name:`). The old
+    // isSettingDecl only recognized the literal `lang:`/`name:` prefixes, so this one bad line
     // failed the Settings fence's own `forall` check — misclassifying the WHOLE two-line fence as
-    // Rule content, lexed with the `lr` grammar's own token set (no `%` or `-` token exists there),
-    // cascading into three unrelated "unexpected character" errors: `%`, then the `-` INSIDE
-    // `Calc-js` itself, then the second `%`. It must instead build cleanly, with one located
-    // warning naming the bad directive.
+    // Rule content, lexed with the `lr` grammar's own token set (no `:`-headed bare-word token
+    // exists there), cascading into unrelated "unexpected character" errors. It must instead build
+    // cleanly, with one located warning naming the bad directive.
     val md = """# Calc-js
       |
       |```gramaire
-      |%naqme Calc-js
-      |%lang javascript
+      |naqme: Calc-js
+      |lang: javascript
       |```
       |
       |## Expr
@@ -284,29 +283,30 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       |""".stripMargin
     Lr.parseWith(Method.Canonical, md) match
       case Left(diags) => fail(s"expected the grammar to build cleanly, got: $diags")
-      case Right(_) => () // buildOk — a bad/missing %name is cosmetic, never fatal (LabApi.scala)
+      case Right(_) => () // buildOk — a bad/missing name: is cosmetic, never fatal (LabApi.scala)
     val warnings = Lr.warningsFor(md)
     assertEquals(warnings.length, 1, s"expected exactly one warning, got: $warnings")
-    assertEquals(warnings.head.message, "unknown setting `%naqme` (ignored)")
+    assertEquals(warnings.head.message, "unknown setting `naqme` (ignored)")
     // Located — not just a bare message — so the Notebook can attribute it to its owning cell and
     // make it clickable, the same as any other diagnostic with a span.
     assertEquals(
       Diagnostic.render(warnings.head, "calc-js.gram.md", Lr.toFenced(md)),
-      """warning: unknown setting `%naqme` (ignored)
+      """warning: unknown setting `naqme` (ignored)
         |  --> calc-js.gram.md:4:1
-        |    %naqme Calc-js
-        |    ^^^^^^""".stripMargin
+        |    naqme: Calc-js
+        |    ^^^^^""".stripMargin
     )
   }
 
   test(
     "unknown setting warning: broadening isSettingDecl's shape doesn't swallow a genuine Precedence fence"
   ) {
-    // Regression guard: isSettingDecl now recognizes any `%word ` shape, not just `%lang `/
-    // `%name ` literally — `%left`/`%right`/`%nonassoc` share that same shape, so isSettingDecl
-    // must keep excluding them (via isPrecDecl), or a real Precedence fence would misclassify as
-    // Settings instead (checked first in classifyFenceContent's if-chain) and its declarations
-    // would silently vanish rather than resolving shift/reduce conflicts.
+    // Regression guard: isSettingDecl recognizes any `lowercase-key:` shape, not just `lang:`/
+    // `name:` literally — `%left`/`%right`/`%nonassoc` never share that shape (they start with
+    // `%`, never lowercase-then-`:`), so isSettingDecl already can't misclassify them; this guards
+    // that a real Precedence fence's `%left '+'` line still isn't swallowed as Settings (checked
+    // first in classifyFenceContent's if-chain), which would silently drop its declarations rather
+    // than resolving shift/reduce conflicts.
     val md = """# Calc
       |
       |## Expr
@@ -332,19 +332,19 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
   }
 
   test(
-    "unknown setting warning: a hyphenated or argument-less %directive keeps the Settings fence classified as Settings"
+    "unknown setting warning: a hyphenated or argument-less key: keeps the Settings fence classified as Settings"
   ) {
-    // Regression: isSettingDecl's shape regex claimed to accept "any %word" but its character
-    // class excluded `-`/`_` and required a literal trailing argument — so a real, already-shipped
-    // client-side directive like paperPdf.ts's own `%pdf-figure-scale 0.4` (hyphenated) or a bare,
-    // argument-less flag directive still failed `forall` and fell through to `Rule`, exactly the
-    // cascade-of-lex-errors bug the `%naqme` test above already covers for a plain typo.
+    // Regression: isSettingDecl's shape regex must accept "any lowercase-key:", including a
+    // hyphenated key like paperPdf.ts's own `pdf-figure-scale: 0.4` or a bare, argument-less flag
+    // directive (`some-bare-flag:` with nothing after the colon) — otherwise either would fail
+    // `forall` and fall through to `Rule`, exactly the cascade-of-lex-errors bug the `naqme:` test
+    // above already covers for a plain typo.
     val md = """# Calc-js
       |
       |```gramaire
-      |%name Calc-js
-      |%pdf-figure-scale 0.4
-      |%some-bare-flag
+      |name: Calc-js
+      |pdf-figure-scale: 0.4
+      |some-bare-flag:
       |```
       |
       |## Expr
@@ -362,10 +362,10 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
     assertEquals(
       warnings.map(_.message).toSet,
       Set(
-        "unknown setting `%pdf-figure-scale` (ignored)",
-        "unknown setting `%some-bare-flag` (ignored)"
+        "unknown setting `pdf-figure-scale` (ignored)",
+        "unknown setting `some-bare-flag` (ignored)"
       ),
-      s"expected both non-`%name` directives flagged as unknown settings, not a lex-error cascade, got: $warnings"
+      s"expected both non-`name:` directives flagged as unknown settings, not a lex-error cascade, got: $warnings"
     )
   }
 

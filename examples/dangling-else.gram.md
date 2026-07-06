@@ -27,7 +27,7 @@ the ambiguity itself), but that's this fixture's luck, not a guarantee. See
 <summary>Declarations</summary>
 
 ```gramaire
-%name DanglingElse
+name: DanglingElse
 ```
 
 </details>
@@ -35,7 +35,7 @@ the ambiguity itself), but that's this fixture's luck, not a guarantee. See
 ## Tokens
 
 ```gramaire
-WS : /[ \t\r\n]+/   %skip ;
+WS : /[ \t\r\n]+/   -> skip ;
 ```
 
 ## Stmt

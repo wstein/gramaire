@@ -57,8 +57,8 @@ action }` (`label`/`action` are `null` when absent), and one tagged object per
 <summary>Declarations</summary>
 
 ```gramaire
-%name Productions
-%lang javascript
+name: Productions
+lang: javascript
 ```
 
 </details>
@@ -74,8 +74,8 @@ attribute out-matches a `# Name` label; `WS` is skipped; `':'`, `'|'`, and
 `';'` stay implicit literals from the productions.
 
 ```gramaire
-WS       : /[ \t]+/                       %skip ;
-NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      %external(layout) ;
+WS       : /[ \t]+/                       -> skip ;
+NL       : /(\r?\n)(?:[ \t]*\r?\n)*/      -> layout ;
 ATTR     : /#\[([A-Za-z_][A-Za-z0-9_]*)\]/ ;
 IDENT    : /[A-Za-z_][A-Za-z0-9_]*/ ;
 TERM_LIT : /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/ ;

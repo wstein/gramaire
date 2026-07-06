@@ -28,7 +28,7 @@ from the concatenated content of every fenced code block whose info string is
 - **Single fence tag, self-identifying content ("case is law").** There is
   exactly one fence tag, ` ```gramaire `. A fence's role is never named by the
   fence itself; it is inferred from the SHAPE of its own non-blank lines: every
-  line a `%name`/`%lang` directive → **Settings**; every line a
+  line a `name:`/`lang:` directive → **Settings**; every line a
   `%left`/`%right`/`%nonassoc` declaration → **Precedence**; every line an
   unindented `ALLCAPS : …` token definition → **Tokens**; anything else → a
   nonterminal's **productions**. This is unambiguous by construction: no valid
@@ -38,8 +38,8 @@ from the concatenated content of every fenced code block whose info string is
   ` ```gramaire settings `, ` ```gramaire precedence `, ` ```gramaire errors `) is
   a removed notation and MUST be rejected with a located, actionable error
   (`gramaire fmt --migrate` merges it into a bare fence).
-- **Grammar name.** The required `%name <name>` directive, declared in a
-  Settings-role fence. A document with no `%name` is a hard error — there is no
+- **Grammar name.** The required `name: <name>` directive, declared in a
+  Settings-role fence. A document with no `name:` is a hard error — there is no
   fallback to the `# H1` or to the file's path, so a `.gram.md`/`.gram` stays
   fully self-describing independent of how it was loaded (a file on disk, pasted
   into the Lab, piped over stdin).
@@ -55,14 +55,14 @@ from the concatenated content of every fenced code block whose info string is
   is a STYLE the formatter emits and checks, never a LANGUAGE requirement the
   compiler enforces. The Settings fence is the one exception: `fmt` emits it
   **without** a heading at all, immediately after the intro prose, since
-  `%name`/`%lang` read like a source file's leading `import`/`package` line,
+  `name:`/`lang:` read like a source file's leading `import`/`package` line,
   not a titled section.
 - **Curated error messages are prose, not grammar notation.** Put them in a
   plain ` ```text ` fence (skipped like any non-`gramaire` fence) if you want
   them to survive `gramaire fmt`; there is no dedicated notation for them.
 - **One grammar per file.** A file defines exactly one start symbol and one
   nonterminal namespace. Reuse across files is a future cross-file `import`,
-  never in-file sub-grammars or multiple `%name` directives.
+  never in-file sub-grammars or multiple `name:` directives.
 
 ## 2. Lexical grammar of an `lr` block
 
@@ -158,7 +158,7 @@ A `name:X` prefix names that right-hand position. The name is carried onto the
 IR's `rhs[].field` and feeds CST accessors and generated visitors; it does not
 change the recognized language.
 
-Under the declared `%lang` (currently `javascript`), an action receives its
+Under the declared `lang:` (currently `javascript`), an action receives its
 children as a single **namedtuple** `c` — an object read by field (`c.left`) or
 destructured (`({ left, right }) => …`), with the field names taken from
 `rhs[].field`. A production `left:NUM '+' right:NUM {% (c) => c.left + c.right %}`
@@ -186,9 +186,9 @@ A `# Name` label names an alternative. It surfaces in the IR as an optional
 For a host-agnostic AST, **prefer labels over inline `{% … %}` actions** (ADR
 D37). A label like `# MulDiv` generates a typed `MulDiv(children)` method on the
 emitted `Visitor<T>` — exactly ANTLR's `visitMulDiv` pattern — that you implement
-in any target. Inline actions, by contrast, are host source: the `%lang`
+in any target. Inline actions, by contrast, are host source: the `lang:`
 directive declares their language, so a grammar that carries them is tied to that
-host (e.g. `%lang javascript` bakes a self-contained `evaluate(cst)`). So:
+host (e.g. `lang: javascript` bakes a self-contained `evaluate(cst)`). So:
 
 ```gramaire
 expr
@@ -240,7 +240,7 @@ isolating target generators from Markdown processing and layout entirely.
 }
 ```
 
-`actions` maps a `%lang` profile name to that language's opaque, untrusted
+`actions` maps a `lang:` profile name to that language's opaque, untrusted
 source text — see the full shape in
 [`spec/ir-schema.json`](../../../../../spec/ir-schema.json).
 

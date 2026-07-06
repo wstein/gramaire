@@ -40,10 +40,10 @@ the shape of its own lines:
 
 <Steps>
 
-1. **A required `%name <name>` directive** — the grammar's name. It lives
+1. **A required `name: <name>` directive** — the grammar's name. It lives
    inside a `gramaire` fence, right after the intro, with **no heading of its
    own** — the one fence role `fmt` deliberately leaves headless, since
-   `%name`/`%lang` read like a source file's leading `import`/`package` line;
+   `name:`/`lang:` read like a source file's leading `import`/`package` line;
    there's no fallback to a heading or a file name, so a `.gram.md` stays
    self-describing on its own.
 
@@ -68,7 +68,7 @@ One file is exactly one grammar: one start symbol, one namespace.
 
 ## 2. Your first rule
 
-Create `calc.gram.md`, name it with the required `%name` directive, and add a
+Create `calc.gram.md`, name it with the required `name:` directive, and add a
 first nonterminal:
 
 ````md
@@ -77,7 +77,7 @@ first nonterminal:
 A small arithmetic grammar.
 
 ```gramaire
-%name Calc
+name: Calc
 ```
 
 ## Expr
@@ -133,14 +133,14 @@ Factor
 
 `Factor` mentions the `NUMBER` token class but nothing has said what a `NUMBER`
 _is_ yet. Declare token classes in a reserved `## Tokens` section, each an
-ALL-CAPS name bound to a `/regex/`; mark throwaway classes (whitespace) `%skip`:
+ALL-CAPS name bound to a `/regex/`; mark throwaway classes (whitespace) `-> skip`:
 
 ````md
 ## Tokens
 
 ```gramaire
 NUMBER : /[0-9]+/ ;
-WS     : /[ \t\r\n]+/   %skip ;
+WS     : /[ \t\r\n]+/   -> skip ;
 ```
 ````
 
@@ -259,17 +259,17 @@ verdict there is the same verdict the CLI would give a specific input.
 
 A recognizer throws its work away. To keep it — to build a number, or an AST —
 attach a host-language **action** between `{%` and `%}`. Declare the action
-language once, by adding `%lang` to the `%name` fence you already have from
+language once, by adding `lang:` to the `name:` fence you already have from
 §2:
 
 ````md
 ```gramaire
-%name Calc
-%lang javascript
+name: Calc
+lang: javascript
 ```
 ````
 
-With `%lang javascript` declared, an action is a JS arrow function receiving one
+With `lang: javascript` declared, an action is a JS arrow function receiving one
 argument — a **namedtuple** `c` — built from the alternative's right-hand
 symbols:
 

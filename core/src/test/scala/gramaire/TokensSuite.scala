@@ -4,8 +4,8 @@ package gramaire
 class TokensSuite extends munit.FunSuite:
 
   private val lrTokens = List(
-    "WS       : /[ \\t]+/                  %skip ;",
-    "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/     %external(layout) ;",
+    "WS       : /[ \\t]+/                  -> skip ;",
+    "NL       : /(\\r?\\n)(?:[ \\t]*\\r?\\n)*/     -> layout ;",
     "IDENT    : /[A-Za-z_][A-Za-z0-9_]*/ ;",
     "TERM_LIT : /`([^`]+)`/ ;",
     "ACTION   : /\\{%((?:[^%]|%[^}])*)%\\}/ ;",
@@ -21,7 +21,7 @@ class TokensSuite extends munit.FunSuite:
   private val jsonTokens = List(
     "STRING : /\"(?:[^\"\\\\]|\\\\.)*\"/ ;",
     "NUMBER : /-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][-+]?[0-9]+)?/ ;",
-    "WS     : /[ \\t\\r\\n]+/    %skip ;"
+    "WS     : /[ \\t\\r\\n]+/    -> skip ;"
   ).mkString("\n")
 
   private def byName(n: String, defs: Vector[TokenDef]): Option[TokenDef] = defs.find(_.name == n)
@@ -33,7 +33,7 @@ class TokensSuite extends munit.FunSuite:
   test("the lr tokens block parses to its twelve classes") {
     val defs = Tokens.parseTokens(lrTokens).getOrElse(fail("lr tokens should parse"))
     assertEquals(defs.length, 12)
-    assert(byName("WS", defs).exists(_.skip), "WS is %skip")
+    assert(byName("WS", defs).exists(_.skip), "WS is -> skip")
     assertEquals(byName("NL", defs).flatMap(_.external), Some("layout"))
     assertEquals(byName("PLUS", defs).map(_.pattern), Some(TokenPattern.Exact("+")))
     assert(byName("IDENT", defs).exists(d => isRegex(d.pattern)), "IDENT is a regex")
@@ -46,9 +46,9 @@ class TokensSuite extends munit.FunSuite:
     assert(byName("WS", defs).exists(_.skip))
   }
 
-  test("the /…/i flag and %caseless both set caseless (D35)") {
+  test("the /…/i flag and @caseless both set caseless (D35)") {
     val defs = Tokens
-      .parseTokens("KW : /select/i ;\nBG : \"begin\" %caseless ;\nID : /[a-z]+/ ;")
+      .parseTokens("KW : /select/i ;\nBG : \"begin\" @caseless ;\nID : /[a-z]+/ ;")
       .getOrElse(fail("caseless tokens should parse"))
     assert(byName("KW", defs).exists(_.caseless))
     assert(byName("BG", defs).exists(_.caseless))
@@ -63,7 +63,8 @@ class TokensSuite extends munit.FunSuite:
     reject("a lowercase name", "ident : /a/ ;")
     reject("a missing colon", "X /a/ ;")
     reject("a forbidden regex construct", "X : /a(?=b)/ ;")
-    reject("an unknown modifier", "X : /a/ %bogus ;")
-    reject("%prec without a number", "X : /a/ %prec ;")
+    reject("an unknown modifier", "X : /a/ @bogus ;")
+    reject("`->` not followed by `skip` or a pass name", "X : /a/ -> ;")
+    reject("@prec with a non-numeric argument", "X : /a/ @prec(five) ;")
     reject("a missing terminating semicolon", "X : /a/")
   }
