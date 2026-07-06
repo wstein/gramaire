@@ -20,6 +20,11 @@ if name == "design/gramark-site-handoff" or name.startswith("design/gramark-site
 if name == "scripts/rebrand-gramaire" or name.startswith("scripts/rebrand-gramaire/"):
     return filename
 
+# Planning docs intentionally document the rebrand itself and should not be rewritten as if they
+# were implementation artifacts.
+if name == "docs/rebrand-gramaire-plan.md":
+    return filename
+
 # File-extension rename (.gram/.gram.md -> .gram/.gram.md), matching replace-text-rules.txt.
 # A plain substring replace (not endswith), so '.gram.lock' -> '.gram.lock' falls out of the
 # second rule automatically once the '.md'-suffixed form has already been consumed by the first.

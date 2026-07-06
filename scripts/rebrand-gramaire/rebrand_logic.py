@@ -1,13 +1,23 @@
 import re
 
 
-def rewrite_text(text):
+PLAN_DOCS = {"docs/rebrand-gramaire-plan.md"}
+
+
+def should_skip_content_rewrite(path):
+    return path in PLAN_DOCS
+
+
+def rewrite_text(text, path=None):
     if not text:
         return text
     if isinstance(text, bytes):
-        return rewrite_text(text.decode("utf-8", "surrogateescape")).encode(
+        return rewrite_text(text.decode("utf-8", "surrogateescape"), path).encode(
             "utf-8", "surrogateescape"
         )
+
+    if path and should_skip_content_rewrite(path):
+        return text
 
     value = text
     value = value.replace(".gram.md", ".gram.md").replace(".gram", ".gram")
