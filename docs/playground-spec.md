@@ -1813,29 +1813,11 @@ as a real file.
   `renderedSymbol` `$defs`; `site/src/lab/protocol.ts` is regenerated from
   it (`npm run gen:lab-types`), and the JVM↔JS conformance gate
   (`check:lab-parity`) confirms both engines still produce byte-identical,
-  schema-valid responses under the new shape.
-- **One figure across Notebook, Paper, and PDF, not diagram-only.** The
-  railroad diagram and its FIRST/FOLLOW sets used to be two unrelated
-  pieces of content that happened to sit near each other, and Paper/PDF
-  showed the diagram alone — a rule's FIRST/FOLLOW was Notebook-only. Every
-  rule's figure now carries both, on every read surface: the Notebook's own
-  `.grimoire__output` div became a real `<figure>`, named by an sr-only
-  `<figcaption>` ("Railroad diagram and FIRST/FOLLOW sets for the {name}
-  rule") so assistive tech gets one accessible group instead of a labeled
-  diagram next to an unlabeled chip cluster; Paper's `PaperBlock` gained the
-  same `.grimoire__output-ff` markup inside its existing
-  `<figure>`/`<figcaption>Figure N — {name}</figcaption>`; the PDF export
-  (`paperPdf.ts`) draws FIRST/FOLLOW as kind-colored chip pills (a rounded
-  background via the existing `roundedRectPath` + plain `page.drawText`,
-  not `shapeLabel`'s HarfBuzz path — these are short plain identifiers with
-  no Fira Code ligature to worry about) below each rule's vector railroad,
-  wrapping within the content width exactly like body text already does.
-  `Railroad.scala`'s own `DiaSym` stays a two-way terminal/nonterminal
-  split, unchanged — a railroad diagram was never asked to distinguish
-  literal from token, and doing so would mean re-deriving the classifier
-  inside the diagram-construction path for no reader-facing benefit; the
-  new `ffColors`/`rrColors` in `paperPdf.ts` are intentionally two separate
-  palettes for this reason, not one merged one.
+  schema-valid responses under the new shape. (A follow-on change grouping
+  the railroad diagram and FIRST/FOLLOW into one `<figure>` across
+  Notebook/Paper/PDF was tried and reverted — the diagram and FIRST/FOLLOW
+  stay two separate pieces of content, and Paper/PDF stay diagram-only,
+  FIRST/FOLLOW remaining Notebook-only.)
 
 ---
 
