@@ -40,6 +40,11 @@ class MirrorRebrandScriptTests(unittest.TestCase):
         self.assertIn("sourceMappingURL=gramaire-engine.mjs.map", script)
         self.assertIn("file:///Users/", script)
 
+    def test_script_preserves_empty_commits_during_path_cleanup(self) -> None:
+        script = SCRIPT_PATH.read_text(encoding="utf-8")
+        self.assertIn("--prune-empty never", script)
+        self.assertNotIn("--prune-empty always", script)
+
     def test_commit_message_callback_rewrites_messages(self) -> None:
         rewritten = commit_msg_callback.rewrite_message(
             b"Gramaire and gramaire",

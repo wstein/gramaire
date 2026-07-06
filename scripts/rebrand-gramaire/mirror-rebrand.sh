@@ -131,7 +131,7 @@ git -C "$MIRROR_DIR" filter-repo \
   --path-glob 'scripts/rebrand-gramaire/**' \
   --path 'site/src/generated/gramaire-engine.mjs.map' \
   --invert-paths \
-  --prune-empty always
+  --prune-empty never
 
 echo
 echo "== Rewrite complete. Checking out a normal working copy for review =="
