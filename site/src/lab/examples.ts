@@ -18,7 +18,14 @@ export interface LabExample {
 export const DEFAULT_SOURCE = `# Expr
 
 \`\`\`gramark
-%name Expr
+name: Expr
+\`\`\`
+
+## Tokens
+
+\`\`\`gramark
+NUMBER : /[0-9]+/ ;
+WS     : /[ \\t\\r\\n]+/   -> skip ;
 \`\`\`
 
 ## Expr
@@ -48,13 +55,6 @@ Factor
   : '(' Expr ')'
   | NUMBER
   ;
-\`\`\`
-
-## Tokens
-
-\`\`\`gramark
-NUMBER : /[0-9]+/ ;
-WS     : /[ \\t\\r\\n]+/   %skip ;
 \`\`\`
 `;
 
