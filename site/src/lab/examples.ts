@@ -28,6 +28,7 @@ Expr
   : Expr '+' Term
   | Expr '-' Term
   | Term
+  ;
 \`\`\`
 
 ## Term
@@ -37,6 +38,7 @@ Term
   : Term '*' Factor
   | Term '/' Factor
   | Factor
+  ;
 \`\`\`
 
 ## Factor
@@ -45,13 +47,14 @@ Term
 Factor
   : '(' Expr ')'
   | NUMBER
+  ;
 \`\`\`
 
 ## Tokens
 
 \`\`\`gramark
-NUMBER : /[0-9]+/
-WS     : /[ \\t\\r\\n]+/   %skip
+NUMBER : /[0-9]+/ ;
+WS     : /[ \\t\\r\\n]+/   %skip ;
 \`\`\`
 `;
 

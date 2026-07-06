@@ -250,7 +250,7 @@ test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", 
 
   await page
     .locator(".lab__pane--grammar .lab__editor")
-    .fill("# Ambiguous\n\n## E\n\n```gramark\nE\n: E E\n| 'x'\n```\n");
+    .fill("# Ambiguous\n\n## E\n\n```gramark\nE\n: E E\n| 'x'\n;\n```\n");
   await page.locator(".lab__pane--fill .lab__editor").fill("xxx");
   await expect(page.locator(".lab__status")).toHaveText("errors", {
     timeout: 5000,
@@ -284,7 +284,7 @@ test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthro
     "## Tokens",
     "",
     "```gramark",
-    "NUMBER : /[0-9]+/",
+    "NUMBER : /[0-9]+/ ;",
     "```",
     "",
     "## Sum",
@@ -293,6 +293,7 @@ test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthro
     "Sum",
     "  : Sum '+' NUMBER {% (c) => c.sum + Number(c.number) %}",
     "  | NUMBER            {% (c) => Number(c.number) %}",
+    "  ;",
     "```",
     "",
   ].join("\n");
@@ -338,7 +339,7 @@ test("the Lab's Evaluate tab renders a non-primitive action result as a collapse
     "## Tokens",
     "",
     "```gramark",
-    "NUMBER : /[0-9]+/",
+    "NUMBER : /[0-9]+/ ;",
     "```",
     "",
     "## Expr",
@@ -346,6 +347,7 @@ test("the Lab's Evaluate tab renders a non-primitive action result as a collapse
     "```gramark",
     "Expr",
     '  : NUMBER {% (c) => ({ tag: "Num", value: Number(c.number) }) %}',
+    "  ;",
     "```",
     "",
   ].join("\n");
@@ -410,7 +412,7 @@ test("a successful build still surfaces warnings in Output and the status bar", 
   // An unreachable rule warns without failing the build (LabResponse.diagnostics carries warnings
   // "either way" — protocol.ts's own doc comment).
   const md =
-    "# Warn\n\n## Expr\n\n```gramark\nExpr\n: NUMBER\n```\n\n## Unused\n\n```gramark\nUnused\n: NUMBER\n```\n\n## Tokens\n\n```gramark\nNUMBER : /[0-9]+/\n```\n";
+    "# Warn\n\n## Expr\n\n```gramark\nExpr\n: NUMBER\n;\n```\n\n## Unused\n\n```gramark\nUnused\n: NUMBER\n;\n```\n\n## Tokens\n\n```gramark\nNUMBER : /[0-9]+/ ;\n```\n";
   await page.locator(".lab__pane--grammar .lab__editor").fill(md);
   // The leftover default input "1+2*3" no longer matches this grammar (Expr: NUMBER alone) — the
   // build is still healthy (just a warning), so the status is "ok", not "errors": a rejected input
@@ -968,6 +970,7 @@ test("Engine=ALL(*) still builds an LR-conflicted grammar, with the conflict as 
         "E",
         ": E E",
         "| 'x'",
+        ";",
         "```",
         "",
       ].join("\n"),
@@ -1172,8 +1175,8 @@ test("Lowered Core shows the ALL(*) precedence-stratification rewrite, and hides
     "## Tokens",
     "",
     "```gramark",
-    "NUMBER : /[0-9]+/",
-    "WS     : /[ \\t\\r\\n]+/   %skip",
+    "NUMBER : /[0-9]+/ ;",
+    "WS     : /[ \\t\\r\\n]+/   %skip ;",
     "```",
     "",
     "## expr",
@@ -1183,6 +1186,7 @@ test("Lowered Core shows the ALL(*) precedence-stratification rewrite, and hides
     "  : expr '+' expr",
     "  | expr '*' expr",
     "  | NUMBER",
+    "  ;",
     "```",
     "",
     "## Precedence",
@@ -1221,7 +1225,7 @@ test("Lowered Core shows the ALL(*) precedence-stratification rewrite, and hides
   await page
     .locator(".lab__pane--grammar .lab__editor")
     .fill(
-      "# NoRewrite\n\n```gramark\n%name NoRewrite\n```\n\n## Tokens\n\n```gramark\nA : /a/\n```\n\n## s\n\n```gramark\ns\n  : A\n```\n",
+      "# NoRewrite\n\n```gramark\n%name NoRewrite\n```\n\n## Tokens\n\n```gramark\nA : /a/ ;\n```\n\n## s\n\n```gramark\ns\n  : A\n  ;\n```\n",
     );
   await expect(page.locator(".lab__status")).toHaveText("ok", {
     timeout: 5000,

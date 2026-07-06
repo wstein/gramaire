@@ -699,14 +699,14 @@ function insertCellAt(
 // real engine, not just assumed (`buildOk` true, no diagnostics beyond the expected "rule
 // unreachable from the new start rule" warnings inserting BEFORE other rules always produces).
 function insertRuleAt(index: number) {
-  insertCellAt(index, "rule", "NewRule\n  : 'TODO'", "NewRule");
+  insertCellAt(index, "rule", "NewRule\n  : 'TODO'\n  ;", "NewRule");
 }
 
 // A token definition naming something no rule references yet — verified against the real engine:
 // `buildOk` true, only the expected "declared but never referenced" warning (the same class of
 // harmless, expected warning as `+Rule`'s "unreachable" one above), regardless of insert position.
 function insertTokensAt(index: number) {
-  insertCellAt(index, "tokens", "TODO : /x/", null);
+  insertCellAt(index, "tokens", "TODO : /x/ ;", null);
 }
 
 // `%word value` is the shape `isSettingDecl` requires (`Lr.scala`'s `settingDeclShapeRe`) — a bare

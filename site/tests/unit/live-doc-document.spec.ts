@@ -48,10 +48,10 @@ function fence(
 const calcFences: FenceInfo[] = [
   fence(0, "settings", null, 9, 12),
   fence(1, "tokens", null, 18, 21),
-  fence(2, "rule", "Expr", 32, 37),
-  fence(3, "rule", "Term", 50, 55),
-  fence(4, "rule", "Factor", 68, 72),
-  fence(5, "precedence", null, 80, 83),
+  fence(2, "rule", "Expr", 32, 38),
+  fence(3, "rule", "Term", 51, 57),
+  fence(4, "rule", "Factor", 70, 75),
+  fence(5, "precedence", null, 83, 86),
 ];
 
 function readCalcMd(): string {
