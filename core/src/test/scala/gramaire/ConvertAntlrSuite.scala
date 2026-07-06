@@ -61,6 +61,16 @@ class ConvertAntlrSuite extends munit.FunSuite:
       |ID : [a-z]+ ;
       |""".stripMargin
 
+  // A predicate nested inside a group: unlike the top-level one-per-alt case, a group's inner
+  // alternatives have no action slot at all (`Sym.Group` carries bare `Vector[Sym]`), so this
+  // is never representable regardless of what else shares the alt.
+  private val nestedGroupPredicateG4: String =
+    """grammar P;
+      |r : ( {p}? ID ) | OTHER ;
+      |ID : [a-z]+ ;
+      |OTHER : [A-Z]+ ;
+      |""".stripMargin
+
   // A grammar exercising three "lossy is loud" gaps at once: a non-greedy suffix and a bare
   // character set in a parser rule (both silently normalized before this warning was added),
   // and the same non-greedy pattern repeated in a second rule — which must warn
@@ -229,6 +239,48 @@ class ConvertAntlrSuite extends munit.FunSuite:
           imp.warnings.exists(_.contains("System.out")),
           "the action must still be reported dropped"
         )
+  }
+
+  test("convert: a predicate nested inside a group is dropped with a group-specific warning") {
+    ConvertAntlr.importAntlr(nestedGroupPredicateG4) match
+      case Left(e) => fail(s"nestedGroupPredicate.g4 should import: $e")
+      case Right(imp) =>
+        assert(!imp.markdown.contains("{"), "the nested predicate must not leak into the output")
+        assert(
+          imp.warnings.exists(w => w.contains("nested inside a group")),
+          s"expected a group-specific drop warning, got: ${imp.warnings}"
+        )
+        assert(
+          imp.markdown.contains("( ID )"),
+          s"the group survives with just its real content, got:\n${imp.markdown}"
+        )
+  }
+
+  test(
+    "convert: a semantic predicate promoted to `{%? %}` survives export back to ANTLR and reimport"
+  ) {
+    ConvertAntlr.importAntlr(predicateG4) match
+      case Left(e) => fail(s"predicate.g4 should import: $e")
+      case Right(imp) =>
+        Lr.parse(imp.markdown) match
+          case Left(e) => fail(s"imported predicate grammar should parse: $e")
+          case Right(g) =>
+            IR.buildIRWithTokens(defsOf(imp.markdown), Method.Canonical, "P", g) match
+              case Left(_) => fail("imported predicate grammar should build an IR")
+              case Right(ir) =>
+                val g4b = BackendAntlr.emit(ir)
+                assert(
+                  g4b.contains("{flag}?"),
+                  s"expected the predicate to survive export back to ANTLR, got:\n$g4b"
+                )
+                ConvertAntlr.importAntlr(g4b) match
+                  case Left(e) => fail(s"re-exported .g4 should re-import: $e")
+                  case Right(imp2) =>
+                    assert(
+                      imp2.markdown.contains("{%? flag %}"),
+                      "the predicate must still be promoted (not dropped) on the second pass," +
+                        s" got:\n${imp2.markdown}"
+                    )
   }
 
   test(

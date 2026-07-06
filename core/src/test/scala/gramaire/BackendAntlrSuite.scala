@@ -38,6 +38,40 @@ class BackendAntlrSuite extends munit.FunSuite:
         assert(g4.contains("/* The start rule. */\ns\n"), s"expected a leading comment on s:\n$g4")
   }
 
+  private val predicateGrammar = Grammar(
+    Vector(
+      Rule(
+        "S",
+        Vector.empty,
+        Vector(Alt(Vector(Ref("A")), None, Some("?flag")), Alt(Vector(Lit("x")), None, None))
+      ),
+      Rule("A", Vector.empty, Vector(Alt(Vector(Ref("NUM")), None, None)))
+    )
+  )
+
+  test("a predicate rule (D42) renders back as ANTLR4's `{ ... }?` syntax on export") {
+    IR.buildIR(Method.Canonical, "Pred", predicateGrammar) match
+      case Left(_) => fail("predicate grammar should build")
+      case Right(ir) =>
+        val g4 = BackendAntlr.emit(ir)
+        assert(g4.contains("{flag}? a"), s"expected the predicate rendered leading the alt:\n$g4")
+  }
+
+  test(
+    "a predicate rule's body is found under any `actions` key — the real pipeline retags " +
+      "\"default\" to the declared %lang via IR.withActionLang before a backend ever runs"
+  ) {
+    IR.buildIR(Method.Canonical, "Pred", predicateGrammar) match
+      case Left(_) => fail("predicate grammar should build")
+      case Right(ir0) =>
+        val ir = IR.withActionLang(Some("js"), ir0)
+        val g4 = BackendAntlr.emit(ir)
+        assert(
+          g4.contains("{flag}? a"),
+          s"expected the predicate to still be found after a real %lang retag:\n$g4"
+        )
+  }
+
   test("regex→ANTLR keeps char classes, negates with ~, strips (?:, quotes literals") {
     assertEquals(BackendAntlr.regexToAntlr("[0-9]+"), "[0-9]+")
     assertEquals(BackendAntlr.regexToAntlr("[ \t\r\n]+"), "[ \t\r\n]+")
