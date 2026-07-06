@@ -127,7 +127,7 @@ strip:
 regen-examples:
 	@echo "Regenerating derived artifacts for the discovered .grmk.md example files..."
 	@for f in $(EXAMPLE_FILES); do \
-		sbt -batch "cli/runMain gramark.cli.Main fmt --diagrams=sidecar --inline-source $$f"; \
+		sbt -batch "cli/runMain gramark.cli.Main fmt --diagrams=sidecar $$f"; \
 	done
 	@echo "Regenerating standalone native .grmk example files..."
 	@for f in $(NATIVE_EXAMPLE_FILES); do \
