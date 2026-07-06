@@ -134,13 +134,20 @@ enum IRRef derives CanEqual:
 // untrusted host-language text; empty when the alternative has no
 // action. Kept as a `Map` (not an ordered array of pairs, as the prior
 // reference implementation used) since it's genuinely keyed lookup data.
+// `delegate` (ADR D48) is this alternative's `-> IDENT` name — mutually
+// exclusive with a populated `actions` map by construction (the front end's
+// grammar has no production combining both); omitted from JSON when
+// absent, same convention as `label`/`predicate`. Resolving the name (to a
+// consumer-supplied implementation, or in a later phase to a fenced one) is
+// deferred to a later phase — this field only carries it through.
 final case class IRRule(
     id: Int,
     lhs: Int,
     rhs: Vector[IRRef],
     label: Option[String],
     actions: Map[String, String],
-    predicate: Option[IRPredicateEffect] = None
+    predicate: Option[IRPredicateEffect] = None,
+    delegate: Option[String] = None
 )
 
 // Declares a rule's action an ALL(*) semantic predicate (D-predicates,
@@ -330,30 +337,32 @@ object IR:
     // Flattened in `Table.productions` order, but keeping the actions
     // that table construction drops.
     val flat: Vector[(String, Alt)] = rules.flatMap(r => r.alts.map(alt => (r.name, alt)))
-    val irRules: Vector[IRRule] = flat.zipWithIndex.map { case ((lhs, Alt(syms, label, act)), i) =>
-      // D-predicates: an action whose (already-trimmed, by the lexer) text starts with `?` is a
-      // predicate, not a value-building action — `{%? p %}` lexes to the same ACTION token shape
-      // as `{% p %}`, just with the leading `?` surviving the trim as the body's first character.
-      // The `?` itself is the flag, not part of the body: strip it (and the whitespace it was
-      // hiding, e.g. `{%?  p %}`) before storing the action text. Known narrow gap: the escape
-      // hatch a value action needs if its own body genuinely starts with `?` (`{% ?x %}`, ADR
-      // D-predicates) is not actually distinguishable here, since the lexer's trim already
-      // discards whether a space preceded the `?` in the source — in practice not a real
-      // limitation, since a lambda-style action body essentially never starts with a bare `?`.
-      val isPredicate = act.exists(_.startsWith("?"))
-      val body = act.map(text => if isPredicate then text.drop(1).trim else text)
-      val actions = body match
-        case Some(code) => Map("default" -> code)
-        case None       => Map.empty
-      IRRule(
-        id = i,
-        lhs = ntId(lhs),
-        rhs = syms.map(toRef),
-        label = label,
-        actions = actions,
-        predicate =
-          if isPredicate then Some(IRPredicateEffect(Vector.empty, Vector.empty)) else None
-      )
+    val irRules: Vector[IRRule] = flat.zipWithIndex.map {
+      case ((lhs, Alt(syms, label, act, delegate)), i) =>
+        // D-predicates: an action whose (already-trimmed, by the lexer) text starts with `?` is a
+        // predicate, not a value-building action — `{%? p %}` lexes to the same ACTION token shape
+        // as `{% p %}`, just with the leading `?` surviving the trim as the body's first character.
+        // The `?` itself is the flag, not part of the body: strip it (and the whitespace it was
+        // hiding, e.g. `{%?  p %}`) before storing the action text. Known narrow gap: the escape
+        // hatch a value action needs if its own body genuinely starts with `?` (`{% ?x %}`, ADR
+        // D-predicates) is not actually distinguishable here, since the lexer's trim already
+        // discards whether a space preceded the `?` in the source — in practice not a real
+        // limitation, since a lambda-style action body essentially never starts with a bare `?`.
+        val isPredicate = act.exists(_.startsWith("?"))
+        val body = act.map(text => if isPredicate then text.drop(1).trim else text)
+        val actions = body match
+          case Some(code) => Map("default" -> code)
+          case None       => Map.empty
+        IRRule(
+          id = i,
+          lhs = ntId(lhs),
+          rhs = syms.map(toRef),
+          label = label,
+          actions = actions,
+          predicate =
+            if isPredicate then Some(IRPredicateEffect(Vector.empty, Vector.empty)) else None,
+          delegate = delegate
+        )
     }
 
     IRGrammar(
@@ -549,13 +558,14 @@ object IR:
     def ruleJson(r: IRRule): Json =
       val labelEntry = r.label.map(l => "label" -> Json.JString(l)).toVector
       val predicateEntry = r.predicate.map(p => "predicate" -> predicateEffectJson(p)).toVector
+      val delegateEntry = r.delegate.map(d => "delegate" -> Json.JString(d)).toVector
       Json.JObject(
         Vector(
           "id" -> Json.JInt(r.id),
           "lhs" -> Json.JInt(r.lhs),
           "rhs" -> Json.JArray(r.rhs.map(refJson)),
           "actions" -> Json.JObject(r.actions.toVector.map { case (k, v) => k -> Json.JString(v) })
-        ) ++ labelEntry ++ predicateEntry
+        ) ++ labelEntry ++ predicateEntry ++ delegateEntry
       )
 
     def ntJson(n: IRNonterminal): Json =

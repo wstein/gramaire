@@ -72,7 +72,7 @@ class DesugarSuite extends munit.FunSuite:
       case Left(e) => fail(s"X+ desugar failed: $e")
       case Right(g) =>
         ruleNamed("S", g) match
-          case Some(Rule(_, _, Vector(Alt(syms, _, _)), _)) =>
+          case Some(Rule(_, _, Vector(Alt(syms, _, _, _)), _)) =>
             assertEquals(syms.length, 3, "S keeps three symbols")
           case _ => fail("S should have one three-symbol alternative")
         ruleNamed("B_plus", g) match
@@ -87,7 +87,7 @@ class DesugarSuite extends munit.FunSuite:
       case Left(e) => fail(s"group desugar failed: $e")
       case Right(g) =>
         ruleNamed("__group_0", g) match
-          case Some(Rule(_, _, Vector(Alt(syms, _, _)), _)) =>
+          case Some(Rule(_, _, Vector(Alt(syms, _, _, _)), _)) =>
             assertEquals(syms.length, 2, "__group_0 carries the group's two symbols")
           case _ => fail("__group_0 should be a single B C alternative")
         assert(!g.rules.exists(altHasGroup), "no Group node survives desugaring")

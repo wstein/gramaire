@@ -75,56 +75,63 @@ object Lr:
     case (6, Vector(SemVal.VAlts(bs), _, SemVal.VAlt(a))) =>
       SemVal.VAlts(bs :+ a) // Body : Body `|` Alt
     case (7, Vector(SemVal.VSyms(syms), SemVal.VMaybeStr(lbl), SemVal.VMaybeStr(act))) =>
-      SemVal.VAlt(Alt(syms, lbl, act)) // Alt : SymList Label Action
-    case (8, Vector(SemVal.VSyms(syms), SemVal.VMaybeStr(lbl))) =>
-      SemVal.VAlt(Alt(syms, lbl, None)) // Alt : SymList Label
-    case (9, Vector(SemVal.VSyms(syms), SemVal.VMaybeStr(act))) =>
-      SemVal.VAlt(Alt(syms, None, act)) // Alt : SymList Action
-    case (10, Vector(SemVal.VSyms(syms))) => SemVal.VAlt(Alt(syms, None, None)) // Alt : SymList
-    case (11, Vector(SemVal.VSym(s)))     => SemVal.VSyms(Vector(s)) // SymList : Sym
-    case (12, Vector(SemVal.VSyms(ss), SemVal.VSym(s))) =>
+      SemVal.VAlt(Alt(syms, lbl, act, None)) // Alt : SymList Label Action
+    case (8, Vector(SemVal.VSyms(syms), SemVal.VMaybeStr(lbl), SemVal.VMaybeStr(deleg))) =>
+      SemVal.VAlt(Alt(syms, lbl, None, deleg)) // Alt : SymList Label Delegate
+    case (9, Vector(SemVal.VSyms(syms), SemVal.VMaybeStr(lbl))) =>
+      SemVal.VAlt(Alt(syms, lbl, None, None)) // Alt : SymList Label
+    case (10, Vector(SemVal.VSyms(syms), SemVal.VMaybeStr(act))) =>
+      SemVal.VAlt(Alt(syms, None, act, None)) // Alt : SymList Action
+    case (11, Vector(SemVal.VSyms(syms), SemVal.VMaybeStr(deleg))) =>
+      SemVal.VAlt(Alt(syms, None, None, deleg)) // Alt : SymList Delegate
+    case (12, Vector(SemVal.VSyms(syms))) =>
+      SemVal.VAlt(Alt(syms, None, None, None)) // Alt : SymList
+    case (13, Vector(SemVal.VSym(s))) => SemVal.VSyms(Vector(s)) // SymList : Sym
+    case (14, Vector(SemVal.VSyms(ss), SemVal.VSym(s))) =>
       SemVal.VSyms(ss :+ s) // SymList : SymList Sym
-    case (13, Vector(SemVal.VStr(i)))    => SemVal.VSym(Ref(i)) // Sym : IDENT
-    case (14, Vector(SemVal.VStr(t)))    => SemVal.VSym(Lit(t)) // Sym : TERM_LIT
-    case (15, Vector(SemVal.VStr(i), _)) => SemVal.VSym(Rep(Ref(i))) // Sym : IDENT PLUS
-    case (16, Vector(SemVal.VStr(t), _)) => SemVal.VSym(Rep(Lit(t))) // Sym : TERM_LIT PLUS
-    case (17, Vector(SemVal.VStr(i), _)) => SemVal.VSym(Star(Ref(i))) // Sym : IDENT STAR
-    case (18, Vector(SemVal.VStr(t), _)) => SemVal.VSym(Star(Lit(t))) // Sym : TERM_LIT STAR
-    case (19, Vector(SemVal.VStr(i), _)) => SemVal.VSym(Opt(Ref(i))) // Sym : IDENT QUESTION
-    case (20, Vector(SemVal.VStr(t), _)) => SemVal.VSym(Opt(Lit(t))) // Sym : TERM_LIT QUESTION
-    case (21, Vector(SemVal.VStr(name), _, SemVal.VSyms(args), _)) =>
+    case (15, Vector(SemVal.VStr(i)))    => SemVal.VSym(Ref(i)) // Sym : IDENT
+    case (16, Vector(SemVal.VStr(t)))    => SemVal.VSym(Lit(t)) // Sym : TERM_LIT
+    case (17, Vector(SemVal.VStr(i), _)) => SemVal.VSym(Rep(Ref(i))) // Sym : IDENT PLUS
+    case (18, Vector(SemVal.VStr(t), _)) => SemVal.VSym(Rep(Lit(t))) // Sym : TERM_LIT PLUS
+    case (19, Vector(SemVal.VStr(i), _)) => SemVal.VSym(Star(Ref(i))) // Sym : IDENT STAR
+    case (20, Vector(SemVal.VStr(t), _)) => SemVal.VSym(Star(Lit(t))) // Sym : TERM_LIT STAR
+    case (21, Vector(SemVal.VStr(i), _)) => SemVal.VSym(Opt(Ref(i))) // Sym : IDENT QUESTION
+    case (22, Vector(SemVal.VStr(t), _)) => SemVal.VSym(Opt(Lit(t))) // Sym : TERM_LIT QUESTION
+    case (23, Vector(SemVal.VStr(name), _, SemVal.VSyms(args), _)) =>
       SemVal.VSym(Macro(name, args)) // Sym : IDENT LANGLE Args RANGLE
-    case (22, Vector(SemVal.VStr(name), _, SemVal.VSym(s))) =>
+    case (24, Vector(SemVal.VStr(name), _, SemVal.VSym(s))) =>
       SemVal.VSym(Field(name, s)) // Sym : IDENT `:` Sym
-    case (23, Vector(_, SemVal.VGroupBody(g), _)) =>
+    case (25, Vector(_, SemVal.VGroupBody(g), _)) =>
       SemVal.VSym(Group(g)) // Sym : `(` GroupBody `)`
-    case (24, Vector(_, SemVal.VGroupBody(g), _, _)) =>
-      SemVal.VSym(Rep(Group(g))) // Sym : `(` GroupBody `)` PLUS
-    case (25, Vector(_, SemVal.VGroupBody(g), _, _)) =>
-      SemVal.VSym(Star(Group(g))) // Sym : `(` GroupBody `)` STAR
     case (26, Vector(_, SemVal.VGroupBody(g), _, _)) =>
+      SemVal.VSym(Rep(Group(g))) // Sym : `(` GroupBody `)` PLUS
+    case (27, Vector(_, SemVal.VGroupBody(g), _, _)) =>
+      SemVal.VSym(Star(Group(g))) // Sym : `(` GroupBody `)` STAR
+    case (28, Vector(_, SemVal.VGroupBody(g), _, _)) =>
       SemVal.VSym(Opt(Group(g))) // Sym : `(` GroupBody `)` QUESTION
-    case (27, Vector(SemVal.VSym(a)))    => SemVal.VSym(a) // Sym : Atom
-    case (28, Vector(SemVal.VSym(a), _)) => SemVal.VSym(Rep(a)) // Sym : Atom PLUS
-    case (29, Vector(SemVal.VSym(a), _)) => SemVal.VSym(Star(a)) // Sym : Atom STAR
-    case (30, Vector(SemVal.VSym(a), _)) => SemVal.VSym(Opt(a)) // Sym : Atom QUESTION
-    case (31, Vector(SemVal.VSym(s)))    => SemVal.VSyms(Vector(s)) // Args : Sym
-    case (32, Vector(SemVal.VSyms(as2), _, SemVal.VSym(s))) =>
+    case (29, Vector(SemVal.VSym(a)))    => SemVal.VSym(a) // Sym : Atom
+    case (30, Vector(SemVal.VSym(a), _)) => SemVal.VSym(Rep(a)) // Sym : Atom PLUS
+    case (31, Vector(SemVal.VSym(a), _)) => SemVal.VSym(Star(a)) // Sym : Atom STAR
+    case (32, Vector(SemVal.VSym(a), _)) => SemVal.VSym(Opt(a)) // Sym : Atom QUESTION
+    case (33, Vector(SemVal.VSym(s)))    => SemVal.VSyms(Vector(s)) // Args : Sym
+    case (34, Vector(SemVal.VSyms(as2), _, SemVal.VSym(s))) =>
       SemVal.VSyms(as2 :+ s) // Args : Args COMMA Sym
-    case (33, Vector(SemVal.VStr(a)))     => SemVal.VMaybeStr(Some(a)) // Action : ACTION
-    case (34, Vector(SemVal.VStr(l)))     => SemVal.VMaybeStr(Some(l)) // Label : LABEL
-    case (35, Vector(SemVal.VSyms(syms))) => SemVal.VGroupBody(Vector(syms)) // GroupBody : SymList
-    case (36, Vector(SemVal.VGroupBody(alts), _, SemVal.VSyms(syms))) =>
+    case (35, Vector(SemVal.VStr(a))) => SemVal.VMaybeStr(Some(a)) // Action : ACTION
+    case (36, Vector(SemVal.VStr(l))) => SemVal.VMaybeStr(Some(l)) // Label : LABEL
+    case (37, Vector(_, SemVal.VStr(name))) =>
+      SemVal.VMaybeStr(Some(name)) // Delegate : ARROW IDENT
+    case (38, Vector(SemVal.VSyms(syms))) => SemVal.VGroupBody(Vector(syms)) // GroupBody : SymList
+    case (39, Vector(SemVal.VGroupBody(alts), _, SemVal.VSyms(syms))) =>
       SemVal.VGroupBody(alts :+ syms) // GroupBody : GroupBody `|` SymList
-    case (37, Vector(_))                       => SemVal.VSym(Any) // Atom : `.`
-    case (38, Vector(_, SemVal.VSyms(set)))    => SemVal.VSym(Not(set)) // Atom : `~` NotArg
-    case (39, Vector(SemVal.VSym(i)))          => SemVal.VSyms(Vector(i)) // NotArg : SetItem
-    case (40, Vector(_, SemVal.VSyms(set), _)) => SemVal.VSyms(set) // NotArg : `(` SetBody `)`
-    case (41, Vector(SemVal.VSym(i)))          => SemVal.VSyms(Vector(i)) // SetBody : SetItem
-    case (42, Vector(SemVal.VSyms(set), _, SemVal.VSym(i))) =>
+    case (40, Vector(_))                       => SemVal.VSym(Any) // Atom : `.`
+    case (41, Vector(_, SemVal.VSyms(set)))    => SemVal.VSym(Not(set)) // Atom : `~` NotArg
+    case (42, Vector(SemVal.VSym(i)))          => SemVal.VSyms(Vector(i)) // NotArg : SetItem
+    case (43, Vector(_, SemVal.VSyms(set), _)) => SemVal.VSyms(set) // NotArg : `(` SetBody `)`
+    case (44, Vector(SemVal.VSym(i)))          => SemVal.VSyms(Vector(i)) // SetBody : SetItem
+    case (45, Vector(SemVal.VSyms(set), _, SemVal.VSym(i))) =>
       SemVal.VSyms(set :+ i) // SetBody : SetBody `|` SetItem
-    case (43, Vector(SemVal.VStr(i))) => SemVal.VSym(Ref(i)) // SetItem : IDENT
-    case (44, Vector(SemVal.VStr(t))) => SemVal.VSym(Lit(t)) // SetItem : TERM_LIT
+    case (46, Vector(SemVal.VStr(i))) => SemVal.VSym(Ref(i)) // SetItem : IDENT
+    case (47, Vector(SemVal.VStr(t))) => SemVal.VSym(Lit(t)) // SetItem : TERM_LIT
     case _                            => SemVal.VErr(s"unexpected reduce shape for production $p")
 
   // A `.gram.md` grammar has exactly one fence tag — ```gramaire — and its four possible roles are
@@ -625,6 +632,7 @@ object Lr:
     case "LANGLE"   => "`<`"
     case "RANGLE"   => "`>`"
     case "COMMA"    => "`,`"
+    case "ARROW"    => "`->`"
     case lit        => s"`$lit`"
 
   // Build the located, note-carrying diagnostic for a rejected `lr`-notation parse: the failing

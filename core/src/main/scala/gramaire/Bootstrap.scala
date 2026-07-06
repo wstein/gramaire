@@ -42,7 +42,8 @@ object Bootstrap:
     "QUESTION : \"?\" ;",
     "LANGLE   : \"<\" ;",
     "RANGLE   : \">\" ;",
-    "COMMA    : \",\" ;"
+    "COMMA    : \",\" ;",
+    "ARROW    : \"->\" ;"
   ).mkString("\n")
 
   val bootstrapGrammar: Grammar = Grammar(
@@ -111,22 +112,44 @@ object Bootstrap:
           Alt(
             Vector(Ref("SymList"), Ref("Label"), Ref("Action")),
             None,
-            Some("\\_ _ _ -> (c) => ({ tag: \"Alt\", syms: c[0], label: c[1], action: c[2] })")
+            Some(
+              "\\_ _ _ -> (c) => ({ tag: \"Alt\", syms: c[0], label: c[1], action: c[2], delegate: null })"
+            )
+          ),
+          Alt(
+            Vector(Ref("SymList"), Ref("Label"), Ref("Delegate")),
+            None,
+            Some(
+              "\\_ _ _ -> (c) => ({ tag: \"Alt\", syms: c[0], label: c[1], action: null, delegate: c[2] })"
+            )
           ),
           Alt(
             Vector(Ref("SymList"), Ref("Label")),
             None,
-            Some("\\_ _ -> (c) => ({ tag: \"Alt\", syms: c[0], label: c[1], action: null })")
+            Some(
+              "\\_ _ -> (c) => ({ tag: \"Alt\", syms: c[0], label: c[1], action: null, delegate: null })"
+            )
           ),
           Alt(
             Vector(Ref("SymList"), Ref("Action")),
             None,
-            Some("\\_ _ -> (c) => ({ tag: \"Alt\", syms: c[0], label: null, action: c[1] })")
+            Some(
+              "\\_ _ -> (c) => ({ tag: \"Alt\", syms: c[0], label: null, action: c[1], delegate: null })"
+            )
+          ),
+          Alt(
+            Vector(Ref("SymList"), Ref("Delegate")),
+            None,
+            Some(
+              "\\_ _ -> (c) => ({ tag: \"Alt\", syms: c[0], label: null, action: null, delegate: c[1] })"
+            )
           ),
           Alt(
             Vector(Ref("SymList")),
             None,
-            Some("\\_ -> (c) => ({ tag: \"Alt\", syms: c[0], label: null, action: null })")
+            Some(
+              "\\_ -> (c) => ({ tag: \"Alt\", syms: c[0], label: null, action: null, delegate: null })"
+            )
           )
         )
       ),
@@ -243,6 +266,11 @@ object Bootstrap:
         "Label",
         Vector.empty,
         Vector(Alt(Vector(Ref("LABEL")), None, Some("\\_ -> (c) => c[0]")))
+      ),
+      Rule(
+        "Delegate",
+        Vector.empty,
+        Vector(Alt(Vector(Ref("ARROW"), Ref("IDENT")), None, Some("\\_ _ -> (c) => c[1]")))
       ),
       Rule(
         "GroupBody",

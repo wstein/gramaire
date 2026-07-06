@@ -254,6 +254,7 @@ QUESTION : "?" ;
 LANGLE   : "<" ;
 RANGLE   : ">" ;
 COMMA    : "," ;
+ARROW    : "->" ;
 ```
 
 ## 11. Worked example — `json.gram.md`

@@ -279,10 +279,10 @@ object Desugar:
       r.out
 
     def enumerateAlt(alt: Alt): Either[String, Vector[Alt]] =
-      val Alt(syms, label, action0) = alt
+      val Alt(syms, label, action0, delegate) = alt
       // a bare-body action (no leading lambda) binds the field names (#5/D28)
       val action = action0.map(normalizeAction(syms, _))
-      if !syms.exists(optStar) then Right(Vector(Alt(syms.map(lowerOne), label, action)))
+      if !syms.exists(optStar) then Right(Vector(Alt(syms.map(lowerOne), label, action, delegate)))
       else
         val nOpt = syms.count(optStar)
         bools(nOpt).foldLeft[Either[String, Vector[Alt]]](Right(Vector.empty)) { (acc, flags) =>
@@ -292,7 +292,7 @@ object Desugar:
             xs <- acc
             alt2 <-
               if rhs.isEmpty then Left(allOptional)
-              else Right(Alt(rhs, label, action.map(wrap(presences, _))))
+              else Right(Alt(rhs, label, action.map(wrap(presences, _)), delegate))
           yield xs :+ alt2
         }
 

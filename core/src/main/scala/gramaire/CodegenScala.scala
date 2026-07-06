@@ -40,6 +40,7 @@ object CodegenScala:
     "Args" -> "VSyms",
     "Action" -> "VMaybeStr",
     "Label" -> "VMaybeStr",
+    "Delegate" -> "VMaybeStr",
     "GroupBody" -> "VGroupBody",
     "Atom" -> "VSym",
     "NotArg" -> "VSyms",
@@ -65,44 +66,47 @@ object CodegenScala:
     4 -> "(lhs, _, _, alts, _) => Rule(lhs, Vector.empty, alts)", // Rule : IDENT NL ':' Body ';'
     5 -> "(a) => Vector(a)", // Body : Alt
     6 -> "(bs, _, a) => bs :+ a", // Body : Body '|' Alt
-    7 -> "(syms, lbl, act) => Alt(syms, lbl, act)", // Alt : SymList Label Action
-    8 -> "(syms, lbl) => Alt(syms, lbl, None)", // Alt : SymList Label
-    9 -> "(syms, act) => Alt(syms, None, act)", // Alt : SymList Action
-    10 -> "(syms) => Alt(syms, None, None)", // Alt : SymList
-    11 -> "(s) => Vector(s)", // SymList : Sym
-    12 -> "(ss, s) => ss :+ s", // SymList : SymList Sym
-    13 -> "(i) => Ref(i)", // Sym : IDENT
-    14 -> "(t) => Lit(t)", // Sym : TERM_LIT
-    15 -> "(i, _) => Rep(Ref(i))", // Sym : IDENT PLUS
-    16 -> "(t, _) => Rep(Lit(t))", // Sym : TERM_LIT PLUS
-    17 -> "(i, _) => Star(Ref(i))", // Sym : IDENT STAR
-    18 -> "(t, _) => Star(Lit(t))", // Sym : TERM_LIT STAR
-    19 -> "(i, _) => Opt(Ref(i))", // Sym : IDENT QUESTION
-    20 -> "(t, _) => Opt(Lit(t))", // Sym : TERM_LIT QUESTION
-    21 -> "(name, _, args, _) => Macro(name, args)", // Sym : IDENT LANGLE Args RANGLE
-    22 -> "(name, _, s) => Field(name, s)", // Sym : IDENT ':' Sym
-    23 -> "(_, g, _) => Group(g)", // Sym : '(' GroupBody ')'
-    24 -> "(_, g, _, _) => Rep(Group(g))", // Sym : '(' GroupBody ')' PLUS
-    25 -> "(_, g, _, _) => Star(Group(g))", // Sym : '(' GroupBody ')' STAR
-    26 -> "(_, g, _, _) => Opt(Group(g))", // Sym : '(' GroupBody ')' QUESTION
-    27 -> "(a) => a", // Sym : Atom
-    28 -> "(a, _) => Rep(a)", // Sym : Atom PLUS
-    29 -> "(a, _) => Star(a)", // Sym : Atom STAR
-    30 -> "(a, _) => Opt(a)", // Sym : Atom QUESTION
-    31 -> "(s) => Vector(s)", // Args : Sym
-    32 -> "(args2, _, s) => args2 :+ s", // Args : Args COMMA Sym
-    33 -> "(a) => Some(a)", // Action : ACTION
-    34 -> "(l) => Some(l)", // Label : LABEL
-    35 -> "(syms) => Vector(syms)", // GroupBody : SymList
-    36 -> "(alts, _, syms) => alts :+ syms", // GroupBody : GroupBody '|' SymList
-    37 -> "(_) => Any", // Atom : '.'
-    38 -> "(_, s) => Not(s)", // Atom : '~' NotArg
-    39 -> "(i) => Vector(i)", // NotArg : SetItem
-    40 -> "(_, s, _) => s", // NotArg : '(' SetBody ')'
-    41 -> "(i) => Vector(i)", // SetBody : SetItem
-    42 -> "(s, _, i) => s :+ i", // SetBody : SetBody '|' SetItem
-    43 -> "(i) => Ref(i)", // SetItem : IDENT
-    44 -> "(t) => Lit(t)" // SetItem : TERM_LIT
+    7 -> "(syms, lbl, act) => Alt(syms, lbl, act, None)", // Alt : SymList Label Action
+    8 -> "(syms, lbl, deleg) => Alt(syms, lbl, None, deleg)", // Alt : SymList Label Delegate
+    9 -> "(syms, lbl) => Alt(syms, lbl, None, None)", // Alt : SymList Label
+    10 -> "(syms, act) => Alt(syms, None, act, None)", // Alt : SymList Action
+    11 -> "(syms, deleg) => Alt(syms, None, None, deleg)", // Alt : SymList Delegate
+    12 -> "(syms) => Alt(syms, None, None, None)", // Alt : SymList
+    13 -> "(s) => Vector(s)", // SymList : Sym
+    14 -> "(ss, s) => ss :+ s", // SymList : SymList Sym
+    15 -> "(i) => Ref(i)", // Sym : IDENT
+    16 -> "(t) => Lit(t)", // Sym : TERM_LIT
+    17 -> "(i, _) => Rep(Ref(i))", // Sym : IDENT PLUS
+    18 -> "(t, _) => Rep(Lit(t))", // Sym : TERM_LIT PLUS
+    19 -> "(i, _) => Star(Ref(i))", // Sym : IDENT STAR
+    20 -> "(t, _) => Star(Lit(t))", // Sym : TERM_LIT STAR
+    21 -> "(i, _) => Opt(Ref(i))", // Sym : IDENT QUESTION
+    22 -> "(t, _) => Opt(Lit(t))", // Sym : TERM_LIT QUESTION
+    23 -> "(name, _, args, _) => Macro(name, args)", // Sym : IDENT LANGLE Args RANGLE
+    24 -> "(name, _, s) => Field(name, s)", // Sym : IDENT ':' Sym
+    25 -> "(_, g, _) => Group(g)", // Sym : '(' GroupBody ')'
+    26 -> "(_, g, _, _) => Rep(Group(g))", // Sym : '(' GroupBody ')' PLUS
+    27 -> "(_, g, _, _) => Star(Group(g))", // Sym : '(' GroupBody ')' STAR
+    28 -> "(_, g, _, _) => Opt(Group(g))", // Sym : '(' GroupBody ')' QUESTION
+    29 -> "(a) => a", // Sym : Atom
+    30 -> "(a, _) => Rep(a)", // Sym : Atom PLUS
+    31 -> "(a, _) => Star(a)", // Sym : Atom STAR
+    32 -> "(a, _) => Opt(a)", // Sym : Atom QUESTION
+    33 -> "(s) => Vector(s)", // Args : Sym
+    34 -> "(args2, _, s) => args2 :+ s", // Args : Args COMMA Sym
+    35 -> "(a) => Some(a)", // Action : ACTION
+    36 -> "(l) => Some(l)", // Label : LABEL
+    37 -> "(_, i) => Some(i)", // Delegate : ARROW IDENT
+    38 -> "(syms) => Vector(syms)", // GroupBody : SymList
+    39 -> "(alts, _, syms) => alts :+ syms", // GroupBody : GroupBody '|' SymList
+    40 -> "(_) => Any", // Atom : '.'
+    41 -> "(_, s) => Not(s)", // Atom : '~' NotArg
+    42 -> "(i) => Vector(i)", // NotArg : SetItem
+    43 -> "(_, s, _) => s", // NotArg : '(' SetBody ')'
+    44 -> "(i) => Vector(i)", // SetBody : SetItem
+    45 -> "(s, _, i) => s :+ i", // SetBody : SetBody '|' SetItem
+    46 -> "(i) => Ref(i)", // SetItem : IDENT
+    47 -> "(t) => Lit(t)" // SetItem : TERM_LIT
   )
 
   /** Retag an IR's rule actions with the Scala-syntax profile above, keyed by production id (rather

@@ -2,7 +2,7 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "62ac40ea6f67f29094f11ffe6beb7a87356f705ef8475ee4852871104ccf92a8",
+  "grammarSha256": "5967c63796aa08c50282941c33cfe8d6d83384089d226a7968ab89345e4cffc9",
   "artifacts": [
     {
       "kind": "railroad",
@@ -104,7 +104,7 @@
       "kind": "railroad",
       "nonterminal": "Alt",
       "path": "diagrams-Gramaire/alt.svg",
-      "sourceSha256": "d4171663cd6def250078009cd4768f4000b0c928a03b1993d45bb83780247013"
+      "sourceSha256": "b4594c7b69e38c79361ed9e9b9ab1075bbdd480984a48ed4a4685644c5583221"
     },
     {
       "kind": "railroad",
@@ -135,6 +135,12 @@
       "nonterminal": "Label",
       "path": "diagrams-Gramaire/label.svg",
       "sourceSha256": "62ca48e27efc2a8a5f53a4ed97a6d2363326eb694e5eec63e2f2ff7e788ef312"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Delegate",
+      "path": "diagrams-Gramaire/delegate.svg",
+      "sourceSha256": "e40259292d41709de6be0899af917458dbda8de367a86e90ac4851f368f080a2"
     },
     {
       "kind": "railroad",
@@ -169,7 +175,7 @@
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "62ac40ea6f67f29094f11ffe6beb7a87356f705ef8475ee4852871104ccf92a8"
+      "sourceSha256": "5967c63796aa08c50282941c33cfe8d6d83384089d226a7968ab89345e4cffc9"
     }
   ]
 }

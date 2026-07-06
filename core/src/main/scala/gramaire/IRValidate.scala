@@ -58,6 +58,10 @@ object IRValidate:
         r.predicate.toVector.flatMap(checkPredicateEffect(r.id, _)) ++
         (if r.predicate.isDefined && !r.actions.values.exists(_.trim.nonEmpty) then
            Vector(s"rule ${r.id}: declares a predicate effect but has no action body")
+         else Vector.empty) ++
+        r.delegate.toVector.flatMap(nonEmptyKey(r.id, "delegate name must not be empty", _)) ++
+        (if r.delegate.isDefined && r.actions.values.exists(_.trim.nonEmpty) then
+           Vector(s"rule ${r.id}: declares both a delegate name and an action body")
          else Vector.empty)
 
     val algorithmCheck: Vector[String] =
