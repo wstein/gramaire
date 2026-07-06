@@ -14,6 +14,12 @@ name = filename.decode("utf-8", "surrogateescape")
 if name == "design/gramark-site-handoff" or name.startswith("design/gramark-site-handoff/"):
     return filename
 
+# The helper tooling for this rebrand itself is removed from the mirror history, so any path
+# under scripts/rebrand-gramaire/ is dropped by the later path-pruning pass. Keep the path
+# unchanged here so the later prune step can remove it deterministically.
+if name == "scripts/rebrand-gramaire" or name.startswith("scripts/rebrand-gramaire/"):
+    return filename
+
 # File-extension rename (.gram/.gram.md -> .gram/.gram.md), matching replace-text-rules.txt.
 # A plain substring replace (not endswith), so '.gram.lock' -> '.gram.lock' falls out of the
 # second rule automatically once the '.md'-suffixed form has already been consumed by the first.
