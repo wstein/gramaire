@@ -25,9 +25,14 @@ The ANTLR `X (s X)*` idioms become Gramaire `Sep<X, s>`, and `(…)` groups —
 which Gramaire defers (ADR D27) — become helper rules (`*Decl`, `*Op`, …). Empty
 alternatives are kept verbatim; Gramaire accepts them.
 
+<details>
+<summary>Declarations</summary>
+
 ```gramaire
 name: ANTLRv4
 ```
+
+</details>
 
 ## Tokens
 
