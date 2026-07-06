@@ -37,10 +37,10 @@
                                             "token": "IDENT"
                                           }
                                         ],
-                                        "rule": 13
+                                        "rule": 15
                                       }
                                     ],
-                                    "rule": 11
+                                    "rule": 13
                                   },
                                   {
                                     "children": [
@@ -49,10 +49,10 @@
                                         "token": "TERM_LIT"
                                       }
                                     ],
-                                    "rule": 14
+                                    "rule": 16
                                   }
                                 ],
-                                "rule": 12
+                                "rule": 14
                               },
                               {
                                 "children": [
@@ -61,10 +61,10 @@
                                     "token": "IDENT"
                                   }
                                 ],
-                                "rule": 13
+                                "rule": 15
                               }
                             ],
-                            "rule": 12
+                            "rule": 14
                           },
                           {
                             "children": [
@@ -73,10 +73,10 @@
                                 "token": "ACTION"
                               }
                             ],
-                            "rule": 33
+                            "rule": 35
                           }
                         ],
-                        "rule": 9
+                        "rule": 10
                       }
                     ],
                     "rule": 5
@@ -96,16 +96,20 @@
                                 "token": "IDENT"
                               }
                             ],
-                            "rule": 13
+                            "rule": 15
                           }
                         ],
-                        "rule": 11
+                        "rule": 13
                       }
                     ],
-                    "rule": 10
+                    "rule": 12
                   }
                 ],
                 "rule": 6
+              },
+              {
+                "text": ";",
+                "token": ";"
               }
             ],
             "rule": 4

@@ -92,8 +92,11 @@ The narrow waist and its first consumers are built and gated on
   production spliced into use sites, its action threaded through a wrapper) are
   shipped too (D27, D28).
 
-Phase A's remaining gate is the **CST golden + `cst-schema.json`**; Phase B's is
-the **TypeScript backend** (then the out-of-process protocol, now decoder-ready).
+Phase A's **CST golden + `cst-schema.json`** gate is closed — the Scala port's
+`CstGoldenSuite` parses `grammar/Productions.grmk.md` and drift-locks a real
+`Conformance.parseCst` parse against `test/golden/lr.cst.json`. Phase B's
+remaining gate is the **TypeScript backend** (then the out-of-process
+protocol, now decoder-ready).
 
 ## Reality the plan must build on
 
@@ -169,10 +172,10 @@ sub-grammars. A Core-only grammar (zero actions) fully defines two things:
    symbol — that any backend can emit and the host can walk.
 
 This is the tree-sitter model: action-free grammars are portable to every
-backend, which emit "recognizer + CST + you walk it." The generic CST already
-exists as [`Gramark.Cst`](../src/Gramark/Cst.purs); its normative
-serialization `spec/cst-schema.json` is the remaining artifact, so "same tree
-shape" is a checkable claim. **[S3]**
+backend, which emit "recognizer + CST + you walk it." The generic CST exists
+as `Cst` (`core/src/main/scala/gramark/Cst.scala`); its normative
+serialization `spec/cst-schema.json` is checked in and drift-locked
+(`CstGoldenSuite`), so "same tree shape" is a checkable claim, closed. **[S3]**
 
 **North star (resolved): CST-first.** The action-free "recognizer + generic CST
 you walk" is the first-class universal experience every backend delivers
