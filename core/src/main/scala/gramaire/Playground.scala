@@ -162,7 +162,9 @@ object Playground:
   private def evalJsOf(source: String, grammar: Grammar): String =
     IR.buildIR(Method.Canonical, "Lab", grammar) match
       case Left(_)   => ""
-      case Right(ir) => BackendJs.emit(IR.withActionLang(Lr.actionLangOf(source), ir))
+      case Right(ir) =>
+        val updated = IR.withActionLang(Lr.actionLangOf(source), ir)
+        BackendJs.emit(updated.grammar, updated.externals)
 
   /** The per-production handler shape as JSON: `[{ label, fields }]`, indexed by production id
     * (matching the CST's branch ids). Built from the IR; `"[]"` if the grammar is not LR-buildable
