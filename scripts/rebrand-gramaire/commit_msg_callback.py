@@ -50,7 +50,7 @@ def apply_substitutions(message, rules):
     return message
 
 
-def rewrite_message(message: bytes, rules_file: str | None = None) -> bytes:
+def rewrite_message(message: bytes, rules_file: str = None) -> bytes:
     """Rewrite a message payload (bytes) using the configured substitution rules."""
     if rules_file is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
