@@ -53,6 +53,40 @@ object Main:
         case None    => Left(s"$name requires a value")
     go(defaultEmit, args)
 
+  /** Options for `lint`: the single positional grammar file and the required `--target` backend
+    * name — deliberately its own small type (not a reuse of `EmitOpts`) since `lint` has neither
+    * `--out` nor `--strategy`, and its backend flag is named `--target` (the backend it's asking
+    * "would this survive export to?") rather than `--backend` (the one it's asking to actually emit
+    * with).
+    */
+  final case class LintOpts(file: Option[String], target: Option[String])
+
+  private val defaultLint: LintOpts = LintOpts(None, None)
+
+  /** Parse `lint`'s arguments: the single positional grammar file and `--target <name>` — same
+    * recursive-descent shape as `parseEmit`/`parseExplain`.
+    */
+  def parseLint(args: Vector[String]): Either[String, LintOpts] =
+    def go(opts: LintOpts, rest: Vector[String]): Either[String, LintOpts] =
+      rest.headOption match
+        case None => Right(opts)
+        case Some(a) =>
+          val tail = rest.tail
+          a match
+            case "--target" => value("--target", tail)((v, r) => go(opts.copy(target = Some(v)), r))
+            case _ if a.startsWith("--") => Left(s"unknown option: $a")
+            case _ =>
+              opts.file match
+                case Some(_) => Left(s"unexpected extra argument: $a")
+                case None    => go(opts.copy(file = Some(a)), tail)
+    def value(name: String, rest: Vector[String])(
+        k: (String, Vector[String]) => Either[String, LintOpts]
+    ): Either[String, LintOpts] =
+      rest.headOption match
+        case Some(v) => k(v, rest.tail)
+        case None    => Left(s"$name requires a value")
+    go(defaultLint, args)
+
   private val missingNameError: String =
     "missing required `name:` directive (add `name: <name>` inside a General-settings ```gramark fence)"
 
@@ -101,6 +135,7 @@ object Main:
           case "conformance"            => runConformance()
           case "explain-conflict"       => runExplain(tail)
           case "check"                  => runCheck(tail)
+          case "lint"                   => runLint(tail)
           case "fmt"                    => runFmt(tail)
           case "--write-lock"           => runFmt(tail) // legacy alias; runFmt defaults to sidecar
           case "codegen-regen"          => runCodegenRegen()
@@ -475,6 +510,61 @@ object Main:
             println(if failed then "check failed." else "all gates passed.")
             if failed then sys.exit(1)
 
+  // `gramark lint --target <name> <file.grmk.md|file.grmk>`: a preflight compat gate — "will this
+  // grammar survive export to this backend, and if not, what specifically breaks?" Reuses
+  // `runEmit`'s own parse-then-build-IR pipeline (`parseWithDocs` + `IR.buildIRP`, so `## Externals`
+  // and doc comments are attached exactly the way `emit` attaches them) rather than a third parse
+  // pathway, then runs `GramarkLint.gates` against the resolved backend and presents them exactly
+  // the way `runCheck` presents its own structure/drift gates. Exit code mirrors `check`'s
+  // convention: non-zero if any gate reports a finding, so it's scriptable as a CI preflight.
+  private def runLint(args: Vector[String]): Unit =
+    parseLint(args) match
+      case Left(e) => die(s"lint: $e")
+      case Right(opts) =>
+        (opts.file, opts.target) match
+          case (None, _) => die("lint: no grammar file given")
+          case (_, None) => die("lint: --target <backend> is required")
+          case (Some(file), Some(target)) =>
+            BackendRegistry.findBackend(target) match
+              case None => die(s"lint: unknown backend '$target'; available: $backendNames")
+              case Some(_) =>
+                readFile(file) match
+                  case Left(err) => die(s"lint: cannot read $file: $err")
+                  case Right(md) =>
+                    parseWithDocs(Method.Canonical, md) match
+                      case Left(diags) =>
+                        die(s"lint: parse error in $file:\n\n" + renderDiags(diags, file, md))
+                      case Right(g) =>
+                        val name = grammarName(md).fold(err => die(s"lint: $file: $err"), identity)
+                        IR.buildIRP(Lr.precedenceOf(md), Method.Canonical, name, g) match
+                          case Left(conflicts) =>
+                            val spans = Lr.spanIndexOf(md)
+                            die(
+                              s"lint: $file has unresolved LR(1) conflicts:\n\n" +
+                                renderDiags(
+                                  Diagnostics.conflictDiagnostics(g, spans, conflicts),
+                                  file,
+                                  md
+                                )
+                            )
+                          case Right(ir) =>
+                            val gates = GramarkLint.gates(ir, target)
+                            val base = Path.of(file).getFileName
+                            println(s"gramark lint --target $target $base\n")
+                            var findingCount = 0
+                            for gt <- gates do
+                              if gt.failures.isEmpty then println(s"  PASS  ${gt.name}")
+                              else
+                                findingCount += gt.failures.length
+                                println(s"  FAIL  ${gt.name}")
+                                gt.failures.foreach(f => println(s"        - $f"))
+                            println("")
+                            println(
+                              if findingCount == 0 then s"lint clean: $target survives export."
+                              else s"lint found $findingCount issue(s) exporting to $target."
+                            )
+                            if findingCount > 0 then sys.exit(1)
+
   // `gramark fmt [--diagrams=sidecar|mermaid] [--inline-source] <file.grmk.md>`: regenerate
   // the derived artifacts (FIRST/FOLLOW table, railroad diagrams, lock). Collapsing each rule's
   // source behind its diagram is the default (sidecar mode); `--inline-source` opts back out to
@@ -554,6 +644,7 @@ object Main:
       "  gramark conformance",
       "  gramark explain-conflict <file.grmk.md|file.grmk> [--strategy lr|ll-star] [--input <text>]",
       "  gramark check <file.grmk.md|file.grmk>",
+      "  gramark lint --target <backend> <file.grmk.md|file.grmk>",
       "  gramark fmt [--diagrams=sidecar|mermaid] [--inline-source] <file.grmk.md|file.grmk>",
       "  gramark codegen-regen",
       "",
@@ -571,6 +662,10 @@ object Main:
       "  ALL(*) has no static conflict table, so it needs a real example input to say anything.",
       "check verifies the structure + drift gates (see docs-lint for the markdown-lint gate on",
       "  .grmk.md; a bare .grmk has its own, much lighter native contract — no Markdown to lint).",
+      "lint is a preflight compat gate: will this grammar survive export to --target's backend,",
+      "  and if not, what specifically breaks (e.g. a `## Precedence` block ANTLR4 can't declare,",
+      "  or a `-> name` delegate/`## Externals` implementation no textual backend renders)? Exits",
+      "  non-zero if any finding is reported, same convention as check — scriptable in CI.",
       "fmt on a .grmk.md regenerates the FIRST/FOLLOW table, railroad diagrams, and the lock",
       "  sidecar. By default (sidecar mode only), it hoists each rule's diagram above its fence",
       "  and tucks the fence behind a <details><summary>Source</summary> disclosure;",
