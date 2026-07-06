@@ -11,8 +11,8 @@ The substitution rules are sourced from replace-text-rules.txt in the same direc
 as this script.
 """
 
-import sys
 import os
+import sys
 
 
 def load_substitution_rules(rules_file):
@@ -50,29 +50,34 @@ def apply_substitutions(message, rules):
     return message
 
 
+def rewrite_message(message: bytes, rules_file: str | None = None) -> bytes:
+    """Rewrite a message payload (bytes) using the configured substitution rules."""
+    if rules_file is None:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        rules_file = os.path.join(script_dir, "replace-text-rules.txt")
+
+    try:
+        rules = load_substitution_rules(rules_file)
+    except (FileNotFoundError, ValueError) as e:
+        raise RuntimeError(str(e)) from e
+
+    message_text = message.decode("utf-8")
+    rewritten_message = apply_substitutions(message_text, rules)
+    return rewritten_message.encode("utf-8")
+
+
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     rules_file = os.path.join(script_dir, "replace-text-rules.txt")
 
-    # Load rules
     try:
-        rules = load_substitution_rules(rules_file)
-    except (FileNotFoundError, ValueError) as e:
-        print(f"error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Read commit message from stdin
-    try:
-        message = sys.stdin.read()
+        message = sys.stdin.buffer.read()
+        rewritten_message = rewrite_message(message, rules_file)
     except Exception as e:
-        print(f"error: failed to read commit message from stdin: {e}", file=sys.stderr)
+        print(f"error: failed to rewrite commit message: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Apply substitutions
-    rewritten_message = apply_substitutions(message, rules)
-
-    # Write rewritten message to stdout
-    sys.stdout.write(rewritten_message)
+    sys.stdout.buffer.write(rewritten_message)
 
 
 if __name__ == "__main__":

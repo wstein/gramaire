@@ -101,10 +101,12 @@ if [ "$CONFIRM" != "yes" ]; then
   exit 1
 fi
 
+COMMIT_MSG_CALLBACK_CODE="import subprocess, sys; return subprocess.check_output([sys.executable, r'$SCRIPT_DIR/commit_msg_callback.py'], input=message)"
+
 git -C "$MIRROR_DIR" filter-repo \
   --replace-text "$SCRIPT_DIR/replace-text-rules.txt" \
   --filename-callback "$(cat "$SCRIPT_DIR/rename_paths_callback.py")" \
-  --commit-callback "python3 '$SCRIPT_DIR/commit_msg_callback.py'"
+  --message-callback "$COMMIT_MSG_CALLBACK_CODE"
 
 git -C "$MIRROR_DIR" filter-repo \
   --force \
