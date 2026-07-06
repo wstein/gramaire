@@ -17,7 +17,8 @@ def rewrite_text(text, path=None):
         return text
 
     value = text
-    if path == "site/src/generated/gramaire-engine.mjs":
+    if path in {"site/src/generated/gramark-engine.mjs", "site/src/generated/gramaire-engine.mjs"}:
+        value = value.replace("\n//# sourceMappingURL=gramark-engine.mjs.map\n", "\n")
         value = value.replace("\n//# sourceMappingURL=gramaire-engine.mjs.map\n", "\n")
 
     value = value.replace(".grmk.md", ".gram.md").replace(".grmk", ".gram")
