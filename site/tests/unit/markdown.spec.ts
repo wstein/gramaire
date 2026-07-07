@@ -304,9 +304,16 @@ test("parseMarkdownLite: a %paper-font-scale directive is hidden even with a mal
 // paragraph "--- name: Calc lang: javascript ---" ahead of the real prose in the Notebook, Paper
 // view, and PDF export (all three share this one parser).
 test("parseMarkdownLite: a leading --- frontmatter block is skipped entirely, not rendered as literal text", () => {
-  const md = ["---", "name: Calc", "lang: javascript", "---", "", "# Calc", "", "Some prose."].join(
-    "\n",
-  );
+  const md = [
+    "---",
+    "name: Calc",
+    "lang: javascript",
+    "---",
+    "",
+    "# Calc",
+    "",
+    "Some prose.",
+  ].join("\n");
   expect(parseMarkdownLite(md)).toEqual([
     { tag: "h2", parts: [{ kind: "text", text: "Calc" }] },
     { tag: "p", parts: [{ kind: "text", text: "Some prose." }] },
