@@ -82,7 +82,7 @@ object Railroad:
       )
     view match
       case DiagramView.Source     => source
-      case DiagramView.Simplified => source
+      case DiagramView.Simplified => DiagramNormalize.simplify(source)
 
   private def viewAttr(view: DiagramView): String =
     view match

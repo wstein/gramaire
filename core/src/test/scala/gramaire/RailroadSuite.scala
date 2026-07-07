@@ -91,6 +91,56 @@ class RailroadSuite extends munit.FunSuite:
     assertEquals(diagramViewName(DiagramView.Simplified), "simplified")
   }
 
+  test("diagramOf: simplified view recognizes an obvious optional tail") {
+    val prod = parseProduction("Signed : Term '+' | Term", Set("Signed", "Term"))
+    val expected =
+      Diagram.Sequence(
+        Vector(Diagram.NonTerminal("Term"), Diagram.Optional(Diagram.Terminal("+")))
+      )
+    assertEquals(DiagramNormalize.simplify(diagramOf(prod, DiagramView.Source)), expected)
+    assertEquals(diagramOf(prod, DiagramView.Simplified), expected)
+  }
+
+  test("diagramOf: simplified view recognizes a direct-left-recursive repetition chain") {
+    val prod = parseProduction(
+      "Expr : Expr '+' Term | Expr '-' Term | Term",
+      Set("Expr", "Term")
+    )
+    val expected =
+      Diagram.Sequence(
+        Vector(
+          Diagram.NonTerminal("Term"),
+          Diagram.ZeroOrMore(
+            Diagram.Choice(
+              Vector(
+                Diagram.Sequence(Vector(Diagram.Terminal("+"), Diagram.NonTerminal("Term"))),
+                Diagram.Sequence(Vector(Diagram.Terminal("-"), Diagram.NonTerminal("Term")))
+              )
+            )
+          )
+        )
+      )
+    assertEquals(DiagramNormalize.simplify(diagramOf(prod, DiagramView.Source)), expected)
+    assertEquals(diagramOf(prod, DiagramView.Simplified), expected)
+  }
+
+  test("diagramOf: simplified view leaves action-bearing alternatives in source form") {
+    val prod = Production(
+      "Expr",
+      Vector(
+        Alt(
+          Vector(
+            DiaSym("Expr", term = false),
+            DiaSym("+", term = true),
+            DiaSym("Term", term = false)
+          )
+        ),
+        Alt(Vector(DiaSym("Term", term = false)), action = Some("c.term"))
+      )
+    )
+    assertEquals(diagramOf(prod, DiagramView.Simplified), diagramOf(prod, DiagramView.Source))
+  }
+
   test(
     "renderDiagramSvg: optionality and repetition nodes fall back to deterministic inline labels"
   ) {

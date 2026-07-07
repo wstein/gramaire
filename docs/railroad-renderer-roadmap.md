@@ -46,7 +46,15 @@ the committed artifacts while giving later phases a stable internal layer.
   The first shipped step is grouped SVG node metadata plus hover titles,
   with live-site nonterminal links and token-definition annotations built from
   that structure.
-4. Add explicit normalization passes behind non-default views.
+4. Add explicit normalization passes behind non-default views. The first
+  shipped step (`DiagramNormalize.simplify`) recognizes two safe idioms —
+  optional tails and direct-left-recursive repetition chains — and always
+  bails out on an action-bearing alternative, since an action's evaluation
+  order and binding belong to one specific alternative and no pattern match
+  may relocate or drop it (see `docs/fmt-output-contract.md`'s "Railroad
+  diagrams" section for the exact shapes recognized). Wider idioms —
+  separated lists, general factorization, 3+-alternative stacks — stay out of
+  scope until they have the same kind of test-backed equivalence coverage.
 
 Every new phase must preserve deterministic output, stay test-backed, and keep
 the source-vs-simplified distinction explicit in the artifact itself.

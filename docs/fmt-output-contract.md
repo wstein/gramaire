@@ -169,10 +169,22 @@ the grammar as authored; this is the view `fmt` uses for committed sidecar SVGs
 and Mermaid fences. **Simplified** is opt-in and self-identifying in the output,
 so future display-only rewrites cannot be mistaken for the authored grammar.
 `gramaire fmt --diagram-view=simplified` selects that alternate view; omitting
-the flag keeps the canonical `source` view. The first layout-specific behavior
-in `simplified` is width-aware SVG wrapping for long single-path sequences;
-`source` stays byte-stable. SVG nodes also carry per-symbol `<title>` text and
-structured `data-rr-*` metadata, which the live site uses for semantic
+the flag keeps the canonical `source` view. `simplified` applies width-aware SVG
+wrapping for long single-path sequences, and recognizes two safe idioms —
+an alternative that's a strict prefix of another collapses to that prefix plus
+an `Optional` tail, and a stack of direct-left-recursive alternatives plus one
+base alternative collapses to `base` followed by a `ZeroOrMore` of the
+recursive tail(s) — rewriting the rule's diagram shape into the equivalent
+EBNF-style loop/optionality a reader would otherwise infer by hand. Both
+recognizers are pattern matches over the diagram tree, not grammar rewrites:
+a stack that doesn't match either shape (three or more alternatives with no
+common structure, a separated-list idiom, general factorization) is left as
+plain nested tracks, and a stack with an action (`{% %}`/`{%? %}`) on any
+alternative is always left untouched — an action's evaluation order and
+binding belong to one specific alternative, and no automatic rewrite may
+relocate or drop it. `source` stays byte-stable regardless. SVG nodes also
+carry per-symbol `<title>` text and structured `data-rr-*` metadata, which the
+live site uses for semantic
 affordances such as nonterminal navigation and token-definition hover text.
 
 - **`sidecar`** (default) — a self-contained railroad SVG per rule, written to
