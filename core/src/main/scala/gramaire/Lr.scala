@@ -653,10 +653,23 @@ object Lr:
     * against the caller's own original text (the Lab's `spanSafe`) both need exactly this fact;
     * centralizing it here keeps their definition of "changed" from drifting apart if `toFenced`
     * ever does.
+    *
+    * "Changed" is measured against `src` with ONLY its frontmatter blanked, not `src` itself —
+    * `Frontmatter.strip`'s blanking is byte-length- and offset-preserving by its own contract (a
+    * frontmatter line becomes a same-length, all-blank line), so a span computed against the
+    * blanked text is exactly as safe to expose against `src` as one computed against `src`
+    * directly. Comparing to `src` verbatim instead (as this used to) meant EVERY document with a
+    * frontmatter block was flagged "changed" purely because the frontmatter's own bytes differ —
+    * `spanSafe` would then unconditionally drop every diagnostic's location for any `.gram.md`
+    * using the now-preferred frontmatter form (ADR D58), even though nothing after the frontmatter
+    * block ever moved.
     */
   def toFencedTagged(src: String): (String, Boolean) =
     val fenced = toFenced(src)
-    (fenced, fenced != src)
+    val frontmatterBlankedOnly = Frontmatter.strip(src) match
+      case Frontmatter.StripResult.Found(_, body, _) => body
+      case _                                         => src
+    (fenced, fenced != frontmatterBlankedOnly)
 
   // The production lexer for `lr` grammar source: the scanner built from
   // the notation's own `## Tokens` block, with `:`, `|`, and the rule/token-

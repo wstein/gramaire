@@ -187,6 +187,38 @@ a thin skin over real machinery, never a mock.
 > for Paper's figure alone, is now page-wide (matching `lab.css`'s own
 > unscoped convention for the same selectors) so both Paper and the new
 > Try-it toggle share one definition instead of a third near-duplicate block.
+>
+> A pass through the Notebook's own pre-existing test failures (30 of 119,
+> confirmed unrelated to the graph-view work above via a differential run)
+> found two genuine, distinct bugs rather than one. First: `Lr.toFencedTagged`
+> (`core/src/main/scala/gramaire/Lr.scala`) flagged a document's diagnostics
+> as unsafe to expose a `SrcSpan` for (`LabApi.scala`'s `spanSafe`) whenever
+> `Lr.toFenced`'s output wasn't byte-identical to the input — but frontmatter
+> blanking (`Frontmatter.strip`) is deliberately length- and offset-preserving
+> by its own contract, so EVERY `.gram.md` with a frontmatter block failed
+> this check purely because the frontmatter's own bytes differ, even though
+> nothing after it ever moved. `toFencedTagged` now compares against `src`
+> with only its frontmatter blanked, not `src` verbatim, so a diagnostic on
+> any frontmatter-using document (the now-preferred form, ADR D58) keeps its
+> real location instead of silently losing it. Second: an earlier breaking
+> change (`feat(core)!: replace Yacc/Bison %sigils with name:/lang:/->/@
+> syntax`) migrated settings-fence directives from `%name`/`%lang` to
+> `name:`/`lang:`, but the Notebook's own "+ Settings" insert placeholder
+> (`insertSettingsAt`, `GramaireNotebookIsland.tsx`) still inserted the old
+> `%TODO placeholder` shape, which no longer classifies as a Settings fence
+> at all — a real, user-facing bug, not just a stale test — now `todo:
+> placeholder`, chosen (like the original) to be an intentionally-unrecognized
+> key so it still builds clean with just the expected "unknown setting"
+> warning. The rest of the 30 were stale test fixtures/assertions: the shared
+> default document's fence-cell count dropped from 5 to 4 once its own
+> `%name`/`%lang` preamble became real frontmatter (no longer a rendered
+> cell at all per ADR D58), several tests still constructed `%name`-shaped
+> fixtures for file-open/drop/download scenarios, and a few hardcoded
+> `.gramaire__prose` block INDICES that drifted once the frontmatter gap
+> started rendering as its own (invisible — `parseMarkdownLite` hides a
+> leading `---` block from the preview) leading block. All 119 notebook
+> tests, the full 46-test Lab suite, all 100 unit tests, both Scala module
+> suites (355 core + 62 lab), and the JVM/JS lab-protocol parity gate pass.
 
 ---
 

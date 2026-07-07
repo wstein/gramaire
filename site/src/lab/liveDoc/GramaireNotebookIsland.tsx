@@ -789,12 +789,13 @@ function insertTokensAt(index: number) {
   insertCellAt(index, "tokens", "TODO : /x/ ;", null);
 }
 
-// `%word value` is the shape `isSettingDecl` requires (`Lr.scala`'s `settingDeclShapeRe`) — a bare
-// `%TODO` with nothing after it fails that shape and falls through to `Rule`, lexed as grammar
-// text and rejected outright ("unexpected character `%`"); verified against the real engine that
-// `%TODO placeholder` builds clean, only the expected "unknown setting (ignored)" warning.
+// `lowercase-key: value` is the shape `isSettingDecl` requires (`Lr.scala`'s
+// `settingDeclShapeRe`) — a bare `todo` with no `:` fails that shape and falls through to `Rule`,
+// lexed as grammar text and rejected outright. `todo` is deliberately not a recognized key (`name`/
+// `lang`), so this still builds clean with only the expected "unknown setting (ignored)" warning,
+// rather than silently becoming a real (if meaningless) `name:` declaration.
 function insertSettingsAt(index: number) {
-  insertCellAt(index, "settings", "%TODO placeholder", null);
+  insertCellAt(index, "settings", "todo: placeholder", null);
 }
 
 // A precedence declaration for an operator no rule uses yet — verified against the real engine:

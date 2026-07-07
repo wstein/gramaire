@@ -17,6 +17,23 @@ function ruleCellLocator(page: import("@playwright/test").Page) {
   return page.locator('.gramaire__cell[data-kind="rule"]').first();
 }
 
+// A heading-family `.gramaire__prose` block, found by its own exact heading text rather than a
+// raw `.gramaire__prose` index — `.gramaire__prose` mixes heading blocks with ordinary (non
+// heading-leading) prose runs (an intro paragraph, an image/details caption, a generated-tables
+// comment), and the frontmatter block itself renders as an extra, invisible leading entry
+// (`parseMarkdownLite` hides a leading `---` block from the rendered preview, but its own gap is
+// still a real block) — so a fixed numeric index is one edit away from silently drifting to a
+// different block. `getByRole("heading", ...)` targets the real semantic heading element
+// (`MarkdownHeading`'s own `<h2>`/`<h3>`/`<h4>`), then walks back up to the enclosing cell.
+function headingCellLocator(
+  page: import("@playwright/test").Page,
+  name: string,
+) {
+  return page
+    .locator(".gramaire__prose")
+    .filter({ has: page.getByRole("heading", { name, exact: true }) });
+}
+
 // Cells render inline with no visible badge/name header — `data-nonterminal` (an invisible test
 // hook, GramaireNotebookIsland.tsx) is how a test asserts rule identity/order without one.
 function ruleNonterminals(page: import("@playwright/test").Page) {
@@ -35,7 +52,7 @@ test("the notebook evaluates the default grammar against the real engine, no con
   });
 
   await gotoNotebookReady(page);
-  await expect(page.locator(".gramaire__cell")).toHaveCount(5);
+  await expect(page.locator(".gramaire__cell")).toHaveCount(4);
   expect(
     errors,
     `unexpected console/page errors: ${errors.join("; ")}`,
@@ -53,7 +70,7 @@ test("every rule cell renders inline (no border/badge) with a railroad diagram b
   const kinds = await page
     .locator(".gramaire__cell")
     .evaluateAll((els) => els.map((el) => el.getAttribute("data-kind")));
-  expect(kinds).toEqual(["settings", "tokens", "rule", "rule", "rule"]);
+  expect(kinds).toEqual(["tokens", "rule", "rule", "rule"]);
 
   expect(await ruleNonterminals(page)).toEqual(["Expr", "Term", "Factor"]);
 
@@ -175,7 +192,7 @@ test("editing a prose block to a different line count never corrupts sibling cel
   );
   // ...nor after it settles.
   await page.waitForTimeout(1000);
-  await expect(page.locator(".gramaire__cell")).toHaveCount(5);
+  await expect(page.locator(".gramaire__cell")).toHaveCount(4);
   expect(await ruleNonterminals(page)).toEqual(["Expr", "Term", "Factor"]);
   await expect(page.locator(".gramaire__output-railroad svg")).toHaveCount(3);
 });
@@ -203,7 +220,7 @@ test("editing a cell's first line never exposes or corrupts its ```gramaire mark
   await page.locator(".gramaire__statusbar").click(); // blur, saves
   await page.waitForTimeout(1000);
 
-  await expect(page.locator(".gramaire__cell")).toHaveCount(5);
+  await expect(page.locator(".gramaire__cell")).toHaveCount(4);
   expect(await ruleNonterminals(page)).toEqual(["Expr", "Term", "Factor"]);
   await expect(page.locator(".gramaire__output-railroad svg")).toHaveCount(3);
 });
@@ -253,7 +270,7 @@ test("typing multiple rapid characters (with newlines/quotes) in a cell settles 
 
   await page.locator(".gramaire__statusbar").click(); // blur, saves
   await page.waitForTimeout(1000);
-  await expect(page.locator(".gramaire__cell")).toHaveCount(5);
+  await expect(page.locator(".gramaire__cell")).toHaveCount(4);
 });
 
 test("Try it renders real tokens and a CST for the default input", async ({
@@ -380,7 +397,7 @@ test("a prose block's raw editor never opens with a leading blank line; the docu
 }) => {
   await gotoNotebookReady(page);
 
-  const exprHeading = page.locator(".gramaire__prose").nth(2);
+  const exprHeading = headingCellLocator(page, "Expr");
   await expect(exprHeading).toContainText("Expr");
   await exprHeading.click();
   const raw = await page.locator(".gramaire__prose-editor").inputValue();
@@ -721,36 +738,64 @@ test("the offending cell is flagged with an inline error; clicking the panel row
   await expect(erroredCell.locator(".cm-content")).toBeVisible();
 });
 
-// A warning-only cell (the grammar still builds — a bad/typo'd %directive is cosmetic, never
-// fatal) gets the same treatment as an error one turn down: an inline message via
+// A warning-only cell (the grammar still builds — a bad/typo'd settings directive is cosmetic,
+// never fatal) gets the same treatment as an error one turn down: an inline message via
 // CellDiagnostics, and the panel row is clickable — unknownSettingWarnings now carries a real
 // span, where it used to have none at all (so blockIndex was always null, and this diagnostic
-// could never be linked).
+// could never be linked). The shared default document (calc-js.gram.md) declares its name/lang via
+// frontmatter now, not a fenced settings block (ADR D58), so this test gives itself its own small
+// document with one, loaded through Source view the same way other custom-fixture tests do.
 test("a cell with only a warning is flagged the same way an error is, and its panel row is clickable", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
-
-  const settingsCell = page.locator('.gramaire__cell[data-kind="settings"]');
-  await settingsCell.locator(".gramaire__cell-rendered").click();
-  await settingsCell.locator(".cm-content").click();
+  await viewToggleButton(page, "Source").click();
+  const editor = page.locator(".gramaire__source-editor .cm-content");
+  await editor.click();
   await page.keyboard.press("ControlOrMeta+a");
   await page.keyboard.press("Delete");
-  await page.keyboard.insertText("%naqme Calc-js\n%lang javascript");
-  await settingsCell.locator(".gramaire__toolbar-btn--save").click();
+  await page.keyboard.insertText(
+    [
+      "```gramaire",
+      "naqme: Calc-js",
+      "lang: javascript",
+      "```",
+      "",
+      "```gramaire",
+      "NUMBER : /[0-9]+/ ;",
+      "```",
+      "",
+      "```gramaire",
+      "Start",
+      "  : NUMBER",
+      "  ;",
+      "```",
+      "",
+    ].join("\n"),
+  );
+  await viewToggleButton(page, "Notebook").click(); // commits the Source rewrite
   await page.waitForTimeout(1000);
 
+  const settingsCell = page.locator('.gramaire__cell[data-kind="settings"]');
+  await expect(settingsCell).toHaveCount(1);
+
+  // The settings fence gets two warnings — the typo itself, and (independently) a nudge to
+  // migrate off the deprecated fenced form entirely — so scope to the typo one specifically
+  // rather than assuming exactly one warning message on the cell.
   const warnedCell = page.locator(
     ".gramaire__cell:has(.gramaire__cell-diag--warning)",
   );
   await expect(warnedCell).toHaveCount(1);
-  await expect(
-    warnedCell.locator(".gramaire__cell-diag-message"),
-  ).toBeVisible();
+  const typoMessage = warnedCell.locator(".gramaire__cell-diag-message", {
+    hasText: "unknown setting",
+  });
+  await expect(typoMessage).toBeVisible();
 
   // The panel row itself is linked (blockIndex resolved via the warning's own span) and clicking
   // it jumps to and opens the owning cell.
-  const diagRow = page.locator(".gramaire__diag--warning");
+  const diagRow = page.locator(".gramaire__diag--warning", {
+    hasText: "unknown setting",
+  });
   await expect(diagRow).toHaveClass(/gramaire__diag--linked/);
   await diagRow.click();
   await expect(warnedCell.locator(".cm-content")).toBeVisible();
@@ -998,7 +1043,7 @@ test("toggling to Source view replaces the per-cell rendering with one editor ov
   page,
 }) => {
   await gotoNotebookReady(page);
-  await expect(page.locator(".gramaire__cell")).toHaveCount(5);
+  await expect(page.locator(".gramaire__cell")).toHaveCount(4);
 
   await viewToggleButton(page, "Source").click();
 
@@ -1035,7 +1080,7 @@ test("editing the raw source and toggling back updates the corresponding cell's 
   );
 
   await viewToggleButton(page, "Notebook").click(); // toggle back, commits on blur
-  await expect(page.locator(".gramaire__cell")).toHaveCount(5);
+  await expect(page.locator(".gramaire__cell")).toHaveCount(4);
   await page.waitForTimeout(1000); // settle worker round-trip, same as breakFirstRule
 
   const ruleCell = ruleCellLocator(page);
@@ -1137,7 +1182,7 @@ test("a blank-line fence that collapses on rebuild doesn't leave a later diagnos
   await page.keyboard.insertText(
     [
       "```gramaire",
-      "%name Empty",
+      "name: Empty",
       "```",
       "",
       "```gramaire",
@@ -1419,8 +1464,11 @@ test("Paper's headings and paragraphs render at the shared explicit reading-pros
   await expect(
     fontSize(page.locator(".gramaire__paper h4").first()),
   ).resolves.toBe("16px");
+  // Not `.first()` — Paper always leads with its own symbol-set summary (a compact, monospace
+  // block with its own smaller font-size), so the FIRST `<p>` in `.gramaire__paper` isn't
+  // necessarily this test's own reading-prose paragraph. Matched by its own text instead.
   await expect(
-    fontSize(page.locator(".gramaire__paper p").first()),
+    fontSize(page.locator(".gramaire__paper p", { hasText: "Body text." })),
   ).resolves.toBe("17px");
 });
 
@@ -1454,8 +1502,10 @@ test("%paper-font-scale scales Paper's reading-prose type uniformly, leaving Not
   ).resolves.toBe(
     "48px", // 24px base * 2
   );
+  // Not `.first()` — see the previous test's own comment on why: Paper's own symbol-set summary
+  // (a separate, smaller-font compact block) always leads, so match this paragraph by its text.
   await expect(
-    fontSize(page.locator(".gramaire__paper p").first()),
+    fontSize(page.locator(".gramaire__paper p", { hasText: "Body text." })),
   ).resolves.toBe(
     "34px", // 17px base * 2
   );
@@ -1514,7 +1564,7 @@ test("round-tripping Source → Paper → Notebook (never having visited Source'
   await viewToggleButton(page, "Notebook").click();
 
   await expect.poll(() => ruleNonterminals(page)).toEqual(namesBefore);
-  await expect(page.locator(".gramaire__cell")).toHaveCount(5);
+  await expect(page.locator(".gramaire__cell")).toHaveCount(4);
 });
 
 function downloadButton(page: import("@playwright/test").Page, label: string) {
@@ -1523,7 +1573,7 @@ function downloadButton(page: import("@playwright/test").Page, label: string) {
 
 // Downloading the document as raw source — the standard Blob-URL + <a download> pattern
 // (DownloadActions, GramaireNotebookIsland.tsx), the first save-to-disk feature this codebase has.
-test("↓ Source downloads the document's raw .gram.md, named from its own %name directive", async ({
+test("↓ Source downloads the document's raw .gram.md, named from its own frontmatter name: field", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
@@ -1537,7 +1587,7 @@ test("↓ Source downloads the document's raw .gram.md, named from its own %name
   const stream = await download.createReadStream();
   let content = "";
   for await (const chunk of stream) content += chunk;
-  expect(content).toContain("%name Calc-js");
+  expect(content).toContain("name: Calc-js");
   expect(content).toContain("```gramaire");
 });
 
@@ -1546,7 +1596,7 @@ test("↓ Source downloads the document's raw .gram.md, named from its own %name
 // browser-print-to-PDF path was removed on request once this shipped). Doesn't touch viewMode at
 // all: buildPaperPdf reads blocks/analysis directly, independent of whatever view is on screen
 // when clicked.
-test("↓ PDF downloads a real PDF file, named from the document's own %name directive, without switching views", async ({
+test("↓ PDF downloads a real PDF file, named from the document's own frontmatter name: field, without switching views", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
@@ -1718,7 +1768,7 @@ test("Open loads a .gram.md file through the <input type=file> fallback", async 
     buffer: Buffer.from(
       [
         "```gramaire",
-        "%name CustomDoc",
+        "name: CustomDoc",
         "```",
         "",
         "```gramaire",
@@ -1780,7 +1830,7 @@ test("Open does not prompt for confirmation when the document is still the prist
   await fileChooser.setFiles({
     name: "custom.gram.md",
     mimeType: "text/markdown",
-    buffer: Buffer.from("```gramaire\n%name Fresh\n```\n"),
+    buffer: Buffer.from("```gramaire\nname: Fresh\n```\n"),
   });
 
   await page.waitForTimeout(500);
@@ -1820,7 +1870,7 @@ test("Open through the legacy fallback shows exactly one confirmation, not two, 
     buffer: Buffer.from(
       [
         "```gramaire",
-        "%name Loaded",
+        "name: Loaded",
         "```",
         "",
         "```gramaire",
@@ -1854,7 +1904,7 @@ test("dropping a .gram.md file onto the document loads it", async ({
       mime: "text/markdown",
       content: [
         "```gramaire",
-        "%name Dropped",
+        "name: Dropped",
         "```",
         "",
         "```gramaire",
@@ -1963,7 +2013,7 @@ test("Open via a File System Access handle enables Save, which writes straight b
 }) => {
   const initial = [
     "```gramaire",
-    "%name Mocked",
+    "name: Mocked",
     "```",
     "",
     "```gramaire",
@@ -1994,7 +2044,7 @@ test("Open via a File System Access handle enables Save, which writes straight b
   const written = await page.evaluate(
     () => (window as unknown as { __testWrites: string[] }).__testWrites[0],
   );
-  expect(written).toContain("%name Mocked");
+  expect(written).toContain("name: Mocked");
   expect(written).toContain("Start");
 });
 
@@ -2008,7 +2058,7 @@ async function mockFailingFileSystemAccess(
   await page.addInitScript(() => {
     const handle = {
       async getFile() {
-        return { text: async () => "```gramaire\n%name Mocked\n```" };
+        return { text: async () => "```gramaire\nname: Mocked\n```" };
       },
       async createWritable() {
         throw new Error("permission denied");
@@ -2060,17 +2110,18 @@ test("hovering a cell reveals its action row; it's invisible at rest", async ({
   await expect(actions).toHaveCSS("opacity", "1");
 });
 
-// The very first block is the document's own "# Calc-js" title (an h2) — its section is
-// section-aware Move's own top-level case: it spans the ENTIRE document (there's no shallower
-// heading to bound it), so both Up and Down are correctly disabled, not just Up. The last block
-// ("## Generated tables", an h3 sibling of Tokens/Expr/Term/Factor) has a previous sibling
-// section (Factor) to swap with going up, but nothing after it going down.
+// The document's own "# Calc-js" title (an h2) — not literally the first BLOCK (the frontmatter's
+// own gap renders as an invisible leading prose block ahead of it, ADR D58), but the first
+// HEADING — has section-aware Move's own top-level case: it spans the ENTIRE document (there's no
+// shallower heading to bound it), so both Up and Down are correctly disabled, not just Up. The
+// last block ("## Generated tables", an h3 sibling of Tokens/Expr/Term/Factor) has a previous
+// sibling section (Factor) to swap with going up, but nothing after it going down.
 test("the first block's section spans the whole document (both disabled); the last section's Down is disabled, not hidden", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
   const cells = page.locator(".gramaire__prose, .gramaire__cell[data-kind]");
-  const first = cells.first();
+  const first = headingCellLocator(page, "Calc-js");
   const last = cells.last();
 
   await first.hover();
@@ -2183,9 +2234,9 @@ test("Up/Down on a heading disable at the true first/last SIBLING SECTION bounda
 }) => {
   await gotoNotebookReady(page);
 
-  // "Tokens" isn't the first BLOCK (the title/settings precede it), but it IS the first h3
-  // sibling — Up must be disabled there even though index !== 0.
-  const tokensHeading = page.locator(".gramaire__prose").nth(1);
+  // "Tokens" isn't the first BLOCK (the title/frontmatter precede it), but it IS the first h3
+  // sibling — Up must be disabled there even though it's not literally the first block.
+  const tokensHeading = headingCellLocator(page, "Tokens");
   await expect(tokensHeading).toContainText("Tokens");
   await tokensHeading.hover();
   await expect(
@@ -2196,8 +2247,8 @@ test("Up/Down on a heading disable at the true first/last SIBLING SECTION bounda
   ).toBeEnabled();
 
   // Expr/Term/Factor are interior siblings — both enabled.
-  for (const nth of [2, 3, 4]) {
-    const heading = page.locator(".gramaire__prose").nth(nth);
+  for (const name of ["Expr", "Term", "Factor"]) {
+    const heading = headingCellLocator(page, name);
     await heading.hover();
     await expect(
       heading.locator(".gramaire__cell-action").first(),
@@ -2208,7 +2259,7 @@ test("Up/Down on a heading disable at the true first/last SIBLING SECTION bounda
   }
 
   // "Generated tables" is the last h3 sibling — Down disabled, Up enabled (Factor precedes it).
-  const lastHeading = page.locator(".gramaire__prose").nth(5);
+  const lastHeading = headingCellLocator(page, "Generated tables");
   await expect(lastHeading).toContainText("Generated tables");
   await lastHeading.hover();
   await expect(
@@ -2233,9 +2284,9 @@ test("clicking Down moves a block later in the document and re-evaluates", async
       ),
     );
 
-  const settingsCell = page.locator('.gramaire__cell[data-kind="settings"]');
-  await settingsCell.hover();
-  await settingsCell.locator(".gramaire__cell-action").nth(1).click(); // Down
+  const tokensCell = page.locator('.gramaire__cell[data-kind="tokens"]');
+  await tokensCell.hover();
+  await tokensCell.locator(".gramaire__cell-action").nth(1).click(); // Down
 
   await expect
     .poll(() =>
@@ -2252,9 +2303,9 @@ test("clicking Down moves a block later in the document and re-evaluates", async
     )
     .toEqual(
       before.map((_, i, arr) => {
-        const settingsIdx = arr.indexOf("settings");
-        if (i === settingsIdx) return arr[settingsIdx + 1];
-        if (i === settingsIdx + 1) return arr[settingsIdx];
+        const tokensIdx = arr.indexOf("tokens");
+        if (i === tokensIdx) return arr[tokensIdx + 1];
+        if (i === tokensIdx + 1) return arr[tokensIdx];
         return arr[i];
       }),
     );
@@ -2467,7 +2518,7 @@ async function firstRuleZoneIndex(page: import("@playwright/test").Page) {
   return kinds.indexOf("rule");
 }
 
-test("hovering an insert zone reveals all five insert buttons; invisible at rest", async ({
+test("hovering an insert zone reveals all six insert buttons; invisible at rest", async ({
   page,
 }) => {
   await gotoNotebookReady(page);
@@ -2479,6 +2530,7 @@ test("hovering an insert zone reveals all five insert buttons; invisible at rest
   await expect(buttons).toHaveCSS("opacity", "1");
   await expect(zone.locator(".gramaire__insert-btn")).toHaveText([
     "+ Prose",
+    "+ Heading",
     "+ Rule",
     "+ Tokens",
     "+ Settings",
@@ -2529,7 +2581,7 @@ test("a heading-leading prose block's hover state shows no gap above the heading
   page,
 }) => {
   await gotoNotebookReady(page);
-  const tokensBlock = page.locator(".gramaire__prose").nth(1);
+  const tokensBlock = headingCellLocator(page, "Tokens");
   await expect(tokensBlock).toContainText("Tokens");
   await tokensBlock.hover();
 
@@ -2615,7 +2667,7 @@ test("+ Rule inserts a rule skeleton that reclassifies as a real rule cell after
 // "unreachable" one), not just assumed from its shape.
 for (const [label, placeholder, kind] of [
   ["Tokens", "TODO : /x/ ;", "tokens"],
-  ["Settings", "%TODO placeholder", "settings"],
+  ["Settings", "todo: placeholder", "settings"],
   ["Precedence", "%left 'TODO'", "precedence"],
 ] as const) {
   test(`+ ${label} inserts a placeholder that opens for editing and reclassifies as a real ${kind} cell`, async ({
@@ -2623,9 +2675,11 @@ for (const [label, placeholder, kind] of [
   }) => {
     await gotoNotebookReady(page);
     const cells = page.locator(`.gramaire__cell[data-kind="${kind}"]`);
-    // The default document already has one Settings fence and one Tokens fence (its own
-    // `%name`/`%lang` preamble and token definitions) — Tokens/Settings aren't capped at
-    // one-per-document, so inserting a new one means TWO, not one; Precedence starts at zero.
+    // The default document already has one Tokens fence (its own token definitions) but no
+    // Settings fence (its name/lang preamble is frontmatter now, ADR D58, not a fenced settings
+    // block) — Tokens/Settings aren't capped at one-per-document, so inserting a new Tokens fence
+    // means TWO, not one; Settings and Precedence both start at zero. Read relative to whatever
+    // the document already has, rather than assuming a specific starting count.
     const countBefore = await cells.count();
 
     const zoneIndex = await firstRuleZoneIndex(page);
@@ -3035,7 +3089,7 @@ test("the outline shows an empty-state message when the document has no headings
     {
       name: "no-outline.gram.md",
       mime: "text/markdown",
-      content: ["```gramaire", "%name NoOutline", "```"].join("\n"),
+      content: ["```gramaire", "name: NoOutline", "```"].join("\n"),
     },
   );
   await page.locator(".gramaire__doc").dispatchEvent("drop", { dataTransfer });
@@ -3087,9 +3141,9 @@ test("Ctrl/Cmd+Z reverses the most recent block move", async ({ page }) => {
       );
   const before = await cellOrder();
 
-  const settingsCell = page.locator('.gramaire__cell[data-kind="settings"]');
-  await settingsCell.hover();
-  await settingsCell.locator(".gramaire__cell-action").nth(1).click(); // Down
+  const tokensCell = page.locator('.gramaire__cell[data-kind="tokens"]');
+  await tokensCell.hover();
+  await tokensCell.locator(".gramaire__cell-action").nth(1).click(); // Down
   await expect.poll(cellOrder).not.toEqual(before);
 
   await page.keyboard.press("ControlOrMeta+z");
