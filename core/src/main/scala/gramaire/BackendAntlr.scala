@@ -112,13 +112,20 @@ object BackendAntlr:
   def emit(ir: IR): String =
     val ntNameById: Map[Int, String] = ir.grammar.nonterminals.map(n => n.id -> n.name).toMap
     val termById: Map[Int, IRTerminal] = ir.grammar.terminals.map(t => t.id -> t).toMap
+    // A token carrying `@spelling("...")` (ADR D61) renders under that spelling everywhere in the
+    // `.g4`, not just its own lexer-rule line — a parser rule referencing it (`symText`'s `IRRefT`
+    // case below) must agree, or the emitted grammar references a lexer rule name (`DIGIT`) that no
+    // longer exists once the definition line itself renders as `Digit`.
+    val spellingByTid: Map[Int, String] = ir.lexer match
+      case None     => Map.empty
+      case Some(lx) => lx.classes.flatMap(c => c.nativeSpelling.map(c.terminal -> _)).toMap
 
     def symText(r: IRRef): String = r match
       case IRRef.IRRefNT(i, _) => ruleName(ntNameById.getOrElse(i, s"nt$i"))
       case IRRef.IRRefT(i, _) =>
         termById.get(i) match
           case Some(IRTerminal.IRLiteral(_, spelling)) => quote(spelling)
-          case Some(IRTerminal.IRClass(_, name))       => name
+          case Some(IRTerminal.IRClass(_, name))       => spellingByTid.getOrElse(i, name)
           case None                                    => s"T$i"
 
     def altText(r: IRRule): String =

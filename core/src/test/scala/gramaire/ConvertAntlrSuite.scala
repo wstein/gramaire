@@ -526,4 +526,14 @@ class ConvertAntlrSuite extends munit.FunSuite:
                   g4b.contains("Digit : [0-9]"),
                   s"re-export must use ANTLR's own original spelling, not DIGIT, got:\n$g4b"
                 )
+                // `Digit+` desugars to a helper list rule before BackendAntlr ever sees it (D-token
+                // sugar lowering) — so the reference to check is inside THAT rule's body, not `r`'s.
+                assert(
+                  !g4b.contains("DIGIT"),
+                  s"no parser rule may still reference the internal ALL-CAPS name once the lexer rule itself renders under its native spelling, got:\n$g4b"
+                )
+                assert(
+                  g4b.contains("Digit\n  | ") || g4b.contains(": Digit\n"),
+                  s"the desugared helper rule's own reference to the renamed lexer rule must use its native spelling, got:\n$g4b"
+                )
   }
