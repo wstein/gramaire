@@ -1260,3 +1260,45 @@
 .gramaire__paper-productions .lab__table td code[data-kind="eof"] {
   color: var(--fg-muted);
 }
+
+/* PaperParseTreeFigure — the "Example parse" graphical tree section, set off the same way
+   .gramaire__paper-productions is. */
+.gramaire__paper-parsetree {
+  margin-top: 3em;
+  padding-top: 1.5em;
+  border-top: 1px solid var(--border);
+}
+.gramaire__paper-parsetree code {
+  font-family: var(--font-mono);
+}
+/* `svgOfCst`'s (../cstGraph.ts) own box-and-line tree SVG — same `.lab__cst-graph` wrapper class
+   and `rr-track`/`rr-term`/`rr-nonterm`/`rr-text` element classes the Lab's Graph view toggle
+   already uses, restyled here to this page's own tokens rather than imported from lab.css,
+   matching this file's existing per-surface-duplication convention (see the productions-table
+   rules above, or `.gramaire__output-ff-chips code[data-kind]` elsewhere in this file). */
+.gramaire__paper-parsetree .lab__cst-graph {
+  margin-top: 10px;
+  overflow-x: auto;
+}
+.gramaire__paper-parsetree .lab__cst-graph svg {
+  max-width: 100%;
+}
+.gramaire__paper-parsetree .rr-track {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 2;
+}
+.gramaire__paper-parsetree .rr-term {
+  fill: var(--bg-1);
+  stroke: var(--t-term);
+  stroke-width: 2;
+}
+.gramaire__paper-parsetree .rr-nonterm {
+  fill: var(--bg-2);
+  stroke: var(--t-nonterm);
+  stroke-width: 2;
+}
+.gramaire__paper-parsetree .rr-text {
+  fill: var(--fg);
+  font: 12px var(--font-mono);
+}

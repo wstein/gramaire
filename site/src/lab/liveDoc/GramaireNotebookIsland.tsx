@@ -39,6 +39,7 @@ import type { MdBlock, MdInline } from "./markdown";
 import { MarkdownBlocks, MarkdownHeading } from "./MarkdownBlock";
 import { SymbolChip, SymbolChips } from "../symbolDisplay";
 import { ProductionsTable } from "../productionsTable";
+import { svgOfCst } from "../cstGraph";
 import { bindRailroadNodeNav } from "../railroadNav";
 import { buildPaperPdf } from "./paperPdf";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
@@ -2039,7 +2040,15 @@ async function downloadSource() {
 async function downloadPdf() {
   const blks = await settledBlocks();
   const analysis = response.value?.analysis ?? lastAnalysis.value;
-  const bytes = await buildPaperPdf(blks, analysis);
+  // Same gating PaperParseTreeFigure uses — Paper and the PDF must never disagree about whether
+  // this figure exists for the same response.
+  const parse = response.value?.parse;
+  const productions = response.value?.productions;
+  const exampleParse =
+    parse?.accepted && parse.cst && productions
+      ? { cst: parse.cst, productions, input: tryItInput.value }
+      : null;
+  const bytes = await buildPaperPdf(blks, analysis, exampleParse);
   const name = response.value?.name ?? lastName.value ?? "gramaire-notebook";
   // pdf-lib's Uint8Array is typed against a generic ArrayBufferLike (permitting a
   // SharedArrayBuffer-backed view), which TS's DOM lib's BlobPart is stricter than — a real
@@ -2299,6 +2308,33 @@ function PaperProductionsSection({
   );
 }
 
+// A graphical box-and-line parse tree for the document's own "Try it" input — the same `svgOfCst`
+// (../cstGraph) rendering the Lab's Parse tree tab's own Graph view toggle uses, so Paper and the
+// Lab can never draw a tree differently for the same grammar/input. Deliberately NOT retained
+// across a transient re-evaluation the way `lastAnalysis`/`lastProductions` are — `TryIt`'s own
+// live view (this same "Try it" input in the Notebook's interactive editing mode) has no such
+// retention either, so Paper stays consistent with how the input already behaves elsewhere in this
+// document, rather than introducing an asymmetry only Paper would have. Shown only for an accepted
+// parse; a rejected or not-yet-evaluated input shows nothing here rather than a stale or empty tree.
+function PaperParseTreeFigure() {
+  const resp = response.value;
+  const parse = resp?.parse;
+  const productions = resp?.productions;
+  if (!parse?.accepted || !parse.cst || !productions) return null;
+  const ruleNameOf = (rule: number) => productions[rule]?.lhs ?? `#${rule}`;
+  const svg = svgOfCst(parse.cst, ruleNameOf);
+  return (
+    <section class="gramaire__paper-parsetree">
+      <h2>Example parse</h2>
+      <p class="gramaire__paper-productions-caption">
+        The document's own "Try it" input, <code>{tryItInput.value}</code>,
+        parsed against the grammar above.
+      </p>
+      <div class="lab__cst-graph" dangerouslySetInnerHTML={{ __html: svg }} />
+    </section>
+  );
+}
+
 function PaperView() {
   let ruleCount = 0;
   // The document's own `%paper-font-scale` directive (document.ts's `paperFontScale`) — an inline
@@ -2325,6 +2361,7 @@ function PaperView() {
           />
         );
       })}
+      <PaperParseTreeFigure />
       <PaperProductionsSection
         hasRuleBlocks={paperBlocks.some((b) => b.kind === "rule")}
       />

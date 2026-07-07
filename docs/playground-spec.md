@@ -125,6 +125,33 @@ a thin skin over real machinery, never a mock.
 > existing per-surface-duplication convention (`.gramaire__output-ff-chips
 > code[data-kind]`, the FIRST/FOLLOW chips' identical pattern). Keep this
 > callout current as further work lands.
+>
+> A graphical (box-and-line) parse tree landed last, closing out the
+> treeview/profiler roadmap this whole callout has been tracking — but not as
+> new work: the All-parses tab's existing "Graph view" toggle already had a
+> complete tidy-tree layout and SVG renderer (`layoutTree`/`svgOfForest`,
+> using the same `rr-nonterm`/`rr-term`/`rr-track` visual language the
+> server-rendered railroad diagrams use), discovered mid-implementation after
+> this doc's own earlier research (and the design debate above) had concluded
+> no such renderer existed anywhere in the codebase — a real research miss,
+> corrected here rather than repeated. That logic moved to a shared module,
+> `site/src/lab/cstGraph.ts`, generalized with a single-tree entry point
+> (`svgOfCst`) alongside the existing forest one (`svgOfForest`), so three
+> consumers now share it: the All-parses tab (unchanged behavior, just
+> reused code), a new "Graph view" toggle on the Parse tree tab itself
+> (`treeGraphViewEnabled`, additive next to the existing list view, which
+> stays the default), and the Notebook's Paper view as a new "Example parse"
+> section for the document's own live "Try it" input. Because the SVG output
+> reuses Railroad.scala's own CSS vocabulary, the PDF export's existing
+> `drawVectorRailroad`/`parseRailroadSvg` — built to re-emit a railroad
+> diagram as real pdf-lib vector primitives, dispatching purely by tag name
+> and CSS class — renders this tree SVG too, with no PDF-specific drawing
+> code of its own; `buildPaperPdf` grew one new optional parameter
+> (`exampleParse`) and a small shared `drawSvgFigure` helper (factored out of
+> the rule-figure loop's own inline scaling/paging logic) rather than a
+> second bespoke drawing path. Paper and the PDF are gated identically (an
+> accepted Try-it parse only) so the two can never disagree about whether
+> this figure exists for the same response.
 
 ---
 

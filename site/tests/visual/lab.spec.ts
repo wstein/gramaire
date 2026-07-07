@@ -941,6 +941,32 @@ test("Parse tree's expand-all/collapse-all toolbar buttons drive every fold at o
   await expect(page.locator(".lab__leaf").first()).toBeVisible();
 });
 
+test("Parse tree's own Graph view renders the same graphical SVG tree All-parses' Graph view does", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  await page.click('button[role="tab"]:has-text("Parse tree")');
+  await expect(page.locator(".lab__tree")).toBeVisible();
+
+  await page.click('button.lab__copy-btn:has-text("Graph view")');
+  const graph = page.locator(".lab__cst-graph");
+  await expect(graph.locator("svg")).toHaveCount(1);
+  // List-view-only chrome (fold markers, node-count badges, the token strip's reveal-in-tree
+  // click target) disappears — this is a genuinely different rendering, not the list view with a
+  // CSS skin on top.
+  await expect(page.locator(".lab__tree")).toHaveCount(0);
+  await expect(graph.locator("rect.rr-nonterm").first()).toBeVisible();
+  await expect(graph.locator("rect.rr-term").first()).toBeVisible();
+  await expect(
+    graph.locator("text.rr-text", { hasText: "Expr" }).first(),
+  ).toBeVisible();
+
+  // Toggling back off returns to the list view — still the default, per the design debate.
+  await page.click('button.lab__copy-btn:has-text("Graph view")');
+  await expect(page.locator(".lab__cst-graph")).toHaveCount(0);
+  await expect(page.locator(".lab__tree")).toBeVisible();
+});
+
 test("the Parse tree tab's copy LISP button copies an S-expression and shows feedback", async ({
   page,
   context,

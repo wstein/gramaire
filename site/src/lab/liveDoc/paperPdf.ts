@@ -62,7 +62,8 @@
 // "[image: alt]" fallback, never embedded).
 import type { DocBlock } from "./document";
 import { isPaperBlock, paperFontScale, serializeDocument } from "./document";
-import type { GrammarAnalysis } from "../protocol";
+import type { CstNode, GrammarAnalysis, ProductionInfo } from "../protocol";
+import { svgOfCst } from "../cstGraph";
 import { parseMarkdownLite, isRailroadPlaceholder } from "./markdown";
 import type { MdBlock, MdInline } from "./markdown";
 // Type-only — erased at compile time, doesn't affect pdf-lib's own lazy (dynamic-import) loading.
@@ -287,6 +288,15 @@ function buildToUnicodeCmap(glyphToText: ReadonlyMap<number, string>): string {
 export async function buildPaperPdf(
   blocks: readonly DocBlock[],
   analysis: GrammarAnalysis | null,
+  // The document's own live "Try it" parse (GramaireNotebookIsland.tsx's `tryItInput`/`response.
+  // parse`) — present only for an accepted parse, matching PaperParseTreeFigure's own gating (Paper
+  // and the PDF must never disagree about whether this figure exists). `null` skips the figure
+  // entirely, same as an unset `analysis`.
+  exampleParse: {
+    cst: CstNode;
+    productions: ProductionInfo[];
+    input: string;
+  } | null = null,
 ): Promise<Uint8Array> {
   const scale = figureScale(serializeDocument(blocks));
   const fontScale = paperFontScale(serializeDocument(blocks));
@@ -515,6 +525,45 @@ export async function buildPaperPdf(
     }
   };
 
+  // A captioned vector figure — the same width/height-capped scaling and fresh-page-for-a-big-
+  // figure logic the rule-block loop below applies inline for its own railroad diagrams, factored
+  // out here so `svgOfCst`'s tree SVG (below) can reuse it for the "Example parse" figure without
+  // duplicating that math a second time. Unlike the rule-block loop (which always draws a caption,
+  // even for a rule with no diagram, since it's numbering a real content block either way), this
+  // draws nothing at all for an empty `svg` — callers of this one always have real content or skip
+  // calling it entirely (`exampleParse === null` skips the call, not just the drawing).
+  const drawSvgFigure = (svg: string, caption: string) => {
+    if (!svg) return;
+    const parsed = parseRailroadSvg(svg);
+    const naturalWidth = parsed.width * PX_TO_PT * scale;
+    const naturalHeight = parsed.height * PX_TO_PT * scale;
+    const widthScale = CONTENT_WIDTH / naturalWidth;
+    const heightScale = MAX_FIGURE_HEIGHT / naturalHeight;
+    const drawScale = Math.min(1, widthScale, heightScale);
+    const drawWidth = naturalWidth * drawScale;
+    const drawHeight = naturalHeight * drawScale;
+    const totalScale = PX_TO_PT * scale * drawScale;
+    if (drawHeight > CONTENT_HEIGHT * 0.4) ensureRoom(CONTENT_HEIGHT);
+    ensureRoom(drawHeight + 24);
+    drawVectorRailroad(
+      parsed,
+      MARGIN + (CONTENT_WIDTH - drawWidth) / 2,
+      y,
+      totalScale,
+    );
+    y -= drawHeight + 6;
+    ensureRoom(16);
+    const captionWidth = serifItalic.widthOfTextAtSize(caption, 10);
+    page.drawText(caption, {
+      x: MARGIN + (CONTENT_WIDTH - captionWidth) / 2,
+      y: y - 10,
+      size: 10,
+      font: serifItalic,
+      color: muted,
+    });
+    y -= 26;
+  };
+
   const drawLines = (
     text: string,
     font: import("pdf-lib").PDFFont,
@@ -597,51 +646,40 @@ export async function buildPaperPdf(
       continue;
     }
     // Rule block: a numbered figure, same railroad SVG source GrammarCell/PaperBlock already use.
+    // Unlike `drawSvgFigure`'s own no-svg-means-skip-entirely default (see its own comment), a
+    // rule block always gets its caption, even with no diagram to show above it — it's numbering a
+    // real content block either way, so the two extra lines below replicate just the caption half
+    // of `drawSvgFigure` for that one case instead of adding a "caption anyway" flag to it.
     ruleCount++;
     const svg = block.nonterminal
       ? (analysis?.railroad[block.nonterminal] ?? "")
       : "";
-    if (svg) {
-      const parsed = parseRailroadSvg(svg);
-      // Pixels → points (PX_TO_PT), then the document's own figure-scale multiplier (DEFAULT_
-      // FIGURE_SCALE, or a %pdf-figure-scale override) — THEN cap by whichever of width or height
-      // is more restrictive, regardless of the diagram's own aspect ratio. A wide-but-short
-      // diagram is capped by width, a narrow-but-tall one by height, and either way the final size
-      // never exceeds what one fresh page can actually hold — the caps stay a real safety net
-      // even for a document-supplied scale, not just the default.
-      const naturalWidth = parsed.width * PX_TO_PT * scale;
-      const naturalHeight = parsed.height * PX_TO_PT * scale;
-      const widthScale = CONTENT_WIDTH / naturalWidth;
-      const heightScale = MAX_FIGURE_HEIGHT / naturalHeight;
-      const drawScale = Math.min(1, widthScale, heightScale);
-      const drawWidth = naturalWidth * drawScale;
-      const drawHeight = naturalHeight * drawScale;
-      const totalScale = PX_TO_PT * scale * drawScale;
-      // A big figure starts on its own fresh page rather than a small sliver of room left on the
-      // current one — ensureRoom alone would still have technically fit it (the height cap
-      // guarantees that), but a diagram sharing a page with only a few leftover points of
-      // whatever came before it reads as cramped, not deliberate.
-      if (drawHeight > CONTENT_HEIGHT * 0.4) ensureRoom(CONTENT_HEIGHT);
-      ensureRoom(drawHeight + 24);
-      drawVectorRailroad(
-        parsed,
-        MARGIN + (CONTENT_WIDTH - drawWidth) / 2,
-        y,
-        totalScale,
-      );
-      y -= drawHeight + 6;
-    }
-    ensureRoom(16);
     const caption = `Figure ${ruleCount} — ${block.nonterminal}`;
-    const captionWidth = serifItalic.widthOfTextAtSize(caption, 10);
-    page.drawText(caption, {
-      x: MARGIN + (CONTENT_WIDTH - captionWidth) / 2,
-      y: y - 10,
-      size: 10,
-      font: serifItalic,
-      color: muted,
-    });
-    y -= 26;
+    if (svg) {
+      drawSvgFigure(svg, caption);
+    } else {
+      ensureRoom(16);
+      const captionWidth = serifItalic.widthOfTextAtSize(caption, 10);
+      page.drawText(caption, {
+        x: MARGIN + (CONTENT_WIDTH - captionWidth) / 2,
+        y: y - 10,
+        size: 10,
+        font: serifItalic,
+        color: muted,
+      });
+      y -= 26;
+    }
+  }
+
+  // "Example parse" — the document's own live "Try it" input, rendered as the same graphical
+  // box-and-line tree Paper's own PaperParseTreeFigure shows (svgOfCst, ../cstGraph.ts), so the
+  // PDF and Paper can never draw this figure differently for the same grammar/input. Skipped
+  // entirely (not even an empty caption) when there's no accepted parse to show.
+  if (exampleParse) {
+    const ruleNameOf = (rule: number) =>
+      exampleParse.productions[rule]?.lhs ?? `#${rule}`;
+    const svg = svgOfCst(exampleParse.cst, ruleNameOf);
+    drawSvgFigure(svg, `Example parse — "${exampleParse.input}"`);
   }
 
   const rawBytes = await pdfDoc.save();

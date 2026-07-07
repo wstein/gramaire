@@ -1251,6 +1251,31 @@ test("Paper closes with a grammar-productions appendix, reusing the Lab's own Pr
   await expect(rows.first()).toContainText("Expr");
 });
 
+test('Paper shows an "Example parse" graphical tree for the document\'s own Try-it input', async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await viewToggleButton(page, "Paper").click();
+
+  const figure = page.locator(".gramaire__paper-parsetree");
+  await expect(figure).toBeVisible();
+  await expect(figure).toHaveCount(1);
+  await expect(figure.locator("h2")).toHaveText("Example parse");
+  // The default document's own Try-it input (NOTEBOOK_DEFAULT_INPUT, examples.ts).
+  await expect(figure).toContainText("2 + 3 * 4");
+
+  // A real graphical SVG tree, the same `svgOfCst`-rendered shape the Lab's Parse tree Graph view
+  // toggle produces — not the plain indented `gramaire-cst-branch` div tree the interactive
+  // Notebook's own "Try it" widget shows.
+  const graph = figure.locator(".lab__cst-graph");
+  await expect(graph.locator("svg")).toHaveCount(1);
+  await expect(graph.locator("rect.rr-nonterm").first()).toBeVisible();
+  await expect(graph.locator("rect.rr-term").first()).toBeVisible();
+  await expect(
+    graph.locator("text.rr-text", { hasText: "Expr" }).first(),
+  ).toBeVisible();
+});
+
 test("Paper is fully read-only — nothing in it is clickable/editable, unlike every other view", async ({
   page,
 }) => {
@@ -1573,6 +1598,58 @@ test("the PDF embeds real IBM Plex Serif for prose, and the Fira Code ToUnicode 
   expect(monoFonts[0].toUnicodeSize).toBeGreaterThan(0);
   expect(monoFonts[0].toUnicodeSize).toBeLessThan(smallestSerifToUnicode);
 });
+
+// The PDF's own "Example parse" figure (buildPaperPdf's `exampleParse` parameter, drawn via the
+// same `drawSvgFigure`/`svgOfCst` pipeline as every railroad diagram figure) — gated on an
+// accepted Try-it parse exactly like Paper's own PaperParseTreeFigure, so the two can never
+// disagree about whether it exists for the same response. A real vector tree (several more
+// rect/path/text-drawing operators than the rule diagrams alone) measurably grows the PDF; a
+// rejected Try-it input drops the figure entirely, not just its content, so the same document
+// produces a smaller PDF once the input no longer parses.
+test('the PDF\'s "Example parse" figure disappears (not just empties) once Try-it stops parsing', async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+
+  const [acceptedDownload] = await Promise.all([
+    page.waitForEvent("download", { timeout: 15000 }),
+    downloadButton(page, "PDF").click(),
+  ]);
+  const acceptedBytes = Buffer.concat(
+    await streamToChunks(await acceptedDownload.createReadStream()),
+  );
+  expect(acceptedBytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+
+  const input = page.locator(".gramaire__tryit-input");
+  await input.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Backspace");
+  await page.keyboard.type("1 @ 2");
+  await page.waitForTimeout(800);
+  await expect(page.locator(".gramaire__tryit-error")).toBeVisible();
+
+  const [rejectedDownload] = await Promise.all([
+    page.waitForEvent("download", { timeout: 15000 }),
+    downloadButton(page, "PDF").click(),
+  ]);
+  const rejectedBytes = Buffer.concat(
+    await streamToChunks(await rejectedDownload.createReadStream()),
+  );
+  expect(rejectedBytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+
+  // A whole extra vector figure (several boxes/edges/shaped-text labels) is a substantial byte
+  // difference, not noise — a loose but real threshold well clear of ordinary PDF-to-PDF jitter
+  // (e.g. font-subsetting/ToUnicode differences from the one-character input text change alone).
+  expect(acceptedBytes.length - rejectedBytes.length).toBeGreaterThan(200);
+});
+
+async function streamToChunks(
+  stream: NodeJS.ReadableStream,
+): Promise<Buffer[]> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  return chunks;
+}
 
 // File open/save/examples — the document's entrance, and (via a real File System Access handle)
 // a second way out besides the download-a-copy flow. `showOpenFilePicker`'s own native dialog
