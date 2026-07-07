@@ -268,6 +268,63 @@ class GramaireCheckSuite extends munit.FunSuite:
     assert(svg.contains("""data-rr-view="simplified"""), svg)
   }
 
+  // A hoisted `( a | b )` group (Desugar.groupHoist) used to be invisible to fmt's own diagram
+  // generation entirely — Railroad.parseProduction's raw-text re-lexer has no paren-depth tracking,
+  // so `Term '*' | '/' ) Factor` would have silently mis-split into a spurious extra top-level
+  // alternative. `fmt` now parses the whole document via Lr.parse (which runs Desugar internally)
+  // and builds diagrams from that real Grammar (Railroad.diagramsOfGrammar) when it succeeds, so the
+  // group renders as a real inline nested fork instead — the same shape the live Lab/Notebook draw.
+  test(
+    "fmt: a hoisted group renders as a real nested fork in the sidecar SVG, not a corrupted extra alternative"
+  ) {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-group-sidecar")
+    val file = dir.resolve("sample.gram.md")
+    val src =
+      "# GroupTest\n\n## Term\n\n```gramaire\nTerm\n  : Term ('*' | '/') Factor\n  | Factor\n  ;\n```\n\n## Factor\n\n```gramaire\nFactor\n  : 'x'\n  ;\n```\n\n## Generated tables\n\n| a |\n"
+    java.nio.file.Files.writeString(file, src)
+
+    val doc = GramaireCheck.parse(src)
+    val _ = GramaireCheck.fmt(file.toString, doc, GramaireCheck.DiagramMode.Sidecar)
+
+    val svg = java.nio.file.Files.readString(dir.resolve("diagrams-sample/term.svg"))
+    assert(svg.contains(""">*</text>"""), svg)
+    assert(svg.contains(""">/</text>"""), svg)
+    assert(!svg.contains("* | /"), svg)
+    // Both terminals are real, separate nodes with their own semantic metadata — not one node
+    // whose label happens to contain both characters (which the corrupted pre-fix rendering, an
+    // extra bare top-level alternative starting with "/", would NOT have produced either — this
+    // pins down the positive "real fork" shape, not just the absence of the old bug's own symptom).
+    assert(svg.contains("""data-rr-label="*""""), svg)
+    assert(svg.contains("""data-rr-label="/""""), svg)
+    val textY = """<text class="rr-text" x="[^"]+" y="([^"]+)"[^>]*>([^<]*)</text>""".r
+    val ys = textY.findAllMatchIn(svg).map(m => m.group(2) -> m.group(1)).toMap
+    assert(ys.contains("*") && ys.contains("/"), svg)
+    assert(
+      ys("*") != ys("/"),
+      s"expected '*' and '/' on different rows, both at y=${ys("*")}:\n$svg"
+    )
+  }
+
+  // The document doesn't parse as a real Grammar (Undefined references Bar directly).
+  // fmt keeps regenerating something useful for the rules around a mistake — falling back to the
+  // per-rule text parse (Railroad.parseProduction) — rather than refusing to run at all.
+  test(
+    "fmt: falls back to the text-based diagram parse when the document doesn't parse as a full grammar"
+  ) {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-fallback-sidecar")
+    val file = dir.resolve("sample.gram.md")
+    val src =
+      "# Broken\n\n## Foo\n\n```gramaire\nFoo\n  : Bar\n  ;\n```\n\n## Generated tables\n\n| a |\n"
+    java.nio.file.Files.writeString(file, src)
+
+    val doc = GramaireCheck.parse(src)
+    val _ = GramaireCheck.fmt(file.toString, doc, GramaireCheck.DiagramMode.Sidecar)
+
+    val svg = java.nio.file.Files.readString(dir.resolve("diagrams-sample/foo.svg"))
+    assert(svg.startsWith("<svg"), svg)
+    assert(svg.contains(">Bar<"), svg)
+  }
+
   test("fmt: records diagramView in the lock only when simplified, and survives check") {
     val dir = java.nio.file.Files.createTempDirectory("gramaire-lock-view")
     val file = dir.resolve("sample.gram.md")

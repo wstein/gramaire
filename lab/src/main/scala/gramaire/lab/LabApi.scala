@@ -442,7 +442,7 @@ object LabApi:
     // with no author-facing identity of its own — it never gets a FIRST/FOLLOW row or a tab, the
     // same way `Diagnostics.sourceRuleNameGuess` already treats a `__group_` name as having no real
     // source to attribute a diagnostic to. `visibleRules` is every OTHER rule.
-    val visibleRules = grammar.rules.filterNot(r => isHoistedGroupRule(r.name))
+    val visibleRules = grammar.rules.filterNot(r => Railroad.isHoistedGroupRule(r.name))
     val firstFollow = visibleRules.map { r =>
       RuleFirstFollow(
         r.name,
@@ -452,24 +452,22 @@ object LabApi:
     }
 
     // Built from the compiled (desugared) Grammar directly, not by re-parsing each rule's raw
-    // .gram.md fenced block the way `gramaire fmt`'s sidecar SVGs do (that needs CLI-only
-    // markdown-block parsing this cross-compiled module doesn't have) — see GrammarAnalysis's own
-    // doc comment for the resulting, deliberate divergence (a desugared X+ shows its synthesized
-    // list rule, not gramaire fmt's native loop shape). A reference to a hoisted group rule is
-    // inlined as a real nested `Diagram.Choice` (toDiagramSym), not left as an opaque NonTerminal
-    // box pointing at a rule with no diagram/tab of its own to show.
-    val nts = Table.nontermSet(grammar)
-    val ruleByName = grammar.rules.map(r => r.name -> r).toMap
-    val railroad = visibleRules.map { r =>
-      val diagram = Railroad.Diagram.Stack(
-        r.alts.map { alt =>
-          val seq = altToDiagram(nts, ruleByName, alt)
-          alt.action.map(BackendJs.unwrapBinder) match
-            case Some(action) => Railroad.Diagram.ActionCaption(seq, action)
-            case None         => seq
-        }
+    // .gram.md fenced block the way `gramaire fmt`'s sidecar SVGs do (`GramaireCheck.fmt` shares
+    // this same `Railroad.diagramsOfGrammar`, but via its own `Lr.parse` of the CLI's file — this
+    // cross-compiled module has no CLI-only markdown-block parsing to build a Grammar from a raw
+    // fence in isolation) — see GrammarAnalysis's own doc comment for the resulting, deliberate
+    // divergence (a desugared X+ shows its synthesized list rule, not gramaire fmt's native loop
+    // shape). A reference to a hoisted group rule is inlined as a real nested `Diagram.Choice`
+    // (`diagramsOfGrammar`), not left as an opaque NonTerminal box pointing at a rule with no
+    // diagram/tab of its own to show.
+    val diagrams =
+      Railroad.diagramsOfGrammar(
+        grammar,
+        includeActions = true,
+        unwrapAction = BackendJs.unwrapBinder
       )
-      r.name -> Railroad.renderDiagramSvg(r.name, diagram, themed = true)
+    val railroad = visibleRules.map { r =>
+      r.name -> Railroad.renderDiagramSvg(r.name, diagrams(r.name), themed = true)
     }.toMap
 
     // The same classification `gramaire explain-conflict` prints as CLI prose (`Glr.explainP`),
@@ -536,41 +534,6 @@ object LabApi:
       case Right(js) => (Some(js), Vector.empty)
       case Left(msg) =>
         (None, Vector(DiagnosticInfo("warning", "internal", msg, None, Vector.empty, msg)))
-
-  private def isHoistedGroupRule(name: String): Boolean = name.matches("__group_\\d+")
-
-  // A reference to a hoisted group rule inlines that rule's own alternatives as a nested
-  // `Diagram.Choice` right here, recursively (a chain of nested groups — Desugar.groupHoist can
-  // produce one group referencing another — fully unwinds, since each recursive call resolves its
-  // own `__group_M` refs the same way). Falls back to a plain NonTerminal box only if `ruleByName`
-  // somehow doesn't have the referenced rule (defensive; every `Ref` the desugared Grammar contains
-  // names a real rule in the same Grammar by construction).
-  private def toDiagramSym(
-      nts: Set[String],
-      ruleByName: Map[String, gramaire.Rule],
-      s: Sym
-  ): Railroad.Diagram = s match
-    case Sym.Ref(name) if isHoistedGroupRule(name) =>
-      ruleByName.get(name) match
-        case Some(rule) =>
-          Railroad.Diagram.Choice(rule.alts.map(altToDiagram(nts, ruleByName, _)))
-        case None => Railroad.Diagram.NonTerminal(name)
-    case Sym.Ref(name) =>
-      if nts.contains(name) then Railroad.Diagram.NonTerminal(name)
-      else Railroad.Diagram.Terminal(name)
-    case Sym.Lit(text)       => Railroad.Diagram.Terminal(text)
-    case Sym.Field(_, inner) => toDiagramSym(nts, ruleByName, inner)
-    // Defensive only: sugar (Rep/Star/Opt/Macro/Any/Not) is eliminated by Desugar before LabApi ever
-    // sees this Grammar — only Group survives that far, and only as a Ref to its own hoisted rule
-    // (the case above), so this arm should be unreachable in practice.
-    case other => Railroad.Diagram.Terminal(other.toString)
-
-  private def altToDiagram(
-      nts: Set[String],
-      ruleByName: Map[String, gramaire.Rule],
-      alt: gramaire.Alt
-  ): Railroad.Diagram =
-    Railroad.Diagram.Sequence(alt.syms.map(toDiagramSym(nts, ruleByName, _)))
 
   // The All-parses tab's data: every distinct parse of `input` under the GLR multi-action table for
   // `method`, action-free (Cst.cstToken/cstReduce — same driver callbacks the v1 Parse tree tab

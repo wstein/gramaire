@@ -72,7 +72,17 @@ the one deliberate SVG/Mermaid divergence this introduced.
   (`LabApi.analysisOf` filters `__group_N` rule names, the live-engine
   counterpart to "Current foundation"'s nested-fork inlining above) — the
   live analysis surface, not just the diagram, treats it as having no
-  author-facing identity of its own.
+  author-facing identity of its own. `gramaire fmt`'s own diagram generation
+  gets the identical treatment now too: it parses the whole document via
+  `Lr.parse` (which runs `Desugar` internally) and builds every rule's
+  diagram from that real `Grammar` via the shared `Railroad.diagramsOfGrammar`
+  — the same function `LabApi.analysisOf` calls — instead of
+  `Railroad.parseProduction`'s raw-text re-lexer, which had no notion of
+  parenthesized groups at all and would silently mis-split a group's own `|`
+  as a spurious extra top-level alternative. Falls back to the old per-rule
+  text parse when the document doesn't parse as a full grammar, so `fmt` keeps
+  regenerating something useful for the rules around a mistake rather than
+  refusing outright.
 4. Add explicit normalization passes behind non-default views. The first
   shipped step (`DiagramNormalize.simplify`) recognizes two safe idioms —
   optional tails and direct-left-recursive repetition chains — and always

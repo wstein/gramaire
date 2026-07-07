@@ -343,10 +343,29 @@ object GramaireCheck:
   private def diagramDirectory(stem: String): String =
     if stem.nonEmpty then s"diagrams-$stem" else "diagrams"
 
+  // `realDiagrams` is the whole document's own Grammar rendered once via `Railroad.diagramsOfGrammar`
+  // (see `fmt`'s own comment on why it might be empty) — a hoisted `( a | b )` group inlines as a
+  // real nested fork through this path, the same shape the live Lab/Notebook already draw, instead
+  // of `parseProduction`'s raw-text re-lexer (which has no notion of parens at all, and would
+  // otherwise mis-split a group's own `|` as a spurious extra top-level alternative). Falls back to
+  // the per-rule text parse when the document didn't parse as a full Grammar. Source-view shape
+  // either way; `applyView` is the caller's job.
+  private def sourceDiagramFor(
+      name: String,
+      content: String,
+      nonterminals: Set[String],
+      realDiagrams: Map[String, Railroad.Diagram]
+  ): Railroad.Diagram =
+    realDiagrams.getOrElse(
+      name,
+      Railroad.diagramOf(Railroad.parseProduction(content, nonterminals))
+    )
+
   private def diagramFor(
       name: String,
       content: String,
       nonterminals: Set[String],
+      realDiagrams: Map[String, Railroad.Diagram],
       mode: DiagramMode,
       view: Railroad.DiagramView,
       stem: String = ""
@@ -356,8 +375,10 @@ object GramaireCheck:
         val dir = diagramDirectory(stem)
         Vector(s"![Railroad diagram for the $name rule]($dir/${name.toLowerCase}.svg)")
       case DiagramMode.Mermaid =>
+        val diagram =
+          Railroad.applyView(sourceDiagramFor(name, content, nonterminals, realDiagrams), view)
         val body = Railroad
-          .renderMermaid(Railroad.parseProduction(content, nonterminals), view)
+          .renderDiagramMermaid(diagram, view)
           .stripSuffix("\n")
           .split("\n", -1)
           .toVector
@@ -372,7 +393,8 @@ object GramaireCheck:
       nonterminals: Set[String],
       mode: DiagramMode,
       view: Railroad.DiagramView,
-      stem: String = ""
+      stem: String = "",
+      realDiagrams: Map[String, Railroad.Diagram] = Map.empty
   ): String =
     val lines = src.split("\n", -1).toVector
     val out = Vector.newBuilder[String]
@@ -392,6 +414,7 @@ object GramaireCheck:
             name,
             contentByRule.getOrElse(name, ""),
             nonterminals,
+            realDiagrams,
             mode,
             view,
             stem
@@ -413,6 +436,7 @@ object GramaireCheck:
                 name,
                 contentByRule.getOrElse(name, ""),
                 nonterminals,
+                realDiagrams,
                 mode,
                 view,
                 stem
@@ -473,6 +497,7 @@ object GramaireCheck:
                       ruleName,
                       contentByRule.getOrElse(ruleName, ""),
                       nonterminals,
+                      realDiagrams,
                       mode,
                       view,
                       stem
@@ -739,6 +764,17 @@ object GramaireCheck:
     for b <- doc.blocks if b.kind.contains(Lr.FenceKind.Rule) do
       b.nonterminal.foreach(nt => contentByRule = contentByRule.updated(nt, b.content))
 
+    // The whole document's own real, desugared Grammar (`Lr.parse` runs `Desugar` internally) when
+    // it happens to parse as one — lets a hoisted `( a | b )` group render as a genuine nested fork
+    // (`Railroad.diagramsOfGrammar`), the same shape the live Lab/Notebook already draw, rather than
+    // `parseProduction`'s raw-text re-lexer (no notion of parens at all). Falls back to the
+    // per-rule text parse (`sourceDiagramFor`'s own `getOrElse`) when the document doesn't parse as
+    // a full grammar — `fmt` keeps regenerating something useful for the rules around a mistake
+    // rather than refusing outright over an error `gramaire check`/`gramaire emit` already surface
+    // their own way.
+    val realDiagrams =
+      Lr.parse(doc.src).toOption.map(Railroad.diagramsOfGrammar(_)).getOrElse(Map.empty)
+
     // Diagrams live in a per-grammar directory (`diagrams-<stem>/`) so two
     // grammars sharing a directory can't clobber each other's same-named rule
     // SVGs.
@@ -755,25 +791,29 @@ object GramaireCheck:
         doc.blocks.filter(_.kind.contains(Lr.FenceKind.Rule)).flatMap(_.nonterminal).distinct
       for nt <- ntOrder do
         val path = s"${diagramDirectory(stem)}/${nt.toLowerCase}.svg"
+        val diagram = Railroad.applyView(
+          sourceDiagramFor(nt, contentByRule.getOrElse(nt, ""), nonterminals, realDiagrams),
+          view
+        )
         Files.writeString(
           fileDir.resolve(path),
-          Railroad.renderSvg(
-            Railroad.parseProduction(contentByRule.getOrElse(nt, ""), nonterminals),
-            view = view
-          )
+          Railroad.renderDiagramSvg(nt, diagram, view = view)
         )
         artifacts += Artifact.RailroadArt(nt, path, ruleHashes(nt))
     artifacts += Artifact.TablesArt("Generated tables", grammarSha256)
 
     // Regenerate the derived document regions: the FIRST/FOLLOW table and
-    // the per-rule diagrams (in the chosen mode).
+    // the per-rule diagrams (in the chosen mode). Tables stay on the flat, per-rule text parse
+    // (Analyze.analyzeGrammar's own FIRST/FOLLOW computation over Railroad.Production) — routing
+    // THAT through the real Grammar too is a separate concern from diagram rendering, out of scope
+    // here.
     val ntOrderForTables =
       doc.blocks.filter(_.kind.contains(Lr.FenceKind.Rule)).flatMap(_.nonterminal).distinct
     val prods = ntOrderForTables.map(nt =>
       Railroad.parseProduction(contentByRule.getOrElse(nt, ""), nonterminals)
     )
     var text = regenerateTables(doc.src, prods)
-    text = convertDiagrams(text, contentByRule, nonterminals, mode, view, stem)
+    text = convertDiagrams(text, contentByRule, nonterminals, mode, view, stem, realDiagrams)
     // Only sidecar mode has a plain image link to hoist in front of a collapsed fence — mermaid
     // embeds the diagram as its own fence, with no separate "source" to tuck behind a disclosure.
     if mode == DiagramMode.Sidecar then text = applySourceLayout(text, contentByRule, layout)

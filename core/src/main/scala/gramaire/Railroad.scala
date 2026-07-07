@@ -97,6 +97,15 @@ object Railroad:
   private def diagramSym(sym: DiaSym): Diagram =
     if sym.term then Diagram.Terminal(sym.label) else Diagram.NonTerminal(sym.label)
 
+  // The one place a `Diagram` tree's shape changes with `view` — `Source` is the identity,
+  // `Simplified` runs the opt-in idiom-recognition pass. Shared by every entry point that builds a
+  // `Diagram` (`diagramOf` from a `Production`, `diagramsOfGrammar` from a whole `Grammar`) so
+  // "what Simplified means" is decided in exactly one place.
+  def applyView(diagram: Diagram, view: DiagramView): Diagram =
+    view match
+      case DiagramView.Source     => diagram
+      case DiagramView.Simplified => DiagramNormalize.simplify(diagram)
+
   def diagramOf(prod: Production, view: DiagramView = DiagramView.Source): Diagram =
     val source =
       Diagram.Stack(
@@ -107,9 +116,67 @@ object Railroad:
             case None         => seq
         }
       )
-    view match
-      case DiagramView.Source     => source
-      case DiagramView.Simplified => DiagramNormalize.simplify(source)
+    applyView(source, view)
+
+  // A hoisted `( a | b )` group (Desugar.groupHoist) becomes its own synthetic rule with no
+  // author-facing identity of its own — the same "no real source to attribute a diagnostic to"
+  // name shape `Diagnostics.sourceRuleNameGuess` already special-cases.
+  def isHoistedGroupRule(name: String): Boolean = name.matches("__group_\\d+")
+
+  // Builds every VISIBLE rule's own source-view Diagram directly from an already-desugared Grammar
+  // (`Lr.parse` runs `Desugar` internally) — the single source of truth both the live Lab/Notebook
+  // (`LabApi.analysisOf`) and `gramaire fmt`'s diagram generation draw from, so a hoisted group
+  // renders identically everywhere: inlined as a nested `Choice` at its use site (never an opaque
+  // box pointing at a rule with no diagram/tab of its own), recursively — a chain of nested groups
+  // (one hoisted rule referencing another) fully unwinds the same way. A caller wanting a specific
+  // `DiagramView` applies `applyView` itself, the same as a Production-backed diagram would via
+  // `diagramOf` — this always returns the `Source` shape.
+  //
+  // `includeActions`/`unwrapAction` exist because the two callers genuinely disagree: the live Lab
+  // shows a rule's `{% %}` actions (and needs `BackendJs.unwrapBinder` to strip the synthesized
+  // positional-binder prefix first), while `gramaire fmt`'s committed sidecar/mermaid diagrams stay
+  // action-free by design (`parseProduction`'s own doc comment) — this lets both share the same
+  // group-inlining logic without either changing the other's behavior.
+  def diagramsOfGrammar(
+      grammar: Grammar,
+      includeActions: Boolean = false,
+      unwrapAction: String => String = identity
+  ): Map[String, Diagram] =
+    val nts = grammar.rules.map(_.name).toSet
+    val ruleByName = grammar.rules.map(r => r.name -> r).toMap
+
+    def toDiagramSym(s: Sym): Diagram = s match
+      case Sym.Ref(name) if isHoistedGroupRule(name) =>
+        ruleByName.get(name) match
+          case Some(rule) => Diagram.Choice(rule.alts.map(altToDiagram))
+          case None       => Diagram.NonTerminal(name)
+      case Sym.Ref(name) =>
+        if nts.contains(name) then Diagram.NonTerminal(name) else Diagram.Terminal(name)
+      case Sym.Lit(text)       => Diagram.Terminal(text)
+      case Sym.Field(_, inner) => toDiagramSym(inner)
+      // Defensive only: sugar (Rep/Star/Opt/Macro/Any/Not) is eliminated by Desugar before this
+      // ever sees the Grammar — only Group survives that far, and only as a Ref to its own hoisted
+      // rule (the case above).
+      case other => Diagram.Terminal(other.toString)
+
+    def altToDiagram(alt: gramaire.Alt): Diagram =
+      Diagram.Sequence(alt.syms.map(toDiagramSym))
+
+    grammar.rules
+      .filterNot(r => isHoistedGroupRule(r.name))
+      .map { r =>
+        r.name -> Diagram.Stack(
+          r.alts.map { alt =>
+            val seq = altToDiagram(alt)
+            if includeActions then
+              alt.action.map(unwrapAction) match
+                case Some(action) => Diagram.ActionCaption(seq, action)
+                case None         => seq
+            else seq
+          }
+        )
+      }
+      .toMap
 
   private def viewAttr(view: DiagramView): String =
     view match
