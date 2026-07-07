@@ -985,9 +985,13 @@ class LabApiSuite extends munit.FunSuite:
     assert(LabRequest.fromJson(j).isLeft)
   }
 
-  test("evaluate: request.diagramView selects the analysis tab's railroad view, labeled explicitly") {
+  test(
+    "evaluate: request.diagramView selects the analysis tab's railroad view, labeled explicitly"
+  ) {
     val sourceResp =
-      LabApi.evaluate(LabRequest(calcMd, None, Method.Canonical, diagramView = Railroad.DiagramView.Source))
+      LabApi.evaluate(
+        LabRequest(calcMd, None, Method.Canonical, diagramView = Railroad.DiagramView.Source)
+      )
     val simplifiedResp = LabApi.evaluate(
       LabRequest(calcMd, None, Method.Canonical, diagramView = Railroad.DiagramView.Simplified)
     )
