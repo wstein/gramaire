@@ -3,462 +3,462 @@
   "mode": "sidecar",
   "sourceLayout": "collapsed",
   "name": "ANTLRv4",
-  "grammarSha256": "a0b7e32151d067936c0760160d9cfdd44b20473c8ac58cf65b2c9c34e195b240",
+  "grammarSha256": "a17da7930632b12a257cc27a369b59a169d3099bfa1ab52034f416eca1bbc8ad",
   "artifacts": [
     {
       "kind": "railroad",
       "nonterminal": "grammarSpec",
       "path": "diagrams-antlr4/grammarspec.svg",
-      "sourceSha256": "faa2daf617195c72c0d65893869fe97cc1f67f0c15e19da7eb195b0eafcbef15"
+      "sourceSha256": "6233d2193e13db12b15f80a7de69231037d385663ed58a081e16925038521887"
     },
     {
       "kind": "railroad",
       "nonterminal": "grammarDecl",
       "path": "diagrams-antlr4/grammardecl.svg",
-      "sourceSha256": "daf4038f299c93cef06d34c69f819bd2aef5fa5dac9b710623151880d3f285c8"
+      "sourceSha256": "0425d4e2767dc840ab775df7c4bc31c9e9dfcb13cc50463713259f098ee6c60d"
     },
     {
       "kind": "railroad",
       "nonterminal": "grammarType",
       "path": "diagrams-antlr4/grammartype.svg",
-      "sourceSha256": "2bf9d58006e0fba2db58b66d4738d19b3f9c91c41c32bbdfd27da874e76f27fb"
+      "sourceSha256": "a8462d00841a8d7ec0a05d2eb429b165bda1ae29b60e123654985f21b2ec944f"
     },
     {
       "kind": "railroad",
       "nonterminal": "prequelConstruct",
       "path": "diagrams-antlr4/prequelconstruct.svg",
-      "sourceSha256": "f542ffe8bfe244e9597917ac85c897b53204de2234a9567e2c82ffe459c1293b"
+      "sourceSha256": "e2f6d7ae927948614ede6cc6b35c97cebe353b8eae6536fc13963ea7409c18b2"
     },
     {
       "kind": "railroad",
       "nonterminal": "optionsSpec",
       "path": "diagrams-antlr4/optionsspec.svg",
-      "sourceSha256": "03f02b437fd085acca7fd80b8a8ad2b77dbfa8559c4877b9fe23e4f6e613c7bc"
+      "sourceSha256": "bd688a36441c5db4556def022fb2d8bf29e1a41062d99180fef7f428d4fccf2d"
     },
     {
       "kind": "railroad",
       "nonterminal": "optionDecl",
       "path": "diagrams-antlr4/optiondecl.svg",
-      "sourceSha256": "89f578903dc082c9105afa457ccaa0e981c457ee3003bbe599bde1e200c2c3f8"
+      "sourceSha256": "878b14c1c1962ec16044081c26169383a0f57e43a61bfafca683d351930f6701"
     },
     {
       "kind": "railroad",
       "nonterminal": "option",
       "path": "diagrams-antlr4/option.svg",
-      "sourceSha256": "2a231616085a5e3419c43f267e245ded7f5d1895d015bcd81855e0d06ac3d162"
+      "sourceSha256": "78dadb8efcd548ce3339bde972d5e484be29af9777dc86f0606efeb5433e9985"
     },
     {
       "kind": "railroad",
       "nonterminal": "optionValue",
       "path": "diagrams-antlr4/optionvalue.svg",
-      "sourceSha256": "6d2edca673e91f9be0dcd398959e791dc22c22632666fa11703c50867e7243e9"
+      "sourceSha256": "dd8cd72d8e7f47e7d1539c5bd7e9380fb0020d0a87aaa7089572b8ee8fc3fec5"
     },
     {
       "kind": "railroad",
       "nonterminal": "delegateGrammars",
       "path": "diagrams-antlr4/delegategrammars.svg",
-      "sourceSha256": "ccd4eb9ed0b78c352e1b8aae5671dae7ef02ae6cbc4c823ce2dbc08a3128f7d0"
+      "sourceSha256": "d2521139a8d7ead236a580e0ff0415f95c26303342d38af4dd6e2995c6f8c9b4"
     },
     {
       "kind": "railroad",
       "nonterminal": "delegateGrammar",
       "path": "diagrams-antlr4/delegategrammar.svg",
-      "sourceSha256": "c1602bcb2dcab53a2cdd61c283823dcff11e77972e6a68e1a0b37c7ffc2ad34a"
+      "sourceSha256": "3bef3cd615a62570ef0c881e002189894008e642fa72c99e89e3581a919642fd"
     },
     {
       "kind": "railroad",
       "nonterminal": "tokensSpec",
       "path": "diagrams-antlr4/tokensspec.svg",
-      "sourceSha256": "0d960d261b0e923169c9b23e415b3efc0d66931f7a8e03875a556fed567ddf6d"
+      "sourceSha256": "aed1a9caf34a73954828b0f3eda3e66ca43dffbdb11408ce1337166e3c38406d"
     },
     {
       "kind": "railroad",
       "nonterminal": "channelsSpec",
       "path": "diagrams-antlr4/channelsspec.svg",
-      "sourceSha256": "3995df8c99ca654c3f91667e94ce04651a0dda059c3904bcd40f13e1db3ec20d"
+      "sourceSha256": "2cb16bc656b9ec0bc43cbbe3f530b240a7dfcabbd967e8bef889ca32f381962c"
     },
     {
       "kind": "railroad",
       "nonterminal": "idList",
       "path": "diagrams-antlr4/idlist.svg",
-      "sourceSha256": "324f40a125010608736186727856748582e52d631a9d8ba2c7575a05f9181533"
+      "sourceSha256": "70cb516a339799f7730e633f93051bf07ebb096781ae7881e6a2534c428edf76"
     },
     {
       "kind": "railroad",
       "nonterminal": "action_",
       "path": "diagrams-antlr4/action_.svg",
-      "sourceSha256": "68c07c2a333085f025dd7fa2ea2755024bb69149c31ece428eb2107664bc1eb6"
+      "sourceSha256": "ddf7134bec04141de61629c69e4bafb4ba8dc73d4f7dd8061c4f232f1242f103"
     },
     {
       "kind": "railroad",
       "nonterminal": "actionScope",
       "path": "diagrams-antlr4/actionscope.svg",
-      "sourceSha256": "58ea7542b11aca75e80329b2dfccf23016dd9a7044ec34b6742af3ff47a73c62"
+      "sourceSha256": "4b778497e88fe53bbc96c8ae8fb057c2996483c9b74b14fde93592d0700f85c8"
     },
     {
       "kind": "railroad",
       "nonterminal": "actionScopeName",
       "path": "diagrams-antlr4/actionscopename.svg",
-      "sourceSha256": "d4abed2d2f90b344d49a6d48d5cbf03d5902dcfd82d3cf7408479f047c30c0fa"
+      "sourceSha256": "d4854b344f57cb561e70f69be106c5df888f60f93b3f78b5779878fe477330e0"
     },
     {
       "kind": "railroad",
       "nonterminal": "actionBlock",
       "path": "diagrams-antlr4/actionblock.svg",
-      "sourceSha256": "c68498c75f6a77b41635f9f91e15126a758d9331698bd72443efb66908028209"
+      "sourceSha256": "8da048de85c04547bec062a33e4df50134427328a55ad5e2cea87d7849c5c793"
     },
     {
       "kind": "railroad",
       "nonterminal": "argActionBlock",
       "path": "diagrams-antlr4/argactionblock.svg",
-      "sourceSha256": "5ce77cc5639c359d053c050b4f56e3913bbbd547a077284a066fe9d24f6abf4b"
+      "sourceSha256": "e56454c13d226b00f194a312f24987373b767076aa1d301ff9bbdf86b0aacc48"
     },
     {
       "kind": "railroad",
       "nonterminal": "modeSpec",
       "path": "diagrams-antlr4/modespec.svg",
-      "sourceSha256": "465df62219e687516e6335dd6847e877aee49755875fecfcbca71873b9e225d8"
+      "sourceSha256": "f3e8a698cc901bc929293bf36512330e756e98032fcada6a49f694b6f0a5d955"
     },
     {
       "kind": "railroad",
       "nonterminal": "rules",
       "path": "diagrams-antlr4/rules.svg",
-      "sourceSha256": "0ef11a89096f30674b761859d56b554414ad11bdd674b3c07b2d905197a769c1"
+      "sourceSha256": "6bda5cf1dfdda048a8e897a57f809971688c86790a7ceeb5fed8a5aec714c515"
     },
     {
       "kind": "railroad",
       "nonterminal": "ruleSpec",
       "path": "diagrams-antlr4/rulespec.svg",
-      "sourceSha256": "9daaef14aa5df26c7d8edf9f8e5789d73f6c035b6569aa0ae5708cde2d0b865b"
+      "sourceSha256": "16dc9943aa838f4c8cd7dc0df832a1ba173d746c028d8ba92a2356d0db68dd59"
     },
     {
       "kind": "railroad",
       "nonterminal": "parserRuleSpec",
       "path": "diagrams-antlr4/parserrulespec.svg",
-      "sourceSha256": "c33acde64585f845ec11ef26139213f567d3d08eec5666ace27bf8eb26f81971"
+      "sourceSha256": "c65ddd922302f172cd9d08e5d7df514418b2e1427d249f5be552404136f9ce62"
     },
     {
       "kind": "railroad",
       "nonterminal": "exceptionGroup",
       "path": "diagrams-antlr4/exceptiongroup.svg",
-      "sourceSha256": "e08988fc94b3f217db755a957de3d90d370e605cb0b6af6f7a4e4269cf3d1e9a"
+      "sourceSha256": "2234d5e26fcb3b016fe63dff20a0818cc0fe4924c3c14f303c427563e4acef5d"
     },
     {
       "kind": "railroad",
       "nonterminal": "exceptionHandler",
       "path": "diagrams-antlr4/exceptionhandler.svg",
-      "sourceSha256": "ecf1b67afc5cf49648bfc0c0d9d0ae50791bb8260d28369d8a76179fc8539701"
+      "sourceSha256": "69f2d24674cf7a303551da3fe359f79f67f584f5655ee6ffaae5ada878fad061"
     },
     {
       "kind": "railroad",
       "nonterminal": "finallyClause",
       "path": "diagrams-antlr4/finallyclause.svg",
-      "sourceSha256": "1757c7a8b3888fa2ebefe265287461d9cb79e4c6eebfebcfbbd99afe989b5f01"
+      "sourceSha256": "78f0fa67f97daf41ef0c558be50f1ee4991fccca5dc8b1f8571cd90c11251080"
     },
     {
       "kind": "railroad",
       "nonterminal": "rulePrequel",
       "path": "diagrams-antlr4/ruleprequel.svg",
-      "sourceSha256": "d38058cc404ae463796aa1e628a1b23d9a230f41a1ea7726d45eac5f27aa6695"
+      "sourceSha256": "bcd62f9eadd4fd512ed4346f40333179a8819f8275b217191440b6cde00853fe"
     },
     {
       "kind": "railroad",
       "nonterminal": "ruleReturns",
       "path": "diagrams-antlr4/rulereturns.svg",
-      "sourceSha256": "02d98e1a3483702396627349d2aaea8a06dfd4d11311d0164b328ecf18637fdf"
+      "sourceSha256": "f1b92bad736e8aefd745faa2628dfc073b5b829ea2b16b2bd1c9de2af6b862ea"
     },
     {
       "kind": "railroad",
       "nonterminal": "throwsSpec",
       "path": "diagrams-antlr4/throwsspec.svg",
-      "sourceSha256": "8c2579e554939effedfb9a1ac6500cb89abf523fb045b6998888f2f9a66b04b1"
+      "sourceSha256": "7dc66d013f64a6a76c9ca14e07cd6a0b7595827fa1e34f21e95c7805674a23c8"
     },
     {
       "kind": "railroad",
       "nonterminal": "localsSpec",
       "path": "diagrams-antlr4/localsspec.svg",
-      "sourceSha256": "4034d0fd655c8991d36d361600fc3f3fa02bbf42063c54dad8759915400aaa1e"
+      "sourceSha256": "aa6fd0e2a97cc99a8e9343b59020eb3b89506370e000b1579373fe082ae24147"
     },
     {
       "kind": "railroad",
       "nonterminal": "ruleAction",
       "path": "diagrams-antlr4/ruleaction.svg",
-      "sourceSha256": "13067e858df0c3b1ffeb0eed415ae44318f0a5f55cfc92af776ee72db9445c0e"
+      "sourceSha256": "90b9e4ed602a2d13aef249c47ae4926a5c255682a9eab48ac7db79069947d721"
     },
     {
       "kind": "railroad",
       "nonterminal": "ruleModifiers",
       "path": "diagrams-antlr4/rulemodifiers.svg",
-      "sourceSha256": "cd8550916e56c6c68191e48b340e52d1e87d464ca87122d2d9693d25f0330c9f"
+      "sourceSha256": "37bb462b3245dc2170a55671e45562a1d6a7520376f152f51c5a96d9a999e9cd"
     },
     {
       "kind": "railroad",
       "nonterminal": "ruleModifier",
       "path": "diagrams-antlr4/rulemodifier.svg",
-      "sourceSha256": "5505983ffa21895c81d871bda854090121bd4e205a4857a5fb45a6d232852423"
+      "sourceSha256": "bbbad310973a6520bd4347982cdd690b6dcf92e49b2c4b2246cf266a55d979f7"
     },
     {
       "kind": "railroad",
       "nonterminal": "ruleBlock",
       "path": "diagrams-antlr4/ruleblock.svg",
-      "sourceSha256": "afd9f7776d214a01efe392f25dc1c182c965da0f3be9965a2c699d768c3e47d9"
+      "sourceSha256": "a31f1746bf5fbeb301d9b65c2715268822830cd0e71c8d3bd63f69d45531ba78"
     },
     {
       "kind": "railroad",
       "nonterminal": "ruleAltList",
       "path": "diagrams-antlr4/rulealtlist.svg",
-      "sourceSha256": "ecd690144fd81f8fe9b9fe3e5b429b1f30d5f0d021d53711cbdd0ef8a782978c"
+      "sourceSha256": "cb017f5fd1506df1e74c441bd9884634e541dac69a1de05a354d0ea32e203500"
     },
     {
       "kind": "railroad",
       "nonterminal": "labeledAlt",
       "path": "diagrams-antlr4/labeledalt.svg",
-      "sourceSha256": "ed66093234853fdada9ed0f7e6ffdf614deefc42243dec58f3e53e8313e106f1"
+      "sourceSha256": "851e063392247f8f85cba2e4c2447f8f93315816c2bd68fbca342e9a01add633"
     },
     {
       "kind": "railroad",
       "nonterminal": "altLabel",
       "path": "diagrams-antlr4/altlabel.svg",
-      "sourceSha256": "e8e7c90088e84f07f7547423aa59d8ca793ebdfefc54e7fbd5532545d2fe587f"
+      "sourceSha256": "63cc6c6dd98bb0883de94837170a48110f1cdc9ff1f01be9e4e208ed11438670"
     },
     {
       "kind": "railroad",
       "nonterminal": "lexerRuleSpec",
       "path": "diagrams-antlr4/lexerrulespec.svg",
-      "sourceSha256": "9869763e53003be4a0a307ecb76a01009c91606ed6cf2ecd859b79afcb6194f4"
+      "sourceSha256": "9a781a582f8750bd03bc49dfb2c5300802dd470dfea093a1353fb5f184557839"
     },
     {
       "kind": "railroad",
       "nonterminal": "lexerRuleBlock",
       "path": "diagrams-antlr4/lexerruleblock.svg",
-      "sourceSha256": "78422d41963057d54801130da96bd840997d75eb1d351f1543474503014be51c"
+      "sourceSha256": "395a3aafcc707671496999f0552251cc4794436760fb87e5b3a270341041da79"
     },
     {
       "kind": "railroad",
       "nonterminal": "lexerAltList",
       "path": "diagrams-antlr4/lexeraltlist.svg",
-      "sourceSha256": "a1b90569888dba64811900469efce14aff0145541b654c5d9aa4cfbbbcb97802"
+      "sourceSha256": "27ccbe964277be1a157710c1d89b9321f57a013e8c59bba8e03e3ecbf951e4a1"
     },
     {
       "kind": "railroad",
       "nonterminal": "lexerAlt",
       "path": "diagrams-antlr4/lexeralt.svg",
-      "sourceSha256": "f7a6e2b26cf306de2aef802a3b8f4aa88915a6ef02bdb15a54105a4471d5a8a9"
+      "sourceSha256": "cd2b1044feb132f59f2636c792edcd07bc25fd1017aa6d33eb174c5a3ce09f9a"
     },
     {
       "kind": "railroad",
       "nonterminal": "lexerElements",
       "path": "diagrams-antlr4/lexerelements.svg",
-      "sourceSha256": "b7934a5e7ead05232c330a52ab6d465e3fed80da730f70b605a7c8651948b237"
+      "sourceSha256": "4a7640431a0218b6d6a2a823a1d8976bf5745f7467c848b0edd3ce2a6a3dc722"
     },
     {
       "kind": "railroad",
       "nonterminal": "lexerElement",
       "path": "diagrams-antlr4/lexerelement.svg",
-      "sourceSha256": "0e47ebffe2ef8014eb47bc29a808fd3485b7edcd460e45bec963afbf463a66d5"
+      "sourceSha256": "27b275718f5d78e4cc539a90693bbaffa19e37ed5795c38da0e4fe84b2e0860c"
     },
     {
       "kind": "railroad",
       "nonterminal": "lexerBlock",
       "path": "diagrams-antlr4/lexerblock.svg",
-      "sourceSha256": "27ca45c961c2bcd44d0ff4dacaee45a7ce6785c11b2e78b36a77d69dedf05241"
+      "sourceSha256": "fb7da443b4ecc46a4a647279c2372509261c720fe3d41f84180c0541d583a715"
     },
     {
       "kind": "railroad",
       "nonterminal": "lexerCommands",
       "path": "diagrams-antlr4/lexercommands.svg",
-      "sourceSha256": "1d88927daf2cde5ebf29ffa396e74bbc63e38975207400e84f1201743a01823e"
+      "sourceSha256": "be0154af42ad4503527e448fa6882c579928ba6ea3ac9ae3035e46f31768ac00"
     },
     {
       "kind": "railroad",
       "nonterminal": "lexerCommand",
       "path": "diagrams-antlr4/lexercommand.svg",
-      "sourceSha256": "4b952322e07b9225e90b795ddac705caeb737ef70eaa9c7af2275e89e028b1e2"
+      "sourceSha256": "4c5d6ab2d2a47a4f6ebbdc21114888dea84c3762c92a58912367342427455177"
     },
     {
       "kind": "railroad",
       "nonterminal": "lexerCommandName",
       "path": "diagrams-antlr4/lexercommandname.svg",
-      "sourceSha256": "7e6a00d283f610fcc3dc101bad95ae0074f7573f7b211abe610f516c898f384a"
+      "sourceSha256": "8bda83ac5a0a902eb1d1436d9fd2d75a3bb897db7d47cbca6052c68a603c23dc"
     },
     {
       "kind": "railroad",
       "nonterminal": "lexerCommandExpr",
       "path": "diagrams-antlr4/lexercommandexpr.svg",
-      "sourceSha256": "dac86e93506e81913f599d5dd26a45e089a67ea16d2d732f83162cda56e59a1c"
+      "sourceSha256": "64dc9dc9712e5dc93f5762c3ab9f2833985c9561722cb6f2b382f05c4d467265"
     },
     {
       "kind": "railroad",
       "nonterminal": "altList",
       "path": "diagrams-antlr4/altlist.svg",
-      "sourceSha256": "75be032c35aa4b0151b1002b7ca248fa69512bd957948e08b519716cb2bbfe56"
+      "sourceSha256": "d33624f1e1314e8e9204b1f43fa0856de35d0de32e3d6a3405cf1bad5ebca22c"
     },
     {
       "kind": "railroad",
       "nonterminal": "alternative",
       "path": "diagrams-antlr4/alternative.svg",
-      "sourceSha256": "7cdfd0422755aa6a9f98c37e4371e2ef2767de5b7d41ca189a2c71837ddb1468"
+      "sourceSha256": "cb4cba108bef8e7ab277166e932b775c1d252154f528a75b9f4af31c0f5abbfa"
     },
     {
       "kind": "railroad",
       "nonterminal": "element",
       "path": "diagrams-antlr4/element.svg",
-      "sourceSha256": "5a1abf98747035332e226ef948540ae44217c1898604e1a20bb21b4ecbcee69b"
+      "sourceSha256": "d51632082e86bce92242fed434f0b19c1e6cc8f2352e2d4e9fcc17dd6b73c608"
     },
     {
       "kind": "railroad",
       "nonterminal": "predicateOptions",
       "path": "diagrams-antlr4/predicateoptions.svg",
-      "sourceSha256": "978c55ad2a81129e6cf7e1dca754b58b1bbdcb99ffe7c2c441384298bb7d4bd2"
+      "sourceSha256": "8744ed663cebe0dfccd7e00c8a49749d41580c9df8cefb99107c7f7359fab541"
     },
     {
       "kind": "railroad",
       "nonterminal": "predicateOption",
       "path": "diagrams-antlr4/predicateoption.svg",
-      "sourceSha256": "85060cb6ff10d2377ad454acd1830ac340b822c77d42d8c006786ead1fb1eaaa"
+      "sourceSha256": "8d4409c384db935bc4b8e777d0c0d29bc16f229221062b3b55acbb3dca5709f7"
     },
     {
       "kind": "railroad",
       "nonterminal": "predicateOptionValue",
       "path": "diagrams-antlr4/predicateoptionvalue.svg",
-      "sourceSha256": "d88b0967fe24f45a9a12e2c1ac60a4f187692acbcd451b42bb85192ab70ca971"
+      "sourceSha256": "def3ed9d09319939167803fd1b2fd4f8f04c2f9acde833187b3d5175cd183c4b"
     },
     {
       "kind": "railroad",
       "nonterminal": "labeledElement",
       "path": "diagrams-antlr4/labeledelement.svg",
-      "sourceSha256": "79fe992493079e7bd2dd963ca2f75b0fc57f708191b99f7e4ee3fa5c3c06e9c8"
+      "sourceSha256": "4a96b372ab4739e5d1888bb7e6dc9a221534500c4b995eddc867e4c8d9ef7562"
     },
     {
       "kind": "railroad",
       "nonterminal": "assignOp",
       "path": "diagrams-antlr4/assignop.svg",
-      "sourceSha256": "c9c843db156ed2c1be3cd607b5b9ad18df74687d3c6585fd15804b7da0b23ca5"
+      "sourceSha256": "48e39cb1176c0650e796f0d110fd5164e02a3630d0a5a79bf5175576c77093cc"
     },
     {
       "kind": "railroad",
       "nonterminal": "atomOrBlock",
       "path": "diagrams-antlr4/atomorblock.svg",
-      "sourceSha256": "22252fc3c8d3d422a95e0ca0c60847ab874116b9fd9d69121e7e434f0b06e206"
+      "sourceSha256": "d82cead3c810bf43ee745ffd5c97fb07fa9b369760a1bb489d1ab3f81610ea2f"
     },
     {
       "kind": "railroad",
       "nonterminal": "ebnf",
       "path": "diagrams-antlr4/ebnf.svg",
-      "sourceSha256": "2612d9c5a7647e784b771b7ed09d8eeeeeef06f1cf170310128f8a67e6f17e86"
+      "sourceSha256": "dbc98a43e4f6d1dc676bedf0ed194307d11b5e851bd4b972c767f7b2a422559a"
     },
     {
       "kind": "railroad",
       "nonterminal": "blockSuffix",
       "path": "diagrams-antlr4/blocksuffix.svg",
-      "sourceSha256": "8af09948bf9784aebe54549a2254f819b995936cfab7dcd23540e71cc6266f22"
+      "sourceSha256": "59e6116eec946b0731acddfad5083cc50ecc18de793f897be4e68c74605d7ade"
     },
     {
       "kind": "railroad",
       "nonterminal": "ebnfSuffix",
       "path": "diagrams-antlr4/ebnfsuffix.svg",
-      "sourceSha256": "9aa0a2f5fbe9934295fe02a95995db8eed0e76f8cdad9e829fab45873189b481"
+      "sourceSha256": "90032a08ebf15e3ade847824251940f5bd223f84e7ae1650fa3309ef78cf45c3"
     },
     {
       "kind": "railroad",
       "nonterminal": "lexerAtom",
       "path": "diagrams-antlr4/lexeratom.svg",
-      "sourceSha256": "40c4ee580db024f31e875dc67c2bae13686a8d1fd792e02b95b55d022136381a"
+      "sourceSha256": "9b990f29c4658e7ea1e2c75c9a27d0906cdd8a471b02b96d7ab74a97ec6f4f66"
     },
     {
       "kind": "railroad",
       "nonterminal": "atom",
       "path": "diagrams-antlr4/atom.svg",
-      "sourceSha256": "70f6b048dc0cf560469d722aefaea95203f8a4a6e0c99c01ebc7a731e8be2f8d"
+      "sourceSha256": "694b88b51ed1b76eb1b1044a845a0461b9cd63b4cf4bbef2cd9e29d891103aed"
     },
     {
       "kind": "railroad",
       "nonterminal": "wildcard",
       "path": "diagrams-antlr4/wildcard.svg",
-      "sourceSha256": "c1e26ccbd1eacadb8dd149f06856f99e26a29835cd83db5cd74e139a83674a02"
+      "sourceSha256": "60c82094261944ca6672d155703cc26f474dc93de06f157915c9edb853713520"
     },
     {
       "kind": "railroad",
       "nonterminal": "notSet",
       "path": "diagrams-antlr4/notset.svg",
-      "sourceSha256": "6a575f280d095c92143ee5da412ce2b386e7f91d6191561daf8e5a3da4e0e268"
+      "sourceSha256": "9eb80e2ffc26ae2177b5cabdc9f5b41948efae600c504c6899701ca568af5764"
     },
     {
       "kind": "railroad",
       "nonterminal": "blockSet",
       "path": "diagrams-antlr4/blockset.svg",
-      "sourceSha256": "ad0c81962400b99d8a6d11f5e1280c073d78b4210c41c08569a2d49bb85733db"
+      "sourceSha256": "6ff3ba729a5ab618837d93aa3862a338b1856330ac663c106725c6c62253363c"
     },
     {
       "kind": "railroad",
       "nonterminal": "setElement",
       "path": "diagrams-antlr4/setelement.svg",
-      "sourceSha256": "a360a54cc9ba2e4cd04ef9c567366c97d552d52741fdd27993e124b1e2d74fcb"
+      "sourceSha256": "ad19f51fa25739543792cd568f16b955cbe6c39c1a77c69fd641bb7fbdd9ed0e"
     },
     {
       "kind": "railroad",
       "nonterminal": "block",
       "path": "diagrams-antlr4/block.svg",
-      "sourceSha256": "3bd38df1e83f4a31f88ca685587f0baaaaf23f03e69b68a145a9b910200087da"
+      "sourceSha256": "e20a9e3383e0b0a3486a298783dbf7c21a924b9307a9b41378d1fed71862a220"
     },
     {
       "kind": "railroad",
       "nonterminal": "blockPrequel",
       "path": "diagrams-antlr4/blockprequel.svg",
-      "sourceSha256": "94142800e6d78b1b03449d0cfcf5c34c691a6b313b251f414fbde4a734bb9391"
+      "sourceSha256": "fec09f904f3af1ba1a5b01ea7fec9491e1e4d266de7f9011f05a4d46f29cb209"
     },
     {
       "kind": "railroad",
       "nonterminal": "ruleref",
       "path": "diagrams-antlr4/ruleref.svg",
-      "sourceSha256": "f3c5e34a8fb54bd1ef4dc26ad8785e9b224cf0542f79699c1b3d33424e5879cb"
+      "sourceSha256": "1afee39a3d2dfec2989da27099efcbd7875c65c996b27b2e101dc89a2dd40ec6"
     },
     {
       "kind": "railroad",
       "nonterminal": "characterRange",
       "path": "diagrams-antlr4/characterrange.svg",
-      "sourceSha256": "097cc42d6007ebef76694c140c65edddfc090fef7ac489e9684438da41c23d83"
+      "sourceSha256": "4370f6dff91a4b24c4109d1d1e215b6d6a1cca92e49f0c5ba780e1ae6ad2614f"
     },
     {
       "kind": "railroad",
       "nonterminal": "terminalDef",
       "path": "diagrams-antlr4/terminaldef.svg",
-      "sourceSha256": "84b7866de48a6e73590d5926443157416949b9ab00fc96b3d6f01de80a7a6614"
+      "sourceSha256": "f358a54106bf709e2ac63e2c4b39c7905afb8faa120ff17ad848df733a3d2745"
     },
     {
       "kind": "railroad",
       "nonterminal": "elementOptions",
       "path": "diagrams-antlr4/elementoptions.svg",
-      "sourceSha256": "b2f27702e540af88f96595761673edb5123fbd3360134ec4e3b90f113db1e488"
+      "sourceSha256": "029c4aad68f06485586682e8cb8af73a6483a6e471d9cb65378536113b42d82d"
     },
     {
       "kind": "railroad",
       "nonterminal": "elementOption",
       "path": "diagrams-antlr4/elementoption.svg",
-      "sourceSha256": "94bac094aa92262139275c4667876fab424f97b09b192567aa2d034ca67fc2c5"
+      "sourceSha256": "2cc32399c54e4014dd79f6b697a9f894b55a08c8509970db6221966de8abcc2e"
     },
     {
       "kind": "railroad",
       "nonterminal": "elementOptionValue",
       "path": "diagrams-antlr4/elementoptionvalue.svg",
-      "sourceSha256": "708ecd35bb6c68a57f12754481b145b08cc01204939e7ee85e1bb8e631b54af8"
+      "sourceSha256": "7bf1ee9eceeb1cb66272ac11f232f6e280c169c959833bbfcbe5e0845054fa4e"
     },
     {
       "kind": "railroad",
       "nonterminal": "identifier",
       "path": "diagrams-antlr4/identifier.svg",
-      "sourceSha256": "732b523d2af3f5be40cc47c39112b92daca5de10a7974e5d4f5694a3bef6fde2"
+      "sourceSha256": "3847daf97a58dd6172371cc69007766994b75b4835db7d6852493091f80e2279"
     },
     {
       "kind": "railroad",
       "nonterminal": "qualifiedIdentifier",
       "path": "diagrams-antlr4/qualifiedidentifier.svg",
-      "sourceSha256": "553ed5ac5815888b1a1e88cd83f54ab2d91f323e512c0b6735b7da3ee0333d1a"
+      "sourceSha256": "dfbf32ac87ffc7f90e71dc890246033a0a2faf8bc78d696ae9e7b564a89a17a5"
     },
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "a0b7e32151d067936c0760160d9cfdd44b20473c8ac58cf65b2c9c34e195b240"
+      "sourceSha256": "a17da7930632b12a257cc27a369b59a169d3099bfa1ab52034f416eca1bbc8ad"
     }
   ]
 }

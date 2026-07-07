@@ -36,21 +36,36 @@ reference, an upper-case head a token reference) is modelled by splitting `ID`
 into `RULE_REF` / `TOKEN_REF`. Whitespace and comments are `-> skip` (ANTLR puts
 them on hidden channels; Gramaire has only skip — flagged below). Regexes are
 DFA-friendly (no non-greedy), so a few are approximations of the ANTLR originals.
+`ACTION`/`ARGUMENT_CONTENT`/`LEXER_CHAR_SET` are exactly the three "survive
+only as opaque token names" constructs called out in
+["Lexer constructs Gramaire cannot model"](#lexer-constructs-gramaire-cannot-model)
+below — real ANTLR recognizes them with balanced-brace/lexer-mode matching
+this flat regex-DFA scanner can't reproduce, so each gets the same shallow,
+non-recursive approximation the rest of this Tokens block already uses
+elsewhere: one level of brace nesting for `ACTION`, a bracket body with
+backslash escapes for `LEXER_CHAR_SET`, and any run of non-bracket
+characters for `ARGUMENT_CONTENT`.
 
 ```gramaire
-DOC_COMMENT   : /\/\*\*([^*]|\*+[^*\/])*\*+\//   -> skip
-BLOCK_COMMENT : /\/\*([^*]|\*+[^*\/])*\*+\//     -> skip
-LINE_COMMENT  : /\/\/[^\r\n]*/                   -> skip
-INT           : /0|[1-9][0-9]*/
-STRING_LITERAL : /'(\\.|[^'\r\n\\])*'/
-RULE_REF      : /[a-z][A-Za-z0-9_]*/
-TOKEN_REF     : /[A-Z][A-Za-z0-9_]*/
-WS            : /[ \t\r\n\f]+/                    -> skip
+DOC_COMMENT   : /\/\*\*([^*]|\*+[^*\/])*\*+\//   -> skip ;
+BLOCK_COMMENT : /\/\*([^*]|\*+[^*\/])*\*+\//     -> skip ;
+LINE_COMMENT  : /\/\/[^\r\n]*/                   -> skip ;
+INT           : /0|[1-9][0-9]*/ ;
+STRING_LITERAL : /'(\\.|[^'\r\n\\])*'/ ;
+ACTION        : /\{[^{}]*\}/ ;
+LEXER_CHAR_SET : /\[(?:\\.|[^\]\\\r\n])*\]/ ;
+ARGUMENT_CONTENT : /[^\[\]]+/ ;
+RULE_REF      : /[a-z][A-Za-z0-9_]*/ ;
+TOKEN_REF     : /[A-Z][A-Za-z0-9_]*/ ;
+WS            : /[ \t\r\n\f]+/                    -> skip ;
 ```
 
 ## grammarSpec
 
-The entry point.
+The entry point. The real grammar's trailing `EOF` is dropped — Gramaire
+requires the whole input to be consumed by the start rule implicitly (the
+same convention every other example grammar in this repo already follows),
+so a literal end-of-input token has no role to play mid-rule here.
 
 ![Railroad diagram for the grammarSpec rule](diagrams-antlr4/grammarspec.svg)
 
@@ -59,7 +74,8 @@ The entry point.
 
 ```gramaire
 grammarSpec
-  : grammarDecl prequelConstruct* rules modeSpec* EOF
+  : grammarDecl prequelConstruct* rules modeSpec*
+  ;
 ```
 
 </details>
@@ -73,7 +89,8 @@ grammarSpec
 
 ```gramaire
 grammarDecl
-  : grammarType identifier SEMI
+  : grammarType identifier ';'
+  ;
 ```
 
 </details>
@@ -87,9 +104,10 @@ grammarDecl
 
 ```gramaire
 grammarType
-  : LEXER GRAMMAR
-  | PARSER GRAMMAR
-  | GRAMMAR
+  : 'lexer' 'grammar'
+  | 'parser' 'grammar'
+  | 'grammar'
+  ;
 ```
 
 </details>
@@ -108,6 +126,7 @@ prequelConstruct
   | tokensSpec
   | channelsSpec
   | action_
+  ;
 ```
 
 </details>
@@ -123,7 +142,8 @@ prequelConstruct
 
 ```gramaire
 optionsSpec
-  : OPTIONS optionDecl* RBRACE
+  : 'options' optionDecl* '}'
+  ;
 ```
 
 </details>
@@ -137,7 +157,8 @@ optionsSpec
 
 ```gramaire
 optionDecl
-  : option SEMI
+  : option ';'
+  ;
 ```
 
 </details>
@@ -151,7 +172,8 @@ optionDecl
 
 ```gramaire
 option
-  : identifier ASSIGN optionValue
+  : identifier '=' optionValue
+  ;
 ```
 
 </details>
@@ -165,10 +187,11 @@ option
 
 ```gramaire
 optionValue
-  : Sep<identifier, DOT>
+  : Sep<identifier, '.'>
   | STRING_LITERAL
   | actionBlock
   | INT
+  ;
 ```
 
 </details>
@@ -182,7 +205,8 @@ optionValue
 
 ```gramaire
 delegateGrammars
-  : IMPORT Sep<delegateGrammar, COMMA> SEMI
+  : 'import' Sep<delegateGrammar, ','> ';'
+  ;
 ```
 
 </details>
@@ -196,8 +220,9 @@ delegateGrammars
 
 ```gramaire
 delegateGrammar
-  : identifier ASSIGN identifier
+  : identifier '=' identifier
   | identifier
+  ;
 ```
 
 </details>
@@ -211,7 +236,8 @@ delegateGrammar
 
 ```gramaire
 tokensSpec
-  : TOKENS idList? RBRACE
+  : 'tokens' idList? '}'
+  ;
 ```
 
 </details>
@@ -225,7 +251,8 @@ tokensSpec
 
 ```gramaire
 channelsSpec
-  : CHANNELS idList? RBRACE
+  : 'channels' idList? '}'
+  ;
 ```
 
 </details>
@@ -239,7 +266,8 @@ channelsSpec
 
 ```gramaire
 idList
-  : Sep<identifier, COMMA> COMMA?
+  : Sep<identifier, ','> ','?
+  ;
 ```
 
 </details>
@@ -253,7 +281,8 @@ idList
 
 ```gramaire
 action_
-  : AT actionScope? identifier actionBlock
+  : '@' actionScope? identifier actionBlock
+  ;
 ```
 
 </details>
@@ -269,7 +298,8 @@ Helper for `(actionScopeName COLONCOLON)?`.
 
 ```gramaire
 actionScope
-  : actionScopeName COLONCOLON
+  : actionScopeName '::'
+  ;
 ```
 
 </details>
@@ -284,8 +314,9 @@ actionScope
 ```gramaire
 actionScopeName
   : identifier
-  | LEXER
-  | PARSER
+  | 'lexer'
+  | 'parser'
+  ;
 ```
 
 </details>
@@ -300,6 +331,7 @@ actionScopeName
 ```gramaire
 actionBlock
   : ACTION
+  ;
 ```
 
 </details>
@@ -316,7 +348,8 @@ so this is the greedy approximation.
 
 ```gramaire
 argActionBlock
-  : BEGIN_ARGUMENT ARGUMENT_CONTENT* END_ARGUMENT
+  : '[' ARGUMENT_CONTENT* ']'
+  ;
 ```
 
 </details>
@@ -330,12 +363,19 @@ argActionBlock
 
 ```gramaire
 modeSpec
-  : MODE identifier SEMI lexerRuleSpec*
+  : 'mode' identifier ';' lexerRuleSpec*
+  ;
 ```
 
 </details>
 
 ## rules
+
+The real grammar allows a completely empty rule list (`ruleSpec*`) — a
+`.g4` file with zero rules. Gramaire's Core is epsilon-free, so `rules`
+itself may not derive nothing; this requires at least one rule instead
+(`ruleSpec+`), the same "at least one" simplification used elsewhere for a
+would-be-empty top-level construct.
 
 ![Railroad diagram for the rules rule](diagrams-antlr4/rules.svg)
 
@@ -344,7 +384,8 @@ modeSpec
 
 ```gramaire
 rules
-  : ruleSpec*
+  : ruleSpec+
+  ;
 ```
 
 </details>
@@ -360,11 +401,14 @@ rules
 ruleSpec
   : parserRuleSpec
   | lexerRuleSpec
+  ;
 ```
 
 </details>
 
 ## parserRuleSpec
+
+`exceptionGroup` is optional here — see its own note below.
 
 ![Railroad diagram for the parserRuleSpec rule](diagrams-antlr4/parserrulespec.svg)
 
@@ -373,12 +417,20 @@ ruleSpec
 
 ```gramaire
 parserRuleSpec
-  : ruleModifiers? RULE_REF argActionBlock? ruleReturns? throwsSpec? localsSpec? rulePrequel* COLON ruleBlock SEMI exceptionGroup
+  : ruleModifiers? RULE_REF argActionBlock? ruleReturns? throwsSpec? localsSpec? rulePrequel* ':' ruleBlock ';' exceptionGroup?
+  ;
 ```
 
 </details>
 
 ## exceptionGroup
+
+The real grammar's `exceptionHandler* finallyClause?` allows completely empty
+(no `catch`, no `finally`) — Gramaire's Core is epsilon-free, so that
+emptiness is pushed to the reference site instead (`exceptionGroup?` in
+`parserRuleSpec` above); this rule itself only needs to cover the
+NON-empty shapes: one or more handlers with an optional trailing `finally`,
+or a bare `finally` with no handlers at all.
 
 ![Railroad diagram for the exceptionGroup rule](diagrams-antlr4/exceptiongroup.svg)
 
@@ -387,7 +439,9 @@ parserRuleSpec
 
 ```gramaire
 exceptionGroup
-  : exceptionHandler* finallyClause?
+  : exceptionHandler+ finallyClause?
+  | finallyClause
+  ;
 ```
 
 </details>
@@ -401,7 +455,8 @@ exceptionGroup
 
 ```gramaire
 exceptionHandler
-  : CATCH argActionBlock actionBlock
+  : 'catch' argActionBlock actionBlock
+  ;
 ```
 
 </details>
@@ -415,7 +470,8 @@ exceptionHandler
 
 ```gramaire
 finallyClause
-  : FINALLY actionBlock
+  : 'finally' actionBlock
+  ;
 ```
 
 </details>
@@ -431,6 +487,7 @@ finallyClause
 rulePrequel
   : optionsSpec
   | ruleAction
+  ;
 ```
 
 </details>
@@ -444,7 +501,8 @@ rulePrequel
 
 ```gramaire
 ruleReturns
-  : RETURNS argActionBlock
+  : 'returns' argActionBlock
+  ;
 ```
 
 </details>
@@ -458,7 +516,8 @@ ruleReturns
 
 ```gramaire
 throwsSpec
-  : THROWS Sep<qualifiedIdentifier, COMMA>
+  : 'throws' Sep<qualifiedIdentifier, ','>
+  ;
 ```
 
 </details>
@@ -472,7 +531,8 @@ throwsSpec
 
 ```gramaire
 localsSpec
-  : LOCALS argActionBlock
+  : 'locals' argActionBlock
+  ;
 ```
 
 </details>
@@ -486,7 +546,8 @@ localsSpec
 
 ```gramaire
 ruleAction
-  : AT identifier actionBlock
+  : '@' identifier actionBlock
+  ;
 ```
 
 </details>
@@ -501,6 +562,7 @@ ruleAction
 ```gramaire
 ruleModifiers
   : ruleModifier+
+  ;
 ```
 
 </details>
@@ -514,10 +576,11 @@ ruleModifiers
 
 ```gramaire
 ruleModifier
-  : PUBLIC
-  | PRIVATE
-  | PROTECTED
-  | FRAGMENT
+  : 'public'
+  | 'private'
+  | 'protected'
+  | 'fragment'
+  ;
 ```
 
 </details>
@@ -532,6 +595,7 @@ ruleModifier
 ```gramaire
 ruleBlock
   : ruleAltList
+  ;
 ```
 
 </details>
@@ -545,7 +609,8 @@ ruleBlock
 
 ```gramaire
 ruleAltList
-  : Sep<labeledAlt, OR>
+  : Sep<labeledAlt, '|'>
+  ;
 ```
 
 </details>
@@ -560,6 +625,7 @@ ruleAltList
 ```gramaire
 labeledAlt
   : alternative altLabel?
+  ;
 ```
 
 </details>
@@ -575,7 +641,8 @@ Helper for `(POUND identifier)?`.
 
 ```gramaire
 altLabel
-  : POUND identifier
+  : '#' identifier
+  ;
 ```
 
 </details>
@@ -589,7 +656,8 @@ altLabel
 
 ```gramaire
 lexerRuleSpec
-  : FRAGMENT? TOKEN_REF optionsSpec? COLON lexerRuleBlock SEMI
+  : 'fragment'? TOKEN_REF optionsSpec? ':' lexerRuleBlock ';'
+  ;
 ```
 
 </details>
@@ -604,6 +672,7 @@ lexerRuleSpec
 ```gramaire
 lexerRuleBlock
   : lexerAltList
+  ;
 ```
 
 </details>
@@ -617,14 +686,22 @@ lexerRuleBlock
 
 ```gramaire
 lexerAltList
-  : Sep<lexerAlt, OR>
+  : Sep<lexerAlt, '|'>
+  ;
 ```
 
 </details>
 
 ## lexerAlt
 
-The second alternative is empty (ANTLR allows it; so does Gramaire).
+ANTLR allows a fully empty second alternative here (and at `lexerElements`
+below) — Gramaire's Core is epsilon-free, so no rule may derive nothing at
+all, not even indirectly through an optional macro argument (`Sep<X?, S>`
+looks tempting but silently produces a broken table: `Desugar`'s
+per-macro-rule lowering doesn't recursively re-desugar EBNF sugar nested
+inside a synthesized `Sep`/`Comma` rule's own body). The empty alternative is
+therefore dropped rather than approximated; an OR-list position that would
+have been empty in the real grammar isn't representable here.
 
 ![Railroad diagram for the lexerAlt rule](diagrams-antlr4/lexeralt.svg)
 
@@ -634,12 +711,15 @@ The second alternative is empty (ANTLR allows it; so does Gramaire).
 ```gramaire
 lexerAlt
   : lexerElements lexerCommands?
-  |
+  ;
 ```
 
 </details>
 
 ## lexerElements
+
+Same epsilon-free simplification as `lexerAlt` above: the real grammar's
+empty second alternative is dropped, not approximated.
 
 ![Railroad diagram for the lexerElements rule](diagrams-antlr4/lexerelements.svg)
 
@@ -649,7 +729,7 @@ lexerAlt
 ```gramaire
 lexerElements
   : lexerElement+
-  |
+  ;
 ```
 
 </details>
@@ -665,7 +745,8 @@ lexerElements
 lexerElement
   : lexerAtom ebnfSuffix?
   | lexerBlock ebnfSuffix?
-  | actionBlock QUESTION?
+  | actionBlock '?'?
+  ;
 ```
 
 </details>
@@ -679,7 +760,8 @@ lexerElement
 
 ```gramaire
 lexerBlock
-  : LPAREN lexerAltList RPAREN
+  : '(' lexerAltList ')'
+  ;
 ```
 
 </details>
@@ -693,7 +775,8 @@ lexerBlock
 
 ```gramaire
 lexerCommands
-  : RARROW Sep<lexerCommand, COMMA>
+  : '->' Sep<lexerCommand, ','>
+  ;
 ```
 
 </details>
@@ -707,8 +790,9 @@ lexerCommands
 
 ```gramaire
 lexerCommand
-  : lexerCommandName LPAREN lexerCommandExpr RPAREN
+  : lexerCommandName '(' lexerCommandExpr ')'
   | lexerCommandName
+  ;
 ```
 
 </details>
@@ -723,7 +807,8 @@ lexerCommand
 ```gramaire
 lexerCommandName
   : identifier
-  | MODE
+  | 'mode'
+  ;
 ```
 
 </details>
@@ -739,6 +824,7 @@ lexerCommandName
 lexerCommandExpr
   : identifier
   | INT
+  ;
 ```
 
 </details>
@@ -752,12 +838,18 @@ lexerCommandExpr
 
 ```gramaire
 altList
-  : Sep<alternative, OR>
+  : Sep<alternative, '|'>
+  ;
 ```
 
 </details>
 
 ## alternative
+
+Same epsilon-free simplification as `lexerAlt`/`lexerElements` above: the
+real grammar's empty second alternative (a genuinely empty `|`-list
+position) is dropped, not approximated — Gramaire's Core has no way to
+express a rule deriving nothing at all.
 
 ![Railroad diagram for the alternative rule](diagrams-antlr4/alternative.svg)
 
@@ -767,7 +859,7 @@ altList
 ```gramaire
 alternative
   : elementOptions? element+
-  |
+  ;
 ```
 
 </details>
@@ -786,7 +878,8 @@ element
   : labeledElement ebnfSuffix?
   | atom ebnfSuffix?
   | ebnf
-  | actionBlock QUESTION? predicateOptions?
+  | actionBlock '?'? predicateOptions?
+  ;
 ```
 
 </details>
@@ -800,7 +893,8 @@ element
 
 ```gramaire
 predicateOptions
-  : LT Sep<predicateOption, COMMA> GT
+  : '<' Sep<predicateOption, ','> '>'
+  ;
 ```
 
 </details>
@@ -815,7 +909,8 @@ predicateOptions
 ```gramaire
 predicateOption
   : elementOption
-  | identifier ASSIGN predicateOptionValue
+  | identifier '=' predicateOptionValue
+  ;
 ```
 
 </details>
@@ -834,6 +929,7 @@ predicateOptionValue
   : actionBlock
   | INT
   | STRING_LITERAL
+  ;
 ```
 
 </details>
@@ -848,6 +944,7 @@ predicateOptionValue
 ```gramaire
 labeledElement
   : identifier assignOp atomOrBlock
+  ;
 ```
 
 </details>
@@ -863,8 +960,9 @@ Helper for `(ASSIGN | PLUS_ASSIGN)`.
 
 ```gramaire
 assignOp
-  : ASSIGN
-  | PLUS_ASSIGN
+  : '='
+  | '+='
+  ;
 ```
 
 </details>
@@ -882,6 +980,7 @@ Helper for `(atom | block)`.
 atomOrBlock
   : atom
   | block
+  ;
 ```
 
 </details>
@@ -896,6 +995,7 @@ atomOrBlock
 ```gramaire
 ebnf
   : block blockSuffix?
+  ;
 ```
 
 </details>
@@ -910,6 +1010,7 @@ ebnf
 ```gramaire
 blockSuffix
   : ebnfSuffix
+  ;
 ```
 
 </details>
@@ -923,9 +1024,10 @@ blockSuffix
 
 ```gramaire
 ebnfSuffix
-  : QUESTION QUESTION?
-  | STAR QUESTION?
-  | PLUS QUESTION?
+  : '?' '?'?
+  | '*' '?'?
+  | '+' '?'?
+  ;
 ```
 
 </details>
@@ -944,6 +1046,7 @@ lexerAtom
   | notSet
   | LEXER_CHAR_SET
   | wildcard
+  ;
 ```
 
 </details>
@@ -961,6 +1064,7 @@ atom
   | ruleref
   | notSet
   | wildcard
+  ;
 ```
 
 </details>
@@ -974,7 +1078,8 @@ atom
 
 ```gramaire
 wildcard
-  : DOT elementOptions?
+  : '.' elementOptions?
+  ;
 ```
 
 </details>
@@ -988,8 +1093,9 @@ wildcard
 
 ```gramaire
 notSet
-  : NOT setElement
-  | NOT blockSet
+  : '~' setElement
+  | '~' blockSet
+  ;
 ```
 
 </details>
@@ -1003,7 +1109,8 @@ notSet
 
 ```gramaire
 blockSet
-  : LPAREN Sep<setElement, OR> RPAREN
+  : '(' Sep<setElement, '|'> ')'
+  ;
 ```
 
 </details>
@@ -1021,6 +1128,7 @@ setElement
   | STRING_LITERAL elementOptions?
   | characterRange
   | LEXER_CHAR_SET
+  ;
 ```
 
 </details>
@@ -1036,7 +1144,8 @@ setElement
 
 ```gramaire
 block
-  : LPAREN blockPrequel? altList RPAREN
+  : '(' blockPrequel? altList ')'
+  ;
 ```
 
 </details>
@@ -1050,7 +1159,8 @@ block
 
 ```gramaire
 blockPrequel
-  : optionsSpec? ruleAction* COLON
+  : optionsSpec? ruleAction* ':'
+  ;
 ```
 
 </details>
@@ -1065,6 +1175,7 @@ blockPrequel
 ```gramaire
 ruleref
   : RULE_REF argActionBlock? elementOptions?
+  ;
 ```
 
 </details>
@@ -1078,7 +1189,8 @@ ruleref
 
 ```gramaire
 characterRange
-  : STRING_LITERAL RANGE STRING_LITERAL
+  : STRING_LITERAL '..' STRING_LITERAL
+  ;
 ```
 
 </details>
@@ -1094,6 +1206,7 @@ characterRange
 terminalDef
   : TOKEN_REF elementOptions?
   | STRING_LITERAL elementOptions?
+  ;
 ```
 
 </details>
@@ -1107,7 +1220,8 @@ terminalDef
 
 ```gramaire
 elementOptions
-  : LT Sep<elementOption, COMMA> GT
+  : '<' Sep<elementOption, ','> '>'
+  ;
 ```
 
 </details>
@@ -1122,7 +1236,8 @@ elementOptions
 ```gramaire
 elementOption
   : qualifiedIdentifier
-  | identifier ASSIGN elementOptionValue
+  | identifier '=' elementOptionValue
+  ;
 ```
 
 </details>
@@ -1141,6 +1256,7 @@ elementOptionValue
   : qualifiedIdentifier
   | STRING_LITERAL
   | INT
+  ;
 ```
 
 </details>
@@ -1156,6 +1272,7 @@ elementOptionValue
 identifier
   : RULE_REF
   | TOKEN_REF
+  ;
 ```
 
 </details>
@@ -1169,7 +1286,8 @@ identifier
 
 ```gramaire
 qualifiedIdentifier
-  : Sep<identifier, DOT>
+  : Sep<identifier, '.'>
+  ;
 ```
 
 </details>
@@ -1205,80 +1323,80 @@ an adaptive lexer (the ALL(\*) plan's Phase 4):
 
 <!-- Generated by Gramaire — do not edit; run `gramaire fmt` to refresh. -->
 
-| Nonterminal            | FIRST                                                                       | FOLLOW                                                                              |
-| ---------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `grammarSpec`          | `LEXER` `GRAMMAR` `PARSER`                                                  | `$`                                                                                 |
-| `grammarDecl`          | `LEXER` `GRAMMAR` `PARSER`                                                  |                                                                                     |
-| `grammarType`          | `LEXER` `GRAMMAR` `PARSER`                                                  | `RULE_REF` `TOKEN_REF`                                                              |
-| `prequelConstruct`     | `OPTIONS` `IMPORT` `TOKENS` `CHANNELS` `AT`                                 |                                                                                     |
-| `optionsSpec`          | `OPTIONS`                                                                   |                                                                                     |
-| `optionDecl`           | `RULE_REF` `TOKEN_REF`                                                      |                                                                                     |
-| `option`               | `RULE_REF` `TOKEN_REF`                                                      | `SEMI`                                                                              |
-| `optionValue`          | `Sep` `STRING_LITERAL` `INT` `ACTION`                                       | `SEMI`                                                                              |
-| `delegateGrammars`     | `IMPORT`                                                                    |                                                                                     |
-| `delegateGrammar`      | `RULE_REF` `TOKEN_REF`                                                      | `COMMA`                                                                             |
-| `tokensSpec`           | `TOKENS`                                                                    |                                                                                     |
-| `channelsSpec`         | `CHANNELS`                                                                  |                                                                                     |
-| `idList`               | `Sep`                                                                       |                                                                                     |
-| `action_`              | `AT`                                                                        |                                                                                     |
-| `actionScope`          | `LEXER` `PARSER` `RULE_REF` `TOKEN_REF`                                     |                                                                                     |
-| `actionScopeName`      | `LEXER` `PARSER` `RULE_REF` `TOKEN_REF`                                     | `COLONCOLON`                                                                        |
-| `actionBlock`          | `ACTION`                                                                    | `SEMI` `COMMA` `QUESTION?`                                                          |
-| `argActionBlock`       | `BEGIN_ARGUMENT`                                                            | `ACTION`                                                                            |
-| `modeSpec`             | `MODE`                                                                      |                                                                                     |
-| `rules`                |                                                                             |                                                                                     |
-| `ruleSpec`             | `FRAGMENT?`                                                                 |                                                                                     |
-| `parserRuleSpec`       |                                                                             |                                                                                     |
-| `exceptionGroup`       |                                                                             |                                                                                     |
-| `exceptionHandler`     | `CATCH`                                                                     |                                                                                     |
-| `finallyClause`        | `FINALLY`                                                                   |                                                                                     |
-| `rulePrequel`          | `OPTIONS` `AT`                                                              |                                                                                     |
-| `ruleReturns`          | `RETURNS`                                                                   |                                                                                     |
-| `throwsSpec`           | `THROWS`                                                                    |                                                                                     |
-| `localsSpec`           | `LOCALS`                                                                    |                                                                                     |
-| `ruleAction`           | `AT`                                                                        |                                                                                     |
-| `ruleModifiers`        |                                                                             |                                                                                     |
-| `ruleModifier`         | `PUBLIC` `PRIVATE` `PROTECTED` `FRAGMENT`                                   |                                                                                     |
-| `ruleBlock`            | `Sep`                                                                       | `SEMI`                                                                              |
-| `ruleAltList`          | `Sep`                                                                       | `SEMI`                                                                              |
-| `labeledAlt`           |                                                                             | `OR`                                                                                |
-| `altLabel`             | `POUND`                                                                     |                                                                                     |
-| `lexerRuleSpec`        | `FRAGMENT?`                                                                 |                                                                                     |
-| `lexerRuleBlock`       | `Sep`                                                                       | `SEMI`                                                                              |
-| `lexerAltList`         | `Sep`                                                                       | `SEMI` `RPAREN`                                                                     |
-| `lexerAlt`             |                                                                             | `OR`                                                                                |
-| `lexerElements`        |                                                                             |                                                                                     |
-| `lexerElement`         | `DOT` `STRING_LITERAL` `ACTION` `TOKEN_REF` `LPAREN` `LEXER_CHAR_SET` `NOT` |                                                                                     |
-| `lexerBlock`           | `LPAREN`                                                                    |                                                                                     |
-| `lexerCommands`        | `RARROW`                                                                    |                                                                                     |
-| `lexerCommand`         | `MODE` `RULE_REF` `TOKEN_REF`                                               | `COMMA`                                                                             |
-| `lexerCommandName`     | `MODE` `RULE_REF` `TOKEN_REF`                                               | `COMMA` `LPAREN`                                                                    |
-| `lexerCommandExpr`     | `INT` `RULE_REF` `TOKEN_REF`                                                | `RPAREN`                                                                            |
-| `altList`              | `Sep`                                                                       | `RPAREN`                                                                            |
-| `alternative`          |                                                                             | `OR`                                                                                |
-| `element`              | `DOT` `STRING_LITERAL` `ACTION` `RULE_REF` `TOKEN_REF` `LPAREN` `NOT`       |                                                                                     |
-| `predicateOptions`     | `LT`                                                                        |                                                                                     |
-| `predicateOption`      | `Sep` `RULE_REF` `TOKEN_REF`                                                | `COMMA`                                                                             |
-| `predicateOptionValue` | `STRING_LITERAL` `INT` `ACTION`                                             | `COMMA`                                                                             |
-| `labeledElement`       | `RULE_REF` `TOKEN_REF`                                                      |                                                                                     |
-| `assignOp`             | `ASSIGN` `PLUS_ASSIGN`                                                      | `DOT` `STRING_LITERAL` `RULE_REF` `TOKEN_REF` `LPAREN` `NOT`                        |
-| `atomOrBlock`          | `DOT` `STRING_LITERAL` `RULE_REF` `TOKEN_REF` `LPAREN` `NOT`                |                                                                                     |
-| `ebnf`                 | `LPAREN`                                                                    |                                                                                     |
-| `blockSuffix`          | `QUESTION` `STAR` `PLUS`                                                    |                                                                                     |
-| `ebnfSuffix`           | `QUESTION` `STAR` `PLUS`                                                    |                                                                                     |
-| `lexerAtom`            | `DOT` `STRING_LITERAL` `TOKEN_REF` `LEXER_CHAR_SET` `NOT`                   |                                                                                     |
-| `atom`                 | `DOT` `STRING_LITERAL` `RULE_REF` `TOKEN_REF` `NOT`                         |                                                                                     |
-| `wildcard`             | `DOT`                                                                       |                                                                                     |
-| `notSet`               | `NOT`                                                                       |                                                                                     |
-| `blockSet`             | `LPAREN`                                                                    |                                                                                     |
-| `setElement`           | `STRING_LITERAL` `TOKEN_REF` `LEXER_CHAR_SET`                               | `OR`                                                                                |
-| `block`                | `LPAREN`                                                                    |                                                                                     |
-| `blockPrequel`         |                                                                             |                                                                                     |
-| `ruleref`              | `RULE_REF`                                                                  |                                                                                     |
-| `characterRange`       | `STRING_LITERAL`                                                            | `OR`                                                                                |
-| `terminalDef`          | `STRING_LITERAL` `TOKEN_REF`                                                |                                                                                     |
-| `elementOptions`       | `LT`                                                                        |                                                                                     |
-| `elementOption`        | `Sep` `RULE_REF` `TOKEN_REF`                                                | `COMMA`                                                                             |
-| `elementOptionValue`   | `Sep` `STRING_LITERAL` `INT`                                                | `COMMA`                                                                             |
-| `identifier`           | `RULE_REF` `TOKEN_REF`                                                      | `SEMI` `ASSIGN` `DOT` `COMMA` `COLONCOLON` `ACTION` `LPAREN` `RPAREN` `PLUS_ASSIGN` |
-| `qualifiedIdentifier`  | `Sep`                                                                       | `COMMA`                                                                             |
+| Nonterminal            | FIRST                                                              | FOLLOW                                              |
+| ---------------------- | ------------------------------------------------------------------ | --------------------------------------------------- |
+| `grammarSpec`          | `lexer` `grammar` `parser`                                         | `$`                                                 |
+| `grammarDecl`          | `lexer` `grammar` `parser`                                         |                                                     |
+| `grammarType`          | `lexer` `grammar` `parser`                                         | `RULE_REF` `TOKEN_REF`                              |
+| `prequelConstruct`     | `options` `import` `tokens` `channels` `@`                         |                                                     |
+| `optionsSpec`          | `options`                                                          |                                                     |
+| `optionDecl`           | `RULE_REF` `TOKEN_REF`                                             |                                                     |
+| `option`               | `RULE_REF` `TOKEN_REF`                                             | `;`                                                 |
+| `optionValue`          | `Sep` `STRING_LITERAL` `INT` `ACTION`                              | `;`                                                 |
+| `delegateGrammars`     | `import`                                                           |                                                     |
+| `delegateGrammar`      | `RULE_REF` `TOKEN_REF`                                             | `,`                                                 |
+| `tokensSpec`           | `tokens`                                                           |                                                     |
+| `channelsSpec`         | `channels`                                                         |                                                     |
+| `idList`               | `Sep`                                                              |                                                     |
+| `action_`              | `@`                                                                |                                                     |
+| `actionScope`          | `lexer` `parser` `RULE_REF` `TOKEN_REF`                            |                                                     |
+| `actionScopeName`      | `lexer` `parser` `RULE_REF` `TOKEN_REF`                            | `::`                                                |
+| `actionBlock`          | `ACTION`                                                           | `;` `,` `??`                                        |
+| `argActionBlock`       | `[`                                                                | `ACTION`                                            |
+| `modeSpec`             | `mode`                                                             |                                                     |
+| `rules`                |                                                                    |                                                     |
+| `ruleSpec`             | `fragment?`                                                        |                                                     |
+| `parserRuleSpec`       |                                                                    |                                                     |
+| `exceptionGroup`       | `finally`                                                          |                                                     |
+| `exceptionHandler`     | `catch`                                                            |                                                     |
+| `finallyClause`        | `finally`                                                          |                                                     |
+| `rulePrequel`          | `options` `@`                                                      |                                                     |
+| `ruleReturns`          | `returns`                                                          |                                                     |
+| `throwsSpec`           | `throws`                                                           |                                                     |
+| `localsSpec`           | `locals`                                                           |                                                     |
+| `ruleAction`           | `@`                                                                |                                                     |
+| `ruleModifiers`        |                                                                    |                                                     |
+| `ruleModifier`         | `public` `private` `protected` `fragment`                          |                                                     |
+| `ruleBlock`            | `Sep`                                                              | `;`                                                 |
+| `ruleAltList`          | `Sep`                                                              | `;`                                                 |
+| `labeledAlt`           |                                                                    | `\|`                                                |
+| `altLabel`             | `#`                                                                |                                                     |
+| `lexerRuleSpec`        | `fragment?`                                                        |                                                     |
+| `lexerRuleBlock`       | `Sep`                                                              | `;`                                                 |
+| `lexerAltList`         | `Sep`                                                              | `;` `)`                                             |
+| `lexerAlt`             |                                                                    | `\|`                                                |
+| `lexerElements`        |                                                                    |                                                     |
+| `lexerElement`         | `.` `STRING_LITERAL` `ACTION` `TOKEN_REF` `(` `LEXER_CHAR_SET` `~` |                                                     |
+| `lexerBlock`           | `(`                                                                |                                                     |
+| `lexerCommands`        | `->`                                                               |                                                     |
+| `lexerCommand`         | `mode` `RULE_REF` `TOKEN_REF`                                      | `,`                                                 |
+| `lexerCommandName`     | `mode` `RULE_REF` `TOKEN_REF`                                      | `,` `(`                                             |
+| `lexerCommandExpr`     | `INT` `RULE_REF` `TOKEN_REF`                                       | `)`                                                 |
+| `altList`              | `Sep`                                                              | `)`                                                 |
+| `alternative`          |                                                                    | `\|`                                                |
+| `element`              | `.` `STRING_LITERAL` `ACTION` `RULE_REF` `TOKEN_REF` `(` `~`       |                                                     |
+| `predicateOptions`     | `<`                                                                |                                                     |
+| `predicateOption`      | `Sep` `RULE_REF` `TOKEN_REF`                                       | `,`                                                 |
+| `predicateOptionValue` | `STRING_LITERAL` `INT` `ACTION`                                    | `,`                                                 |
+| `labeledElement`       | `RULE_REF` `TOKEN_REF`                                             |                                                     |
+| `assignOp`             | `=` `+=`                                                           | `.` `STRING_LITERAL` `RULE_REF` `TOKEN_REF` `(` `~` |
+| `atomOrBlock`          | `.` `STRING_LITERAL` `RULE_REF` `TOKEN_REF` `(` `~`                |                                                     |
+| `ebnf`                 | `(`                                                                |                                                     |
+| `blockSuffix`          | `?` `*` `+`                                                        |                                                     |
+| `ebnfSuffix`           | `?` `*` `+`                                                        |                                                     |
+| `lexerAtom`            | `.` `STRING_LITERAL` `TOKEN_REF` `LEXER_CHAR_SET` `~`              |                                                     |
+| `atom`                 | `.` `STRING_LITERAL` `RULE_REF` `TOKEN_REF` `~`                    |                                                     |
+| `wildcard`             | `.`                                                                |                                                     |
+| `notSet`               | `~`                                                                |                                                     |
+| `blockSet`             | `(`                                                                |                                                     |
+| `setElement`           | `STRING_LITERAL` `TOKEN_REF` `LEXER_CHAR_SET`                      | `\|`                                                |
+| `block`                | `(`                                                                |                                                     |
+| `blockPrequel`         |                                                                    |                                                     |
+| `ruleref`              | `RULE_REF`                                                         |                                                     |
+| `characterRange`       | `STRING_LITERAL`                                                   | `\|`                                                |
+| `terminalDef`          | `STRING_LITERAL` `TOKEN_REF`                                       |                                                     |
+| `elementOptions`       | `<`                                                                |                                                     |
+| `elementOption`        | `Sep` `RULE_REF` `TOKEN_REF`                                       | `,`                                                 |
+| `elementOptionValue`   | `Sep` `STRING_LITERAL` `INT`                                       | `,`                                                 |
+| `identifier`           | `RULE_REF` `TOKEN_REF`                                             | `;` `=` `.` `,` `::` `ACTION` `(` `)` `+=`          |
+| `qualifiedIdentifier`  | `Sep`                                                              | `,`                                                 |
