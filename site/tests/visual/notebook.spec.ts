@@ -1265,8 +1265,9 @@ test('Paper shows an "Example parse" graphical tree for the document\'s own Try-
   await expect(figure).toContainText("2 + 3 * 4");
 
   // A real graphical SVG tree, the same `svgOfCst`-rendered shape the Lab's Parse tree Graph view
-  // toggle produces — not the plain indented `gramaire-cst-branch` div tree the interactive
-  // Notebook's own "Try it" widget shows.
+  // toggle produces — Paper always shows the graphical figure, unlike the interactive Notebook's
+  // own "Try it" widget, which defaults to the plain indented `gramaire-cst-branch` div tree and
+  // needs its own Graph view toggle switched on (see the test below).
   const graph = figure.locator(".lab__cst-graph");
   await expect(graph.locator("svg")).toHaveCount(1);
   await expect(graph.locator("rect.rr-nonterm").first()).toBeVisible();
@@ -1274,6 +1275,38 @@ test('Paper shows an "Example parse" graphical tree for the document\'s own Try-
   await expect(
     graph.locator("text.rr-text", { hasText: "Expr" }).first(),
   ).toBeVisible();
+});
+
+test('the interactive "Try it" widget has its own Graph view toggle, defaulting to the plain list tree', async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const tryit = page.locator(".gramaire__tryit");
+
+  // Default: the plain indented list tree, no graph toggle chrome visible yet since it's gated on
+  // an accepted parse — same gating PaperParseTreeFigure uses.
+  await expect(tryit.locator(".gramaire-cst-branch").first()).toBeVisible();
+  await expect(tryit.locator(".lab__cst-graph")).toHaveCount(0);
+
+  const graphBtn = tryit.locator(
+    'button.gramaire__download-btn:has-text("Graph view")',
+  );
+  await expect(graphBtn).toBeVisible();
+  await graphBtn.click();
+  await expect(graphBtn).toHaveText("✓ Graph view");
+
+  // Toggling on swaps to the same graphical SVG shape Paper's "Example parse" figure and the Lab's
+  // Parse tree Graph view both render — a genuinely different rendering, not a CSS skin on the list.
+  const graph = tryit.locator(".lab__cst-graph");
+  await expect(graph.locator("svg")).toHaveCount(1);
+  await expect(graph.locator("rect.rr-nonterm").first()).toBeVisible();
+  await expect(graph.locator("rect.rr-term").first()).toBeVisible();
+  await expect(tryit.locator(".gramaire-cst-branch")).toHaveCount(0);
+
+  // Toggling back off returns to the list view — still the default, per the Lab's own precedent.
+  await graphBtn.click();
+  await expect(tryit.locator(".lab__cst-graph")).toHaveCount(0);
+  await expect(tryit.locator(".gramaire-cst-branch").first()).toBeVisible();
 });
 
 test("Paper is fully read-only — nothing in it is clickable/editable, unlike every other view", async ({

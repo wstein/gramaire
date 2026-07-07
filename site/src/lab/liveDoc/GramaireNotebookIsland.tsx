@@ -114,6 +114,10 @@ const blocks = signal<DocBlock[]>(
 // the moment it's actually known, rather than approximated up front.
 let pristineDefaultText: string | null = null;
 const tryItInput = signal(NOTEBOOK_DEFAULT_INPUT);
+// Mirrors the Lab Parse tree tab's own `treeGraphViewEnabled` toggle (LabIsland.tsx) — list view
+// (CstView) stays the default here too, for the same reason: fold/reveal-in-tree interactions the
+// static graphical view doesn't attempt to reproduce.
+const tryItGraphViewEnabled = signal(false);
 const editingProse = signal<number | null>(null);
 const proseDraft = signal("");
 // Grammar cells mirror prose cells: click reveals the source editor, blur commits and collapses
@@ -1665,8 +1669,27 @@ function TryIt() {
         </div>
       )}
       {parse?.accepted && parse.cst && resp?.productions && (
-        <CstView node={parse.cst} productions={resp.productions} />
+        <button
+          type="button"
+          class="gramaire__download-btn"
+          onClick={() =>
+            (tryItGraphViewEnabled.value = !tryItGraphViewEnabled.value)
+          }
+        >
+          {tryItGraphViewEnabled.value ? "✓ Graph view" : "Graph view"}
+        </button>
       )}
+      {parse?.accepted &&
+        parse.cst &&
+        resp?.productions &&
+        (tryItGraphViewEnabled.value ? (
+          <TryItGraphView
+            cst={parse.cst}
+            ruleNameOf={(rule) => resp.productions![rule]?.lhs ?? `#${rule}`}
+          />
+        ) : (
+          <CstView node={parse.cst} productions={resp.productions} />
+        ))}
       {parse && !parse.accepted && (
         <div class="gramaire__tryit-error">
           {rejectMsg?.span && (
@@ -1683,6 +1706,33 @@ function TryIt() {
         </div>
       )}
     </div>
+  );
+}
+
+// TryIt's own graphical toggle — same `svgOfCst` (../cstGraph) rendering the Lab's Parse tree tab's
+// Graph view and Paper's "Example parse" figure both use. `dangerouslySetInnerHTML` content sits
+// outside Preact's vdom, so switching to a different Try-it input only swaps the SVG's `innerHTML`
+// on the same DOM node — it never resets scroll state on its own. Reset `scrollLeft` explicitly on
+// every content change, mirroring the Lab's `GraphSvgContainer` (LabIsland.tsx).
+function TryItGraphView({
+  cst,
+  ruleNameOf,
+}: {
+  cst: CstNode;
+  ruleNameOf: (rule: number) => string;
+}) {
+  const svg = svgOfCst(cst, ruleNameOf);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.scrollLeft = 0;
+  }, [svg]);
+  return (
+    <div
+      class="lab__cst-graph"
+      ref={ref}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
   );
 }
 

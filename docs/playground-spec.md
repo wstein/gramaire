@@ -173,6 +173,20 @@ a thin skin over real machinery, never a mock.
 > `lab.css` shrinks the (now correctly bounded) SVG proportionally with no
 > clipping and no unnecessary scrollbar — no CSS change was needed once the
 > layout math itself was correct.
+>
+> The interactive Notebook's own "Try it" widget (`TryIt`) also gained a
+> "Graph view" toggle of its own — the one place `svgOfCst` wasn't yet
+> reachable from: the Lab's Parse tree tab and Paper's read-only "Example
+> parse" figure already had it, but the Notebook's live evaluator still only
+> showed the plain indented `CstView` list tree. `tryItGraphViewEnabled`
+> mirrors the Lab's own `treeGraphViewEnabled` (list view stays the default,
+> for the same fold/reveal-in-tree reasons), and `TryItGraphView` carries the
+> same scroll-reset-on-content-change treatment as the Lab's
+> `GraphSvgContainer`. The `.lab__cst-graph`/`rr-*` CSS block in
+> `gramaireNotebook.css`, previously scoped under `.gramaire__paper-parsetree`
+> for Paper's figure alone, is now page-wide (matching `lab.css`'s own
+> unscoped convention for the same selectors) so both Paper and the new
+> Try-it toggle share one definition instead of a third near-duplicate block.
 
 ---
 
