@@ -270,7 +270,7 @@ export interface ForestResult {
   truncated: boolean;
 }
 /**
- * Every method's state/conflict count (not just the requested method, so the tab can render the three-method comparison without a re-request), FIRST/FOLLOW per rule, a railroad SVG per rule, and the conflict-classification verdict, built from the compiled grammar directly.
+ * Every method's state/conflict count (not just the requested method, so the tab can render the three-method comparison without a re-request), FIRST/FOLLOW per rule, a railroad SVG per rule, the conflict-classification verdict, and the grammar's terminal/nonterminal/start-symbol summary, built from the compiled grammar directly.
  */
 export interface GrammarAnalysis {
   /**
@@ -287,6 +287,7 @@ export interface GrammarAnalysis {
     [k: string]: string;
   };
   verdict: ConflictVerdictInfo;
+  symbolSet: SymbolSetInfo;
 }
 /**
  * One table-construction method's automaton size and conflict count.
@@ -311,6 +312,17 @@ export interface ConflictVerdictInfo {
     "conflict-free" | "lalr-artifact" | "resolved-by-declaration" | "genuine";
   withPrecedenceConflicts: number;
   genuineConflicts: string[];
+}
+/**
+ * The grammar's terminal alphabet, visible nonterminal set, and start symbol — the classic T = {...}, N = {...}, start-symbol summary a formal grammar reference states explicitly.
+ */
+export interface SymbolSetInfo {
+  terminals: RenderedSymbol[];
+  /**
+   * Excludes a hoisted `( a | b )` group's synthetic __group_N rule, matching firstFollow's own visibleRules filter.
+   */
+  nonterminals: string[];
+  start: string;
 }
 /**
  * Whether Ll.parseTraced accepts the target input, the DFA prediction cache's hit/miss counts (both overall and per rule), and every declaration-order-resolved ambiguity hit while walking it — from the same AtnSim.Cache(track = true) run that produced `parse`.

@@ -104,7 +104,15 @@ a thin skin over real machinery, never a mock.
 > structural cue beyond indentation alone. No protocol change, no new tree
 > renderer — this is the "invest in the existing view" alternative to a
 > from-scratch graphical (box-and-line) tree, which stayed out of scope
-> here. Keep this callout current as further work lands.
+> here. Grammar analysis then grew a classic `T = {...}` / `N = {...}` /
+> `start = ...` symbol-set summary — a formal-grammar-reference convention a
+> German-Wikipedia EBNF/CFG page prompted, assembled entirely from data
+> `analysisOf` already computed and previously discarded (`Table.analyze`'s
+> own `nonterminals`/`start`, `classifyTerminals`'s terminal-kind map), no
+> new engine work. The Notebook's Paper view reuses the exact same
+> `analysis` data for the same summary, once per document above its first
+> figure — no second request, no second computation. Keep this callout
+> current as further work lands.
 
 ---
 

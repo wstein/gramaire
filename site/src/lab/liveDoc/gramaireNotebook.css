@@ -1167,6 +1167,22 @@
 /* A numbered figure — the one place Paper still shows a diagram, same railroad SVG source
    (analysis.railroad[nonterminal]) every other view already renders, just captioned like a
    real book figure instead of sitting bare beside a click-to-edit cell. */
+/* PaperSymbolSetHeader's T = {...} / N = {...} / start = ... summary — monospace and compact,
+   deliberately reading as reference-document metadata rather than prose, with a rule beneath it
+   separating it from the figures that follow. */
+.gramaire__paper-symbolset {
+  margin: 0 0 2.5em;
+  padding-bottom: 1.5em;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: calc(13px * var(--paper-font-scale, 1));
+  line-height: 1.6;
+  color: var(--fg-secondary);
+}
+.gramaire__paper-symbolset p {
+  margin: 0.2em 0;
+}
+
 .gramaire__paper-figure {
   margin: 2em 0;
   padding: 0;

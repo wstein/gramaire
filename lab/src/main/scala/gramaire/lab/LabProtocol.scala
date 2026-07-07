@@ -421,21 +421,49 @@ object ConflictVerdictInfo:
       )
     )
 
+/** The grammar's terminal alphabet, visible nonterminal set, and start symbol — the classic `T =
+  * {...}`, `N = {...}`, start-symbol summary a formal grammar reference (e.g. a textbook or
+  * Wikipedia's own EBNF/CFG articles) states explicitly, assembled entirely from data `analysisOf`
+  * already computes for `firstFollow`/`railroad` (`Table.analyze`'s own `nonterminals`/`start`,
+  * `classifyTerminals`'s own terminal-kind map) and previously discarded. `terminals` reuses
+  * `RenderedSymbol` rather than a bare string list so a client can style a quoted literal
+  * differently from a named token without re-deriving that from the text alone — same reasoning as
+  * `ProductionInfo.rhs`. `nonterminals` excludes a hoisted `( a | b )` group's synthetic
+  * `__group_N` rule, matching `firstFollow`'s own `visibleRules` filter — those rules have no
+  * author-facing identity to list.
+  */
+final case class SymbolSetInfo(
+    terminals: Vector[RenderedSymbol],
+    nonterminals: Vector[String],
+    start: String
+)
+
+object SymbolSetInfo:
+  def toJson(s: SymbolSetInfo): Json =
+    Json.JObject(
+      Vector(
+        "terminals" -> Json.JArray(s.terminals.map(RenderedSymbol.toJson)),
+        "nonterminals" -> Json.JArray(s.nonterminals.map(Json.JString.apply)),
+        "start" -> Json.JString(s.start)
+      )
+    )
+
 /** The Grammar analysis tab's data (M5+, `docs/playground-spec.md` T2.1/T2.3): every method's
   * state/conflict count (not just the requested `LabRequest.method`, so the tab can render the
   * three-method comparison without a re-request), FIRST/FOLLOW per rule, a railroad SVG per rule,
-  * and the conflict-classification verdict. `railroad` is built from the compiled
-  * (already-desugared) `Grammar` directly rather than re-parsing each rule's raw `.gram.md` fenced
-  * block the way `gramaire fmt`'s sidecar SVGs do — a deliberate divergence: a desugared `X+`
-  * renders as a reference to its synthesized list rule instead of `gramaire fmt`'s native loop
-  * shape. Acceptable for a live in-browser view; not meant to replace the committed sidecar SVGs
-  * `.gram.md` documents embed.
+  * the conflict-classification verdict, and the grammar's terminal/nonterminal/start-symbol
+  * summary. `railroad` is built from the compiled (already-desugared) `Grammar` directly rather
+  * than re-parsing each rule's raw `.gram.md` fenced block the way `gramaire fmt`'s sidecar SVGs do
+  * — a deliberate divergence: a desugared `X+` renders as a reference to its synthesized list rule
+  * instead of `gramaire fmt`'s native loop shape. Acceptable for a live in-browser view; not meant
+  * to replace the committed sidecar SVGs `.gram.md` documents embed.
   */
 final case class GrammarAnalysis(
     perMethod: Map[String, MethodStatsInfo],
     firstFollow: Vector[RuleFirstFollow],
     railroad: Map[String, String],
-    verdict: ConflictVerdictInfo
+    verdict: ConflictVerdictInfo,
+    symbolSet: SymbolSetInfo
 )
 
 object GrammarAnalysis:
@@ -447,7 +475,8 @@ object GrammarAnalysis:
         }),
         "firstFollow" -> Json.JArray(a.firstFollow.map(RuleFirstFollow.toJson)),
         "railroad" -> Json.JObject(a.railroad.toVector.map { case (k, v) => k -> Json.JString(v) }),
-        "verdict" -> ConflictVerdictInfo.toJson(a.verdict)
+        "verdict" -> ConflictVerdictInfo.toJson(a.verdict),
+        "symbolSet" -> SymbolSetInfo.toJson(a.symbolSet)
       )
     )
 

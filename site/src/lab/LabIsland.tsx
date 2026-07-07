@@ -1601,6 +1601,18 @@ function GrammarAnalysisPanel() {
       )}
 
       <div class="lab__analysis-section">
+        <div class="lab__analysis-heading">symbols</div>
+        <p class="lab__mono lab__symbolset-line">
+          T = {"{"} <SymbolChips symbols={a.symbolSet.terminals} />
+          {" }"}
+        </p>
+        <p class="lab__mono lab__symbolset-line">
+          N = {"{"} {a.symbolSet.nonterminals.join(" ")} {"}"}
+        </p>
+        <p class="lab__mono lab__symbolset-line">start = {a.symbolSet.start}</p>
+      </div>
+
+      <div class="lab__analysis-section">
         <div class="lab__analysis-heading">conflict verdict</div>
         <div class={`lab__verdict lab__verdict--${a.verdict.verdict}`}>
           {VERDICT_LABELS[a.verdict.verdict]}

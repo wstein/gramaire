@@ -779,6 +779,30 @@ test("the Lab's diagram-view picker switches the Grammar analysis tab's railroad
   ).not.toHaveAttribute("data-rr-view", "simplified");
 });
 
+test("Grammar analysis shows the classic T = {...} / N = {...} / start = ... symbol-set summary", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  await page.getByLabel("Engine").selectOption("Canonical");
+  await page.click('button[role="tab"]:has-text("Grammar analysis")');
+
+  const symbols = page.locator(".lab__panel").filter({ hasText: "symbols" });
+  // calc.gram.md's own terminal alphabet: 6 operator/paren literals plus the one declared token
+  // (NUMBER), sorted by text — same fixture the "engine-computed data" test already exercises.
+  await expect(symbols).toContainText("T = { ( ) * + - / NUMBER }");
+  await expect(symbols).toContainText("N = { Expr Term Factor }");
+  await expect(symbols).toContainText("start = Expr");
+});
+
+test("Grammar analysis's start symbol tracks a startRule override", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  await page.getByLabel("Start rule").selectOption("Factor");
+  await page.click('button[role="tab"]:has-text("Grammar analysis")');
+  await expect(page.locator(".lab__panel")).toContainText("start = Factor");
+});
+
 test("cross-tab hover-linking keeps the same token highlighted across tabs", async ({
   page,
 }) => {

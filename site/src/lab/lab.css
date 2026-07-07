@@ -412,6 +412,11 @@
   font-family: var(--font-mono);
   font-size: 12px;
 }
+/* Grammar analysis's T = {...} / N = {...} / start = ... summary — three short lines, tighter
+   than a paragraph's usual line-height so they read as one compact block. */
+.lab__symbolset-line {
+  margin: 2px 0;
+}
 .lab__table {
   width: 100%;
   border-collapse: collapse;

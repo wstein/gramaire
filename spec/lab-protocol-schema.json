@@ -316,9 +316,9 @@
     },
     "grammarAnalysis": {
       "title": "GrammarAnalysis",
-      "description": "Every method's state/conflict count (not just the requested method, so the tab can render the three-method comparison without a re-request), FIRST/FOLLOW per rule, a railroad SVG per rule, and the conflict-classification verdict, built from the compiled grammar directly.",
+      "description": "Every method's state/conflict count (not just the requested method, so the tab can render the three-method comparison without a re-request), FIRST/FOLLOW per rule, a railroad SVG per rule, the conflict-classification verdict, and the grammar's terminal/nonterminal/start-symbol summary, built from the compiled grammar directly.",
       "type": "object",
-      "required": ["perMethod", "firstFollow", "railroad", "verdict"],
+      "required": ["perMethod", "firstFollow", "railroad", "verdict", "symbolSet"],
       "additionalProperties": false,
       "properties": {
         "perMethod": {
@@ -335,7 +335,27 @@
           "description": "Keyed by rule name; each value is a self-contained SVG string.",
           "additionalProperties": { "type": "string" }
         },
-        "verdict": { "$ref": "#/$defs/conflictVerdictInfo" }
+        "verdict": { "$ref": "#/$defs/conflictVerdictInfo" },
+        "symbolSet": { "$ref": "#/$defs/symbolSetInfo" }
+      }
+    },
+    "symbolSetInfo": {
+      "title": "SymbolSetInfo",
+      "description": "The grammar's terminal alphabet, visible nonterminal set, and start symbol — the classic T = {...}, N = {...}, start-symbol summary a formal grammar reference states explicitly.",
+      "type": "object",
+      "required": ["terminals", "nonterminals", "start"],
+      "additionalProperties": false,
+      "properties": {
+        "terminals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/renderedSymbol" }
+        },
+        "nonterminals": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Excludes a hoisted `( a | b )` group's synthetic __group_N rule, matching firstFollow's own visibleRules filter."
+        },
+        "start": { "type": "string" }
       }
     },
     "productionInfo": {

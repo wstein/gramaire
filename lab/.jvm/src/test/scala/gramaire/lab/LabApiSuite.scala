@@ -353,6 +353,72 @@ class LabApiSuite extends munit.FunSuite:
         )
   }
 
+  test(
+    "evaluate: analysis.symbolSet reports calc's terminal alphabet, nonterminal set, and start symbol"
+  ) {
+    val resp = LabApi.evaluate(LabRequest(calcMd, None, Method.Canonical))
+    resp.analysis match
+      case None    => fail("expected analysis")
+      case Some(a) =>
+        // calc's own terminal alphabet: the six operator/paren literals used directly in a rule
+        // body, plus the one declared token (NUMBER) — sorted by text, same convention
+        // classifyTerminals/renderSymStructured already use elsewhere in this response.
+        assertEquals(
+          a.symbolSet.terminals,
+          Vector(
+            RenderedSymbol("(", SymbolKind.Literal),
+            RenderedSymbol(")", SymbolKind.Literal),
+            RenderedSymbol("*", SymbolKind.Literal),
+            RenderedSymbol("+", SymbolKind.Literal),
+            RenderedSymbol("-", SymbolKind.Literal),
+            RenderedSymbol("/", SymbolKind.Literal),
+            RenderedSymbol("NUMBER", SymbolKind.Token)
+          )
+        )
+        assertEquals(a.symbolSet.nonterminals, Vector("Expr", "Term", "Factor"))
+        assertEquals(a.symbolSet.start, "Expr")
+  }
+
+  test("evaluate: analysis.symbolSet.start reflects a startRule override") {
+    val resp = LabApi.evaluate(
+      LabRequest(calcMd, None, Method.Canonical, startRule = Some("Factor"))
+    )
+    resp.analysis match
+      case None    => fail("expected analysis")
+      case Some(a) => assertEquals(a.symbolSet.start, "Factor")
+  }
+
+  test("evaluate: analysis.symbolSet.nonterminals excludes a hoisted group's synthetic rule") {
+    val groupMd = """# GroupTest
+      |
+      |## Term
+      |
+      |```gramaire
+      |Term
+      |  : Term ('*' | '/') Factor
+      |  | Factor
+      |  ;
+      |```
+      |
+      |## Factor
+      |
+      |```gramaire
+      |Factor
+      |  : 'x'
+      |  ;
+      |```
+      |""".stripMargin
+    val resp = LabApi.evaluate(LabRequest(groupMd, None, Method.Canonical))
+    resp.analysis match
+      case None => fail("expected analysis")
+      case Some(a) =>
+        assertEquals(a.symbolSet.nonterminals, Vector("Term", "Factor"))
+        assert(
+          !a.symbolSet.nonterminals.exists(_.startsWith("__group_")),
+          s"expected no synthetic group rule in the nonterminal set, got: ${a.symbolSet.nonterminals}"
+        )
+  }
+
   // A hoisted `( a | b )` group (Desugar.groupHoist) becomes its own synthetic `__group_N` rule —
   // it must never get a FIRST/FOLLOW row or a railroad tab of its own (same "no real source"
   // treatment Diagnostics.sourceRuleNameGuess already gives `__group_` names), and the rule that

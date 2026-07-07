@@ -37,7 +37,7 @@ import type { DocBlock, DocBlockKind } from "./document";
 import { parseMarkdownLite, leadingHeading } from "./markdown";
 import type { MdBlock, MdInline } from "./markdown";
 import { MarkdownBlocks, MarkdownHeading } from "./MarkdownBlock";
-import { SymbolChip } from "../symbolDisplay";
+import { SymbolChip, SymbolChips } from "../symbolDisplay";
 import { bindRailroadNodeNav } from "../railroadNav";
 import { buildPaperPdf } from "./paperPdf";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
@@ -2241,6 +2241,29 @@ function PaperBlock({
   );
 }
 
+// The classic T = {...} / N = {...} / start = ... summary (same data/rendering approach as the
+// Lab's Grammar analysis tab) as a compact header for the whole Paper document — reuses `analysis`
+// data already fetched for GrammarCell/PaperBlock's railroad diagrams, no extra request. Only
+// meaningful once the document has at least one rule block to summarize; a prose-only document (or
+// one whose grammar hasn't built yet) shows nothing here rather than an empty/stale set.
+function PaperSymbolSetHeader({ hasRuleBlocks }: { hasRuleBlocks: boolean }) {
+  const analysis = response.value?.analysis ?? lastAnalysis.value;
+  if (!hasRuleBlocks || !analysis) return null;
+  const { symbolSet } = analysis;
+  return (
+    <div class="gramaire__paper-symbolset">
+      <p>
+        T = {"{"} <SymbolChips symbols={symbolSet.terminals} />
+        {" }"}
+      </p>
+      <p>
+        N = {"{"} {symbolSet.nonterminals.join(" ")} {"}"}
+      </p>
+      <p>start = {symbolSet.start}</p>
+    </div>
+  );
+}
+
 function PaperView() {
   let ruleCount = 0;
   // The document's own `%paper-font-scale` directive (document.ts's `paperFontScale`) — an inline
@@ -2248,12 +2271,16 @@ function PaperView() {
   // .css) are the ONE place that formula lives; a class-per-scale approach would need one CSS rule
   // per possible multiplier instead of a single `var(--paper-font-scale, 1)` fallback.
   const scale = paperFontScale(serializeDocument(blocks.value));
+  const paperBlocks = blocks.value.filter(isPaperBlock);
   return (
     <div
       class="gramaire__paper"
       style={{ "--paper-font-scale": String(scale) }}
     >
-      {blocks.value.filter(isPaperBlock).map((block, index) => {
+      <PaperSymbolSetHeader
+        hasRuleBlocks={paperBlocks.some((b) => b.kind === "rule")}
+      />
+      {paperBlocks.map((block, index) => {
         const figureNumber = block.kind === "rule" ? ++ruleCount : null;
         return (
           <PaperBlock

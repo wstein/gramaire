@@ -511,7 +511,18 @@ object LabApi:
     val verdict =
       ConflictVerdictInfo(verdictTag, report.withPrecedenceConflicts, report.genuineConflicts)
 
-    GrammarAnalysis(perMethod, firstFollow, railroad, verdict)
+    // `a.nonterminals`/`a.start` were already computed above (`Table.analyze`) for FIRST/FOLLOW
+    // and previously discarded; `kinds` (also already computed) is exactly the terminal alphabet,
+    // each already tagged literal vs. token. `nonterminals` is `visibleRules`, not `a.nonterminals`
+    // directly, to exclude synthetic `__group_N` rules the same way `firstFollow` already does.
+    val symbolSet = SymbolSetInfo(
+      terminals =
+        kinds.toVector.sortBy(_._1).map { case (text, kind) => RenderedSymbol(text, kind) },
+      nonterminals = visibleRules.map(_.name),
+      start = a.start
+    )
+
+    GrammarAnalysis(perMethod, firstFollow, railroad, verdict, symbolSet)
 
   // The Evaluate tab's data (M5+): BackendJs.emitTraced's generated ES module source text — the
   // Worker dynamically imports and runs it, never this module (Scala never executes the grammar

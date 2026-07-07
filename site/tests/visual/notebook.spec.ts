@@ -1212,6 +1212,22 @@ test("switching to Paper shows numbered figures for rules and prose, but no Toke
   ).toBeVisible();
 });
 
+test("Paper shows a T = {...} / N = {...} / start = ... symbol-set header, reusing the same analysis data as its figures", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await viewToggleButton(page, "Paper").click();
+
+  const header = page.locator(".gramaire__paper-symbolset");
+  await expect(header).toBeVisible();
+  // The default document's own grammar (Expr/Term/Factor, calc-js example) — same fixture the
+  // figure-numbering test above already pins.
+  await expect(header).toContainText("N = { Expr Term Factor }");
+  await expect(header).toContainText("start = Expr");
+  // Renders once per document, above the first figure, not once per rule block.
+  await expect(header).toHaveCount(1);
+});
+
 test("Paper is fully read-only — nothing in it is clickable/editable, unlike every other view", async ({
   page,
 }) => {
