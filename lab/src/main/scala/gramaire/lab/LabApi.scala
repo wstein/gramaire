@@ -186,6 +186,10 @@ object LabApi:
     // `Lr.parseWith` always uses Canonical to build the `lr` NOTATION's OWN tables (parsing the
     // `.gram.md` text itself) — a fixed implementation detail, unrelated to `request.method`, which
     // is the METHOD the caller wants the TARGET grammar's own tables built with, below.
+    // Read once, independent of whether the grammar notation goes on to parse successfully below —
+    // `Lr.nameOf` only needs the frontmatter/settings-fence text, not a valid `Grammar`, so even the
+    // `Left(diags)` branch's response can carry a real name for the Notebook's download filename.
+    val name = Lr.nameOf(request.source)
     Lr.parseWith(Method.Canonical, request.source) match
       case Left(diags) =>
         LabResponse(
@@ -193,7 +197,8 @@ object LabApi:
           buildOk = false,
           diagnostics = diags.map(toDiagnosticInfo(_, grammarSourceName, src, spanSafe)),
           parse = None,
-          fences = fences
+          fences = fences,
+          name = name
         )
       case Right(parsedGrammar) =>
         val grammar = withStartRule(parsedGrammar, request.startRule)
@@ -289,7 +294,8 @@ object LabApi:
             evaluatorJs = evaluatorJs,
             atn = atn,
             allStarLowering = allStarLowering,
-            fences = fences
+            fences = fences,
+            name = name
           )
         else
           tableResult match
@@ -307,7 +313,8 @@ object LabApi:
                 forest = forest,
                 analysis = analysis,
                 allStarLowering = allStarLowering,
-                fences = fences
+                fences = fences,
+                name = name
               )
             case Right(table) =>
               val parse = request.input.zip(spanned).map { case (input, sp) =>
@@ -324,7 +331,8 @@ object LabApi:
                 analysis = analysis,
                 evaluatorJs = evaluatorJs,
                 allStarLowering = allStarLowering,
-                fences = fences
+                fences = fences,
+                name = name
               )
 
   // The Lab's start-rule picker (M5+): core has no separate "start rule" concept anywhere —

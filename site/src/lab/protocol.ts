@@ -139,6 +139,10 @@ export interface LabResponse {
    * The Live Document notebook's per-fence role + line span, in document order. Computed directly from LabRequest.source's own raw text, independent of whether the grammar notation parses (Lr.classifyFenceContent's "case is law" classification is pure content shape) — a broken grammar still shows correct cell boundaries/role badges to fix it by. Empty for a fence-free native .gram source.
    */
   fences: FenceInfo[];
+  /**
+   * The grammar's own declared name (ADR D58: Lr.nameOf, frontmatter-first with a dual-read fallback to the deprecated fenced `name:` settings block). Read independent of whether the grammar notation parses (same reasoning as `fences`) — null only when neither a frontmatter block nor the old fence declares one. The Notebook's own download-filename logic consumes this instead of re-deriving it client-side.
+   */
+  name: string | null;
 }
 /**
  * One structured diagnostic: a severity, which pipeline stage raised it, a message, an optional source span, free-form note/help lines, and a plain-text rendering (the same caret-framed text the CLI prints) as a display fallback.

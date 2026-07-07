@@ -135,6 +135,10 @@ const diagPanelCollapsed = signal(false);
 // analysis lets untouched cells keep showing their (now stale) railroad/FIRST-FOLLOW, dimmed and
 // labelled, so only the actually-broken cell loses its rendered view (Layer 2).
 const lastAnalysis = signal<GrammarAnalysis | null>(null);
+// The last NON-null LabResponse.name (ADR D58), for the exact same reason as `lastAnalysis`: an
+// edit that breaks the grammar notation entirely (so `name` comes back null too) shouldn't make
+// the download filename regress to the generic fallback while the user fixes a typo.
+const lastName = signal<string | null>(null);
 
 // Session autosave (notebookPersistence.ts holds the pure decision logic) — a prior session's
 // snapshot offered for restore on mount, and a notice when ANOTHER tab has since overwritten it.
@@ -214,6 +218,11 @@ function commitSourceEdit() {
 effect(() => {
   const a = response.value?.analysis;
   if (a) lastAnalysis.value = a;
+});
+// Retain the most recent NON-null name (see `lastName`). Reacts only to `response`.
+effect(() => {
+  const n = response.value?.name;
+  if (n) lastName.value = n;
 });
 
 // Each diagnostic paired with the block index its span falls in (or null — an unlocated
@@ -1989,13 +1998,14 @@ async function settledBlocks(): Promise<DocBlock[]> {
 
 // Downloads the whole document as its raw `.gram.md` source — the standard vanilla Blob-URL +
 // `<a download>` + click pattern (this codebase has never done a save-to-disk before this, so
-// there's no existing helper to reuse). The filename comes from the document's own `%name`
-// directive (a client-side scan over the serialized text, mirroring what the engine's own
-// `Lr.nameOf` reads server-side) — falls back to a generic name if absent/not-yet-set, e.g. a
-// freshly loaded document with no rules typed yet.
+// there's no existing helper to reuse). The filename comes from the engine's own `LabResponse.name`
+// (ADR D58: `Lr.nameOf`, frontmatter-first with a dual-read fallback to the deprecated fenced
+// `name:` block) via the same last-good-value fallback `lastAnalysis` uses, not a client-side
+// re-scan of the raw text — falls back to a generic name only when neither the fresh nor the last
+// response ever had one, e.g. a freshly loaded document with no rules typed yet.
 async function downloadSource() {
   const text = serializeDocument(await settledBlocks());
-  const name = /^%name\s+(.+)$/m.exec(text)?.[1]?.trim() || "gramaire-notebook";
+  const name = response.value?.name ?? lastName.value ?? "gramaire-notebook";
   const blob = new Blob([text], { type: "text/markdown" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -2019,8 +2029,7 @@ async function downloadPdf() {
   const blks = await settledBlocks();
   const analysis = response.value?.analysis ?? lastAnalysis.value;
   const bytes = await buildPaperPdf(blks, analysis);
-  const text = serializeDocument(blks);
-  const name = /^%name\s+(.+)$/m.exec(text)?.[1]?.trim() || "gramaire-notebook";
+  const name = response.value?.name ?? lastName.value ?? "gramaire-notebook";
   // pdf-lib's Uint8Array is typed against a generic ArrayBufferLike (permitting a
   // SharedArrayBuffer-backed view), which TS's DOM lib's BlobPart is stricter than — a real
   // Uint8Array is always a valid BlobPart at runtime, this is purely a type-level mismatch.

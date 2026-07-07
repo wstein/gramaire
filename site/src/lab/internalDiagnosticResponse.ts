@@ -34,5 +34,6 @@ export function internalErrorResponse(
     atn: null,
     allStarLowering: null,
     fences: [],
+    name: null,
   };
 }

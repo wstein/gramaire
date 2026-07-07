@@ -544,7 +544,14 @@ final case class LabResponse(
     evaluatorJs: Option[String] = None,
     atn: Option[AtnDiagnostics] = None,
     allStarLowering: Option[AllStarLowering] = None,
-    fences: Vector[FenceInfo] = Vector.empty
+    fences: Vector[FenceInfo] = Vector.empty,
+    // The grammar's own declared name (ADR D58: `Lr.nameOf`, frontmatter-first with a dual-read
+    // fallback to the deprecated fenced `name:` settings block) — `None` only when the grammar
+    // notation itself failed to parse (the `Left(diags)` branch above never has a `Grammar` to read
+    // a name from in the first place). The Notebook's own download-filename logic
+    // (`GramaireNotebookIsland.tsx`) consumes this instead of re-deriving it client-side by
+    // re-scanning the raw source text with its own regex.
+    name: Option[String] = None
 )
 
 object LabResponse:
@@ -573,7 +580,8 @@ object LabResponse:
         "allStarLowering" -> r.allStarLowering
           .map(AllStarLowering.toJson)
           .getOrElse(Json.JNull),
-        "fences" -> Json.JArray(r.fences.map(FenceInfo.toJson))
+        "fences" -> Json.JArray(r.fences.map(FenceInfo.toJson)),
+        "name" -> r.name.map(Json.JString.apply).getOrElse(Json.JNull)
       )
     )
 

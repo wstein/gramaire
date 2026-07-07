@@ -298,6 +298,37 @@ test("parseMarkdownLite: a %paper-font-scale directive is hidden even with a mal
   expect(parseMarkdownLite(md)).toEqual([]);
 });
 
+// Regression: the very bug report that motivated ADR D58's frontmatter — a leading `---
+// name: Calc\nlang: javascript\n---` block (now the first prose block's own text, per
+// document.ts's buildDocument) had no skip logic at all, so it rendered as one literal garbage
+// paragraph "--- name: Calc lang: javascript ---" ahead of the real prose in the Notebook, Paper
+// view, and PDF export (all three share this one parser).
+test("parseMarkdownLite: a leading --- frontmatter block is skipped entirely, not rendered as literal text", () => {
+  const md = ["---", "name: Calc", "lang: javascript", "---", "", "# Calc", "", "Some prose."].join(
+    "\n",
+  );
+  expect(parseMarkdownLite(md)).toEqual([
+    { tag: "h2", parts: [{ kind: "text", text: "Calc" }] },
+    { tag: "p", parts: [{ kind: "text", text: "Some prose." }] },
+  ]);
+});
+
+test("parseMarkdownLite: a --- that isn't the very first line is ordinary paragraph text", () => {
+  const md = ["Some prose first.", "", "---", "not frontmatter"].join("\n");
+  expect(parseMarkdownLite(md)).toEqual([
+    { tag: "p", parts: [{ kind: "text", text: "Some prose first." }] },
+    { tag: "p", parts: [{ kind: "text", text: "--- not frontmatter" }] },
+  ]);
+});
+
+test("parseMarkdownLite: an unterminated leading --- block (no closing ---) is left as literal text", () => {
+  const md = ["---", "name: Calc", "", "# Calc"].join("\n");
+  expect(parseMarkdownLite(md)).toEqual([
+    { tag: "p", parts: [{ kind: "text", text: "--- name: Calc" }] },
+    { tag: "h2", parts: [{ kind: "text", text: "Calc" }] },
+  ]);
+});
+
 test("leadingHeading: a lone heading is found at index 0", () => {
   const parsed = parseMarkdownLite("## Tokens");
   expect(leadingHeading(parsed)).toEqual({

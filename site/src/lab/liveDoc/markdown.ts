@@ -123,6 +123,17 @@ export function parseMarkdownLite(md: string): MdBlock[] {
   };
 
   let i = 0;
+  // A leading `---`-delimited YAML frontmatter block (ADR D58) — mirrors gramaire.Frontmatter's
+  // own "the opener must be the file's literal first line" rule server-side. Only ever present at
+  // the very start of the document's first prose block, so this is checked once, up front, not
+  // folded into the per-line loop below. Not parsed for its values here (no caller needs them,
+  // just GrammarMeta.name/lang server-side) — excluded from view exactly like the `<details>`/HTML
+  // comment skips further down, so it never renders as a literal "--- name: X lang: Y ---"
+  // paragraph in the Notebook, Paper view, or PDF export (all three share this one parser).
+  if (lines[0]?.trim() === "---") {
+    const closeIdx = lines.findIndex((l, idx) => idx > 0 && l.trim() === "---");
+    if (closeIdx > 0) i = closeIdx + 1;
+  }
   while (i < lines.length) {
     const line = lines[i].trim();
     if (!line) {

@@ -44,14 +44,15 @@ function fence(
 // ```gramaire fence's role and 1-based line span" test asserts LabApi.evaluate computes for this
 // same file. Hand-authored here (not computed via the engine) so this suite stays a fast, pure
 // unit test with no Scala.js build dependency; a drift between the two would mean calc.gram.md's
-// structure changed and only one of the two suites was updated.
+// structure changed and only one of the two suites was updated. `name`/`lang` now live in the
+// leading --- frontmatter block (ADR D58), outside the fence model entirely, so there's no
+// "settings" fence anymore — one fewer entry, and every fence after it shifts up an index.
 const calcFences: FenceInfo[] = [
-  fence(0, "settings", null, 9, 12),
-  fence(1, "tokens", null, 18, 21),
-  fence(2, "rule", "Expr", 32, 38),
-  fence(3, "rule", "Term", 51, 57),
-  fence(4, "rule", "Factor", 70, 75),
-  fence(5, "precedence", null, 83, 86),
+  fence(0, "tokens", null, 13, 16),
+  fence(1, "rule", "Expr", 27, 33),
+  fence(2, "rule", "Term", 46, 52),
+  fence(3, "rule", "Factor", 65, 70),
+  fence(4, "precedence", null, 78, 81),
 ];
 
 function readCalcMd(): string {
@@ -64,12 +65,11 @@ test("buildDocument: every fence block carries its kind/nonterminal/fenceIndex",
   const fenceBlocks = blocks.filter((b) => b.fenceIndex !== null);
   expect(fenceBlocks.map((b) => [b.kind, b.nonterminal, b.fenceIndex])).toEqual(
     [
-      ["settings", null, 0],
-      ["tokens", null, 1],
-      ["rule", "Expr", 2],
-      ["rule", "Term", 3],
-      ["rule", "Factor", 4],
-      ["precedence", null, 5],
+      ["tokens", null, 0],
+      ["rule", "Expr", 1],
+      ["rule", "Term", 2],
+      ["rule", "Factor", 3],
+      ["precedence", null, 4],
     ],
   );
 });
@@ -103,7 +103,7 @@ test("buildDocument produces prose blocks for the gaps between/around fences", (
 });
 
 test("buildDocument: no fences (native .gram) yields one prose block, still round-trips", () => {
-  const source = "%name Foo\n%lang javascript\n\nFoo\n: 'x'\n";
+  const source = "name: Foo\nlang: javascript\n\nFoo\n: 'x'\n";
   const blocks = buildDocument(source, []);
   expect(blocks).toMatchObject([
     { kind: "prose", text: source, nonterminal: null, fenceIndex: null },
@@ -120,7 +120,7 @@ test("buildDocument: no fences (native .gram) yields one prose block, still roun
 test("buildDocument: a prose gap's leading blank lines are stripped entirely", () => {
   const source = [
     "```gramaire",
-    "%name A",
+    "name: A",
     "```",
     "",
     "",
@@ -141,7 +141,7 @@ test("buildDocument: a prose gap's leading blank lines are stripped entirely", (
 test("buildDocument: a run of 2+ blank lines anywhere in a prose gap collapses to exactly 1", () => {
   const source = [
     "```gramaire",
-    "%name A",
+    "name: A",
     "```",
     "Intro.",
     "",
@@ -167,7 +167,7 @@ test("buildDocument: a run of 2+ blank lines anywhere in a prose gap collapses t
 test("buildDocument: a prose gap that's only blank lines collapses to an empty block, not a lone blank line", () => {
   const source = [
     "```gramaire",
-    "%name A",
+    "name: A",
     "```",
     "",
     "",
@@ -185,7 +185,7 @@ test("buildDocument: a prose gap that's only blank lines collapses to an empty b
 });
 
 test("buildDocument: the document's own leading blank lines (before the first fence) are stripped too", () => {
-  const source = ["", "", "# Title", "", "```gramaire", "%name A", "```"].join(
+  const source = ["", "", "# Title", "", "```gramaire", "name: A", "```"].join(
     "\n",
   );
   const fences: FenceInfo[] = [fence(0, "settings", null, 5, 7)];
@@ -215,7 +215,7 @@ test("buildDocument: normalizing already-normalized prose text is a no-op (idemp
   const once = buildDocument(
     [
       "```gramaire",
-      "%name A",
+      "name: A",
       "```",
       "",
       "",
@@ -263,14 +263,14 @@ test("buildDocument: passing `prev` carries a block's id forward when its span i
 test("buildDocument: passing `prev` mints a fresh id for a block whose span has no match in `prev`", () => {
   const source = [
     "```gramaire",
-    "%name A",
+    "name: A",
     "```",
     "```gramaire",
     "TOK : /x/",
     "```",
   ].join("\n");
   const prevFences: FenceInfo[] = [fence(0, "settings", null, 1, 3)];
-  const prev = buildDocument("```gramaire\n%name A\n```", prevFences);
+  const prev = buildDocument("```gramaire\nname: A\n```", prevFences);
 
   const nextFences: FenceInfo[] = [
     fence(0, "settings", null, 1, 3),
@@ -288,7 +288,7 @@ test("buildDocument: passing `prev` mints a fresh id for a block whose span has 
 test("buildDocument: adjacent fences with no gap produce no spurious empty prose block", () => {
   const source = [
     "```gramaire",
-    "%name A",
+    "name: A",
     "```",
     "```gramaire",
     "TOK : /x/",
