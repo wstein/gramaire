@@ -835,6 +835,52 @@ test("a rule's railroad diagram has an accessible name for screen readers", asyn
   await expect(railroad).toHaveAttribute("aria-label", /Railroad diagram for/);
 });
 
+// Factor's own rule (`'(' Expr ')' | NUMBER`) references Expr — clicking that nonterminal node in
+// Factor's diagram should navigate to Expr's own cell, the same "jump to that rule" affordance the
+// outline sidebar already has, now reachable from inside a diagram too (railroad-renderer-roadmap's
+// "nonterminal boxes link to their rule anchors" phase).
+test("clicking a nonterminal node in a rule's railroad diagram scrolls to that rule's own cell", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const exprCell = page.locator('.gramaire__cell[data-nonterminal="Expr"]');
+  const factorCell = page.locator('.gramaire__cell[data-nonterminal="Factor"]');
+
+  // Scroll down to Factor — Expr, much earlier in the document, is no longer in view.
+  await factorCell.scrollIntoViewIfNeeded();
+  await expect(exprCell).not.toBeInViewport();
+
+  const exprNode = factorCell.locator(
+    'g.rr-node-nonterm[data-rr-label="Expr"]',
+  );
+  await expect(exprNode).toBeVisible();
+  await exprNode.click();
+  await expect(exprCell).toBeInViewport();
+
+  // Navigating away must not ALSO open Factor's own editor — the click is a navigation aid, not
+  // this cell's own "click to edit" activation (bindRailroadNodeNav's stopPropagation).
+  await expect(factorCell.locator(".cm-content")).toHaveCount(0);
+});
+
+test("a nonterminal node in a railroad diagram is keyboard-focusable and activates with Enter", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const exprCell = page.locator('.gramaire__cell[data-nonterminal="Expr"]');
+  const factorCell = page.locator('.gramaire__cell[data-nonterminal="Factor"]');
+
+  await factorCell.scrollIntoViewIfNeeded();
+  await expect(exprCell).not.toBeInViewport();
+
+  const exprNode = factorCell.locator(
+    'g.rr-node-nonterm[data-rr-label="Expr"]',
+  );
+  await exprNode.focus();
+  await page.keyboard.press("Enter");
+  await expect(exprCell).toBeInViewport();
+  await expect(factorCell.locator(".cm-content")).toHaveCount(0);
+});
+
 // Regression: a rule's own FIRST/FOLLOW used to render as one plain-text, space-joined string
 // (`{ \`(\` \`NUMBER\` }`) — hard to scan once a FOLLOW set has more than a couple of tokens, and
 // visually inconsistent with the Generated-tables table's own per-token styling a few scrolls

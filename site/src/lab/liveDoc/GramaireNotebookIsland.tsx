@@ -37,6 +37,7 @@ import { parseMarkdownLite, leadingHeading } from "./markdown";
 import type { MdBlock, MdInline } from "./markdown";
 import { MarkdownBlocks, MarkdownHeading } from "./MarkdownBlock";
 import { SymbolChip } from "../symbolDisplay";
+import { bindRailroadNodeNav } from "../railroadNav";
 import { buildPaperPdf } from "./paperPdf";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
 import type { EditorDiagnostic } from "./CodeMirrorEditor";
@@ -387,6 +388,17 @@ function jumpToCell(index: number) {
 // jumpToCell): the outline is a reading/navigation aid, not another way to trigger editing.
 function jumpToOutlineEntry(index: number) {
   scrollToCell(index);
+}
+
+// A railroad diagram's nonterminal node names a rule, not a block index — the diagram itself has
+// no idea which cell that rule currently lives in (cells can be added/removed/reordered), so this
+// resolves the label to its cell the same way the outline sidebar's own entries do, then scrolls
+// only, matching jumpToOutlineEntry's own "reading aid, not an editor trigger" rule.
+function jumpToRule(label: string) {
+  const index = blocks.value.findIndex(
+    (b) => b.kind === "rule" && b.nonterminal === label,
+  );
+  if (index >= 0) scrollToCell(index);
 }
 
 // Returns focus to the cell a just-closed editor belongs to (Save/Cancel/Escape/blur-commit all
@@ -1136,6 +1148,36 @@ function CellDiagnostics({ diags }: { diags: DiagnosticInfo[] }) {
   );
 }
 
+// The SVG is server-rendered by Railroad.renderSvg from the grammar this same notebook is
+// editing — the same trust boundary as the grammar source itself. dangerouslySetInnerHTML content
+// starts out fully inert, so nonterminal-node navigation is (re)bound in a useEffect keyed on
+// `svg` (every edit/re-evaluation swaps the markup, detaching any previous binding). Clicking or
+// activating a nonterminal node scrolls to that rule's own cell — the same "reading aid, not an
+// editor trigger" behavior as the outline sidebar (jumpToRule/jumpToOutlineEntry share that rule).
+function CellRailroadSvg({
+  svg,
+  nonterminal,
+}: {
+  svg: string;
+  nonterminal: string | null;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    return bindRailroadNodeNav(el, { onSelect: jumpToRule });
+  }, [svg]);
+  return (
+    <div
+      class="gramaire__output-railroad"
+      role="img"
+      aria-label={`Railroad diagram for ${nonterminal}`}
+      ref={ref}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
+
 function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
   const isEditing = editingCell.value === index;
   const myAttributed = attributedDiagnostics.value.filter(
@@ -1231,12 +1273,7 @@ function GrammarCell({ index, block }: { index: number; block: DocBlock }) {
               class={`gramaire__output${isStale ? " gramaire__output--stale" : ""}`}
             >
               {svg && (
-                <div
-                  class="gramaire__output-railroad"
-                  role="img"
-                  aria-label={`Railroad diagram for ${block.nonterminal}`}
-                  dangerouslySetInnerHTML={{ __html: svg }}
-                />
+                <CellRailroadSvg svg={svg} nonterminal={block.nonterminal} />
               )}
               {ff && (
                 <div class="gramaire__output-ff">

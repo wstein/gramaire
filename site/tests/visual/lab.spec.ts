@@ -757,6 +757,29 @@ test("hovering/clicking a nonterminal box in the railroad diagram cross-links th
   );
 });
 
+test("a nonterminal box in the railroad diagram is keyboard-focusable and activates with Enter", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  await page.click('button[role="tab"]:has-text("Grammar analysis")');
+  await page.waitForSelector(".lab__railroad-svg svg");
+
+  // The default grammar's Expr/Term/Factor each get their own diagram on this tab, and Term
+  // appears as a nonterminal reference in more than one of them — any one instance activates the
+  // same rule, so the first match is enough.
+  const termNode = page
+    .locator('.lab__railroad-svg g.rr-node-nonterm[data-rr-label="Term"]')
+    .first();
+  await expect(termNode).toHaveAttribute("role", "button");
+  await termNode.focus();
+  await page.keyboard.press("Enter");
+
+  const ruleTabs = page.locator(".lab__panel .lab__tabs").last();
+  await expect(ruleTabs.locator('button[aria-selected="true"]')).toHaveText(
+    "Term",
+  );
+});
+
 test("the Parse trace tab splits its trace from controls, stack, and remaining input", async ({
   page,
 }) => {

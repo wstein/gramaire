@@ -43,9 +43,15 @@ the committed artifacts while giving later phases a stable internal layer.
   runtime dependencies. The first shipped step is deterministic wrapping for
   long single-path simplified-view SVG sequences.
 3. Add semantic affordances such as per-node titles and source-aware links.
-  The first shipped step is grouped SVG node metadata plus hover titles,
-  with live-site nonterminal links and token-definition annotations built from
-  that structure.
+  The first shipped step is grouped SVG node metadata plus hover titles.
+  Live-site nonterminal links are now built from that same `<g class="rr-node
+  rr-node-nonterm" data-rr-kind="..." data-rr-label="...">` structure, shared
+  by both islands via `site/src/lab/railroadNav.ts`: the Lab's existing
+  hover/click cross-highlight binds to it directly (no more querying
+  `rect.rr-nonterm` and its text sibling separately), and the Notebook — which
+  had no diagram interactivity at all — now gets the same click/keyboard
+  "jump to that rule's cell" affordance the outline sidebar already had.
+  Token-definition hover annotations remain unbuilt.
 4. Add explicit normalization passes behind non-default views. The first
   shipped step (`DiagramNormalize.simplify`) recognizes two safe idioms —
   optional tails and direct-left-recursive repetition chains — and always

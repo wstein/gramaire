@@ -25,6 +25,7 @@ import { DEFAULT_SOURCE, DEFAULT_INPUT, EXAMPLES } from "./examples";
 import type { LabExample } from "./examples";
 import { internalErrorResponse } from "./internalDiagnosticResponse";
 import { SymbolChips, symbolsEqual } from "./symbolDisplay";
+import { bindRailroadNodeNav } from "./railroadNav";
 import "./lab.css";
 
 // Tier 0/1 v1 slice (docs/playground-spec.md §6) was Result, Tokens, Parse
@@ -1667,41 +1668,21 @@ function AtnDiagnosticsPanel() {
 // The SVG is server-rendered by Railroad.renderSvg from the grammar the user is already editing in
 // this same tab — the same trust boundary as the grammar source itself, not third-party or
 // cross-origin content. dangerouslySetInnerHTML content isn't part of Preact's vdom, so it starts
-// out fully inert; this re-queries and re-binds listeners in a useEffect keyed on `svg` (every
+// out fully inert; this re-binds via bindRailroadNodeNav in a useEffect keyed on `svg` (every
 // grammar edit/rule switch swaps the markup, so the previous binding would otherwise dangle on
-// detached nodes). Only nonterminal boxes (rect.rr-nonterm, paired with the rr-text sibling
-// Railroad.scala always emits right after it) are interactive — hovering one reuses the exact same
-// hoverRule mechanism a tree node's rule header does (same editor cross-highlight), and clicking
-// one jumps the rule-tab selector to that rule's own diagram.
+// detached nodes). Hovering a nonterminal node reuses the exact same hoverRule mechanism a tree
+// node's rule header does (same editor cross-highlight), and clicking/activating one jumps the
+// rule-tab selector to that rule's own diagram.
 function RailroadSvg({ svg }: { svg: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const cleanups: Array<() => void> = [];
-    el.querySelectorAll<SVGRectElement>("rect.rr-nonterm").forEach((rect) => {
-      const text = rect.nextElementSibling as SVGTextElement | null;
-      const label = text?.textContent;
-      if (!label) return;
-      const onEnter = () => (hoverRule.value = label);
-      const onLeave = () => (hoverRule.value = null);
-      const onClick = () => (selectedRule.value = label);
-      // Both the rect AND its text sibling need listeners — the text paints on top of the rect
-      // (later SVG siblings paint over earlier ones), so a click at the box's visual center hits
-      // whichever of the two is frontmost, not necessarily the rect a listener was attached to.
-      for (const target of [rect, text]) {
-        target.style.cursor = "pointer";
-        target.addEventListener("mouseenter", onEnter);
-        target.addEventListener("mouseleave", onLeave);
-        target.addEventListener("click", onClick);
-        cleanups.push(() => {
-          target.removeEventListener("mouseenter", onEnter);
-          target.removeEventListener("mouseleave", onLeave);
-          target.removeEventListener("click", onClick);
-        });
-      }
+    return bindRailroadNodeNav(el, {
+      onEnter: (label) => (hoverRule.value = label),
+      onLeave: () => (hoverRule.value = null),
+      onSelect: (label) => (selectedRule.value = label),
     });
-    return () => cleanups.forEach((c) => c());
   }, [svg]);
   return (
     <div
