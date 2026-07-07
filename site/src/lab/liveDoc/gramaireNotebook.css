@@ -1164,9 +1164,6 @@
   font-size: 0.9em;
 }
 
-/* A numbered figure — the one place Paper still shows a diagram, same railroad SVG source
-   (analysis.railroad[nonterminal]) every other view already renders, just captioned like a
-   real book figure instead of sitting bare beside a click-to-edit cell. */
 /* PaperSymbolSetHeader's T = {...} / N = {...} / start = ... summary — monospace and compact,
    deliberately reading as reference-document metadata rather than prose, with a rule beneath it
    separating it from the figures that follow. */
@@ -1182,7 +1179,18 @@
 .gramaire__paper-symbolset p {
   margin: 0.2em 0;
 }
+/* SymbolChip's `[data-kind]` coloring (../symbolDisplay.tsx) — same duplication-not-import
+   reasoning as `.gramaire__paper-productions .lab__table` below. */
+.gramaire__paper-symbolset code[data-kind="literal"] {
+  color: var(--t-op);
+}
+.gramaire__paper-symbolset code[data-kind="token"] {
+  color: var(--t-term);
+}
 
+/* A numbered figure — the one place Paper still shows a diagram, same railroad SVG source
+   (analysis.railroad[nonterminal]) every other view already renders, just captioned like a
+   real book figure instead of sitting bare beside a click-to-edit cell. */
 .gramaire__paper-figure {
   margin: 2em 0;
   padding: 0;
@@ -1198,4 +1206,57 @@
   font-style: italic;
   color: var(--fg-muted);
   text-align: center;
+}
+
+/* PaperProductionsSection — the flattened BNF-style production list closing out the document as a
+   numbered appendix, set off from the figures above it by a rule, matching .gramaire__paper-figure's
+   own font/sizing conventions but in the table's own monospace (ProductionsTable, shared with the
+   Lab's Lowered Core tab). */
+.gramaire__paper-productions {
+  margin-top: 3em;
+  padding-top: 1.5em;
+  border-top: 1px solid var(--border);
+}
+.gramaire__paper-productions-caption {
+  font-family: var(--font-ui);
+  font-size: calc(13px * var(--paper-font-scale, 1));
+  font-style: italic;
+  color: var(--fg-muted);
+  margin: 0.5em 0 1.5em;
+}
+/* ProductionsTable's own `.lab__table` markup (shared with the Lab, ../productionsTable.tsx) has
+   no styling of its own on this page — lab.css (which defines it) isn't loaded here, matching this
+   codebase's existing per-surface-duplication convention rather than importing that whole
+   stylesheet (see this file's own `.gramaire__output-ff-chips code[data-kind]` rules a few hundred
+   lines down, a deliberate duplicate of lab.css's `.lab__table td code[data-kind]` for the exact
+   same reason). Scoped to `.gramaire__paper-productions` — this table only ever appears there. */
+.gramaire__paper-productions .lab__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(12px * var(--paper-font-scale, 1));
+}
+.gramaire__paper-productions .lab__table th {
+  text-align: left;
+  font-family: var(--font-ui);
+  font-size: calc(11px * var(--paper-font-scale, 1));
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  padding: 4px 10px 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.gramaire__paper-productions .lab__table td {
+  padding: 4px 10px 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.gramaire__paper-productions .lab__table td code[data-kind="literal"] {
+  color: var(--t-op);
+}
+.gramaire__paper-productions .lab__table td code[data-kind="token"] {
+  color: var(--t-term);
+}
+.gramaire__paper-productions .lab__table td code[data-kind="nonterminal"] {
+  color: var(--t-nonterm);
+}
+.gramaire__paper-productions .lab__table td code[data-kind="eof"] {
+  color: var(--fg-muted);
 }

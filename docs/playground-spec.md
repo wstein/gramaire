@@ -111,8 +111,20 @@ a thin skin over real machinery, never a mock.
 > own `nonterminals`/`start`, `classifyTerminals`'s terminal-kind map), no
 > new engine work. The Notebook's Paper view reuses the exact same
 > `analysis` data for the same summary, once per document above its first
-> figure — no second request, no second computation. Keep this callout
-> current as further work lands.
+> figure — no second request, no second computation. `ProductionsTable`
+> (the Lab's Lowered Core tab) then moved to a shared module
+> (`site/src/lab/productionsTable.tsx`, an optional `onHoverRule` callback
+> in place of directly poking the Lab-only `hoverRule` signal) so the
+> Notebook's Paper view could reuse it too, closing the document as a
+> numbered "Appendix: grammar productions" section with a caption noting
+> Gramaire is epsilon-free by design — optionality is enumerated into
+> concrete alternatives, never an explicit `ε` production, unlike the
+> classic BNF convention the wiki-style framing otherwise matches. No new
+> engine work; `gramaireNotebook.css` duplicates (not imports) `lab.css`'s
+> `.lab__table`/`code[data-kind]` rules for it, matching this file's own
+> existing per-surface-duplication convention (`.gramaire__output-ff-chips
+> code[data-kind]`, the FIRST/FOLLOW chips' identical pattern). Keep this
+> callout current as further work lands.
 
 ---
 

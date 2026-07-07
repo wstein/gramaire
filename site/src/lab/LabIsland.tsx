@@ -27,6 +27,7 @@ import { DEFAULT_SOURCE, DEFAULT_INPUT, EXAMPLES } from "./examples";
 import type { LabExample } from "./examples";
 import { internalErrorResponse } from "./internalDiagnosticResponse";
 import { SymbolChips, symbolsEqual } from "./symbolDisplay";
+import { ProductionsTable } from "./productionsTable";
 import { bindRailroadNodeNav } from "./railroadNav";
 import "./lab.css";
 
@@ -1462,35 +1463,6 @@ function AllParsesPanel() {
   );
 }
 
-function ProductionsTable({ productions }: { productions: ProductionInfo[] }) {
-  return (
-    <table class="lab__table">
-      <thead>
-        <tr>
-          <th>lhs</th>
-          <th>rhs</th>
-          <th>action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {productions.map((p: ProductionInfo, i: number) => (
-          <tr
-            key={i}
-            onMouseEnter={() => (hoverRule.value = p.lhs)}
-            onMouseLeave={() => (hoverRule.value = null)}
-          >
-            <td class="lab__mono">{p.lhs}</td>
-            <td class="lab__mono">
-              {p.rhs.length ? <SymbolChips symbols={p.rhs} /> : "ε"}
-            </td>
-            <td class="lab__mono">{p.action ?? ""}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
 // Whether two production lists are the grammar-structurally same (same lhs/rhs/action in the same
 // order) — used to decide whether a rewrite stage actually changed anything worth showing, not to
 // deep-diff row by row for display.
@@ -1527,7 +1499,10 @@ function LoweredCorePanel() {
     <div>
       <div class="lab__analysis-section">
         <div class="lab__analysis-heading">desugared productions</div>
-        <ProductionsTable productions={productions} />
+        <ProductionsTable
+          productions={productions}
+          onHoverRule={(name) => (hoverRule.value = name)}
+        />
       </div>
 
       {showPrecedence && (
@@ -1540,7 +1515,10 @@ function LoweredCorePanel() {
             the ALL(*) engine — LR/GLR resolve the same ambiguity directly in
             their tables instead, without this rewrite.
           </p>
-          <ProductionsTable productions={lowering.afterPrecedence} />
+          <ProductionsTable
+            productions={lowering.afterPrecedence}
+            onHoverRule={(name) => (hoverRule.value = name)}
+          />
         </div>
       )}
 
@@ -1555,7 +1533,10 @@ function LoweredCorePanel() {
             parse the rule above directly, bottom-up, and never need this
             rewrite.
           </p>
-          <ProductionsTable productions={lowering.afterLeftRecursion} />
+          <ProductionsTable
+            productions={lowering.afterLeftRecursion}
+            onHoverRule={(name) => (hoverRule.value = name)}
+          />
         </div>
       )}
     </div>

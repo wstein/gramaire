@@ -1228,6 +1228,29 @@ test("Paper shows a T = {...} / N = {...} / start = ... symbol-set header, reusi
   await expect(header).toHaveCount(1);
 });
 
+test("Paper closes with a grammar-productions appendix, reusing the Lab's own ProductionsTable", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  await viewToggleButton(page, "Paper").click();
+
+  const appendix = page.locator(".gramaire__paper-productions");
+  await expect(appendix).toBeVisible();
+  await expect(appendix).toHaveCount(1);
+  await expect(appendix.locator("h2")).toHaveText(
+    "Appendix: grammar productions",
+  );
+  // The epsilon-free-by-design caption — the deliberate divergence from the wiki-style BNF
+  // convention this feature was otherwise modeled on.
+  await expect(appendix).toContainText("epsilon-free by design");
+
+  // Same production rows the Lab's Lowered Core tab renders for the same grammar (Expr/Term/
+  // Factor, calc-js example: 3 Expr alts + 3 Term alts + 2 Factor alts = 8 rows).
+  const rows = appendix.locator(".lab__table tbody tr");
+  await expect(rows).toHaveCount(8);
+  await expect(rows.first()).toContainText("Expr");
+});
+
 test("Paper is fully read-only — nothing in it is clickable/editable, unlike every other view", async ({
   page,
 }) => {

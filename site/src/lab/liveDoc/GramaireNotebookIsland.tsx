@@ -38,6 +38,7 @@ import { parseMarkdownLite, leadingHeading } from "./markdown";
 import type { MdBlock, MdInline } from "./markdown";
 import { MarkdownBlocks, MarkdownHeading } from "./MarkdownBlock";
 import { SymbolChip, SymbolChips } from "../symbolDisplay";
+import { ProductionsTable } from "../productionsTable";
 import { bindRailroadNodeNav } from "../railroadNav";
 import { buildPaperPdf } from "./paperPdf";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
@@ -135,6 +136,11 @@ const diagPanelCollapsed = signal(false);
 // analysis lets untouched cells keep showing their (now stale) railroad/FIRST-FOLLOW, dimmed and
 // labelled, so only the actually-broken cell loses its rendered view (Layer 2).
 const lastAnalysis = signal<GrammarAnalysis | null>(null);
+// The last NON-null LabResponse.productions, for the same reason as `lastAnalysis` — Paper's
+// production-list section (PaperProductionsSection) shouldn't blank out during a transient
+// broken-notation edit either. Same null-lifecycle as `analysis` (protocol.ts's own doc comment on
+// `productions`: "Present whenever the grammar notation parsed... independent of buildOk").
+const lastProductions = signal<ProductionInfo[] | null>(null);
 // The last NON-null LabResponse.name (ADR D58), for the exact same reason as `lastAnalysis`: an
 // edit that breaks the grammar notation entirely (so `name` comes back null too) shouldn't make
 // the download filename regress to the generic fallback while the user fixes a typo.
@@ -218,6 +224,11 @@ function commitSourceEdit() {
 effect(() => {
   const a = response.value?.analysis;
   if (a) lastAnalysis.value = a;
+});
+// Retain the most recent NON-null productions (see `lastProductions`). Reacts only to `response`.
+effect(() => {
+  const p = response.value?.productions;
+  if (p) lastProductions.value = p;
 });
 // Retain the most recent NON-null name (see `lastName`). Reacts only to `response`.
 effect(() => {
@@ -2264,6 +2275,30 @@ function PaperSymbolSetHeader({ hasRuleBlocks }: { hasRuleBlocks: boolean }) {
   );
 }
 
+// The BNF-style flattened production list — the same ProductionsTable the Lab's Lowered Core tab
+// already renders, reused (not reimplemented) here as a numbered appendix section closing out the
+// document. Gated on `hasRuleBlocks` for the same reason PaperSymbolSetHeader is.
+function PaperProductionsSection({
+  hasRuleBlocks,
+}: {
+  hasRuleBlocks: boolean;
+}) {
+  const productions = response.value?.productions ?? lastProductions.value;
+  if (!hasRuleBlocks || !productions || productions.length === 0) return null;
+  return (
+    <section class="gramaire__paper-productions">
+      <h2>Appendix: grammar productions</h2>
+      <p class="gramaire__paper-productions-caption">
+        Every flattened production of the desugared grammar. Gramaire is
+        epsilon-free by design — optionality is enumerated into concrete
+        alternatives rather than an explicit <code>ε</code> production, unlike
+        the classic BNF convention.
+      </p>
+      <ProductionsTable productions={productions} />
+    </section>
+  );
+}
+
 function PaperView() {
   let ruleCount = 0;
   // The document's own `%paper-font-scale` directive (document.ts's `paperFontScale`) — an inline
@@ -2290,6 +2325,9 @@ function PaperView() {
           />
         );
       })}
+      <PaperProductionsSection
+        hasRuleBlocks={paperBlocks.some((b) => b.kind === "rule")}
+      />
     </div>
   );
 }
