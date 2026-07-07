@@ -532,7 +532,11 @@ class ConvertAntlrSuite extends munit.FunSuite:
                 // (`DIGIT_plus`) legitimately still contains the substring, in its own D62
                 // `@gramaire-name` marker, which isn't what this assertion is about.
                 assert(
-                  !"(?<![A-Z_])DIGIT(?![A-Za-z_])".r.findFirstIn(g4b).isDefined,
+                  // A non-lookbehind rewrite of `(?<![A-Z_])DIGIT(?![A-Za-z_])`: Scala.js's default
+                  // ES version has no lookbehind support (`PatternSyntaxException` under coreJS),
+                  // so the "not preceded by A-Z/_" check is a real, consuming alternation
+                  // (start-of-string or one non-A-Z_ char) instead of a zero-width assertion.
+                  !"(?:^|[^A-Z_])DIGIT(?![A-Za-z_])".r.findFirstIn(g4b).isDefined,
                   s"no parser rule may still reference the internal ALL-CAPS name once the lexer rule itself renders under its native spelling, got:\n$g4b"
                 )
                 assert(
