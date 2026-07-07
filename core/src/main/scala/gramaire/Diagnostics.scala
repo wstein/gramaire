@@ -16,17 +16,26 @@ object Diagnostics:
     */
   private def isNonterminalName(name: String): Boolean = name.toUpperCase != name
 
-  /** Names referenced as nonterminals but never defined by a rule. */
-  def undefinedNonterminals(g: Grammar): Vector[String] =
+  /** Names referenced as nonterminals but never defined by a rule, plus (when the document declares
+    * at least one token class of its own) ALL-CAPS names referenced but never declared in its `##
+    * Tokens` block. `declaredTokens` is the real, parsed set of that block's own names — ground
+    * truth, not a spelling guess. An empty `declaredTokens` means the document has no `## Tokens`
+    * block at all (lexer-spec.md §6's "block-level external mode": the whole scanner, ALL-CAPS
+    * names included, is supplied out of band), so an ALL-CAPS reference can't be checked against
+    * anything local and is left alone, exactly as before.
+    */
+  def undefinedNonterminals(g: Grammar, declaredTokens: Set[String] = Set.empty): Vector[String] =
     val defined = Table.nontermSet(g)
-    def undefined(name: String): Boolean = isNonterminalName(name) && !defined.contains(name)
+    def undefined(name: String): Boolean =
+      if isNonterminalName(name) then !defined.contains(name)
+      else declaredTokens.nonEmpty && !declaredTokens.contains(name)
     g.rules.flatMap(_.alts.flatMap(_.syms.flatMap(Sym.refs))).filter(undefined).distinct
 
-  // Every ALL-CAPS name referenced anywhere in the grammar — a proxy for "declared token classes"
-  // (the grammar has no separate token-class list of its own; `checkDefined` only ever sees the
-  // parsed `Grammar`, not the `## Tokens` block). Used for the case-insensitive did-you-mean: an
-  // author who typed `Number` almost certainly meant the token class `NUMBER`, and `NUMBER` being
-  // ALL-CAPS means it was never flagged as undefined itself.
+  // Every ALL-CAPS name referenced anywhere in the grammar — the pre-D60 proxy for "declared token
+  // classes", kept only as the did-you-mean fallback for a document with no `## Tokens` block at all
+  // (so no real declared set exists to suggest from). An author who typed `Number` almost certainly
+  // meant the token class `NUMBER`, and `NUMBER` being ALL-CAPS means it was never flagged as
+  // undefined itself.
   private def terminalLikeRefs(g: Grammar): Vector[String] =
     g.rules
       .flatMap(_.alts.flatMap(_.syms.flatMap(Sym.refs)))
@@ -59,37 +68,53 @@ object Diagnostics:
       .headOption
       .map(_._1)
 
-  // A `help:` suggestion for an undefined name: a case-insensitive match against a token class
-  // first (the casing-convention footgun — `Number` meaning `NUMBER`), else the closest defined
-  // rule name within a tight edit-distance budget.
+  // A `help:` suggestion for an undefined name. A bad mixed-case name (undefined nonterminal) tries
+  // a case-insensitive token-class match first (the casing-convention footgun — `Number` meaning
+  // `NUMBER`), else the closest defined rule name; a bad ALL-CAPS name (undefined token class, only
+  // reachable when the document declares at least one token of its own) suggests the nearest
+  // declared token instead — a rule name would never be the right suggestion there.
   private def didYouMean(
       bad: String,
       ruleNames: Vector[String],
       termNames: Vector[String]
   ): Option[String] =
-    termNames.find(_.equalsIgnoreCase(bad)) match
-      case Some(t) => Some(s"help: did you mean the token class `$t`? (token classes are ALL-CAPS)")
-      case None    => nearestMatch(bad, ruleNames).map(n => s"help: did you mean `$n`?")
+    if isNonterminalName(bad) then
+      termNames.find(_.equalsIgnoreCase(bad)) match
+        case Some(t) =>
+          Some(s"help: did you mean the token class `$t`? (token classes are ALL-CAPS)")
+        case None => nearestMatch(bad, ruleNames).map(n => s"help: did you mean `$n`?")
+    else nearestMatch(bad, termNames).map(n => s"help: did you mean the token class `$n`?")
 
-  /** Reject a grammar that references an undefined nonterminal — one diagnostic per reference site
-    * (via `spans`, if given), each naming the symbol and, where a close match exists, suggesting
-    * one.
+  /** Reject a grammar that references an undefined nonterminal, or (when `declaredTokens` is
+    * non-empty) an ALL-CAPS token class never declared in the document's own `## Tokens` block —
+    * one diagnostic per reference site (via `spans`, if given), each naming the symbol and, where a
+    * close match exists, suggesting one.
     */
   def checkDefined(
       g: Grammar,
-      spans: SpanIndex = SpanIndex.empty
+      spans: SpanIndex = SpanIndex.empty,
+      declaredTokens: Set[String] = Set.empty
   ): Either[Vector[Diagnostic], Grammar] =
-    undefinedNonterminals(g) match
+    undefinedNonterminals(g, declaredTokens) match
       case Vector() => Right(g)
       case bad =>
         val ruleNames = Table.nontermSet(g).toVector.sorted
-        val termNames = terminalLikeRefs(g)
+        val termNames =
+          if declaredTokens.nonEmpty then declaredTokens.toVector.sorted else terminalLikeRefs(g)
         def diagsFor(name: String): Vector[Diagnostic] =
-          val notes = Vector(
-            "note: a mixed-case name must be defined by some rule (an ALL-CAPS name is a lexer token class)"
-          ) ++ didYouMean(name, ruleNames, termNames).toVector
+          val (msg, baseNote) =
+            if isNonterminalName(name) then
+              (
+                s"undefined nonterminal `$name`",
+                "note: a mixed-case name must be defined by some rule (an ALL-CAPS name is a lexer token class)"
+              )
+            else
+              (
+                s"undefined token class `$name`",
+                "note: an ALL-CAPS name must be declared in this document's own `## Tokens` block"
+              )
+          val notes = Vector(baseNote) ++ didYouMean(name, ruleNames, termNames).toVector
           val occurrences = spans.identSpans.getOrElse(name, Vector.empty)
-          val msg = s"undefined nonterminal `$name`"
           if occurrences.isEmpty then Vector(Diagnostic.error(Stage.Resolve, msg, None, notes))
           else occurrences.map(sp => Diagnostic.error(Stage.Resolve, msg, Some(sp), notes))
         Left(bad.flatMap(diagsFor))

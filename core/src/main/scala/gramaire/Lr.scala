@@ -883,12 +883,22 @@ object Lr:
       case Left(diags) => Left(diags)
       case Right((g, normalized)) =>
         val spans = SpanIndex.build(normalized)
+        // The document's own declared token classes (ADR D60) — real ground truth for
+        // `checkDefined`'s undeclared-token check, not a spelling guess. Empty when the document has
+        // no `## Tokens` block at all (whole-grammar external-mode lexing, lexer-spec.md §6), which
+        // leaves an ALL-CAPS reference unchecked exactly as before.
+        val declaredTokens: Set[String] =
+          tokensContentOf(md)
+            .flatMap(Tokens.parseTokens(_).toOption)
+            .getOrElse(Vector.empty)
+            .map(_.name)
+            .toSet
         Desugar.desugar(g) match
           case Left(msg) =>
             Left(
               Vector(Diagnostic.error(Stage.Desugar, msg, SpanIndex.spanFromMessage(msg, spans)))
             )
-          case Right(g2) => Diagnostics.checkDefined(g2, spans)
+          case Right(g2) => Diagnostics.checkDefined(g2, spans, declaredTokens)
 
   /** Parse using canonical LR(1) tables, rendering any diagnostics to plain text — the stable
     * `Either[String, Grammar]` shape most callers (the conformance suite, self-hosting loop, CLI
@@ -982,8 +992,9 @@ object Lr:
           )
 
   // A declared, non-`-> skip` token class no rule ever references by name — almost always a typo'd
-  // reference (the intended rule then silently resolves the misspelled name as a phantom terminal,
-  // per `Diagnostics.checkDefined`'s own ALL-CAPS carve-out) or a leftover declaration.
+  // reference (paired with `checkDefined`'s own complementary "undefined token class" diagnostic on
+  // the misspelled reference itself, ADR D60, once the document declares at least one token) or a
+  // leftover declaration.
   private def unusedTokenWarnings(md: String, g: Grammar): Vector[Diagnostic] =
     tokensContentOf(md) match
       case None => Vector.empty

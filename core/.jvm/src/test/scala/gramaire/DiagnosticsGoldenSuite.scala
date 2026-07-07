@@ -71,7 +71,9 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
         )
   }
 
-  test("parse error: a missing rule-head newline is located, with an expected-token note") {
+  test(
+    "parse error: two bare identifiers with no ':' at all is located, with an expected-token note"
+  ) {
     val md = """# Broken
       |
       |## Foo
@@ -92,6 +94,20 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
             |        ^^^
             |  note: expected one of: a newline""".stripMargin
         )
+  }
+
+  test("a single-line rule head (no newline before ':') is no longer a parse error (D59)") {
+    val md = """# Ok
+      |
+      |## Foo
+      |
+      |```gramaire
+      |Foo : 'x' ;
+      |```
+      |""".stripMargin
+    Lr.parseWith(Method.Canonical, md) match
+      case Left(diags) => fail(s"expected a clean parse, got: $diags")
+      case Right(g)    => assertEquals(g.rules.map(_.name), Vector("Foo"))
   }
 
   test("undefined nonterminal: one diagnostic per reference site, with a did-you-mean") {
@@ -135,6 +151,59 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
               |  help: did you mean `Factor`?""".stripMargin
           )
         )
+  }
+
+  test(
+    "undefined token class: an ALL-CAPS reference not declared in the document's own Tokens block (D60)"
+  ) {
+    val md = """# Calc
+      |
+      |## Tokens
+      |
+      |```gramaire
+      |NUMBER : /[0-9]+/ ;
+      |```
+      |
+      |## Factor
+      |
+      |```gramaire
+      |Factor
+      |: NUMBR
+      |;
+      |```
+      |""".stripMargin
+    Lr.parseWith(Method.Canonical, md) match
+      case Right(_) => fail("expected an undefined-token-class diagnostic")
+      case Left(diags) =>
+        assertEquals(diags.length, 1)
+        assertEquals(
+          Diagnostic.render(diags.head, "calc.gram.md", Lr.toFenced(md)),
+          """error: undefined token class `NUMBR`
+            |  --> calc.gram.md:13:3
+            |    : NUMBR
+            |      ^^^^^
+            |  note: an ALL-CAPS name must be declared in this document's own `## Tokens` block
+            |  help: did you mean the token class `NUMBER`?""".stripMargin
+        )
+  }
+
+  test(
+    "an ALL-CAPS reference with no ## Tokens block at all is unchecked (whole-grammar external mode)"
+  ) {
+    val md = """# Calc
+      |
+      |## Factor
+      |
+      |```gramaire
+      |Factor
+      |: NUMBR
+      |;
+      |```
+      |""".stripMargin
+    Lr.parseWith(Method.Canonical, md) match
+      case Left(diags) =>
+        fail(s"expected a clean parse (no local Tokens block to check against), got: $diags")
+      case Right(g) => assertEquals(g.rules.map(_.name), Vector("Factor"))
   }
 
   test("shift/reduce conflict: points at the reducing rule's own head") {

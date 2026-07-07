@@ -55,7 +55,13 @@ class ScalaSelfHostSuite extends munit.FunSuite:
             Desugar.desugar(g) match
               case Left(e) => fail(s"desugar failed: $e")
               case Right(dg) =>
-                Diagnostics.checkDefined(dg) match
+                val declaredTokens =
+                  Tokens
+                    .parseTokens(Bootstrap.lrTokensSource)
+                    .getOrElse(Vector.empty)
+                    .map(_.name)
+                    .toSet
+                Diagnostics.checkDefined(dg, declaredTokens = declaredTokens) match
                   case Right(desugared) => assertEquals(desugared, Bootstrap.bootstrapGrammar)
                   case Left(e)          => fail(s"check failed: $e")
           case Right(_) => fail("parse should yield a Grammar")

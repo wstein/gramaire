@@ -126,13 +126,12 @@ object Lexer:
     * A rule head may also be written with NO newline at all before its `:` (`Foo : 'x' ;`,
     * ANTLR/Bison-style) — `;` already makes "the token right after a `;`, or the very first token
     * in the document" an unambiguous rule-start position, the same way it disambiguates consecutive
-    * rules above, so a missing head `NL` there is synthesized (zero-width, ADR D59)
-    * rather than left for the grammar to reject. This keeps `Rule`'s own two productions — and
-    * every production id after them, in `CodegenScala.lrActionsScala` and `Lr.reduce` alike —
-    * untouched: a rule head always presents an `IDENT NL ':'` shape to the parser, real or
-    * synthesized. A `name:Sym` field (`IDENT ':' Sym`, always mid-`Body`, never right after a
-    * `;`/at the start) is never mistaken for a head, because synthesis only ever fires at a
-    * position a field can't occupy.
+    * rules above, so a missing head `NL` there is synthesized (zero-width, ADR D59) rather than
+    * left for the grammar to reject. This keeps `Rule`'s own two productions — and every production
+    * id after them, in `CodegenScala.lrActionsScala` and `Lr.reduce` alike — untouched: a rule head
+    * always presents an `IDENT NL ':'` shape to the parser, real or synthesized. A `name:Sym` field
+    * (`IDENT ':' Sym`, always mid-`Body`, never right after a `;`/at the start) is never mistaken
+    * for a head, because synthesis only ever fires at a position a field can't occupy.
     */
   def normalizeNewlines(toks: Vector[Token]): Vector[Token] =
     normalizeNewlinesGeneric[Token](toks, _.terminal, (prev, term, txt) => Token(term, txt))
@@ -173,8 +172,11 @@ object Lexer:
       termOf(toks, i) == Some("IDENT") &&
         (isBoundary(i - 1) || (termOf(toks, i - 1) == Some("ATTR") && isBoundary(i - 2)))
 
+    // Synthesize only where it can matter: a head `IDENT` directly followed by `:`, with no real
+    // `NL` already between them. `Foo Bar` (no `:` at all) is left alone — synthesizing there would
+    // be pointless, since `decide` below would drop the synthetic `NL` anyway.
     val withSynthesizedHeads: Vector[T] = toks.zipWithIndex.flatMap { case (t, i) =>
-      if isHeadIdent(i) && termOf(toks, i + 1) != Some("NL") then Vector(t, mk(t, "NL", ""))
+      if isHeadIdent(i) && termOf(toks, i + 1) == Some(":") then Vector(t, mk(t, "NL", ""))
       else Vector(t)
     }
 

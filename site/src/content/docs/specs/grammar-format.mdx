@@ -83,10 +83,15 @@ Inside an `lr` productions block the lexer emits these token classes:
 
 A name is a **nonterminal** exactly when it appears as some rule's left-hand
 side; any other mixed-case name referenced but never defined is a build error
-(not a silent terminal). An ALL-CAPS name is always a token class. Input
-tokenization itself is per-language: the `lr` lexer reads the grammar; a separate
-lexer turns _input_ strings into tokens whose `terminal` names match the
-grammar's terminals.
+(not a silent terminal). An ALL-CAPS name is always a token class, and — when
+the document declares at least one token of its own in a `## Tokens` block —
+must be one of the names declared there; an ALL-CAPS name referenced but
+undeclared is a build error too, the same way an undefined nonterminal is. A
+document with no `## Tokens` block at all relies entirely on an externally
+supplied lexer (lexer-spec.md §6), so its ALL-CAPS references can't be checked
+against anything local. Input tokenization itself is per-language: the `lr`
+lexer reads the grammar; a separate lexer turns _input_ strings into tokens
+whose `terminal` names match the grammar's terminals.
 
 ## 3. Rule/token termination and newline normalization (Option A)
 
