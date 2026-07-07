@@ -450,13 +450,24 @@ object Railroad:
   private val CAPR = 4
   private val ACTIONGAP = GAP
   private val ACTION_MAX_CHARS = 44
-  // `RowItem.Arc`'s own geometry: ARC_CLEAR is the vertical space reserved above (a bypass) and/or
-  // below (a loop-back) the wrapped item for its skip/repeat line; ARC_R is both that line's own
-  // horizontal entry/exit stub and its corner curve's Bezier-control offset (the curve's RISE isn't
-  // constrained to equal ARC_R — a quadratic Bezier with a control point directly above its start
-  // and level with its end curves smoothly regardless of how tall the rise is, see `sideArc`).
-  private val ARC_CLEAR = 32
+  // `RowItem.Arc`'s own geometry — a bypass/loop-back line, quarter-round-cornered the same way
+  // `drawFork`'s own branch corners are (never a diagonal, never a hard corner): ARC_R is each
+  // corner's radius, ARC_RUN the straight vertical run between a side's two corners, so a side's
+  // own total rise from the main line to the skip/repeat line is `2*ARC_R + ARC_RUN` — that total
+  // is also what ARC_CLEAR reserves above/below the wrapped item, a fixed, content-height-independent
+  // margin (safe for a plain box or a taller nested item alike, if a little generous for the
+  // former) rather than one scaled to the item's own height. ARC_STUB is the horizontal counterpart
+  // — the two corners' combined horizontal reach on one side, i.e. how far the wrapped item's own
+  // content is inset from the arc item's outer edge.
   private val ARC_R = 12
+  private val ARC_RUN = 16
+  private val ARC_CLEAR = 2 * ARC_R + ARC_RUN
+  private val ARC_STUB = 2 * ARC_R
+  // The small direction arrowhead on a loop-back line, pointing back toward the item's entry (the
+  // way the repeat re-enters it) — width is the arrow's own horizontal reach, height its half-height
+  // (the triangle spans loopY-ARROW_H to loopY+ARROW_H).
+  private val ARROW_W = ARC_R
+  private val ARROW_H = 7
 
   private def fmtNum(d: Double): String =
     if d == d.toLong.toDouble then d.toLong.toString else d.toString
@@ -503,7 +514,7 @@ object Railroad:
   private def itemWidth(item: RowItem): Int = item match
     case RowItem.Sym(s)          => boxWidth(s.label)
     case RowItem.Nested(alts)    => layoutFork(alts).width
-    case RowItem.Arc(content, _) => ARC_R + rowItemsWidth(content) + ARC_R
+    case RowItem.Arc(content, _) => ARC_STUB + rowItemsWidth(content) + ARC_STUB
 
   private def itemHeight(item: RowItem): Int = item match
     case RowItem.Sym(_)       => BOXH
@@ -610,30 +621,51 @@ object Railroad:
           p += svg
           cx += w
         case RowItem.Arc(content, kind) =>
-          val innerOffset = rowMainYOffset(content)
-          val innerH = rowHeight(content)
-          val w = ARC_R + rowItemsWidth(content) + ARC_R
-          val (contentSvg, _) = drawRow(content, cx + ARC_R, yi)
+          val w = ARC_STUB + rowItemsWidth(content) + ARC_STUB
+          val (contentSvg, _) = drawRow(content, cx + ARC_STUB, yi)
           p += contentSvg
-          if kind.hasBypass then
-            p += sideArc(cx, yi, cx + w, yi - innerOffset - ARC_CLEAR / 2.0, ARC_R)
+          // Fixed, content-height-independent clearance (see ARC_CLEAR's own comment) — the arc
+          // line sits exactly ARC_CLEAR away from the main line regardless of the wrapped item's
+          // own height, safe for a plain box or a taller nested item alike.
+          if kind.hasBypass then p += sideArc(cx, yi, cx + w, yi - ARC_CLEAR, up = true)
           if kind.hasLoop then
-            p += sideArc(cx, yi, cx + w, yi - innerOffset + innerH + ARC_CLEAR / 2.0, ARC_R)
+            val loopY = yi + ARC_CLEAR
+            p += sideArc(cx, yi, cx + w, loopY, up = false)
+            p += loopArrow((cx + cx + w) / 2.0, loopY)
           cx += w
     }
     (p.result().mkString, cx)
 
   // A bypass (arcing above `mainY`) or loop-back (arcing below it) track: peel off the main line at
-  // `x0`, curve to the parallel line at `arcY`, run straight across, curve back onto the main line
-  // at `x1`. Each corner is one quadratic Bezier whose control point sits directly above/below its
-  // start (so the curve leaves the main line vertically) and level with its end (so it arrives
-  // there horizontally) — smooth regardless of how tall the rise is, unlike `drawFork`'s corners
-  // (which pair a fixed-radius curve with a separate straight run to handle an arbitrary rise), so
-  // `r` here is purely the curve's own horizontal reach, not a true circular radius.
-  private def sideArc(x0: Int, mainY: Double, x1: Int, arcY: Double, r: Int): String =
-    s"""<path class="rr-track" d="M$x0 ${fmtNum(mainY)} Q$x0 ${fmtNum(arcY)} ${x0 + r} ${fmtNum(
+  // `x0`, quarter-round up/down by `ARC_R`, straight vertical run of `ARC_RUN`, quarter-round again
+  // onto the parallel line at `arcY`, straight across, then the same shape mirrored back down onto
+  // the main line at `x1` — the exact corner idiom `drawFork`'s own branch corners already use
+  // (never a diagonal, never a hard corner), not a single free-curving Bezier.
+  private def sideArc(x0: Int, mainY: Double, x1: Int, arcY: Double, up: Boolean): String =
+    val dir = if up then -1 else 1
+    val nearY = mainY + dir * ARC_R
+    val farY = arcY - dir * ARC_R
+    s"""<path class="rr-track" d="M$x0 ${fmtNum(mainY)} Q${x0 + ARC_R} ${fmtNum(
+        mainY
+      )} ${x0 + ARC_R} ${fmtNum(
+        nearY
+      )} V${fmtNum(farY)} Q${x0 + ARC_R} ${fmtNum(arcY)} ${x0 + 2 * ARC_R} ${fmtNum(
         arcY
-      )} H${x1 - r} Q$x1 ${fmtNum(arcY)} $x1 ${fmtNum(mainY)}"/>"""
+      )} H${x1 - 2 * ARC_R} Q${x1 - ARC_R} ${fmtNum(arcY)} ${x1 - ARC_R} ${fmtNum(
+        farY
+      )} V${fmtNum(nearY)} Q${x1 - ARC_R} ${fmtNum(mainY)} $x1 ${fmtNum(mainY)}"/>"""
+
+  // A small arrowhead on a loop-back line's own flat run, centered on it, pointing left (back
+  // toward the item's entry) — the direction repetition actually flows, since the loop connects
+  // FROM the item's exit back TO its entry, not the reverse.
+  private def loopArrow(midX: Double, loopY: Double): String =
+    s"""<path class="rr-arrow" d="M${fmtNum(midX + ARROW_W / 2.0)} ${fmtNum(
+        loopY - ARROW_H
+      )} L${fmtNum(midX - ARROW_W / 2.0)} ${fmtNum(loopY)} L${fmtNum(
+        midX + ARROW_W / 2.0
+      )} ${fmtNum(
+        loopY + ARROW_H
+      )} Z"/>"""
 
   // Draws a full fork/rejoin of alternatives with its own entry stub at `originX` and top edge at
   // `top` — the SAME shape whether it's the outermost Production (`hasCaps = true`, the entry/exit
@@ -754,14 +786,16 @@ object Railroad:
       // Muted, matching `.rr-track`'s own gray — a plain textbook-figure caption, not a colorful
       // callout (no box/dashed border to draw the eye anymore either, see renderSvg above).
       s".rr-action-text{fill:#6B7280;font:$font;font-style:italic;$ligatures}" +
-      ".rr-cap{fill:#16181D}"
+      ".rr-cap{fill:#16181D}" +
+      ".rr-arrow{fill:#6B7280}"
   private val styleThemed =
     ".rr-track{fill:none;stroke:var(--rr-track,#6B7280);stroke-width:2.5}" +
       ".rr-term{fill:var(--rr-term-fill,#fff);stroke:var(--rr-term-stroke,#15B879);stroke-width:2.5}" +
       ".rr-nonterm{fill:var(--rr-nonterm-fill,#F5F6F3);stroke:var(--rr-ink,#16181D);stroke-width:2.5}" +
       s".rr-text{fill:var(--rr-ink,#16181D);font:$font;$ligatures}" +
       s".rr-action-text{fill:var(--rr-action-stroke,#6B7280);font:$font;font-style:italic;$ligatures}" +
-      ".rr-cap{fill:var(--rr-ink,#16181D)}"
+      ".rr-cap{fill:var(--rr-ink,#16181D)}" +
+      ".rr-arrow{fill:var(--rr-track,#6B7280)}"
 
   // ---- SVG renderer -------------------------------------------------------
 
