@@ -49,7 +49,8 @@ type Tab =
   | "forest"
   | "lowered"
   | "analysis"
-  | "atn";
+  | "atn"
+  | "profiler";
 
 const METHODS = ["Canonical", "LALR", "IELR"] as const;
 
@@ -809,6 +810,7 @@ export default function LabIsland() {
               "analysis",
               "evaluate",
               "atn",
+              "profiler",
             ] as const
           ).map((tab) => {
             const reason = tabDisabledReason(tab, response.value);
@@ -844,6 +846,7 @@ export default function LabIsland() {
           {activeTab.value === "lowered" && <LoweredCorePanel />}
           {activeTab.value === "analysis" && <GrammarAnalysisPanel />}
           {activeTab.value === "atn" && <AtnDiagnosticsPanel />}
+          {activeTab.value === "profiler" && <ProfilerPanel />}
         </div>
       </div>
       <StatusBar />
@@ -940,6 +943,8 @@ function tabLabel(tab: Tab): string {
       // a Diagnostics substring here would collide with lab.spec.ts's "no separate Diagnostics tab"
       // assertion (Diagnostics was folded into Output — see this file's own Tab doc comment).
       return "ATN";
+    case "profiler":
+      return "Profiler";
   }
 }
 
@@ -981,6 +986,10 @@ function tabDisabledReason(
       return strategy.value === "ll-star"
         ? undefined
         : 'Switch Engine to "ALL(*)" above to see ATN diagnostics.';
+    case "profiler":
+      return r?.parse?.trace || r?.parse?.llTrace
+        ? undefined
+        : "Enter input the grammar accepts to see per-rule invocation counts.";
   }
 }
 
@@ -1683,6 +1692,81 @@ function AtnDiagnosticsPanel() {
             </tbody>
           </table>
         )}
+      </div>
+    </div>
+  );
+}
+
+// Tallies how many times each rule was reduced (strategy "lr") or predicted (strategy "ll-star")
+// while walking the accepted parse — derived entirely from trace data the Walk tab already ships
+// (LrStepInfo["reduce"]/LlStepInfo["predict"]), so this needs no protocol change and can never
+// disagree with the Walk tab's own step count. `trace`/`llTrace` are mutually exclusive per
+// ParseResult's own doc comment — never both non-null on the same response.
+function invocationsByRule(r: LabResponse | null): Map<string, number> {
+  const counts = new Map<string, number>();
+  const bump = (name: string) => counts.set(name, (counts.get(name) ?? 0) + 1);
+  for (const s of r?.parse?.trace ?? [])
+    if (s.action.kind === "reduce") bump(s.action.lhs);
+  for (const s of r?.parse?.llTrace ?? [])
+    if (s.action.kind === "predict") bump(s.action.rule);
+  return counts;
+}
+
+// ANTLR's per-rule profiler columns (Invocations, Time, Total k, Max k, Ambiguities, DFA cache
+// miss) don't map cleanly onto Gramaire's engine — see docs/playground-spec.md's Profiler entry.
+// This tab ships only the columns that are real: Invocations everywhere (free, from trace data
+// above); Ambiguities/DFA cache miss are ll-star-only additions from later phases. No Time column,
+// ever — real parses run in microseconds and `performance.now()` inside a Worker is deliberately
+// coarsened for fingerprinting protection, so a timing column would show noise, not signal.
+function ProfilerPanel() {
+  const r = response.value;
+  const trace = r?.parse?.trace;
+  const llTrace = r?.parse?.llTrace;
+  if ((!trace || trace.length === 0) && (!llTrace || llTrace.length === 0))
+    return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
+
+  const counts = invocationsByRule(r);
+  // Every rule from the desugared grammar, not just the ones this particular input happened to
+  // reach — a 0-invocation row is informative (this rule/alt was never hit by this input), not
+  // noise. `productions` can list the same lhs multiple times (one row per alternative); dedupe to
+  // one profiler row per rule, first-appearance order (matches ProductionsTable's own ordering).
+  const ruleNames = Array.from(
+    new Set((r?.productions ?? []).map((p) => p.lhs)),
+  );
+  const truncated = trace ? getTraceTruncated() : getLlTraceTruncated();
+
+  return (
+    <div>
+      <div class="lab__analysis-section">
+        <div class="lab__analysis-heading">rule invocations</div>
+        <p class="lab__tree-hint">
+          No Time column — Gramaire's parses run in microseconds, and a Worker's
+          timer resolution is deliberately coarsened, so a per-rule timing
+          figure would be noise, not signal.
+        </p>
+        {truncated && (
+          <TruncatedNote shownCount={(trace ?? llTrace ?? []).length} />
+        )}
+        <table class="lab__table">
+          <thead>
+            <tr>
+              <th>rule</th>
+              <th>invocations</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ruleNames.map((name) => (
+              <tr
+                key={name}
+                onMouseEnter={() => (hoverRule.value = name)}
+                onMouseLeave={() => (hoverRule.value = null)}
+              >
+                <td class="lab__mono">{name}</td>
+                <td class="lab__mono">{counts.get(name) ?? 0}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

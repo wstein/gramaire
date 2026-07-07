@@ -62,8 +62,18 @@ a thin skin over real machinery, never a mock.
 > differs from the stage before it); and two engine costs this doc used to
 > list as unaddressed latent risks — `Parser.walk`'s O(n²) trace cost and
 > `Ll.walkSyms`'s non-tail-recursive stack-overflow risk — are now fixed
-> (§5.1's post-M5 note has the detail). Keep this callout current as further
-> work lands.
+> (§5.1's post-M5 note has the detail). A twelfth tab, Profiler, landed after
+> that: per-rule invocation counts, tallied client-side from the same
+> trace/`llTrace` data Parse trace already ships (LR reduces grouped by
+> `lhs`, ALL(\*) predicts grouped by `rule`) — no protocol change. It
+> deliberately omits ANTLR-profiler columns that don't map onto this engine:
+> no Time column (real parses run in microseconds; a Worker's
+> `performance.now()` is deliberately coarsened for fingerprinting
+> protection, so a timing figure would be noise, not signal) and no Total
+> k/Max k (LR(1)'s lookahead is fixed at 1 token by construction). Ambiguities
+> and DFA cache miss, real signals under ALL(\*) via `AtnSim.Cache`, are a
+> later phase once that cache gains a per-rule breakdown instead of only two
+> global counters. Keep this callout current as further work lands.
 
 ---
 

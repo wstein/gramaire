@@ -196,6 +196,39 @@ test("the Lab tabs show real, engine-computed data", async ({ page }) => {
   );
 });
 
+test("the Profiler tab shows real per-rule invocation counts, derived from the trace", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  await page.getByLabel("Engine").selectOption("Canonical");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  await page.click('button[role="tab"]:has-text("Profiler")');
+  // "1+2*3" under calc.gram.md's directly-left-recursive Expr/Term/Factor: hand-traced against
+  // the same 14-step walk the "engine-computed data" test already asserts (5 shifts, 8 reduces,
+  // 1 accept) — reduces group by lhs into Expr=2 (Expr->Term once, Expr->Expr+Term once), Term=3
+  // (Term->Factor twice, Term->Term*Factor once), Factor=3 (Factor->NUMBER three times).
+  const rows = page.locator(".lab__panel .lab__table tbody tr");
+  await expect(rows).toHaveCount(3); // Expr, Term, Factor — one row per rule, in productions order
+  await expect(rows.nth(0)).toContainText("Expr");
+  await expect(rows.nth(0).locator("td").nth(1)).toHaveText("2");
+  await expect(rows.nth(1)).toContainText("Term");
+  await expect(rows.nth(1).locator("td").nth(1)).toHaveText("3");
+  await expect(rows.nth(2)).toContainText("Factor");
+  await expect(rows.nth(2).locator("td").nth(1)).toHaveText("3");
+  // No fabricated Time column — the honest-subset decision from the design debate.
+  await expect(page.locator(".lab__panel")).not.toContainText("Time (ms)");
+
+  // Switching Engine still populates the tab from the ll-star walk (llTrace) instead of crashing
+  // or silently reusing the stale LR trace.
+  await page.getByLabel("Engine").selectOption("ll-star");
+  await expect(
+    page.locator(".lab__panel .lab__table tbody tr").first(),
+  ).toBeVisible();
+});
+
 test("tabs with nothing to show are disabled, with a tooltip explaining why", async ({
   page,
 }) => {
@@ -210,6 +243,7 @@ test("tabs with nothing to show are disabled, with a tooltip explaining why", as
     "Lowered Core",
     "Grammar analysis",
     "Evaluate",
+    "Profiler",
   ]) {
     await expect(
       page.locator(`button[role="tab"]:has-text("${label}")`),
@@ -223,7 +257,7 @@ test("tabs with nothing to show are disabled, with a tooltip explaining why", as
   await expect(page.locator(".lab__statusbar")).toContainText("ok", {
     timeout: 5000,
   });
-  for (const label of ["Tokens", "Parse tree", "Parse trace"]) {
+  for (const label of ["Tokens", "Parse tree", "Parse trace", "Profiler"]) {
     const tab = page.locator(`button[role="tab"]:has-text("${label}")`);
     await expect(tab).toBeDisabled();
     await expect(tab).toHaveAttribute("title", /Enter (target )?input/);
