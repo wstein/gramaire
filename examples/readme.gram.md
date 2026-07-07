@@ -1,3 +1,8 @@
+---
+name: Readme
+lang: javascript
+---
+
 # Readme
 
 You are reading a grammar. You are also reading a pitch for Gramaire, and
@@ -19,16 +24,6 @@ and lint gates pass.
 Semantic actions build this AST as plain tagged JS objects: `{ tag:
 "Readme", sentences }`, `{ tag: "Sentence", words }` — each a plain array,
 in reading order.
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: Readme
-lang: javascript
-```
-
-</details>
 
 ## Readme
 

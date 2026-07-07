@@ -1,3 +1,7 @@
+---
+name: Calc-eval
+---
+
 # Calc-eval
 
 A **structure-only** arithmetic grammar for the action-binding demo. The
@@ -9,15 +13,6 @@ evaluates in any language, and nothing in the file names one.
 
 To attach behaviour, name the alternative; an unlabelled alternative is
 structurally transparent (its single child passes through).
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: Calc-eval
-```
-
-</details>
 
 ## Tokens
 

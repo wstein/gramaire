@@ -2,7 +2,8 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "ae2c72ccc686b6a079d257e24a1a5f3874fa5fbf76dfff9dde59c1f8b9315069",
+  "name": "LalrArtifact",
+  "grammarSha256": "941c23610a92247c38db48acc288898e8f13e8fe20ae68c162259a26b50f53d8",
   "artifacts": [
     {
       "kind": "railroad",
@@ -25,7 +26,7 @@
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "ae2c72ccc686b6a079d257e24a1a5f3874fa5fbf76dfff9dde59c1f8b9315069"
+      "sourceSha256": "941c23610a92247c38db48acc288898e8f13e8fe20ae68c162259a26b50f53d8"
     }
   ]
 }

@@ -2,7 +2,8 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "871fe1f092a8b60a7929f3aceb6c337734d9bd76eccdea184638bce932a496e3",
+  "name": "Calc-eval",
+  "grammarSha256": "32ca3623fb9487d1cda0116fbaaff66df490b0e5446c5db56d7c7e8d5564f780",
   "artifacts": [
     {
       "kind": "railroad",
@@ -25,7 +26,7 @@
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "871fe1f092a8b60a7929f3aceb6c337734d9bd76eccdea184638bce932a496e3"
+      "sourceSha256": "32ca3623fb9487d1cda0116fbaaff66df490b0e5446c5db56d7c7e8d5564f780"
     }
   ]
 }

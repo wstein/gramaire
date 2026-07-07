@@ -2,7 +2,8 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "34bba697c3b2a83e99d4d5a3b101f327f29059af8b8405a2bc04fdb5515cbb6c",
+  "name": "Readme",
+  "grammarSha256": "1d9bf09f9202f5409fa1d775db1e0d40695d7afd92ff543e73e3759982629e99",
   "artifacts": [
     {
       "kind": "railroad",
@@ -31,7 +32,7 @@
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "34bba697c3b2a83e99d4d5a3b101f327f29059af8b8405a2bc04fdb5515cbb6c"
+      "sourceSha256": "1d9bf09f9202f5409fa1d775db1e0d40695d7afd92ff543e73e3759982629e99"
     }
   ]
 }

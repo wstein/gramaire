@@ -1,3 +1,8 @@
+---
+name: PredicateGuard
+lang: javascript
+---
+
 # Predicate Guard
 
 A tiny `let`-binding calculator, demonstrating `{%? … %}` semantic-predicate
@@ -34,16 +39,6 @@ one's `Try it` tab won't compute a live result — `Lowered Core`'s
 desugared-productions table is where `Stmt`'s real action is visible
 instead. `gramaire emit` also refuses to generate code under `lr` (the
 default) once a predicate is present — `--strategy ll-star` is required.
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: PredicateGuard
-lang: javascript
-```
-
-</details>
 
 ## Tokens
 

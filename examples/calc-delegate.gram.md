@@ -1,3 +1,8 @@
+---
+name: Calc (delegate)
+lang: javascript
+---
+
 # Calc (delegate)
 
 The `calc-js` calculator (`examples/calc-js.gram.md`), extended with a few
@@ -28,16 +33,6 @@ delegate instead:
   host application calls `setExternals({ Call: … })` with real functions
   (`sqrt`, `abs`, …) — the "a consumer supplies it" path `## Externals`
   exists to make optional, not mandatory.
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: Calc (delegate)
-lang: javascript
-```
-
-</details>
 
 ## Tokens
 

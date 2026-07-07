@@ -2,7 +2,8 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "53b1cd1cc6ae012d5f589449c0d24f6698236bf99ea98028cacad30ffd42fbb2",
+  "name": "PredicateGuard",
+  "grammarSha256": "8f1dbec50554e6bbf3ddd38b785090ca999dcf7b691ebb690bb70ba6f87f3ffa",
   "artifacts": [
     {
       "kind": "railroad",
@@ -31,7 +32,7 @@
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "53b1cd1cc6ae012d5f589449c0d24f6698236bf99ea98028cacad30ffd42fbb2"
+      "sourceSha256": "8f1dbec50554e6bbf3ddd38b785090ca999dcf7b691ebb690bb70ba6f87f3ffa"
     }
   ]
 }

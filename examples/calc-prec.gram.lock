@@ -2,6 +2,7 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
+  "name": "Calc (precedence)",
   "grammarSha256": "3b7a89d16f4c3c8c003ce08bb8f99e5b0c88317e62429210b5f9ff6c134758be",
   "artifacts": [
     {

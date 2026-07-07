@@ -1,3 +1,8 @@
+---
+name: Gramaire
+lang: javascript
+---
+
 # Gramaire
 
 This grammar describes the complete fence-free `.gram` projection produced by
@@ -13,16 +18,6 @@ Token classes stay semantic rather than lexical: ALL-CAPS validation for token
 definition names is enforced by the fold, matching `Tokens.validateName`.
 Semantic actions build tagged JavaScript objects mirroring the current sidecar
 parsers and production AST.
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: Gramaire
-lang: javascript
-```
-
-</details>
 
 ## Tokens
 

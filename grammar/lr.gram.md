@@ -1,3 +1,8 @@
+---
+name: Lr
+lang: javascript
+---
+
 # Lr
 
 This is the `gramaire` productions micro-language — the notation inside every
@@ -47,16 +52,6 @@ action }` (`label`/`action` are `null` when absent), and one tagged object per
 `Sym` case — `Ref`, `Lit`, `Rep`, `Star`, `Opt`, `Macro`, `Field`, `Group`,
 `Any`, `Not` — mirroring the real Scala types in
 [`Syntax.scala`](../core/src/main/scala/gramaire/Syntax.scala).
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: Lr
-lang: javascript
-```
-
-</details>
 
 ## Tokens
 

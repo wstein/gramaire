@@ -2,7 +2,8 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "42b0041f6e90aa7cfe1b3c84cac25c43e3f5c999e8c5d6e1830d0ff8f8ee1c22",
+  "name": "ANTLRv4",
+  "grammarSha256": "a0b7e32151d067936c0760160d9cfdd44b20473c8ac58cf65b2c9c34e195b240",
   "artifacts": [
     {
       "kind": "railroad",
@@ -457,7 +458,7 @@
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "42b0041f6e90aa7cfe1b3c84cac25c43e3f5c999e8c5d6e1830d0ff8f8ee1c22"
+      "sourceSha256": "a0b7e32151d067936c0760160d9cfdd44b20473c8ac58cf65b2c9c34e195b240"
     }
   ]
 }

@@ -1,3 +1,7 @@
+---
+name: Luau
+---
+
 # Luau
 
 A reference grammar for **Luau**, Roblox's Lua dialect, hand-converted to
@@ -25,15 +29,6 @@ dropped** — see
 — and the one place this conversion had to *resolve* rather than merely
 transcribe an ambiguity (operator precedence, `Type`'s `Union`/`Intersection`
 split) is called out inline where it happens.
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: Luau
-```
-
-</details>
 
 ## Tokens
 

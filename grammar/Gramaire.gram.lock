@@ -2,7 +2,8 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "2b3c8c3492923320ac17edb697d94ca5c07e980f1bf5c424356a1803ca0eb760",
+  "name": "Gramaire",
+  "grammarSha256": "d1f62312749cf8de3afddca6b05f65727fb41b7605bc950a294db5c7917e11e8",
   "artifacts": [
     {
       "kind": "railroad",
@@ -187,7 +188,7 @@
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "2b3c8c3492923320ac17edb697d94ca5c07e980f1bf5c424356a1803ca0eb760"
+      "sourceSha256": "d1f62312749cf8de3afddca6b05f65727fb41b7605bc950a294db5c7917e11e8"
     }
   ]
 }

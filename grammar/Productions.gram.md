@@ -1,3 +1,8 @@
+---
+name: Productions
+lang: javascript
+---
+
 # Productions
 
 This is the `gramaire` productions micro-language — the notation used for rule
@@ -59,16 +64,6 @@ argument's literal source text, empty for the bare `-> IDENT` form), and one
 tagged object per `Sym` case — `Ref`, `Lit`, `Rep`, `Star`, `Opt`, `Macro`,
 `Field`, `Group`, `Any`, `Not` — mirroring the real Scala types in
 [`Syntax.scala`](../core/src/main/scala/gramaire/Syntax.scala).
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: Productions
-lang: javascript
-```
-
-</details>
 
 ## Tokens
 

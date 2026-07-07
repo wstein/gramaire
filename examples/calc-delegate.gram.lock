@@ -2,7 +2,8 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "611b2a7c81522234299df585c2c02b00a92ec97222093c6bae8c47ac86e7af22",
+  "name": "Calc (delegate)",
+  "grammarSha256": "a70a66381614b6ea842204a3f03fb62b99b0bbc72a16a56a809d47475fcd67c8",
   "artifacts": [
     {
       "kind": "railroad",
@@ -31,7 +32,7 @@
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "611b2a7c81522234299df585c2c02b00a92ec97222093c6bae8c47ac86e7af22"
+      "sourceSha256": "a70a66381614b6ea842204a3f03fb62b99b0bbc72a16a56a809d47475fcd67c8"
     }
   ]
 }

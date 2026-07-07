@@ -2,7 +2,8 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "1cb910105d6e3825a87feffeea35af3580186b0f93db5acbf1d77cde93e6f4a5",
+  "name": "Luau",
+  "grammarSha256": "ad2a49fcbaefae655f42b5f8b264dffc64b4a1f622097b153eeb823b01f5b6dc",
   "artifacts": [
     {
       "kind": "railroad",
@@ -607,7 +608,7 @@
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "1cb910105d6e3825a87feffeea35af3580186b0f93db5acbf1d77cde93e6f4a5"
+      "sourceSha256": "ad2a49fcbaefae655f42b5f8b264dffc64b4a1f622097b153eeb823b01f5b6dc"
     }
   ]
 }

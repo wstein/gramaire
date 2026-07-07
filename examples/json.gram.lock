@@ -2,6 +2,7 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
+  "name": "Json",
   "grammarSha256": "23b343ce726d89567de56e506ac5f029bf013e7427d0c3f587793c78b4b868c4",
   "artifacts": [
     {

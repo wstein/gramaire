@@ -1,17 +1,12 @@
+---
+name: Calc-js
+lang: javascript
+---
+
 # Calc-js
 
 An arithmetic calculator that evaluates its own input — a demonstration
 of inline `{% … %}` actions.
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: Calc-js
-lang: javascript
-```
-
-</details>
 
 ## Tokens
 

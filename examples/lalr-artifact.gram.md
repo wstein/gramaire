@@ -1,3 +1,7 @@
+---
+name: LalrArtifact
+---
+
 # LALR Artifact
 
 The classic LR(1)-but-not-LALR(1) grammar. The language itself is completely
@@ -10,15 +14,6 @@ grammar that was never actually ambiguous.
 
 Pick **Canonical** or **IELR** in the Engine picker to see it build cleanly;
 **LALR** reports a conflict the language doesn't actually have.
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: LalrArtifact
-```
-
-</details>
 
 ## S
 

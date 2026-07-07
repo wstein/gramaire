@@ -1,3 +1,7 @@
+---
+name: DanglingElse
+---
+
 # Dangling Else
 
 The classic dangling-else ambiguity: `if c then if c then s else s` — does
@@ -22,15 +26,6 @@ mechanism — it happens to land on "bind `else` to the nearest unmatched
 a precedence declaration; this grammar deliberately omits one, to isolate
 the ambiguity itself), but that's this fixture's luck, not a guarantee. See
 `docs/playground-spec.md` §9 for the fuller finding.
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: DanglingElse
-```
-
-</details>
 
 ## Tokens
 

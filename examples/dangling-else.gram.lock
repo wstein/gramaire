@@ -2,7 +2,8 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "1889386cee02aec9d68f0376677046323b4da3267a5949048bed5ac9723587d4",
+  "name": "DanglingElse",
+  "grammarSha256": "fa44b656eeab28003e34ab8e2ff78d0daa005c5aa7ddf66efd5d121490757163",
   "artifacts": [
     {
       "kind": "railroad",
@@ -13,7 +14,7 @@
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "1889386cee02aec9d68f0376677046323b4da3267a5949048bed5ac9723587d4"
+      "sourceSha256": "fa44b656eeab28003e34ab8e2ff78d0daa005c5aa7ddf66efd5d121490757163"
     }
   ]
 }
