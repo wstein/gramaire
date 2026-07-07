@@ -154,6 +154,13 @@ Diagrams are **never** inline `<svg>` (stripped by GitHub, and trips MD033).
 `fmt` emits them through the shared core railroad renderer in one of two modes,
 selected with `--diagrams`:
 
+The renderer first builds a small internal diagram tree (`Terminal`,
+`NonTerminal`, `Sequence`, `Choice`/`Stack`, repetition/option nodes, `Group`,
+`Comment`, and action captions), then serializes that tree to the requested
+format. That tree is an implementation detail, but the distinction matters for
+maintainers: CLI sidecars, Mermaid fences, and the live notebook use the same
+core railroad vocabulary rather than parallel renderers.
+
 - **`sidecar`** (default) — a self-contained railroad SVG per rule, written to
   `diagrams-<grammar-stem>/<rule>.svg` (a per-grammar directory, so two
   grammars sharing a `diagrams/`-style root can't clobber each other's

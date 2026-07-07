@@ -32,6 +32,76 @@ object Railroad:
 
   final case class Production(name: String, alts: Vector[Alt])
 
+  // A renderer-facing grammar diagram tree. The current SVG/Mermaid renderers
+  // still linearize this tree to Gramaire's historical stacked-track layout,
+  // but callers can now describe richer railroad concepts without growing a
+  // second rendering model.
+  enum Diagram derives CanEqual:
+    case Terminal(label: String)
+    case NonTerminal(label: String)
+    case Sequence(items: Vector[Diagram])
+    case Choice(alts: Vector[Diagram])
+    case Stack(alts: Vector[Diagram])
+    case Optional(item: Diagram)
+    case OneOrMore(item: Diagram)
+    case ZeroOrMore(item: Diagram)
+    case Group(label: Option[String], item: Diagram)
+    case Comment(text: String)
+    case ActionCaption(item: Diagram, action: String)
+
+  private final case class DrawableAlt(syms: Vector[DiaSym], action: Option[String] = None)
+
+  private def diagramSym(sym: DiaSym): Diagram =
+    if sym.term then Diagram.Terminal(sym.label) else Diagram.NonTerminal(sym.label)
+
+  def diagramOf(prod: Production): Diagram =
+    Diagram.Stack(
+      prod.alts.map { alt =>
+        val seq = Diagram.Sequence(alt.syms.map(diagramSym))
+        alt.action match
+          case Some(action) => Diagram.ActionCaption(seq, action)
+          case None         => seq
+      }
+    )
+
+  private def linearizeDiagram(diagram: Diagram): Vector[DrawableAlt] =
+    def symbolLabel(prefix: String, inner: Diagram, suffix: String = ""): String =
+      prefix + inlineLabel(inner) + suffix
+
+    def inlineLabel(d: Diagram): String = d match
+      case Diagram.Terminal(label)        => label
+      case Diagram.NonTerminal(label)     => label
+      case Diagram.Sequence(items)        => items.map(inlineLabel).mkString(" ")
+      case Diagram.Choice(alts)           => alts.map(inlineLabel).mkString(" | ")
+      case Diagram.Stack(alts)            => alts.map(inlineLabel).mkString(" | ")
+      case Diagram.Optional(item)         => symbolLabel("", item, "?")
+      case Diagram.OneOrMore(item)        => symbolLabel("", item, "+")
+      case Diagram.ZeroOrMore(item)       => symbolLabel("", item, "*")
+      case Diagram.Group(_, item)         => symbolLabel("(", item, ")")
+      case Diagram.Comment(text)          => text
+      case Diagram.ActionCaption(item, _) => inlineLabel(item)
+
+    def symsOf(d: Diagram): Vector[DiaSym] = d match
+      case Diagram.Terminal(label)    => Vector(DiaSym(label, term = true))
+      case Diagram.NonTerminal(label) => Vector(DiaSym(label, term = false))
+      case Diagram.Sequence(items)    => items.flatMap(symsOf)
+      case Diagram.Group(_, item)     => symsOf(item)
+      case Diagram.Comment(_)         => Vector.empty
+      case Diagram.Optional(item)     => Vector(DiaSym(symbolLabel("", item, "?"), term = true))
+      case Diagram.OneOrMore(item)    => Vector(DiaSym(symbolLabel("", item, "+"), term = true))
+      case Diagram.ZeroOrMore(item)   => Vector(DiaSym(symbolLabel("", item, "*"), term = true))
+      case Diagram.Choice(alts) =>
+        Vector(DiaSym(alts.map(inlineLabel).mkString(" | "), term = true))
+      case Diagram.Stack(alts) => Vector(DiaSym(alts.map(inlineLabel).mkString(" | "), term = true))
+      case Diagram.ActionCaption(item, _) => symsOf(item)
+
+    diagram match
+      case Diagram.Stack(alts)  => alts.flatMap(linearizeDiagram)
+      case Diagram.Choice(alts) => alts.flatMap(linearizeDiagram)
+      case Diagram.ActionCaption(item, action) =>
+        linearizeDiagram(item).map(alt => alt.copy(action = Some(action)))
+      case other => Vector(DrawableAlt(symsOf(other)))
+
   // ---- parse an `lr` block's payload into a Production ----------------------
 
   private enum Tok:
@@ -179,8 +249,12 @@ object Railroad:
   // ---- SVG renderer -------------------------------------------------------
 
   def renderSvg(prod: Production, themed: Boolean = false): String =
-    val alts = if prod.alts.nonEmpty then prod.alts else Vector(Alt(Vector.empty))
-    def altWidth(a: Alt): Int =
+    renderDiagramSvg(prod.name, diagramOf(prod), themed)
+
+  def renderDiagramSvg(name: String, diagram: Diagram, themed: Boolean = false): String =
+    val alts0 = linearizeDiagram(diagram)
+    val alts = if alts0.nonEmpty then alts0 else Vector(DrawableAlt(Vector.empty))
+    def altWidth(a: DrawableAlt): Int =
       a.syms.zipWithIndex.foldLeft(0) { case (w, (s, idx)) =>
         w + boxWidth(s.label) + (if idx > 0 then GAP else 0)
       }
@@ -283,7 +357,7 @@ object Railroad:
 
     s"""<svg xmlns="http://www.w3.org/2000/svg" width="$width" height="$height" """ +
       s"""viewBox="0 0 $width $height" role="img" """ +
-      s"""aria-label="Railroad diagram for the ${escXml(prod.name)} rule">""" +
+      s"""aria-label="Railroad diagram for the ${escXml(name)} rule">""" +
       s"""<style>${if themed then styleThemed else styleFixed}</style>${p
           .result()
           .mkString}</svg>""" + "\n"
@@ -295,7 +369,11 @@ object Railroad:
   // The body of a ```mermaid fence: a left-to-right flowchart with one path
   // per alternative, terminals as stadiums and nonterminals as rectangles.
   def renderMermaid(prod: Production): String =
-    val alts = if prod.alts.nonEmpty then prod.alts else Vector(Alt(Vector.empty))
+    renderDiagramMermaid(diagramOf(prod))
+
+  def renderDiagramMermaid(diagram: Diagram): String =
+    val alts0 = linearizeDiagram(diagram)
+    val alts = if alts0.nonEmpty then alts0 else Vector(DrawableAlt(Vector.empty))
     val lines = Vector.newBuilder[String]
     lines += "flowchart LR"
     lines += "  classDef term fill:#ffffff,stroke:#15B879,color:#16181D;"

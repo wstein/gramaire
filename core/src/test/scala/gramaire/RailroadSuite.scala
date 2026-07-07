@@ -55,6 +55,23 @@ class RailroadSuite extends munit.FunSuite:
     assert(mm.contains(":::nonterm"))
   }
 
+  test("diagramOf: production-backed diagram AST preserves existing SVG and Mermaid rendering") {
+    val prod = parseProduction("Expr : Expr '+' Term | Term", Set("Expr", "Term"))
+    val diagram = diagramOf(prod)
+    assertEquals(renderDiagramSvg(prod.name, diagram), renderSvg(prod))
+    assertEquals(renderDiagramMermaid(diagram), renderMermaid(prod))
+  }
+
+  test("renderDiagramSvg: action captions survive the shared diagram AST") {
+    val diagram = Diagram.ActionCaption(
+      Diagram.Sequence(Vector(Diagram.NonTerminal("Term"))),
+      "(c) => c.term"
+    )
+    val svg = renderDiagramSvg("Expr", diagram)
+    assert(svg.contains("""<text class="rr-action-text""""))
+    assert(svg.contains("<title>(c) =&gt; c.term</title>"))
+  }
+
   test(
     "renderSvg: an alt with an action renders a muted caption, with the full source as a hover title"
   ) {
