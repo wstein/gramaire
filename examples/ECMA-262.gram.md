@@ -40,6 +40,12 @@ entirely empty construct (`function f() {}`, `class C {}`, an empty module
 body), the optionality is written as `X?` at the referencing call site, never
 as a rule whose only alternative is empty.
 
+<!-- A deliberate H1-to-H3 jump below: only H1/H2 are structural here (ADR
+     D29; gramaire check's own H2 canonical-order gate expects every H2 to
+     be Tokens, a rule name, or a handful of other named sections), so this
+     prose-only subsection stays H3 rather than becoming an H2 the
+     structure gate would then reject. -->
+<!-- markdownlint-disable-next-line MD001 -->
 ### Simplifications from the real grammar
 
 - **Parameters merged, not expanded.** `[Yield]`/`[Await]`/`[Return]`/
@@ -3508,6 +3514,7 @@ StaticBlock
 ```
 
 </details>
+
 ## Module
 
 The root of a module's source text (§16.2.1). A `Module` is a (possibly
