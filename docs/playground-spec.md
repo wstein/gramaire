@@ -152,6 +152,27 @@ a thin skin over real machinery, never a mock.
 > second bespoke drawing path. Paper and the PDF are gated identically (an
 > accepted Try-it parse only) so the two can never disagree about whether
 > this figure exists for the same response.
+>
+> A user report of the graphical tree's left edge being visibly clipped led
+> to finding a genuine bug in `layoutTree` (`site/src/lab/cstGraph.ts`), not
+> a CSS/scrolling issue as first suspected: a node on the tree's leftmost
+> spine whose own label is wider than its children's combined span (e.g. a
+> "Factor" box centered over a single narrow "2" leaf — exactly the default
+> `1+2*3` example) had no earlier sibling to borrow left margin from, so
+> centering it over its children placed its own box at a negative x that the
+> SVG's `viewBox` (anchored at the layout's nominal origin) clipped
+> outright. `layoutTree` now re-derives the true bounding box from the boxes
+> as placed and shifts the whole subtree flush to its origin, returning the
+> actual width used instead of the recursive "own vs. children" estimate
+> that assumed slack it never reserved. `ForestGraph`/`TreeGraphView` also
+> gained the same ref+`useEffect`-reset-`scrollLeft`-on-content-change
+> treatment `RailroadSvg` already used, so a stale scroll position from a
+> previously wide tree can't masquerade as clipping after switching to
+> different content. Verified at a narrow (480px) viewport that the
+> existing `overflow-x: auto` / `svg { max-width: 100% }` combination in
+> `lab.css` shrinks the (now correctly bounded) SVG proportionally with no
+> clipping and no unnecessary scrollbar — no CSS change was needed once the
+> layout math itself was correct.
 
 ---
 

@@ -1242,9 +1242,7 @@ function TreePanel() {
 // is an additive alternative, not a replacement.
 function TreeGraphView({ cst }: { cst: CstNode }) {
   const svg = svgOfCst(cst, ruleName);
-  return (
-    <div class="lab__cst-graph" dangerouslySetInnerHTML={{ __html: svg }} />
-  );
+  return <GraphSvgContainer svg={svg} />;
 }
 
 // The CST only carries a production INDEX per branch (Cst.Branch's own shape — see Cst.scala);
@@ -1938,8 +1936,28 @@ function RailroadSvg({ svg }: { svg: string }) {
 // tree tab's own graphical toggle (`TreeGraphView` below) and the Notebook's Paper view.
 function ForestGraph({ forest }: { forest: ForestResult }) {
   const svg = svgOfForest(forest, ruleName);
+  return <GraphSvgContainer svg={svg} />;
+}
+
+// Shared wrapper for every `.lab__cst-graph` SVG render (Parse tree's Graph view, All-parses' forest
+// graph, and the Notebook's own uses of the same markup). `dangerouslySetInnerHTML` content sits
+// outside Preact's vdom, so re-rendering with new content only swaps `innerHTML` on the same DOM
+// node — it does not reset scroll state. Without this, switching to a different parse/rule after
+// scrolling a wide tree rightward leaves the container's `scrollLeft` stale, clipping the new
+// content's left edge even though the new content itself would otherwise start at 0. Reset it
+// explicitly on every content change, mirroring RailroadSvg's ref+useEffect-keyed-on-`svg` pattern.
+function GraphSvgContainer({ svg }: { svg: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.scrollLeft = 0;
+  }, [svg]);
   return (
-    <div class="lab__cst-graph" dangerouslySetInnerHTML={{ __html: svg }} />
+    <div
+      class="lab__cst-graph"
+      ref={ref}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
   );
 }
 

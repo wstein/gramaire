@@ -967,6 +967,37 @@ test("Parse tree's own Graph view renders the same graphical SVG tree All-parses
   await expect(page.locator(".lab__tree")).toBeVisible();
 });
 
+// Regression test for a real layoutTree bug (cstGraph.ts): a node on the tree's leftmost spine
+// whose own label is wider than its single child's — e.g. "Factor" centered over a bare "2" leaf,
+// exactly the default "1+2*3" grammar/input — used to be centered past x=0 with no sibling to its
+// left to reserve that space, landing at a negative x the SVG's viewBox (starting at -4) clipped
+// outright. Assert every box's left edge stays within the viewBox rather than eyeballing pixels.
+test("the graphical tree's boxes never extend past the SVG viewBox's left edge (no left-side clipping)", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  await page.click('button[role="tab"]:has-text("Parse tree")');
+  await page.click('button.lab__copy-btn:has-text("Graph view")');
+  const svg = page.locator(".lab__cst-graph svg");
+  await expect(svg).toHaveCount(1);
+
+  const viewBoxMinX = await svg.evaluate((el) => {
+    const [minX] = (el.getAttribute("viewBox") ?? "0 0 0 0")
+      .split(/\s+/)
+      .map(Number);
+    return minX;
+  });
+  const rectLefts = await svg.evaluate((el) =>
+    Array.from(el.querySelectorAll("rect")).map((r) =>
+      Number(r.getAttribute("x")),
+    ),
+  );
+  expect(rectLefts.length).toBeGreaterThan(0);
+  for (const left of rectLefts) {
+    expect(left).toBeGreaterThanOrEqual(viewBoxMinX);
+  }
+});
+
 test("the Parse tree tab's copy LISP button copies an S-expression and shows feedback", async ({
   page,
   context,

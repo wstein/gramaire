@@ -95,8 +95,34 @@ export function layoutTree(
     }
     return cx;
   }
+  const boxesStart = boxes.length;
+  const edgesStart = edges.length;
   place(root, originX, 0);
-  return extent(root);
+
+  // `extent()`'s "own vs. children" estimate assumes a subtree gets symmetric slack on both sides,
+  // but `place()` only actually reserves that slack from a sibling's cursor advance — the tree's
+  // leftmost spine has no earlier sibling to borrow margin from. A node whose own label is wider
+  // than its children's combined span (e.g. a "Factor" box over a single narrow "2" leaf) then gets
+  // centered past the left edge of its reserved space, landing at a negative x that the SVG's
+  // viewBox — sized from `extent()`'s estimate, not the actual placement — clips outright. Re-derive
+  // the true bounding box from the boxes as placed and shift the whole subtree flush to `originX`,
+  // returning the actual width used rather than the (possibly too-narrow) estimate.
+  let minX = Infinity;
+  let maxX = -Infinity;
+  for (let i = boxesStart; i < boxes.length; i++) {
+    const b = boxes[i];
+    minX = Math.min(minX, b.cx - b.width / 2);
+    maxX = Math.max(maxX, b.cx + b.width / 2);
+  }
+  const shift = originX - minX;
+  if (shift !== 0) {
+    for (let i = boxesStart; i < boxes.length; i++) boxes[i].cx += shift;
+    for (let i = edgesStart; i < edges.length; i++) {
+      edges[i].x1 += shift;
+      edges[i].x2 += shift;
+    }
+  }
+  return maxX - minX;
 }
 
 // The shared box/edge-list → SVG-string emission, factored out of `svgOfForest` so `svgOfCst`
