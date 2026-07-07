@@ -17,9 +17,10 @@ codegen:
 
 ```gramaire
 Expr
-  : Expr `+` Term   {% (c) => c.expr + c.term %}
-  | Expr `-` Term   {% (c) => c.expr - c.term %}
+  : Expr '+' Term   {% (c) => c.expr + c.term %}
+  | Expr '-' Term   {% (c) => c.expr - c.term %}
   | Term
+  ;
 ```
 
 ![Railroad diagram for the Expr rule](examples/diagrams-calc-js/expr.svg)
