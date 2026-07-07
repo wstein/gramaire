@@ -871,6 +871,52 @@ test("clicking a rule in Parse tree folds/unfolds its children", async ({
   await expect(page.locator(".lab__rule-header")).toHaveCount(before);
 });
 
+test("a folded rule shows a descendant-count badge, which disappears once unfolded", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  await page.click('button[role="tab"]:has-text("Parse tree")');
+
+  const rootHeader = page.locator(".lab__rule-header").first();
+  await expect(rootHeader.locator(".lab__node-count")).toHaveCount(0);
+
+  await rootHeader.click();
+  // "1+2*3" under calc.gram.md's left-recursive Expr/Term/Factor builds 12 nodes below the root
+  // Expr (5 more rule branches plus 3 NUMBER leaves plus the '+'/'*' operator leaves) — a fixed
+  // fixture shape, hand-counted against the tree the "engine-computed data" test already exercises.
+  await expect(rootHeader.locator(".lab__node-count")).toHaveText("(12 nodes)");
+
+  await rootHeader.click();
+  await expect(rootHeader.locator(".lab__node-count")).toHaveCount(0);
+});
+
+test("Parse tree's expand-all/collapse-all toolbar buttons drive every fold at once", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  await page.click('button[role="tab"]:has-text("Parse tree")');
+
+  const totalHeaders = await page.locator(".lab__rule-header").count();
+  expect(totalHeaders).toBeGreaterThan(1);
+
+  await page.click('button.lab__copy-btn:has-text("collapse all")');
+  // The root's own header stays visible and unfolded ("collapse all BUT the first level") — its
+  // direct rule-children still show their own header lines too, just folded, so "1+2*3"'s root
+  // Expr plus its two direct Expr/Term rule children leaves exactly 3 headers, not 1.
+  await expect(page.locator(".lab__rule-header")).toHaveCount(3);
+  await expect(
+    page.locator(".lab__rule-header").first().locator(".lab__fold-marker"),
+  ).toHaveText("▼");
+  await expect(
+    page.locator(".lab__rule-header").nth(1).locator(".lab__fold-marker"),
+  ).toHaveText("▶");
+  await expect(page.locator(".lab__leaf")).toHaveCount(1); // only the root's direct '+' leaf child
+
+  await page.click('button.lab__copy-btn:has-text("expand all")');
+  await expect(page.locator(".lab__rule-header")).toHaveCount(totalHeaders);
+  await expect(page.locator(".lab__leaf").first()).toBeVisible();
+});
+
 test("the Parse tree tab's copy LISP button copies an S-expression and shows feedback", async ({
   page,
   context,
@@ -879,8 +925,10 @@ test("the Parse tree tab's copy LISP button copies an S-expression and shows fee
   await gotoLabReady(page);
   await page.click('button[role="tab"]:has-text("Parse tree")');
 
-  await page.click(".lab__copy-btn");
-  await expect(page.locator(".lab__copy-btn")).toHaveText("✓ copied");
+  await page.click('button.lab__copy-btn:has-text("copy LISP")');
+  await expect(
+    page.locator('button.lab__copy-btn:has-text("copied")'),
+  ).toHaveText("✓ copied");
   const clip = await page.evaluate(() => navigator.clipboard.readText());
   // Default grammar/input ("1+2*3") is a fixed, deterministic CST — assert the exact rendering:
   // unit/chain productions (Expr -> Term, the inner Term -> Factor for the left operand of `*`)

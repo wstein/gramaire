@@ -467,11 +467,20 @@
   border-radius: 4px;
 }
 
+/* A leaf line (terminal name + matched text) reads visibly lighter than a rule header — the tree's
+   only structural cue beyond indentation for "this is matched input, not grammar structure" at a
+   glance, without hovering or folding anything. */
+.lab__leaf {
+  color: var(--fg-muted);
+}
+
 /* A rule node's clickable/hoverable header line (fold toggle + hoverRule editor cross-link) in
-   CstNodeView/AnnotatedNodeView. */
+   CstNodeView/AnnotatedNodeView. Bolder than a leaf line (.lab__leaf above) so the tree's rule
+   structure pops out from the matched-text detail hanging off it. */
 .lab__rule-header {
   cursor: default;
   user-select: none;
+  font-weight: 600;
 }
 .lab__rule-header:hover {
   background: var(--accent-softer);
@@ -483,6 +492,14 @@
   color: var(--accent);
   font-size: 10px;
 }
+/* A folded rule's descendant-count badge (`▶ Expr (12 nodes)`) — deliberately NOT bold like the
+   rule name it follows, so it reads as metadata about the fold, not part of the rule's own name. */
+.lab__node-count {
+  margin-left: 4px;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--fg-faint);
+}
 
 .lab__tree-toolbar {
   display: flex;
@@ -490,6 +507,11 @@
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
+}
+.lab__tree-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .lab__tree-hint {
   font-family: var(--font-mono);

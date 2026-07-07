@@ -308,6 +308,26 @@ function toggleFold(path: string) {
   collapsedPaths.value = next;
 }
 
+function expandAll() {
+  collapsedPaths.value = new Set();
+}
+
+// Folds every rule node below the root, leaving the root's own header (and any direct leaf
+// children) visible — a coarse "start over" action for a tree that's been drilled into piecemeal
+// via individual clicks. Root itself (path "r") is deliberately excluded: folding it too would
+// hide the whole tree behind one line, which isn't "collapse to first level," it's "collapse to
+// nothing."
+function collapseAllButRoot(cst: CstNode) {
+  const next = new Set<string>();
+  function walk(node: CstNode | null, path: string, depth: number) {
+    if (!node || "token" in node) return;
+    if (depth >= 1) next.add(path);
+    node.children.forEach((c, i) => walk(c, `${path}.${i}`, depth + 1));
+  }
+  walk(cst, "r", 0);
+  collapsedPaths.value = next;
+}
+
 let copyTimer: ReturnType<typeof setTimeout> | undefined;
 function copyToClipboard(text: string) {
   navigator.clipboard?.writeText(text).catch(() => {});
@@ -1147,13 +1167,29 @@ function TreePanel() {
         <span class="lab__tree-hint">
           hover a token or a leaf — they link · click a rule to fold
         </span>
-        <button
-          type="button"
-          class="lab__copy-btn"
-          onClick={() => copyToClipboard(lispOf(cst))}
-        >
-          {copied.value ? "✓ copied" : "copy LISP"}
-        </button>
+        <span class="lab__tree-toolbar-actions">
+          <button
+            type="button"
+            class="lab__copy-btn"
+            onClick={() => expandAll()}
+          >
+            expand all
+          </button>
+          <button
+            type="button"
+            class="lab__copy-btn"
+            onClick={() => collapseAllButRoot(cst)}
+          >
+            collapse all
+          </button>
+          <button
+            type="button"
+            class="lab__copy-btn"
+            onClick={() => copyToClipboard(lispOf(cst))}
+          >
+            {copied.value ? "✓ copied" : "copy LISP"}
+          </button>
+        </span>
       </div>
       {tokens.length > 0 && (
         <div class="lab__token-strip lab__token-strip--tight">
@@ -1203,6 +1239,16 @@ type LeafCounter = { i: number };
 type FoldableNode =
   | { token: string; text: string; value?: unknown }
   | { rule: number; children: FoldableNode[]; value?: unknown };
+
+// Descendant count of a folded node — shown as a badge (`▶ Expr (12 nodes)`) so folding a large
+// subtree doesn't also throw away the sense of how much it's hiding. Counts every node below this
+// one (leaves and rule branches alike), not just direct children, since a one-child rule chain
+// (common for a grammar's tightest-binding levels) would otherwise always read as "(1 node)"
+// regardless of how deep the actual hidden structure goes.
+function descendantCount(node: FoldableNode): number {
+  if ("token" in node) return 0;
+  return node.children.reduce((sum, c) => sum + 1 + descendantCount(c), 0);
+}
 
 // Shared by CstNodeView (Parse tree/All parses' raw Cst display) and AnnotatedNodeView (Evaluate's
 // annotated-tree display) — identical fold/hover/indent recursive walk; `showValue` is the one
@@ -1257,6 +1303,12 @@ function FoldableNodeView({
         {indent}
         {hasKids && <span class="lab__fold-marker">{folded ? "▶" : "▼"}</span>}
         {name}
+        {folded && hasKids && (
+          <span class="lab__node-count">
+            ({descendantCount(node)} node
+            {descendantCount(node) === 1 ? "" : "s"})
+          </span>
+        )}
         {showValue && (
           <>
             {" "}

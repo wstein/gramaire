@@ -90,7 +90,21 @@ a thin skin over real machinery, never a mock.
 > field carrying it across the wire, validated by the JVM↔JS parity gate like
 > every other protocol addition. Under the default LR strategy this column
 > stays absent — LR has no DFA prediction cache at all, so there is nothing
-> honest to show there. Keep this callout current as further work lands.
+> honest to show there. Separately, the Parse tree tab's existing indented/
+> foldable `FoldableNodeView` (shared by Parse tree, All parses' per-parse
+> trees, and Evaluate's annotated tree — the polish below applies everywhere
+> it's used, not just Parse tree) got three small, additive usability
+> improvements: a folded rule node now shows a descendant-count badge
+> (`▶ Expr (12 nodes)`) so folding a large subtree doesn't also throw away
+> the sense of how much it's hiding; an "expand all"/"collapse all" toolbar
+> pair next to the existing "copy LISP" button ("collapse all" folds every
+> rule node below the root, leaving the root's own header and its direct
+> children's headers visible — "collapse to first level," not "collapse to
+> nothing"); and a rule header now reads visibly bolder than a leaf line, a
+> structural cue beyond indentation alone. No protocol change, no new tree
+> renderer — this is the "invest in the existing view" alternative to a
+> from-scratch graphical (box-and-line) tree, which stayed out of scope
+> here. Keep this callout current as further work lands.
 
 ---
 
