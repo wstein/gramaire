@@ -166,13 +166,20 @@ selected with `--diagrams`:
 
 The renderer first builds a small internal diagram tree (`Terminal`,
 `NonTerminal`, `Sequence`, `Choice`/`Stack`, repetition/option nodes, `Group`,
-`Comment`, and action captions), then serializes that tree to the requested
-format. That tree is an implementation detail, but the distinction matters for
-maintainers: CLI sidecars, Mermaid fences, and the live notebook use the same
-core railroad vocabulary rather than parallel renderers. The current `source`
-view still deliberately linearizes that tree back to Gramaire's historical,
-source-faithful stacked-track layout unless an explicitly labeled alternate
-view is requested.
+`Comment`, and action captions), built directly from the grammar's own RAW
+(pre-`Desugar`) symbol tree — an authored `X?`/`X*`/`X+` and a `( a | b )`
+group reach the renderer intact, rather than `Desugar`'s epsilon-free
+lowering (a rule's own use-site-enumerated alternatives, a hoisted list/group
+rule) — then serializes that tree to the requested format. That tree is an
+implementation detail, but the distinction matters for maintainers: CLI
+sidecars, Mermaid fences, and the live notebook use the same core railroad
+vocabulary rather than parallel renderers. The `source` view linearizes that
+tree to Gramaire's historical, source-faithful stacked-track layout: a
+repetition/option node draws as a real bypass arc (skippable) and/or
+loop-back arc (repeatable) around its own item, a `Choice`/`Group` as a real
+nested fork at its own use site — never a `Desugar`-driven approximation
+(enumerated rows, a synthesized list rule) — unless an explicitly labeled
+alternate view is requested.
 
 The renderer also has two named views. **Source** is the default and preserves
 the grammar as authored; this is the view `fmt` uses for committed sidecar SVGs

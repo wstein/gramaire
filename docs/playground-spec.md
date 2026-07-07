@@ -622,7 +622,11 @@ compiled `Grammar` directly (`Railroad.Production`/`DiaSym` constructed from
 way `gramaire fmt`'s sidecar SVGs do — that needs CLI-only markdown-block
 parsing this cross-compiled module doesn't have, and the tradeoff is
 explicit: a desugared `X+` shows its synthesized list rule instead of
-`gramaire fmt`'s native loop shape. `Railroad.renderSvg(themed = true)`'s
+`gramaire fmt`'s native loop shape. (Later superseded: both now build from
+the document's raw, pre-`Desugar` `Grammar` — `Lr.parseRawGrammar` — via the
+same shared `Railroad.diagramsOfGrammar`, so a `X+` draws its own loop-back
+arc either way; see `docs/railroad-renderer-roadmap.md`'s "Source-faithful
+sugar" section.) `Railroad.renderSvg(themed = true)`'s
 `--rr-*` custom properties are aliased to the site's own `tokens.css`
 palette in `lab.css`, so the diagrams follow the light/dark toggle for free.
 
