@@ -44,6 +44,8 @@ layout-aware difference is in `simplified`: long single-path SVG sequences can
 wrap onto continuation rows without changing the default `source` bytes. The
 SVG output also carries grouped node metadata and hover titles so the live site
 can layer in rule links and token-definition hints without a second renderer.
+Committed sidecar SVGs also double as JVM golden fixtures, so source-view drift
+shows up as a plain byte diff in tests.
 
 ## The `.gram.md` format
 
@@ -67,7 +69,6 @@ A grammar with no actions at all is already complete: it fully defines the
 recognized language and a concrete syntax tree (CST) every backend can walk.
 Semantic actions are opt-in — written between `{%` and `%}` as raw,
 language-tagged text (`lang: javascript`, say) and preserved verbatim through
-to code generation — [`examples/calc-js.gram.md`](examples/calc-js.gram.md)
 bakes its actions into a self-contained JS evaluator this way. `{% … %}` text
 with no declared `lang:` is carried through unexecuted, not run by an
 implicit default language. Because fence contents are opaque to Markdown,
