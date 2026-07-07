@@ -39,7 +39,9 @@ builds a renderer-facing diagram AST (`Terminal`, `NonTerminal`, `Sequence`,
 `Choice`, `Stack`, `Optional`, `OneOrMore`, `ZeroOrMore`, `Group`, `Comment`,
 `ActionCaption`) and only then serializes to SVG or Mermaid. The default
 `source` view remains source-faithful and byte-stable for committed sidecar
-artifacts; richer views are opt-in and self-identifying.
+artifacts; richer views are opt-in and self-identifying. Today the first
+layout-aware difference is in `simplified`: long single-path SVG sequences can
+wrap onto continuation rows without changing the default `source` bytes.
 
 ## The `.gram.md` format
 

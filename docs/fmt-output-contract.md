@@ -169,7 +169,9 @@ the grammar as authored; this is the view `fmt` uses for committed sidecar SVGs
 and Mermaid fences. **Simplified** is opt-in and self-identifying in the output,
 so future display-only rewrites cannot be mistaken for the authored grammar.
 `gramaire fmt --diagram-view=simplified` selects that alternate view; omitting
-the flag keeps the canonical `source` view.
+the flag keeps the canonical `source` view. The first layout-specific behavior
+in `simplified` is width-aware SVG wrapping for long single-path sequences;
+`source` stays byte-stable.
 
 - **`sidecar`** (default) — a self-contained railroad SVG per rule, written to
   `diagrams-<grammar-stem>/<rule>.svg` (a per-grammar directory, so two

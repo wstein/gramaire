@@ -64,7 +64,8 @@ object Railroad:
     case Comment(text: String)
     case ActionCaption(item: Diagram, action: String)
 
-  private final case class DrawableAlt(syms: Vector[DiaSym], action: Option[String] = None)
+  private final case class DrawableAlt(rows: Vector[Vector[DiaSym]], action: Option[String] = None):
+    def syms: Vector[DiaSym] = rows.flatten
 
   private def diagramSym(sym: DiaSym): Diagram =
     if sym.term then Diagram.Terminal(sym.label) else Diagram.NonTerminal(sym.label)
@@ -93,7 +94,10 @@ object Railroad:
       case DiagramView.Source     => None
       case DiagramView.Simplified => Some("  %% view: simplified")
 
-  private def linearizeDiagram(diagram: Diagram): Vector[DrawableAlt] =
+  private def linearizeDiagram(
+      diagram: Diagram,
+      view: DiagramView = DiagramView.Source
+  ): Vector[DrawableAlt] =
     def symbolLabel(prefix: String, inner: Diagram, suffix: String = ""): String =
       prefix + inlineLabel(inner) + suffix
 
@@ -124,12 +128,34 @@ object Railroad:
       case Diagram.Stack(alts) => Vector(DiaSym(alts.map(inlineLabel).mkString(" | "), term = true))
       case Diagram.ActionCaption(item, _) => symsOf(item)
 
+    def wrapRows(syms: Vector[DiaSym]): Vector[Vector[DiaSym]] =
+      view match
+        case DiagramView.Source => Vector(syms)
+        case DiagramView.Simplified =>
+          val maxRowWidth = 360
+          val rows = Vector.newBuilder[Vector[DiaSym]]
+          var cur = Vector.empty[DiaSym]
+          var curWidth = 0
+          syms.foreach { sym =>
+            val symWidth = boxWidth(sym.label)
+            val nextWidth = if cur.isEmpty then symWidth else curWidth + GAP + symWidth
+            if cur.nonEmpty && nextWidth > maxRowWidth then
+              rows += cur
+              cur = Vector(sym)
+              curWidth = symWidth
+            else
+              cur = cur :+ sym
+              curWidth = nextWidth
+          }
+          if cur.nonEmpty || syms.isEmpty then rows += cur
+          rows.result()
+
     diagram match
-      case Diagram.Stack(alts)  => alts.flatMap(linearizeDiagram)
-      case Diagram.Choice(alts) => alts.flatMap(linearizeDiagram)
+      case Diagram.Stack(alts)  => alts.flatMap(linearizeDiagram(_, view))
+      case Diagram.Choice(alts) => alts.flatMap(linearizeDiagram(_, view))
       case Diagram.ActionCaption(item, action) =>
-        linearizeDiagram(item).map(alt => alt.copy(action = Some(action)))
-      case other => Vector(DrawableAlt(symsOf(other)))
+        linearizeDiagram(item, view).map(alt => alt.copy(action = Some(action)))
+      case other => Vector(DrawableAlt(wrapRows(symsOf(other))))
 
   // ---- parse an `lr` block's payload into a Production ----------------------
 
@@ -201,6 +227,7 @@ object Railroad:
   private val BOXH = 30
   private val GAP = 24
   private val VGAP = 20
+  private val WRAPGAP = 14
   private val MARGIN = 18
   private val STUB = 16
   private val BRANCH = 28
@@ -290,12 +317,15 @@ object Railroad:
       themed: Boolean = false,
       view: DiagramView = DiagramView.Source
   ): String =
-    val alts0 = linearizeDiagram(diagram)
-    val alts = if alts0.nonEmpty then alts0 else Vector(DrawableAlt(Vector.empty))
-    def altWidth(a: DrawableAlt): Int =
-      a.syms.zipWithIndex.foldLeft(0) { case (w, (s, idx)) =>
+    val alts0 = linearizeDiagram(diagram, view)
+    val alts = if alts0.nonEmpty then alts0 else Vector(DrawableAlt(Vector(Vector.empty)))
+    def rowWidth(row: Vector[DiaSym]): Int =
+      row.zipWithIndex.foldLeft(0) { case (w, (s, idx)) =>
         w + boxWidth(s.label) + (if idx > 0 then GAP else 0)
       }
+    def altWidth(a: DrawableAlt): Int = a.rows.map(rowWidth).maxOption.getOrElse(MINW)
+    def altHeight(a: DrawableAlt): Int =
+      a.rows.length * BOXH + math.max(0, a.rows.length - 1) * WRAPGAP
     val contentW = math.max(MINW, alts.map(altWidth).max)
 
     val startX = MARGIN + STUB + BRANCH
@@ -312,11 +342,16 @@ object Railroad:
       if actionWidths.isEmpty then exitX + MARGIN
       else exitX + ACTIONGAP + actionWidths.max + MARGIN
     val forkX = MARGIN + STUB
-    val n = alts.length
-    def rowTop(i: Int): Int = MARGIN + i * (BOXH + VGAP)
-    def cy(i: Int): Double = rowTop(i) + BOXH / 2.0
-    val mainY = cy(0)
-    val height = MARGIN * 2 + n * BOXH + (n - 1) * VGAP
+    val altTops =
+      alts.scanLeft(MARGIN) { case (top, alt) => top + altHeight(alt) + VGAP }.dropRight(1)
+    def rowTop(altIdx: Int, rowIdx: Int): Int = altTops(altIdx) + rowIdx * (BOXH + WRAPGAP)
+    def cy(altIdx: Int, rowIdx: Int): Double = rowTop(altIdx, rowIdx) + BOXH / 2.0
+    val mainY = cy(0, 0)
+    val height = altTops.lastOption
+      .map(last => last + altHeight(alts.last) + MARGIN)
+      .getOrElse(
+        MARGIN * 2 + BOXH
+      )
     // Corner radius for the orthogonal branch routing: rails run horizontally
     // and vertically (90°) and every direction change turns through a small
     // quarter-round — the classic railroad look, never a diagonal and never a
@@ -330,7 +365,7 @@ object Railroad:
     p += s"""<path class="rr-track" d="M$endX ${fmtNum(mainY)} H$exitX"/>"""
 
     alts.zipWithIndex.foreach { case (alt, i) =>
-      val yi = cy(i)
+      val firstY = cy(i, 0)
       if i == 0 then p += s"""<path class="rr-track" d="M$forkX ${fmtNum(mainY)} H$startX"/>"""
       else
         // Peel off the main line through a quarter-round, down the vertical
@@ -340,56 +375,66 @@ object Railroad:
             mainY
           )} $forkX ${fmtNum(
             mainY + R
-          )} V${fmtNum(yi - R)} Q$forkX ${fmtNum(yi)} ${forkX + R} ${fmtNum(yi)} H$startX"/>"""
+          )} V${fmtNum(firstY - R)} Q$forkX ${fmtNum(firstY)} ${forkX + R} ${fmtNum(
+            firstY
+          )} H$startX"/>"""
 
-      var cx = startX
-      alt.syms.zipWithIndex.foreach { case (sym, j) =>
-        if j > 0 then
-          p += s"""<path class="rr-track" d="M$cx ${fmtNum(yi)} H${cx + GAP}"/>"""
-          cx += GAP
-        val bw = boxWidth(sym.label)
-        val top = rowTop(i)
-        if sym.term then
-          p += s"""<rect class="rr-term" x="$cx" y="$top" width="$bw" height="$BOXH" rx="${BOXH / 2}"/>"""
+      alt.rows.zipWithIndex.foreach { case (row, rowIdx) =>
+        val yi = cy(i, rowIdx)
+        var cx = startX
+        row.zipWithIndex.foreach { case (sym, j) =>
+          if j > 0 then
+            p += s"""<path class="rr-track" d="M$cx ${fmtNum(yi)} H${cx + GAP}"/>"""
+            cx += GAP
+          val bw = boxWidth(sym.label)
+          val top = rowTop(i, rowIdx)
+          if sym.term then
+            p += s"""<rect class="rr-term" x="$cx" y="$top" width="$bw" height="$BOXH" rx="${BOXH / 2}"/>"""
+          else
+            p += s"""<rect class="rr-nonterm" x="$cx" y="$top" width="$bw" height="$BOXH" rx="8"/>"""
+          p += s"""<text class="rr-text" x="${fmtNum(cx + bw / 2.0)}" y="${fmtNum(
+              yi
+            )}" text-anchor="middle" dominant-baseline="central">${escXml(sym.label)}</text>"""
+          cx += bw
+        }
+
+        if cx < joinStartX then
+          p += s"""<path class="rr-track" d="M$cx ${fmtNum(yi)} H$joinStartX"/>"""
+
+        if rowIdx < alt.rows.length - 1 then
+          val nextY = cy(i, rowIdx + 1)
+          p += s"""<path class="rr-track" d="M$joinStartX ${fmtNum(
+              yi
+            )} H${endX - R} Q$endX ${fmtNum(
+              yi
+            )} $endX ${fmtNum(yi + R)} V${fmtNum(nextY - R)} Q$endX ${fmtNum(
+              nextY
+            )} ${endX - R} ${fmtNum(nextY)} H$startX"/>"""
+        else if i == 0 then
+          p += s"""<path class="rr-track" d="M$joinStartX ${fmtNum(mainY)} H$endX"/>"""
         else
-          p += s"""<rect class="rr-nonterm" x="$cx" y="$top" width="$bw" height="$BOXH" rx="8"/>"""
-        p += s"""<text class="rr-text" x="${fmtNum(cx + bw / 2.0)}" y="${fmtNum(
-            yi
-          )}" text-anchor="middle" dominant-baseline="central">${escXml(sym.label)}</text>"""
-        cx += bw
-      }
+          // Mirror on the rejoin: straight out, quarter-round up, up the
+          // vertical at endX, quarter-round back onto the main line — both
+          // corners rounded.
+          p += s"""<path class="rr-track" d="M$joinStartX ${fmtNum(
+              yi
+            )} H${endX - R} Q$endX ${fmtNum(
+              yi
+            )} $endX ${fmtNum(yi - R)} V${fmtNum(mainY + R)} Q$endX ${fmtNum(
+              mainY
+            )} ${endX + R} ${fmtNum(mainY)}"/>"""
 
-      if cx < joinStartX then
-        p += s"""<path class="rr-track" d="M$cx ${fmtNum(yi)} H$joinStartX"/>"""
-
-      if i == 0 then p += s"""<path class="rr-track" d="M$joinStartX ${fmtNum(mainY)} H$endX"/>"""
-      else
-        // Mirror on the rejoin: straight out, quarter-round up, up the
-        // vertical at endX, quarter-round back onto the main line — both
-        // corners rounded.
-        p += s"""<path class="rr-track" d="M$joinStartX ${fmtNum(yi)} H${endX - R} Q$endX ${fmtNum(
-            yi
-          )} $endX ${fmtNum(yi - R)} V${fmtNum(mainY + R)} Q$endX ${fmtNum(
-            mainY
-          )} ${endX + R} ${fmtNum(mainY)}"/>"""
-
-      // The alternative's own `{% %}` action — a plain, muted italic caption past the diagram's
-      // own track entirely (never part of the fork/join geometry) but aligned with this arm's own
-      // row, textbook-figure style rather than a callout box (no `<rect>`, no dashed border; see
-      // `ligatures`/`font`/the `.rr-action-text` color for the rest of this treatment). A
-      // `<title>` still carries the full, untruncated source as a native hover tooltip (no
-      // frontend JS needed: the caller injects this SVG string as raw markup). `boxWidth` (the
-      // same helper every term/nonterm box sizes itself with) still reserves this row's own
-      // horizontal space even though nothing is drawn around the text — it still needs the room.
-      alt.action.foreach { action =>
-        val ad = actionDisplay(action)
-        val ax = exitX + ACTIONGAP
-        val bw = boxWidth(ad.shown)
-        p += s"""<text class="rr-action-text" x="${fmtNum(ax + bw / 2.0)}" y="${fmtNum(
-            yi
-          )}" text-anchor="middle" dominant-baseline="central"><title>${escXml(
-            ad.title
-          )}</title>${escXml(ad.shown)}</text>"""
+        if rowIdx == alt.rows.length - 1 then
+          alt.action.foreach { action =>
+            val ad = actionDisplay(action)
+            val ax = exitX + ACTIONGAP
+            val bw = boxWidth(ad.shown)
+            p += s"""<text class="rr-action-text" x="${fmtNum(ax + bw / 2.0)}" y="${fmtNum(
+                yi
+              )}" text-anchor="middle" dominant-baseline="central"><title>${escXml(
+                ad.title
+              )}</title>${escXml(ad.shown)}</text>"""
+          }
       }
     }
 
@@ -415,8 +460,8 @@ object Railroad:
       diagram: Diagram,
       view: DiagramView = DiagramView.Source
   ): String =
-    val alts0 = linearizeDiagram(diagram)
-    val alts = if alts0.nonEmpty then alts0 else Vector(DrawableAlt(Vector.empty))
+    val alts0 = linearizeDiagram(diagram, view)
+    val alts = if alts0.nonEmpty then alts0 else Vector(DrawableAlt(Vector(Vector.empty)))
     val lines = Vector.newBuilder[String]
     lines += "flowchart LR"
     viewMermaidComment(view).foreach(lines += _)

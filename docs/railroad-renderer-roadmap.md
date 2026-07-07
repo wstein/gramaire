@@ -40,7 +40,8 @@ the committed artifacts while giving later phases a stable internal layer.
   view in the rendered output. `gramaire fmt --diagram-view=simplified` is the
   first public opt-in surface for that distinction.
 2. Add width-aware layout without introducing browser-measured text layout or
-   runtime dependencies.
+  runtime dependencies. The first shipped step is deterministic wrapping for
+  long single-path simplified-view SVG sequences.
 3. Add semantic affordances such as per-node titles and source-aware links.
 4. Add explicit normalization passes behind non-default views.
 

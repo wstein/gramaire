@@ -136,6 +136,35 @@ class RailroadSuite extends munit.FunSuite:
     assert(!svg.contains("ignored in source-view layout"))
   }
 
+  test(
+    "renderSvg: simplified view wraps a long single-path sequence without changing source view"
+  ) {
+    val prod = Production(
+      "Expr",
+      Vector(
+        Alt(
+          Vector(
+            DiaSym("VeryLongPrefixExpr", term = false),
+            DiaSym("VeryLongOperatorToken", term = true),
+            DiaSym("VeryLongMiddleTerm", term = false),
+            DiaSym("VeryLongSuffixFactor", term = false)
+          )
+        )
+      )
+    )
+    val sourceSvg = renderSvg(prod, view = DiagramView.Source)
+    val simplifiedSvg = renderSvg(prod, view = DiagramView.Simplified)
+    val heightRe = """height="(\d+)""".r
+    val sourceHeight = heightRe.findFirstMatchIn(sourceSvg).map(_.group(1).toInt).getOrElse(0)
+    val simplifiedHeight =
+      heightRe.findFirstMatchIn(simplifiedSvg).map(_.group(1).toInt).getOrElse(0)
+    assert(simplifiedSvg.contains("""data-rr-view="simplified"""))
+    assert(
+      simplifiedHeight > sourceHeight,
+      s"expected wrapped simplified SVG to be taller:\n$simplifiedSvg"
+    )
+  }
+
   test("renderDiagramSvg: action captions survive the shared diagram AST") {
     val diagram = Diagram.ActionCaption(
       Diagram.Sequence(Vector(Diagram.NonTerminal("Term"))),
