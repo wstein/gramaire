@@ -47,10 +47,10 @@ used but never defined") unless the block is in external mode (§6).
 Like the Settings- and Precedence-role fences, a Tokens-role fence is a
 hand-parsed sidecar notation, not itself a `gramaire` grammar — but unlike
 those two, it is never ambiguous with production content: a token
-definition's ALL-CAPS-name-before-`:` shape can never overlap a valid
-production, since the `lr` notation requires a newline between a rule's name
-and its `:` (`IDENT NL :`) while a token definition's `:` is on the same line
-as its name.
+definition's name-before-`:` MUST be ALL-CAPS, while a production's own name
+is always mixed-case (a nonterminal), so the two shapes never overlap
+regardless of whether a rule head's `:` sits on the same line as its name or
+the next one.
 
 ## 3. The regular sublanguage
 

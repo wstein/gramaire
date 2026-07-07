@@ -556,8 +556,11 @@ object Lr:
     parseWith(method, md).map(g => withExternals(withDocComments(g, md), md))
 
   // A token-class definition line: an ALL-CAPS name then `:` on one
-  // unindented line. A production head is a Mixed-case name on its OWN
-  // line with the `:` on the next, so it never matches.
+  // unindented line. A production head's name is always mixed-case
+  // (`isUpperName` requires an all-caps, digit/underscore-only spelling), so
+  // it never matches here regardless of whether the head's own `:` is on
+  // this same line or the next (D59 — a rule head no longer requires a
+  // newline before its `:`).
   private def isTokenDef(l: String): Boolean =
     val c0 = l.headOption
     c0 != Some(' ') && c0 != Some('\t') && {

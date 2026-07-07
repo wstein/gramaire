@@ -106,8 +106,18 @@ object Conformance:
     TestVector("rule with a semantic action", "Foo\n: 'x' {% \\a -> a %} ;", Outcome.Accept),
     TestVector("two alternatives", "Foo\n: 'x'\n| 'y' ;", Outcome.Accept),
     TestVector("two rules", "A\n: 'x' ;\n\nB\n: 'y' ;", Outcome.Accept),
+    TestVector(
+      "single-line rule head, no newline before ':' (ANTLR/Bison-style)",
+      "Foo : 'x' ;",
+      Outcome.Accept
+    ),
+    TestVector(
+      "two single-line rules back to back, no whitespace at all",
+      "A:'x';B:'y';",
+      Outcome.Accept
+    ),
     TestVector("leading terminal, no lhs", "'x'", Outcome.Reject),
-    TestVector("missing newline after lhs", "Foo Bar", Outcome.Reject),
+    TestVector("two bare identifiers, no ':' at all", "Foo Bar", Outcome.Reject),
     TestVector("colon but empty body", "Foo\n:", Outcome.Reject),
     TestVector("body starts with a bar", "Foo\n| 'x'", Outcome.Reject),
     TestVector("missing terminating semicolon", "Foo\n: 'x'", Outcome.Reject),

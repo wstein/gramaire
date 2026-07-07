@@ -141,12 +141,22 @@ Expr                          Expr
 Only one newline is structural: the one inside a **rule head** `IDENT NL :`
 (which is exactly what distinguishes a head from a same-line `name:Sym` field,
 `IDENT : Sym`). The lexer's `normalizeNewlines` pass keeps that one and drops
-every other newline before the LR parser sees the stream — including, now, the
+every other newline before the LR parser sees the stream — including the
 boundary newline that used to separate consecutive rules before `;` existed;
 the mandatory terminator replaced that job outright, not alongside it. A
 consequence: a `name:Sym` field must stay on one line — splitting it reads the
-name as a head. `fmt` keeps an alternative on one line when it fits and may
-wrap longer ones; wrapping is parse-invariant by construction.
+name as a head.
+
+That head `NL` no longer has to be present in the source at all (D59): a rule
+can only start right after a `;` or at the very start of the document, so
+`normalizeNewlines` synthesizes a zero-width one there when it's missing —
+`Foo : 'x' ;` parses identically to `Foo\n  : 'x' ;`. `fmt`'s own canonical
+output still always emits the name on its own line (this contract's layout
+choice, not a language requirement); the single-line form is for grammars
+authored or converted from a notation, like ANTLR's or Bison's, that never
+needed the newline convention to begin with. `fmt` keeps an alternative on one
+line when it fits and may wrap longer ones; wrapping is parse-invariant by
+construction.
 
 ### Railroad diagrams
 

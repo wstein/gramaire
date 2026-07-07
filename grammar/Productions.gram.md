@@ -28,7 +28,13 @@ unambiguous with a single token of lookahead:
   newline separating consecutive rules before `;` existed; the mandatory
   terminator replaced that job outright, not alongside it. (This resolves
   the newline-significance question as "Option A"; see
-  `docs/fmt-output-contract.md`.)
+  `docs/fmt-output-contract.md`.) That head newline no longer has to be
+  *present in the source* either (D59): `;` already makes "right after a
+  `;`, or the very start of the document" an unambiguous rule-start
+  position, so the lexer synthesizes one there when it's missing — `Foo :
+  'x' ;` parses identically to `Foo\n  : 'x' ;`. A `name:Sym` field is never
+  mistaken for a head, because that synthesis only ever fires at a position
+  a field can't occupy.
 - **Terminals** are written either as quoted literals — `'x'` or `"x"` (such
   as `':'` and `'|'`) — or as ALL-CAPS lexer token classes (`IDENT`,
   `TERM_LIT`, `ACTION`, `NL`).
@@ -132,11 +138,14 @@ RuleList
 
 ## Rule
 
-A rule is its name on its own line, then `:` and its `|`-separated alternatives,
-ending with a mandatory `;` (mirroring Bison/YACC/ANTLR4's own convention). The
-`NL` between the name and its `:` is load-bearing: it is the only thing that
-tells a rule head (`IDENT NL :`) from a `name:Sym` field (`IDENT : Sym`), so the
-head form is fixed and never written inline.
+A rule is its name, then `:` and its `|`-separated alternatives, ending with a
+mandatory `;` (mirroring Bison/YACC/ANTLR4's own convention) — conventionally
+with the name on its own line, but a single-line ANTLR/Bison-style head
+(`Foo : 'x' ;`) parses identically. The `NL` between the name and its `:` is
+what tells a rule head (`IDENT NL :`) from a `name:Sym` field (`IDENT : Sym`);
+it doesn't have to be written, though, since the lexer synthesizes it whenever
+one is missing at a position only a rule head can occupy — right after the
+previous rule's `;`, or at the very start of the document (D59).
 
 A rule may carry `#[attr]` attributes (e.g. `#[inline]`, which `Gramaire.Desugar`
 folds into use sites) before its name.
@@ -477,10 +486,10 @@ SetItem
 Curated messages keyed by the parser state they are reported from.
 
 ```text
-after IDENT NL:
+after IDENT (NL synthesized or real) at a rule-start position:
   Expected `:` to begin this rule's alternatives.
-  A rule is its name on one line, then `:` and the first alternative
-  on the next.
+  A rule is its name, then `:` and its first alternative — on the
+  same line or the next.
 
 after Body, lookahead is ATTR or IDENT (the shape of a new rule's own head):
   Expected `;` to end the previous rule. A rule (like a token definition)

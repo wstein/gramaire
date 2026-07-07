@@ -31,10 +31,11 @@ from the concatenated content of every fenced code block whose info string is
   line a `name:`/`lang:` directive → **Settings**; every line a
   `%left`/`%right`/`%nonassoc` declaration → **Precedence**; every line an
   unindented `ALLCAPS : …` token definition → **Tokens**; anything else → a
-  nonterminal's **productions**. This is unambiguous by construction: no valid
-  production can share a token definition's one-line shape, since a rule's `:`
-  MUST follow a newline (`IDENT NL :`, §2) while a token definition's `:` is on
-  the same line as its name. A suffixed opener (` ```gramaire tokens `,
+  nonterminal's **productions**. This is unambiguous by construction: a token
+  definition's name MUST be ALL-CAPS (§2), while a production's own name is
+  always mixed-case, so the two shapes never overlap — regardless of whether a
+  rule head's `:` sits on the same line as its name or the next one (§3). A
+  suffixed opener (` ```gramaire tokens `,
   ` ```gramaire settings `, ` ```gramaire precedence `, ` ```gramaire errors `) is
   a removed notation and MUST be rejected with a located, actionable error
   (`gramaire fmt --migrate` merges it into a bare fence).
@@ -109,6 +110,15 @@ a newline happens once, in this pass.
   A consequence: a `name:Sym` field MUST stay on one line. Splitting it across a
   break reads the name as a rule head.
 </Aside>
+
+The head `NL` MAY also be absent from the source entirely: a rule can only
+start right after a `;` (the previous rule's own terminator) or at the very
+start of the document — never mid-`Body`, the one other place an `IDENT` can
+be followed by `:`. So the same pass synthesizes a zero-width head `NL` at
+either position when a real one isn't there, and `Foo : 'x' ;` (ANTLR/Bison-
+style, no line break at all) parses identically to the traditional `Foo\n  :
+'x' ;`. A `name:Sym` field is never mistaken for a head this way, since
+synthesis only ever fires at a position a field can't occupy.
 
 ## 4. Desugaring to the epsilon-free core
 

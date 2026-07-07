@@ -116,40 +116,76 @@ object Lexer:
 
   /** Reclassify newlines for the parser (line-continuation spec, §3). Only ONE `NL` shape survives:
     * the head separator inside `IDENT NL :` (or `ATTR IDENT NL :`). Every other `NL` is dropped, so
-    * a line break inside an alternative is insignificant — including, now, the newline between two
+    * a line break inside an alternative is insignificant — including the newline between two
     * consecutive rules, since a mandatory trailing `;` (Bootstrap.scala's `Rule`) unambiguously
     * ends each rule without needing a preserved boundary newline to tell them apart. A prior
     * revision of this function also kept that boundary `NL` (the one immediately before the next
     * rule's own head) for exactly that disambiguation job; `;` replaced it, not layered alongside
     * it.
+    *
+    * A rule head may also be written with NO newline at all before its `:` (`Foo : 'x' ;`,
+    * ANTLR/Bison-style) — `;` already makes "the token right after a `;`, or the very first token
+    * in the document" an unambiguous rule-start position, the same way it disambiguates consecutive
+    * rules above, so a missing head `NL` there is synthesized (zero-width, ADR D59)
+    * rather than left for the grammar to reject. This keeps `Rule`'s own two productions — and
+    * every production id after them, in `CodegenScala.lrActionsScala` and `Lr.reduce` alike —
+    * untouched: a rule head always presents an `IDENT NL ':'` shape to the parser, real or
+    * synthesized. A `name:Sym` field (`IDENT ':' Sym`, always mid-`Body`, never right after a
+    * `;`/at the start) is never mistaken for a head, because synthesis only ever fires at a
+    * position a field can't occupy.
     */
   def normalizeNewlines(toks: Vector[Token]): Vector[Token] =
-    def term(j: Int): Option[String] =
-      if j >= 0 && j < toks.length then Some(toks(j).terminal) else None
-
-    def decide(i: Int, t: Token): Option[Token] =
-      if t.terminal != "NL" then Some(t)
-      else if term(i - 1) == Some("IDENT") && term(i + 1) == Some(":") then Some(t) // head `NL`
-      else None // every other NL, dropped
-
-    toks.zipWithIndex.flatMap { case (t, i) => decide(i, t) }
+    normalizeNewlinesGeneric[Token](toks, _.terminal, (prev, term, txt) => Token(term, txt))
 
   /** `normalizeNewlines`, but over a span-carrying token stream — the form `Lr.parseWith` needs to
     * keep a failing token's source span reachable after normalization drops the insignificant
     * `NL`s. Mirrors `normalizeNewlines`'s logic exactly (same predicate, `Spanned.terminal` in
     * place of `Token.terminal`), duplicated rather than shared for the same reason `Scanner.scan`/
-    * `scanSpanned` are two functions instead of one generic over token shape.
+    * `scanSpanned` are two functions instead of one generic over token shape. A synthesized head
+    * `NL` gets a zero-width span at the boundary right after the head `IDENT` (or `ATTR`-prefixed
+    * `IDENT`), before the `:` — a sensible location if a future diagnostic ever needs to point at
+    * it.
     */
   def normalizeNewlinesSpanned(toks: Vector[Spanned]): Vector[Spanned] =
-    def term(j: Int): Option[String] =
-      if j >= 0 && j < toks.length then Some(toks(j).terminal) else None
+    normalizeNewlinesGeneric[Spanned](
+      toks,
+      _.terminal,
+      (prev, term, txt) => Spanned(term, txt, prev.end, prev.end)
+    )
 
-    def decide(i: Int, t: Spanned): Option[Spanned] =
-      if t.terminal != "NL" then Some(t)
-      else if term(i - 1) == Some("IDENT") && term(i + 1) == Some(":") then Some(t)
-      else None
+  // Shared implementation for `normalizeNewlines`/`normalizeNewlinesSpanned`: `mk(prev, terminal,
+  // text)` builds a synthesized token of the caller's shape, given the token it is inserted right
+  // after (for `Spanned`'s zero-width position; ignored by the plain `Token` form).
+  private def normalizeNewlinesGeneric[T](
+      toks: Vector[T],
+      terminal: T => String,
+      mk: (T, String, String) => T
+  ): Vector[T] =
+    def termOf(v: Vector[T], j: Int): Option[String] =
+      if j >= 0 && j < v.length then Some(terminal(v(j))) else None
 
-    toks.zipWithIndex.flatMap { case (t, i) => decide(i, t) }
+    // A rule can only start right after a `;` (the previous rule's own terminator) or at the very
+    // start of the document — never mid-`Body`, the only other place an `IDENT` can be followed by
+    // `:`. So an `IDENT` (optionally `ATTR`-prefixed) at one of those two positions is always a rule
+    // head, never a `name:Sym` field.
+    def isBoundary(j: Int): Boolean = j < 0 || termOf(toks, j) == Some(";")
+    def isHeadIdent(i: Int): Boolean =
+      termOf(toks, i) == Some("IDENT") &&
+        (isBoundary(i - 1) || (termOf(toks, i - 1) == Some("ATTR") && isBoundary(i - 2)))
+
+    val withSynthesizedHeads: Vector[T] = toks.zipWithIndex.flatMap { case (t, i) =>
+      if isHeadIdent(i) && termOf(toks, i + 1) != Some("NL") then Vector(t, mk(t, "NL", ""))
+      else Vector(t)
+    }
+
+    def decide(i: Int, t: T): Option[T] =
+      if terminal(t) != "NL" then Some(t)
+      else if termOf(withSynthesizedHeads, i - 1) == Some("IDENT") &&
+        termOf(withSynthesizedHeads, i + 1) == Some(":")
+      then Some(t) // head `NL`, real or synthesized
+      else None // every other NL, dropped
+
+    withSynthesizedHeads.zipWithIndex.flatMap { case (t, i) => decide(i, t) }
 
   private def isLayout(c: Char): Boolean = c == ' ' || c == '\t' || c == '\r' || c == '\n'
   private def isDigit(c: Char): Boolean = c >= '0' && c <= '9'

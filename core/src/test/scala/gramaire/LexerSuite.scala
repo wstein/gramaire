@@ -141,6 +141,69 @@ class LexerSuite extends munit.FunSuite:
     )
   }
 
+  test("normalizeNewlines synthesizes a missing head NL at the very start of the stream") {
+    assertEquals(
+      Lexer
+        .normalizeNewlines(Vector(tk("IDENT", "A"), tk(":", ":"), tk("TERM_LIT", "'x'")))
+        .map(_.terminal),
+      Vector("IDENT", "NL", ":", "TERM_LIT")
+    )
+  }
+
+  test("normalizeNewlines synthesizes a missing head NL right after a `;` boundary") {
+    assertEquals(
+      Lexer
+        .normalizeNewlines(
+          Vector(tk(";", ";"), tk("IDENT", "B"), tk(":", ":"), tk("TERM_LIT", "'y'"))
+        )
+        .map(_.terminal),
+      Vector(";", "IDENT", "NL", ":", "TERM_LIT")
+    )
+  }
+
+  test("normalizeNewlines synthesizes a missing head NL for an ATTR-prefixed head too") {
+    assertEquals(
+      Lexer
+        .normalizeNewlines(
+          Vector(tk(";", ";"), tk("ATTR", "inline"), tk("IDENT", "B"), tk(":", ":"))
+        )
+        .map(_.terminal),
+      Vector(";", "ATTR", "IDENT", "NL", ":")
+    )
+  }
+
+  test("normalizeNewlines never synthesizes a head NL for a mid-body `name:Sym` field") {
+    // "ex" sits right after ":", never after `;`/stream-start, so it can only be a field.
+    assertEquals(
+      Lexer
+        .normalizeNewlines(
+          Vector(
+            tk("IDENT", "Factor"),
+            tk("NL", "\n"),
+            tk(":", ":"),
+            tk("IDENT", "ex"),
+            tk(":", ":"),
+            tk("IDENT", "Expr")
+          )
+        )
+        .map(_.terminal),
+      Vector("IDENT", "NL", ":", "IDENT", ":", "IDENT")
+    )
+  }
+
+  test("normalizeNewlinesSpanned synthesizes a zero-width head NL right after the head IDENT") {
+    val toks = Vector(
+      Spanned("IDENT", "A", 0, 1),
+      Spanned(":", ":", 2, 3),
+      Spanned("TERM_LIT", "'x'", 4, 7)
+    )
+    val normalized = Lexer.normalizeNewlinesSpanned(toks)
+    assertEquals(normalized.map(_.terminal), Vector("IDENT", "NL", ":", "TERM_LIT"))
+    val nl = normalized(1)
+    assertEquals(nl.start, 1)
+    assertEquals(nl.end, 1)
+  }
+
   test("an unterminated action is a LexError") {
     assert(Lexer.tokenize("X {% oops").isLeft)
   }

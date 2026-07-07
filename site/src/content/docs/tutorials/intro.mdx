@@ -110,10 +110,13 @@ Reading the `gramaire` block:
   terminal.
 
 <Aside type="caution" title="Heads vs. fields">
-  A rule head is `Name` on its own line, then `:` on the next — the line break
-  is load-bearing. It is the one thing that distinguishes a head from a
-  `name:Sym` **field** (written `IDENT : Sym` with no break, see §4). So never
-  write a head inline as `Name : …`.
+  A rule head is conventionally `Name` on its own line, then `:` on the next —
+  that line break is what distinguishes a head from a `name:Sym` **field**
+  (written `IDENT : Sym` with no break, see §4). You can also write a head
+  inline, `Name : …` (ANTLR/Bison-style) — Gramaire recognizes it as a head
+  either way, since a field can only ever appear *inside* a rule's own body,
+  never at a position where a new rule could start. `fmt`'s canonical layout
+  always puts the name on its own line regardless of which style you write.
 </Aside>
 
 Add the remaining rules — `Term`, then `Factor` for numbers and parentheses:
