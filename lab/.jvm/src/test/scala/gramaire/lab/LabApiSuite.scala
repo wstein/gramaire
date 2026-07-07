@@ -352,6 +352,47 @@ class LabApiSuite extends munit.FunSuite:
         )
   }
 
+  // A hoisted `( a | b )` group (Desugar.groupHoist) becomes its own synthetic `__group_N` rule —
+  // it must never get a FIRST/FOLLOW row or a railroad tab of its own (same "no real source"
+  // treatment Diagnostics.sourceRuleNameGuess already gives `__group_` names), and the rule that
+  // actually references it must show the group's own choice as a real nested fork inline, not an
+  // opaque box pointing at a rule with nothing to show for it.
+  test(
+    "evaluate: analysis inlines a hoisted group's own choice into its referencing rule's railroad, with no separate __group_N tab"
+  ) {
+    val groupMd = """# GroupTest
+      |
+      |## Term
+      |
+      |```gramaire
+      |Term
+      |  : Term ('*' | '/') Factor
+      |  | Factor
+      |  ;
+      |```
+      |
+      |## Factor
+      |
+      |```gramaire
+      |Factor
+      |  : 'x'
+      |  ;
+      |```
+      |""".stripMargin
+    val resp = LabApi.evaluate(LabRequest(groupMd, None, Method.Canonical))
+    assert(resp.buildOk)
+    resp.analysis match
+      case None => fail("expected analysis")
+      case Some(a) =>
+        assertEquals(a.firstFollow.map(_.name), Vector("Term", "Factor"))
+        assertEquals(a.railroad.keySet, Set("Term", "Factor"))
+
+        val termSvg = a.railroad("Term")
+        assert(termSvg.contains(""">*</text>"""), termSvg)
+        assert(termSvg.contains(""">/</text>"""), termSvg)
+        assert(!termSvg.contains("* | /"), termSvg)
+  }
+
   test("evaluate: analysis is populated even when the grammar has real conflicts") {
     val resp = LabApi.evaluate(LabRequest(ambiguousMd, None, Method.Canonical))
     assert(!resp.buildOk)

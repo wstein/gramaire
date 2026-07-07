@@ -30,9 +30,15 @@ AST with these nodes:
 - `Comment`
 - `ActionCaption`
 
-The current SVG and Mermaid renderers still linearize that AST to the existing
-stacked-track output for the default `source` view. This preserves parity with
-the committed artifacts while giving later phases a stable internal layer.
+The SVG renderer now draws real recursive fork/rejoin geometry: a `Choice`/
+`Stack` found NESTED inside a `Sequence` — the shape a hoisted `( a | b )`
+group reinlines as at its use site — renders as a genuine inline sub-fork
+(`Railroad.drawFork`, recursive), not a single box collapsed to text. A
+top-level `Choice`/`Stack` (a whole Production's own alternatives) still
+linearizes to the historical stacked-track layout, unchanged and byte-stable.
+Mermaid has no room for a sub-fork in a flowchart node chain, so it keeps
+flattening a nested `Choice`/`Stack` to one text-labeled node either way —
+the one deliberate SVG/Mermaid divergence this introduced.
 
 ## Next phases
 
@@ -42,9 +48,11 @@ the committed artifacts while giving later phases a stable internal layer.
 2. Add width-aware layout without introducing browser-measured text layout or
   runtime dependencies. The first shipped step is deterministic wrapping for
   long single-path simplified-view SVG sequences — a single alt's own row of
-  symbols. Wrapping a diagram with many wide alternatives (a "huge choice",
-  as opposed to one long sequence) is not yet implemented; the geometry that
-  would need is a bigger layout change than a follow-up to this step covers.
+  symbols; a `Nested` fork (see "Current foundation" above) is one atomic
+  item for this purpose, never split mid-fork. Wrapping a diagram with many
+  wide alternatives (a "huge choice", as opposed to one long sequence) is
+  not yet implemented — the recursive fork/row layout the nested-group work
+  above added is the layer that change would extend, not a fresh rewrite.
 3. Add semantic affordances such as per-node titles and source-aware links.
   The first shipped step is grouped SVG node metadata plus hover titles.
   Live-site nonterminal links are now built from that same `<g class="rr-node
@@ -54,7 +62,12 @@ the committed artifacts while giving later phases a stable internal layer.
   `rect.rr-nonterm` and its text sibling separately), and the Notebook — which
   had no diagram interactivity at all — now gets the same click/keyboard
   "jump to that rule's cell" affordance the outline sidebar already had.
-  Token-definition hover annotations remain unbuilt.
+  Token-definition hover annotations remain unbuilt. A hoisted `( a | b )`
+  group (`Desugar.groupHoist`) is never its own tab/FIRST-FOLLOW row either
+  (`LabApi.analysisOf` filters `__group_N` rule names, the live-engine
+  counterpart to "Current foundation"'s nested-fork inlining above) — the
+  live analysis surface, not just the diagram, treats it as having no
+  author-facing identity of its own.
 4. Add explicit normalization passes behind non-default views. The first
   shipped step (`DiagramNormalize.simplify`) recognizes two safe idioms —
   optional tails and direct-left-recursive repetition chains — and always

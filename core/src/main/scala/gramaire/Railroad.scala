@@ -64,8 +64,35 @@ object Railroad:
     case Comment(text: String)
     case ActionCaption(item: Diagram, action: String)
 
-  private final case class DrawableAlt(rows: Vector[Vector[DiaSym]], action: Option[String] = None):
-    def syms: Vector[DiaSym] = rows.flatten
+  // One row-position in a drawn alt: either an ordinary term/nonterm box, or a Choice/Stack found
+  // NESTED inside a larger sequence (e.g. a hoisted `( a | b )` group reinlined at its use site) —
+  // drawn as a real inline sub-fork (`drawFork`, recursively) rather than collapsed to text. Mutually
+  // recursive with `DrawableAlt` by construction: a nested fork's own alternatives are full
+  // `DrawableAlt`s too (so the same fork/rejoin geometry draws both), just always `action = None`
+  // and always exactly one (never wrapped) row — a hoisted group has no action of its own to show,
+  // and only the OUTERMOST sequence's own long-run wrapping (Simplified view) ever splits a row.
+  private enum RowItem:
+    case Sym(sym: DiaSym)
+    case Nested(alts: Vector[DrawableAlt])
+
+  private final case class DrawableAlt(
+      rows: Vector[Vector[RowItem]],
+      action: Option[String] = None
+  ):
+    // Mermaid's flowchart node-chain has no room for an inline sub-fork — a Nested item flattens to
+    // one text-labeled node there, matching value `renderDiagramSvg` used everywhere before nested
+    // forks existed (and still the ONLY rendering a bare top-level Choice/Stack ever needed, since
+    // `linearizeDiagram` intercepts those before they ever reach `RowItem` construction at all).
+    def flatSyms: Vector[DiaSym] = rows.flatten.map(RowItem.flatten)
+
+  private object RowItem:
+    def flatten(item: RowItem): DiaSym = item match
+      case Sym(s) => s
+      case Nested(alts) =>
+        DiaSym(alts.map(flattenAltText).mkString(" | "), term = true)
+
+    private def flattenAltText(alt: DrawableAlt): String =
+      alt.rows.flatten.map(it => flatten(it).label).mkString(" ")
 
   private def diagramSym(sym: DiaSym): Diagram =
     if sym.term then Diagram.Terminal(sym.label) else Diagram.NonTerminal(sym.label)
@@ -114,40 +141,51 @@ object Railroad:
       case Diagram.Comment(text)          => text
       case Diagram.ActionCaption(item, _) => inlineLabel(item)
 
-    def symsOf(d: Diagram): Vector[DiaSym] = d match
-      case Diagram.Terminal(label)    => Vector(DiaSym(label, term = true))
-      case Diagram.NonTerminal(label) => Vector(DiaSym(label, term = false))
-      case Diagram.Sequence(items)    => items.flatMap(symsOf)
-      case Diagram.Group(_, item)     => symsOf(item)
+    // One row's worth of drawable items from a diagram node reached NESTED inside a Sequence/alt —
+    // never called on a diagram's own top-level Stack/Choice (the match below intercepts those
+    // first, unchanged from before nested forks existed), so the Choice/Stack cases here only ever
+    // fire for a group embedded partway through a larger production, and now get real nested-fork
+    // geometry (`RowItem.Nested`) instead of collapsing to one text-labeled box.
+    def itemsOf(d: Diagram): Vector[RowItem] = d match
+      case Diagram.Terminal(label)    => Vector(RowItem.Sym(DiaSym(label, term = true)))
+      case Diagram.NonTerminal(label) => Vector(RowItem.Sym(DiaSym(label, term = false)))
+      case Diagram.Sequence(items)    => items.flatMap(itemsOf)
+      case Diagram.Group(_, item)     => itemsOf(item)
       case Diagram.Comment(_)         => Vector.empty
-      case Diagram.Optional(item)     => Vector(DiaSym(symbolLabel("", item, "?"), term = true))
-      case Diagram.OneOrMore(item)    => Vector(DiaSym(symbolLabel("", item, "+"), term = true))
-      case Diagram.ZeroOrMore(item)   => Vector(DiaSym(symbolLabel("", item, "*"), term = true))
+      case Diagram.Optional(item) =>
+        Vector(RowItem.Sym(DiaSym(symbolLabel("", item, "?"), term = true)))
+      case Diagram.OneOrMore(item) =>
+        Vector(RowItem.Sym(DiaSym(symbolLabel("", item, "+"), term = true)))
+      case Diagram.ZeroOrMore(item) =>
+        Vector(RowItem.Sym(DiaSym(symbolLabel("", item, "*"), term = true)))
       case Diagram.Choice(alts) =>
-        Vector(DiaSym(alts.map(inlineLabel).mkString(" | "), term = true))
-      case Diagram.Stack(alts) => Vector(DiaSym(alts.map(inlineLabel).mkString(" | "), term = true))
-      case Diagram.ActionCaption(item, _) => symsOf(item)
+        Vector(RowItem.Nested(alts.map(a => DrawableAlt(Vector(itemsOf(a))))))
+      case Diagram.Stack(alts) =>
+        Vector(RowItem.Nested(alts.map(a => DrawableAlt(Vector(itemsOf(a))))))
+      case Diagram.ActionCaption(item, _) => itemsOf(item)
 
-    def wrapRows(syms: Vector[DiaSym]): Vector[Vector[DiaSym]] =
+    // A nested fork is treated as one atomic unit for wrapping purposes — never split mid-fork —
+    // the same way a single symbol box always was; only the boundaries BETWEEN items ever wrap.
+    def wrapRows(items: Vector[RowItem]): Vector[Vector[RowItem]] =
       view match
-        case DiagramView.Source => Vector(syms)
+        case DiagramView.Source => Vector(items)
         case DiagramView.Simplified =>
           val maxRowWidth = 360
-          val rows = Vector.newBuilder[Vector[DiaSym]]
-          var cur = Vector.empty[DiaSym]
+          val rows = Vector.newBuilder[Vector[RowItem]]
+          var cur = Vector.empty[RowItem]
           var curWidth = 0
-          syms.foreach { sym =>
-            val symWidth = boxWidth(sym.label)
-            val nextWidth = if cur.isEmpty then symWidth else curWidth + GAP + symWidth
+          items.foreach { it =>
+            val itWidth = itemWidth(it)
+            val nextWidth = if cur.isEmpty then itWidth else curWidth + GAP + itWidth
             if cur.nonEmpty && nextWidth > maxRowWidth then
               rows += cur
-              cur = Vector(sym)
-              curWidth = symWidth
+              cur = Vector(it)
+              curWidth = itWidth
             else
-              cur = cur :+ sym
+              cur = cur :+ it
               curWidth = nextWidth
           }
-          if cur.nonEmpty || syms.isEmpty then rows += cur
+          if cur.nonEmpty || items.isEmpty then rows += cur
           rows.result()
 
     diagram match
@@ -155,7 +193,7 @@ object Railroad:
       case Diagram.Choice(alts) => alts.flatMap(linearizeDiagram(_, view))
       case Diagram.ActionCaption(item, action) =>
         linearizeDiagram(item, view).map(alt => alt.copy(action = Some(action)))
-      case other => Vector(DrawableAlt(wrapRows(symsOf(other))))
+      case other => Vector(DrawableAlt(wrapRows(itemsOf(other))))
 
   // ---- parse an `lr` block's payload into a Production ----------------------
 
@@ -269,6 +307,214 @@ object Railroad:
   private def escXml(s: String): String =
     s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
 
+  // ---- recursive fork/row layout ------------------------------------------
+  //
+  // A row is a horizontal run of `RowItem`s; a `Nested` one is itself a full fork (its own
+  // alt-stack), so every one of these is defined in terms of the others, bottoming out at `Sym`
+  // (a plain BOXH-tall box). Every formula below reduces EXACTLY to its pre-nesting equivalent
+  // when a row holds only `Sym`s — `itemHeight`/`itemMainYOffset` are constant (BOXH, BOXH/2) in
+  // that case, so `rowHeight`/`rowMainYOffset` collapse back to the original uniform-BOXH-row
+  // assumption byte-for-byte (verified by `RailroadGoldenSuite`'s committed, nesting-free SVGs).
+
+  private def itemWidth(item: RowItem): Int = item match
+    case RowItem.Sym(s)       => boxWidth(s.label)
+    case RowItem.Nested(alts) => layoutFork(alts).width
+
+  private def itemHeight(item: RowItem): Int = item match
+    case RowItem.Sym(_)       => BOXH
+    case RowItem.Nested(alts) => layoutFork(alts).height
+
+  // Offset, from an item's own top, of the horizontal line the surrounding row shares — BOXH/2 for
+  // an ordinary box (its own center); a nested fork's first alternative's own center for a Nested
+  // item, so the through-line entering/leaving it lines up with that fork's own main line.
+  private def itemMainYOffset(item: RowItem): Double = item match
+    case RowItem.Sym(_)       => BOXH / 2.0
+    case RowItem.Nested(alts) => layoutFork(alts).mainYOffset
+
+  private def rowItemsWidth(row: Vector[RowItem]): Int =
+    row.zipWithIndex.foldLeft(0) { case (w, (it, idx)) =>
+      w + itemWidth(it) + (if idx > 0 then GAP else 0)
+    }
+
+  private def rowMainYOffset(row: Vector[RowItem]): Double =
+    row.map(itemMainYOffset).maxOption.getOrElse(BOXH / 2.0)
+
+  // A row's own height must cover every item's own extent below the row's shared line, not just
+  // the tallest item in isolation — an item with a smaller mainYOffset than the row's shared one
+  // is pushed down to align, which can push ITS OWN bottom edge past a taller-but-more-centered
+  // neighbor's.
+  private def rowHeight(row: Vector[RowItem]): Int =
+    if row.isEmpty then BOXH
+    else
+      val sharedY = rowMainYOffset(row)
+      row.map(it => sharedY - itemMainYOffset(it) + itemHeight(it)).max.round.toInt
+
+  private def altWidth(a: DrawableAlt): Int = a.rows.map(rowItemsWidth).maxOption.getOrElse(MINW)
+
+  private def altHeight(a: DrawableAlt): Int =
+    a.rows.map(rowHeight).sum + math.max(0, a.rows.length - 1) * WRAPGAP
+
+  // Relative (from 0) top of each alt in a fork, stacked with VGAP between them — the caller adds
+  // its own absolute origin on top.
+  private def altTopsOf(alts: Vector[DrawableAlt]): Vector[Int] =
+    alts.scanLeft(0) { case (t, alt) => t + altHeight(alt) + VGAP }.dropRight(1)
+
+  private def rowTopWithinAlt(alt: DrawableAlt, rowIdx: Int): Int =
+    alt.rows.take(rowIdx).map(r => rowHeight(r) + WRAPGAP).sum
+
+  // A fork's own geometry, independent of where it's drawn — needed both to size a row containing
+  // a `Nested` item (before its absolute position is known) and to actually draw it once it is.
+  private final case class ForkLayout(width: Int, contentW: Int, height: Int, mainYOffset: Double)
+
+  private def layoutFork(alts: Vector[DrawableAlt]): ForkLayout =
+    val contentW = math.max(MINW, alts.map(altWidth).maxOption.getOrElse(MINW))
+    val width = STUB + BRANCH + contentW + BRANCH + STUB
+    val altTops = altTopsOf(alts)
+    val height = altTops.lastOption.map(last => last + altHeight(alts.last)).getOrElse(BOXH)
+    val mainYOffset = alts.headOption match
+      case Some(alt0) if alt0.rows.nonEmpty =>
+        altTops.headOption.getOrElse(0) + rowTopWithinAlt(alt0, 0) + rowMainYOffset(alt0.rows.head)
+      case _ => BOXH / 2.0
+    ForkLayout(width, contentW, height, mainYOffset)
+
+  // Draws one row of items left to right starting at `startX`, on the shared line `yi` — every
+  // item is vertically placed so ITS OWN mainYOffset lands exactly on `yi`, which is what lets
+  // ordinary boxes and a taller nested fork sit side by side on one visually straight track.
+  // Returns the x just past the last item drawn.
+  private def drawRow(row: Vector[RowItem], startX: Int, yi: Double): (String, Int) =
+    val p = Vector.newBuilder[String]
+    var cx = startX
+    row.zipWithIndex.foreach { case (item, j) =>
+      if j > 0 then
+        p += s"""<path class="rr-track" d="M$cx ${fmtNum(yi)} H${cx + GAP}"/>"""
+        cx += GAP
+      item match
+        case RowItem.Sym(sym) =>
+          val bw = boxWidth(sym.label)
+          val boxTop = yi - BOXH / 2.0
+          val nodeKind = if sym.term then "terminal" else "nonterminal"
+          val nodeClass = if sym.term then "rr-node rr-node-term" else "rr-node rr-node-nonterm"
+          val nodeTitle = s"$nodeKind: ${sym.label}"
+          p += s"""<g class="$nodeClass" data-rr-kind="$nodeKind" data-rr-label="${escXml(
+              sym.label
+            )}"><title>${escXml(nodeTitle)}</title>"""
+          if sym.term then
+            p += s"""<rect class="rr-term" x="$cx" y="${fmtNum(
+                boxTop
+              )}" width="$bw" height="$BOXH" rx="${BOXH / 2}"/>"""
+          else
+            p += s"""<rect class="rr-nonterm" x="$cx" y="${fmtNum(
+                boxTop
+              )}" width="$bw" height="$BOXH" rx="8"/>"""
+          p += s"""<text class="rr-text" x="${fmtNum(cx + bw / 2.0)}" y="${fmtNum(
+              yi
+            )}" text-anchor="middle" dominant-baseline="central">${escXml(sym.label)}</text>"""
+          p += "</g>"
+          cx += bw
+        case RowItem.Nested(alts) =>
+          val layout = layoutFork(alts)
+          val (svg, w) =
+            drawFork(alts, originX = cx, top = yi - layout.mainYOffset, hasCaps = false)
+          p += svg
+          cx += w
+    }
+    (p.result().mkString, cx)
+
+  // Draws a full fork/rejoin of alternatives with its own entry stub at `originX` and top edge at
+  // `top` — the SAME shape whether it's the outermost Production (`hasCaps = true`, the entry/exit
+  // dots) or a `Choice`/`Stack` found nested inside a row (`hasCaps = false`, since it's mid-track,
+  // not the diagram's own start/end). Returns the svg and the total width consumed from `originX`.
+  private def drawFork(
+      alts: Vector[DrawableAlt],
+      originX: Int,
+      top: Double,
+      hasCaps: Boolean
+  ): (String, Int) =
+    val layout = layoutFork(alts)
+    val mainY = top + layout.mainYOffset
+    val forkX = originX + STUB
+    val startX = forkX + BRANCH
+    val joinStartX = startX + layout.contentW
+    val endX = joinStartX + BRANCH
+    val exitX = endX + STUB
+    val altTopsRel = altTopsOf(alts)
+    def rowTopAbs(altIdx: Int, rowIdx: Int): Double =
+      top + altTopsRel(altIdx) + rowTopWithinAlt(alts(altIdx), rowIdx)
+    def cy(altIdx: Int, rowIdx: Int): Double =
+      rowTopAbs(altIdx, rowIdx) + rowMainYOffset(alts(altIdx).rows(rowIdx))
+    // Corner radius for the orthogonal branch routing: rails run horizontally and vertically (90°)
+    // and every direction change turns through a small quarter-round — the classic railroad look,
+    // never a diagonal and never a hard corner. Clamped to fit the shortest branch arm.
+    val R = math.min(math.min(16, BRANCH), math.min(STUB, (BOXH + VGAP) / 2))
+
+    val p = Vector.newBuilder[String]
+    if hasCaps then
+      p += s"""<circle class="rr-cap" cx="$originX" cy="${fmtNum(mainY)}" r="$CAPR"/>"""
+      p += s"""<circle class="rr-cap" cx="$exitX" cy="${fmtNum(mainY)}" r="$CAPR"/>"""
+    p += s"""<path class="rr-track" d="M$originX ${fmtNum(mainY)} H$forkX"/>"""
+    p += s"""<path class="rr-track" d="M$endX ${fmtNum(mainY)} H$exitX"/>"""
+
+    alts.zipWithIndex.foreach { case (alt, i) =>
+      val firstY = cy(i, 0)
+      if i == 0 then p += s"""<path class="rr-track" d="M$forkX ${fmtNum(mainY)} H$startX"/>"""
+      else
+        // Peel off the main line through a quarter-round, down the vertical
+        // at forkX, quarter-round again, then straight into the row — both
+        // corners rounded, no hard tee.
+        p += s"""<path class="rr-track" d="M${forkX - R} ${fmtNum(mainY)} Q$forkX ${fmtNum(
+            mainY
+          )} $forkX ${fmtNum(
+            mainY + R
+          )} V${fmtNum(firstY - R)} Q$forkX ${fmtNum(firstY)} ${forkX + R} ${fmtNum(
+            firstY
+          )} H$startX"/>"""
+
+      alt.rows.zipWithIndex.foreach { case (row, rowIdx) =>
+        val yi = cy(i, rowIdx)
+        val (rowSvg, cx) = drawRow(row, startX, yi)
+        p += rowSvg
+
+        if cx < joinStartX then
+          p += s"""<path class="rr-track" d="M$cx ${fmtNum(yi)} H$joinStartX"/>"""
+
+        if rowIdx < alt.rows.length - 1 then
+          val nextY = cy(i, rowIdx + 1)
+          p += s"""<path class="rr-track" d="M$joinStartX ${fmtNum(
+              yi
+            )} H${endX - R} Q$endX ${fmtNum(
+              yi
+            )} $endX ${fmtNum(yi + R)} V${fmtNum(nextY - R)} Q$endX ${fmtNum(
+              nextY
+            )} ${endX - R} ${fmtNum(nextY)} H$startX"/>"""
+        else if i == 0 then
+          p += s"""<path class="rr-track" d="M$joinStartX ${fmtNum(mainY)} H$endX"/>"""
+        else
+          // Mirror on the rejoin: straight out, quarter-round up, up the
+          // vertical at endX, quarter-round back onto the main line — both
+          // corners rounded.
+          p += s"""<path class="rr-track" d="M$joinStartX ${fmtNum(
+              yi
+            )} H${endX - R} Q$endX ${fmtNum(
+              yi
+            )} $endX ${fmtNum(yi - R)} V${fmtNum(mainY + R)} Q$endX ${fmtNum(
+              mainY
+            )} ${endX + R} ${fmtNum(mainY)}"/>"""
+
+        if rowIdx == alt.rows.length - 1 then
+          alt.action.foreach { action =>
+            val ad = actionDisplay(action)
+            val ax = exitX + ACTIONGAP
+            val bw = boxWidth(ad.shown)
+            p += s"""<text class="rr-action-text" x="${fmtNum(ax + bw / 2.0)}" y="${fmtNum(
+                yi
+              )}" text-anchor="middle" dominant-baseline="central"><title>${escXml(
+                ad.title
+              )}</title>${escXml(ad.shown)}</text>"""
+          }
+      }
+    }
+    (p.result().mkString, exitX - originX)
+
   // Two palettes share the same class names. `fixed` bakes the light-theme hex
   // values — used by the CLI's committed sidecar SVGs so they render
   // identically on GitHub (and keeps the drift goldens stable). `themed`
@@ -319,140 +565,25 @@ object Railroad:
   ): String =
     val alts0 = linearizeDiagram(diagram, view)
     val alts = if alts0.nonEmpty then alts0 else Vector(DrawableAlt(Vector(Vector.empty)))
-    def rowWidth(row: Vector[DiaSym]): Int =
-      row.zipWithIndex.foldLeft(0) { case (w, (s, idx)) =>
-        w + boxWidth(s.label) + (if idx > 0 then GAP else 0)
-      }
-    def altWidth(a: DrawableAlt): Int = a.rows.map(rowWidth).maxOption.getOrElse(MINW)
-    def altHeight(a: DrawableAlt): Int =
-      a.rows.length * BOXH + math.max(0, a.rows.length - 1) * WRAPGAP
-    val contentW = math.max(MINW, alts.map(altWidth).max)
-
-    val startX = MARGIN + STUB + BRANCH
-    val joinStartX = startX + contentW
-    val endX = joinStartX + BRANCH
-    val exitX = endX + STUB
+    val layout = layoutFork(alts)
     // An action never widens the railroad's own fork/join geometry — it's an annotation, not part
-    // of the grammar's shape — so it's laid out entirely past `exitX`, on its own row's arm, sized
-    // off the diagram's width only when at least one alt actually has one. `boxWidth` is the same
-    // helper every term/nonterm box already sizes itself with — the action box is just one more
-    // shape in this diagram's own vocabulary, not a special case with its own width formula.
+    // of the grammar's shape — so it's laid out entirely past the fork's own exit, on its own row's
+    // arm, sized off the diagram's width only when at least one alt actually has one. `boxWidth` is
+    // the same helper every term/nonterm box already sizes itself with — the action box is just one
+    // more shape in this diagram's own vocabulary, not a special case with its own width formula.
     val actionWidths = alts.flatMap(_.action).map(a => boxWidth(actionDisplay(a).shown))
     val width =
-      if actionWidths.isEmpty then exitX + MARGIN
-      else exitX + ACTIONGAP + actionWidths.max + MARGIN
-    val forkX = MARGIN + STUB
-    val altTops =
-      alts.scanLeft(MARGIN) { case (top, alt) => top + altHeight(alt) + VGAP }.dropRight(1)
-    def rowTop(altIdx: Int, rowIdx: Int): Int = altTops(altIdx) + rowIdx * (BOXH + WRAPGAP)
-    def cy(altIdx: Int, rowIdx: Int): Double = rowTop(altIdx, rowIdx) + BOXH / 2.0
-    val mainY = cy(0, 0)
-    val height = altTops.lastOption
-      .map(last => last + altHeight(alts.last) + MARGIN)
-      .getOrElse(
-        MARGIN * 2 + BOXH
-      )
-    // Corner radius for the orthogonal branch routing: rails run horizontally
-    // and vertically (90°) and every direction change turns through a small
-    // quarter-round — the classic railroad look, never a diagonal and never a
-    // hard corner. Clamped to fit the shortest branch arm.
-    val R = math.min(math.min(16, BRANCH), math.min(STUB, (BOXH + VGAP) / 2))
-
-    val p = Vector.newBuilder[String]
-    p += s"""<circle class="rr-cap" cx="$MARGIN" cy="${fmtNum(mainY)}" r="$CAPR"/>"""
-    p += s"""<circle class="rr-cap" cx="$exitX" cy="${fmtNum(mainY)}" r="$CAPR"/>"""
-    p += s"""<path class="rr-track" d="M$MARGIN ${fmtNum(mainY)} H$forkX"/>"""
-    p += s"""<path class="rr-track" d="M$endX ${fmtNum(mainY)} H$exitX"/>"""
-
-    alts.zipWithIndex.foreach { case (alt, i) =>
-      val firstY = cy(i, 0)
-      if i == 0 then p += s"""<path class="rr-track" d="M$forkX ${fmtNum(mainY)} H$startX"/>"""
-      else
-        // Peel off the main line through a quarter-round, down the vertical
-        // at forkX, quarter-round again, then straight into the row — both
-        // corners rounded, no hard tee.
-        p += s"""<path class="rr-track" d="M${forkX - R} ${fmtNum(mainY)} Q$forkX ${fmtNum(
-            mainY
-          )} $forkX ${fmtNum(
-            mainY + R
-          )} V${fmtNum(firstY - R)} Q$forkX ${fmtNum(firstY)} ${forkX + R} ${fmtNum(
-            firstY
-          )} H$startX"/>"""
-
-      alt.rows.zipWithIndex.foreach { case (row, rowIdx) =>
-        val yi = cy(i, rowIdx)
-        var cx = startX
-        row.zipWithIndex.foreach { case (sym, j) =>
-          if j > 0 then
-            p += s"""<path class="rr-track" d="M$cx ${fmtNum(yi)} H${cx + GAP}"/>"""
-            cx += GAP
-          val bw = boxWidth(sym.label)
-          val top = rowTop(i, rowIdx)
-          val nodeKind = if sym.term then "terminal" else "nonterminal"
-          val nodeClass = if sym.term then "rr-node rr-node-term" else "rr-node rr-node-nonterm"
-          val nodeTitle = s"$nodeKind: ${sym.label}"
-          p += s"""<g class="$nodeClass" data-rr-kind="$nodeKind" data-rr-label="${escXml(
-              sym.label
-            )}"><title>${escXml(nodeTitle)}</title>"""
-          if sym.term then
-            p += s"""<rect class="rr-term" x="$cx" y="$top" width="$bw" height="$BOXH" rx="${BOXH / 2}"/>"""
-          else
-            p += s"""<rect class="rr-nonterm" x="$cx" y="$top" width="$bw" height="$BOXH" rx="8"/>"""
-          p += s"""<text class="rr-text" x="${fmtNum(cx + bw / 2.0)}" y="${fmtNum(
-              yi
-            )}" text-anchor="middle" dominant-baseline="central">${escXml(sym.label)}</text>"""
-          p += "</g>"
-          cx += bw
-        }
-
-        if cx < joinStartX then
-          p += s"""<path class="rr-track" d="M$cx ${fmtNum(yi)} H$joinStartX"/>"""
-
-        if rowIdx < alt.rows.length - 1 then
-          val nextY = cy(i, rowIdx + 1)
-          p += s"""<path class="rr-track" d="M$joinStartX ${fmtNum(
-              yi
-            )} H${endX - R} Q$endX ${fmtNum(
-              yi
-            )} $endX ${fmtNum(yi + R)} V${fmtNum(nextY - R)} Q$endX ${fmtNum(
-              nextY
-            )} ${endX - R} ${fmtNum(nextY)} H$startX"/>"""
-        else if i == 0 then
-          p += s"""<path class="rr-track" d="M$joinStartX ${fmtNum(mainY)} H$endX"/>"""
-        else
-          // Mirror on the rejoin: straight out, quarter-round up, up the
-          // vertical at endX, quarter-round back onto the main line — both
-          // corners rounded.
-          p += s"""<path class="rr-track" d="M$joinStartX ${fmtNum(
-              yi
-            )} H${endX - R} Q$endX ${fmtNum(
-              yi
-            )} $endX ${fmtNum(yi - R)} V${fmtNum(mainY + R)} Q$endX ${fmtNum(
-              mainY
-            )} ${endX + R} ${fmtNum(mainY)}"/>"""
-
-        if rowIdx == alt.rows.length - 1 then
-          alt.action.foreach { action =>
-            val ad = actionDisplay(action)
-            val ax = exitX + ACTIONGAP
-            val bw = boxWidth(ad.shown)
-            p += s"""<text class="rr-action-text" x="${fmtNum(ax + bw / 2.0)}" y="${fmtNum(
-                yi
-              )}" text-anchor="middle" dominant-baseline="central"><title>${escXml(
-                ad.title
-              )}</title>${escXml(ad.shown)}</text>"""
-          }
-      }
-    }
+      if actionWidths.isEmpty then MARGIN + layout.width + MARGIN
+      else MARGIN + layout.width + ACTIONGAP + actionWidths.max + MARGIN
+    val height = MARGIN * 2 + layout.height
+    val (body, _) = drawFork(alts, originX = MARGIN, top = MARGIN.toDouble, hasCaps = true)
 
     s"""<svg xmlns="http://www.w3.org/2000/svg"${viewAttr(
         view
       )} width="$width" height="$height" """ +
       s"""viewBox="0 0 $width $height" role="img" """ +
       s"""aria-label="Railroad diagram for the ${escXml(name)} rule">""" +
-      s"""<style>${if themed then styleThemed else styleFixed}</style>${p
-          .result()
-          .mkString}</svg>""" + "\n"
+      s"""<style>${if themed then styleThemed else styleFixed}</style>$body</svg>""" + "\n"
 
   // ---- Mermaid renderer ---------------------------------------------------
 
@@ -477,10 +608,10 @@ object Railroad:
     lines += "  s(( ))"
     lines += "  e(( ))"
     alts.zipWithIndex.foreach { case (alt, i) =>
-      if alt.syms.isEmpty then lines += "  s --> e"
+      if alt.flatSyms.isEmpty then lines += "  s --> e"
       else
         val ids = Vector.newBuilder[String]
-        alt.syms.zipWithIndex.foreach { case (sym, j) =>
+        alt.flatSyms.zipWithIndex.foreach { case (sym, j) =>
           val id = s"n${i}_$j"
           ids += id
           val shape = if sym.term then s"([${mmLabel(sym.label)}])" else s"[${mmLabel(sym.label)}]"

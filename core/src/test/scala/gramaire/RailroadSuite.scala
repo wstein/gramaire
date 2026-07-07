@@ -195,6 +195,74 @@ class RailroadSuite extends munit.FunSuite:
     assert(!svg.contains("ignored in source-view layout"))
   }
 
+  // A hoisted `( '*' | '/' )` group reinlined at its use site (this is exactly the shape a fix in
+  // the caller — e.g. LabApi.analysisOf — is expected to build in place of a bare NonTerminal
+  // reference to a synthesized `__group_N` rule): a Choice found NESTED inside a Sequence must
+  // render as a real inline sub-fork, not collapse to one text-labeled box.
+  test(
+    "renderDiagramSvg: a Choice nested inside a Sequence renders as a real inline fork, not one flattened box"
+  ) {
+    val diagram = Diagram.Sequence(
+      Vector(
+        Diagram.NonTerminal("Term"),
+        Diagram.Choice(Vector(Diagram.Terminal("*"), Diagram.Terminal("/"))),
+        Diagram.NonTerminal("Factor")
+      )
+    )
+    val svg = renderDiagramSvg("Term", diagram)
+    // Each branch renders as its own terminal box with its own <title>/data-rr-label — not one box
+    // whose label is the joined "* | /" text.
+    assert(svg.contains(""">*</text>"""), svg)
+    assert(svg.contains(""">/</text>"""), svg)
+    assert(!svg.contains("* | /"), svg)
+    assert(svg.contains(""">Term</text>"""), svg)
+    assert(svg.contains(""">Factor</text>"""), svg)
+    assert(svg.contains("""data-rr-label="*""""), svg)
+    assert(svg.contains("""data-rr-label="/""""), svg)
+
+    // '*' and '/' are two separate branches of the SAME nested fork, so they sit on different rows
+    // (different y) — extract every <text class="rr-text" ...> element's own y and confirm '*' and
+    // '/' don't share one.
+    val textY = """<text class="rr-text" x="[^"]+" y="([^"]+)"[^>]*>([^<]*)</text>""".r
+    val ys = textY.findAllMatchIn(svg).map(m => m.group(2) -> m.group(1)).toMap
+    assert(ys.contains("*") && ys.contains("/"), svg)
+    assert(
+      ys("*") != ys("/"),
+      s"expected '*' and '/' on different rows, both at y=${ys("*")}:\n$svg"
+    )
+
+    // Taller than an ordinary single-row diagram (two stacked branches need real vertical space,
+    // not just one BOXH-tall row) — a coarse but real geometry signal that a fork was drawn.
+    val heightRe = """height="(\d+)"""".r
+    val height = heightRe.findFirstMatchIn(svg).map(_.group(1).toInt).getOrElse(0)
+    val flatDiagram = Diagram.Sequence(
+      Vector(
+        Diagram.NonTerminal("Term"),
+        Diagram.Terminal("*"),
+        Diagram.NonTerminal("Factor")
+      )
+    )
+    val flatHeight = heightRe
+      .findFirstMatchIn(renderDiagramSvg("Term", flatDiagram))
+      .map(_.group(1).toInt)
+      .getOrElse(0)
+    assert(height > flatHeight, s"expected the nested fork to need more height than a flat row")
+  }
+
+  test(
+    "renderDiagramMermaid: a nested Choice still flattens to one text-labeled node (no sub-fork in a flowchart chain)"
+  ) {
+    val diagram = Diagram.Sequence(
+      Vector(
+        Diagram.NonTerminal("Term"),
+        Diagram.Choice(Vector(Diagram.Terminal("*"), Diagram.Terminal("/"))),
+        Diagram.NonTerminal("Factor")
+      )
+    )
+    val mermaid = renderDiagramMermaid(diagram)
+    assert(mermaid.contains("* | /"), mermaid)
+  }
+
   test(
     "renderSvg: simplified view wraps a long single-path sequence without changing source view"
   ) {
