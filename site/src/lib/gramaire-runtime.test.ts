@@ -168,6 +168,11 @@ test("renderDiagrams draws one railroad SVG per rule of the default grammar", ()
   assert.match(diags[0]!.svg, /Railroad diagram for the Expr rule/);
 });
 
+test("renderDiagrams exposes an explicit simplified view on demand", () => {
+  const diags = renderDiagrams(getDefaultGrammar(), ["Expr"], "simplified");
+  assert.match(diags[0]!.svg, /data-rr-view="simplified"/);
+});
+
 // --- Page seeds: the Landing showcase and Tutorial live editors must never
 // ship an empty/broken panel, so prove each seed parses and draws on the real
 // engine before it reaches a page.

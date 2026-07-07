@@ -21,6 +21,9 @@ object Diagrams:
   private def ruleDiagram(name: String, svg: String): RuleDiagram =
     js.Dynamic.literal(name = name, svg = svg).asInstanceOf[RuleDiagram]
 
+  private def diagramView(viewName: String): Railroad.DiagramView =
+    Railroad.diagramView(viewName).getOrElse(Railroad.DiagramView.Source)
+
   private final case class RuleBlock(name: String, content: String)
 
   private val fencedRuleRe = """```gramaire[ \t]*(\w*)[^\n]*\n([\s\S]*?)```""".r
@@ -99,15 +102,20 @@ object Diagrams:
     * skipped rather than throwing, so a half-typed grammar still draws what it can.
     */
   @JSExportTopLevel("renderDiagrams")
-  def renderDiagrams(source: String, ruleNames: js.Array[String]): js.Array[RuleDiagram] =
+  def renderDiagrams(
+      source: String,
+      ruleNames: js.Array[String],
+      viewName: String = "source"
+  ): js.Array[RuleDiagram] =
     val nts = ruleNames.toSet
     val out = js.Array[RuleDiagram]()
+    val view = diagramView(viewName)
     for RuleBlock(name, content) <- ruleBlocks(source, ruleNames.toVector) do
       try
         // Themed: the SVG is injected inline, so its `--rr-*` inks inherit the
         // page's emerald tokens and flip in dark mode (custom.css maps them).
         val svg = linkNonterminals(
-          Railroad.renderSvg(Railroad.parseProduction(content, nts), themed = true)
+          Railroad.renderSvg(Railroad.parseProduction(content, nts), themed = true, view = view)
         )
         out.push(ruleDiagram(name, svg))
       catch case _: Throwable => () // skip a rule the railroad renderer can't parse

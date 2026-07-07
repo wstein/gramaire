@@ -339,6 +339,7 @@ object GramaireCheck:
       content: String,
       nonterminals: Set[String],
       mode: DiagramMode,
+      view: Railroad.DiagramView,
       stem: String = ""
   ): Vector[String] =
     mode match
@@ -347,7 +348,7 @@ object GramaireCheck:
         Vector(s"![Railroad diagram for the $name rule]($dir/${name.toLowerCase}.svg)")
       case DiagramMode.Mermaid =>
         val body = Railroad
-          .renderMermaid(Railroad.parseProduction(content, nonterminals))
+          .renderMermaid(Railroad.parseProduction(content, nonterminals), view)
           .stripSuffix("\n")
           .split("\n", -1)
           .toVector
@@ -361,6 +362,7 @@ object GramaireCheck:
       contentByRule: Map[String, String],
       nonterminals: Set[String],
       mode: DiagramMode,
+      view: Railroad.DiagramView,
       stem: String = ""
   ): String =
     val lines = src.split("\n", -1).toVector
@@ -377,7 +379,14 @@ object GramaireCheck:
       val line = lines(i)
       line match
         case imageRe(name) =>
-          out ++= diagramFor(name, contentByRule.getOrElse(name, ""), nonterminals, mode, stem)
+          out ++= diagramFor(
+            name,
+            contentByRule.getOrElse(name, ""),
+            nonterminals,
+            mode,
+            view,
+            stem
+          )
           processedNonterminals += name
           i += 1
         case _ =>
@@ -391,7 +400,14 @@ object GramaireCheck:
               var j = i + 1
               val close = ("^`{" + fenceLen + ",}\\s*$").r
               while j < lines.length && close.findFirstIn(lines(j)).isEmpty do j += 1
-              out ++= diagramFor(name, contentByRule.getOrElse(name, ""), nonterminals, mode, stem)
+              out ++= diagramFor(
+                name,
+                contentByRule.getOrElse(name, ""),
+                nonterminals,
+                mode,
+                view,
+                stem
+              )
               processedNonterminals += name
               i = j + 1
             case _ =>
@@ -449,6 +465,7 @@ object GramaireCheck:
                       contentByRule.getOrElse(ruleName, ""),
                       nonterminals,
                       mode,
+                      view,
                       stem
                     )
                     processedNonterminals += ruleName
@@ -704,7 +721,8 @@ object GramaireCheck:
       file: String,
       doc: Doc,
       mode: DiagramMode,
-      layout: SourceLayout = SourceLayout.Collapsed
+      layout: SourceLayout = SourceLayout.Collapsed,
+      view: Railroad.DiagramView = Railroad.DiagramView.Source
   ): String =
     val GrammarHashes(ruleHashes, grammarSha256) = grammarHashes(doc)
     val nonterminals = ruleHashes.keySet
@@ -731,7 +749,8 @@ object GramaireCheck:
         Files.writeString(
           fileDir.resolve(path),
           Railroad.renderSvg(
-            Railroad.parseProduction(contentByRule.getOrElse(nt, ""), nonterminals)
+            Railroad.parseProduction(contentByRule.getOrElse(nt, ""), nonterminals),
+            view = view
           )
         )
         artifacts += Artifact.RailroadArt(nt, path, ruleHashes(nt))
@@ -745,7 +764,7 @@ object GramaireCheck:
       Railroad.parseProduction(contentByRule.getOrElse(nt, ""), nonterminals)
     )
     var text = regenerateTables(doc.src, prods)
-    text = convertDiagrams(text, contentByRule, nonterminals, mode, stem)
+    text = convertDiagrams(text, contentByRule, nonterminals, mode, view, stem)
     // Only sidecar mode has a plain image link to hoist in front of a collapsed fence — mermaid
     // embeds the diagram as its own fence, with no separate "source" to tuck behind a disclosure.
     if mode == DiagramMode.Sidecar then text = applySourceLayout(text, contentByRule, layout)
@@ -758,7 +777,10 @@ object GramaireCheck:
     val diagramsNote =
       if mode == DiagramMode.Sidecar then s" and ${artifactsResult.length - 1} diagram(s)" else ""
     val layoutNote = if layout == SourceLayout.Collapsed then " (source collapsed)" else ""
-    s"formatted $fileName (${modeName(mode)}$layoutNote); wrote ${Path
+    val viewNote =
+      if view == Railroad.DiagramView.Source then ""
+      else s", view=${Railroad.diagramViewName(view)}"
+    s"formatted $fileName (${modeName(mode)}$layoutNote$viewNote); wrote ${Path
         .of(lockPathFor(file))
         .getFileName}$diagramsNote"
 

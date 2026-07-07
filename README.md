@@ -127,6 +127,9 @@ sbt "cli/run check examples/json.gram.md"
 # format: emit real railroad diagrams and the sidecar *.gram.lock
 sbt "cli/run fmt grammar/Productions.gram.md"
 
+# ...or keep the same grammar/lock flow but opt into the labeled simplified view
+sbt "cli/run fmt --diagram-view=simplified grammar/Productions.gram.md"
+
 # ...or embed the diagrams as GitHub-native mermaid instead of sidecar SVGs
 sbt "cli/run fmt --diagrams=mermaid grammar/Productions.gram.md"
 
@@ -194,7 +197,10 @@ implementation during the migration, now natively in Scala
 
 `gramaire fmt` emits real railroad diagrams — sidecar SVGs by default, or
 GitHub-native mermaid fences with `--diagrams=mermaid` — and every grammar's
-FIRST/FOLLOW table is machine-checked against the parser's own analysis.
+FIRST/FOLLOW table is machine-checked against the parser's own analysis. The
+default diagram output is the source-faithful `source` view; an explicit
+`--diagram-view=simplified` opt-in keeps the same artifact flow but labels the
+alternate view in the generated SVG/Mermaid output.
 `gramaire check` verifies the structure and drift gates (a separate,
 Node-native `docs-lint` job handles the Markdown-lint gate, since it has no
 compiler-core relationship).

@@ -1,5 +1,7 @@
 package gramaire.cli
 
+import gramaire.Railroad
+
 // Ported from the structural half of bootstrap/gramaire-check.test.ts, plus
 // a real drift check against the 8 gated grammar files' committed
 // `.gram.lock` sidecars — the exact CI idempotence gate this CLI replaces.
@@ -224,6 +226,46 @@ class GramaireCheckSuite extends munit.FunSuite:
 
     assert(java.nio.file.Files.exists(dir.resolve("diagrams-sample/value.svg")))
     assert(java.nio.file.Files.readString(file).contains("](diagrams-sample/value.svg)"))
+  }
+
+  test("fmt: a simplified mermaid view is labeled in the embedded diagram body") {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-mermaid-view")
+    val file = dir.resolve("sample.gram.md")
+    val src =
+      "# T\n\n```gramaire\nname: T\n```\n\n## Value\n\n```gramaire\nValue\n  : 'x'\n  ;\n```\n\n## Generated tables\n\n| a |\n"
+    java.nio.file.Files.writeString(file, src)
+
+    val doc = GramaireCheck.parse(src)
+    val _ = GramaireCheck.fmt(
+      file.toString,
+      doc,
+      GramaireCheck.DiagramMode.Mermaid,
+      GramaireCheck.SourceLayout.Inline,
+      Railroad.DiagramView.Simplified
+    )
+
+    val written = java.nio.file.Files.readString(file)
+    assert(written.contains("%% view: simplified"), written)
+  }
+
+  test("fmt: a simplified sidecar view is labeled in the generated SVG") {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-sidecar-view")
+    val file = dir.resolve("sample.gram.md")
+    val src =
+      "# T\n\n```gramaire\nname: T\n```\n\n## Value\n\n```gramaire\nValue\n  : 'x'\n  ;\n```\n\n## Generated tables\n\n| a |\n"
+    java.nio.file.Files.writeString(file, src)
+
+    val doc = GramaireCheck.parse(src)
+    val _ = GramaireCheck.fmt(
+      file.toString,
+      doc,
+      GramaireCheck.DiagramMode.Sidecar,
+      GramaireCheck.SourceLayout.Inline,
+      Railroad.DiagramView.Simplified
+    )
+
+    val svg = java.nio.file.Files.readString(dir.resolve("diagrams-sample/value.svg"))
+    assert(svg.contains("""data-rr-view="simplified"""), svg)
   }
 
   // A minimal, canonical-shape (fence, then its image) fixture with two rules — one with a

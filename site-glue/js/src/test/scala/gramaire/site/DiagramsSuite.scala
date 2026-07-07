@@ -53,6 +53,11 @@ class DiagramsSuite extends munit.FunSuite:
     assertEquals(diagrams(0).name, "Expr")
   }
 
+  test("renderDiagrams: a simplified view stays explicit in the themed SVG") {
+    val diagrams = Diagrams.renderDiagrams(fenced, js.Array("Expr", "Term"), "simplified")
+    assert(diagrams(0).svg.contains("""data-rr-view="simplified"""))
+  }
+
   test("renderDiagrams: a rule the renderer can't parse is skipped, not thrown") {
     // No rule named in ruleNames at all -> no blocks recognized -> empty, not an exception.
     val diagrams = Diagrams.renderDiagrams(fenced, js.Array())

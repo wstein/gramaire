@@ -571,6 +571,17 @@ object Main:
   // fully visible fences. Like `--diagrams`, neither is sticky — a bare re-run without
   // `--inline-source` re-collapses a file that was previously formatted inline, the same
   // convention `--diagrams` already uses for its own mode.
+  private[cli] def parseDiagramView(args: Vector[String]): Either[String, Railroad.DiagramView] =
+    args.find(_.startsWith("--diagram-view=")) match
+      case None => Right(Railroad.DiagramView.Source)
+      case Some(arg) =>
+        val name = arg.stripPrefix("--diagram-view=")
+        Railroad
+          .diagramView(name)
+          .toRight(
+            s"fmt: unknown diagram view '$name'; expected source or simplified"
+          )
+
   private def runFmt(args: Vector[String]): Unit =
     val modeArg = args.find(_.startsWith("--diagrams="))
     val mode =
@@ -580,14 +591,17 @@ object Main:
       if args.contains("--inline-source") then GramaireCheck.SourceLayout.Inline
       else GramaireCheck.SourceLayout.Collapsed
     val file = args.find(!_.startsWith("-"))
-    file match
-      case None => die(usageText)
-      case Some(f) =>
-        readFile(f) match
-          case Left(err) => die(s"fmt: cannot read $f: $err")
-          case Right(src) =>
-            if isNativeGram(f) then println(GramaireCheck.fmtNative(f, src))
-            else println(GramaireCheck.fmt(f, GramaireCheck.parse(src), mode, layout))
+    parseDiagramView(args) match
+      case Left(err) => die(err)
+      case Right(view) =>
+        file match
+          case None => die(usageText)
+          case Some(f) =>
+            readFile(f) match
+              case Left(err) => die(s"fmt: cannot read $f: $err")
+              case Right(src) =>
+                if isNativeGram(f) then println(GramaireCheck.fmtNative(f, src))
+                else println(GramaireCheck.fmt(f, GramaireCheck.parse(src), mode, layout, view))
 
   // `gramaire codegen-regen`: regenerate `Generated/LrReduce.scala` from
   // the bootstrap grammar and the Scala action profile.
@@ -630,7 +644,7 @@ object Main:
   private def backendNames: String = BackendRegistry.backends.map(_.name).mkString(", ")
 
   private val usageText: String =
-    "usage: gramaire fmt [--diagrams=sidecar|mermaid] [--inline-source] <file.gram.md>"
+    "usage: gramaire fmt [--diagrams=sidecar|mermaid] [--diagram-view=source|simplified] [--inline-source] <file.gram.md>"
 
   private def usage(): Unit =
     Vector(
@@ -644,7 +658,7 @@ object Main:
       "  gramaire explain-conflict <file.gram.md|file.gram> [--strategy lr|ll-star] [--input <text>]",
       "  gramaire check <file.gram.md|file.gram>",
       "  gramaire lint --target <backend> <file.gram.md|file.gram>",
-      "  gramaire fmt [--diagrams=sidecar|mermaid] [--inline-source] <file.gram.md|file.gram>",
+      "  gramaire fmt [--diagrams=sidecar|mermaid] [--diagram-view=source|simplified] [--inline-source] <file.gram.md|file.gram>",
       "  gramaire codegen-regen",
       "",
       s"Backends: $backendNames",
@@ -668,6 +682,7 @@ object Main:
       "fmt on a .gram.md regenerates the FIRST/FOLLOW table, railroad diagrams, and the lock",
       "  sidecar. By default (sidecar mode only), it hoists each rule's diagram above its fence",
       "  and tucks the fence behind a <details><summary>Source</summary> disclosure;",
+      "  --diagram-view=simplified opts into an explicitly labeled alternate diagram view;",
       "  --inline-source opts out, keeping fences fully visible (not sticky — a plain re-run",
       "  re-collapses the file). fmt on a bare .gram normalizes whitespace and writes a",
       "  <file>.native-gram.lock sidecar — no diagrams/tables, since a comment-only format has",

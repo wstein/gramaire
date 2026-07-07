@@ -15,6 +15,7 @@ import gramaire.{
   IR,
   Lr,
   Method,
+  Railroad,
   Rule
 }
 import gramaire.Sym.*
@@ -121,6 +122,21 @@ class MainSuite extends munit.FunSuite:
       Left(
         "missing required `name:` directive (add `name: <name>` inside a General-settings ```gramaire fence)"
       )
+    )
+  }
+
+  test("parseDiagramView: defaults to source and accepts simplified explicitly") {
+    assertEquals(Main.parseDiagramView(Vector.empty), Right(Railroad.DiagramView.Source))
+    assertEquals(
+      Main.parseDiagramView(Vector("--diagram-view=simplified")),
+      Right(Railroad.DiagramView.Simplified)
+    )
+  }
+
+  test("parseDiagramView: rejects unknown diagram views") {
+    assertEquals(
+      Main.parseDiagramView(Vector("--diagram-view=semantic")),
+      Left("fmt: unknown diagram view 'semantic'; expected source or simplified")
     )
   }
 

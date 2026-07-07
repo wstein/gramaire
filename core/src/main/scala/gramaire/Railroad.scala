@@ -36,6 +36,17 @@ object Railroad:
     case Source
     case Simplified
 
+  def diagramView(name: String): Option[DiagramView] =
+    name.trim.toLowerCase match
+      case "source"     => Some(DiagramView.Source)
+      case "simplified" => Some(DiagramView.Simplified)
+      case _            => None
+
+  def diagramViewName(view: DiagramView): String =
+    view match
+      case DiagramView.Source     => "source"
+      case DiagramView.Simplified => "simplified"
+
   // A renderer-facing grammar diagram tree. The current SVG/Mermaid renderers
   // still linearize this tree to Gramaire's historical stacked-track layout,
   // but callers can now describe richer railroad concepts without growing a

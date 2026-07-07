@@ -74,6 +74,14 @@ class RailroadSuite extends munit.FunSuite:
     assert(renderMermaid(prod, view = DiagramView.Simplified).contains("%% view: simplified"))
   }
 
+  test("diagramView: named diagram views parse canonically") {
+    assertEquals(diagramView("source"), Some(DiagramView.Source))
+    assertEquals(diagramView(" simplified "), Some(DiagramView.Simplified))
+    assertEquals(diagramView("unknown"), None)
+    assertEquals(diagramViewName(DiagramView.Source), "source")
+    assertEquals(diagramViewName(DiagramView.Simplified), "simplified")
+  }
+
   test(
     "renderDiagramSvg: optionality and repetition nodes fall back to deterministic inline labels"
   ) {

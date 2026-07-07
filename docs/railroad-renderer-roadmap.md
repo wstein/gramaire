@@ -37,7 +37,8 @@ the committed artifacts while giving later phases a stable internal layer.
 ## Next phases
 
 1. Keep the `source` view as the byte-stable default and label any alternate
-   view in the rendered output.
+  view in the rendered output. `gramaire fmt --diagram-view=simplified` is the
+  first public opt-in surface for that distinction.
 2. Add width-aware layout without introducing browser-measured text layout or
    runtime dependencies.
 3. Add semantic affordances such as per-node titles and source-aware links.
