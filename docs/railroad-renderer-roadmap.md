@@ -49,10 +49,15 @@ the one deliberate SVG/Mermaid divergence this introduced.
   runtime dependencies. The first shipped step is deterministic wrapping for
   long single-path simplified-view SVG sequences — a single alt's own row of
   symbols; a `Nested` fork (see "Current foundation" above) is one atomic
-  item for this purpose, never split mid-fork. Wrapping a diagram with many
-  wide alternatives (a "huge choice", as opposed to one long sequence) is
-  not yet implemented — the recursive fork/row layout the nested-group work
-  above added is the layer that change would extend, not a fresh rewrite.
+  item for this purpose at ITS OWN call site, never split mid-fork. That
+  wrapping is recursive, though: a nested fork's own alternatives each wrap
+  independently the same way a top-level Production's do, so a wide branch
+  inside a reinlined group is exactly as capable of blowing out Simplified
+  view's width as a top-level one is, and gets exactly the same treatment.
+  Still not implemented: reflowing the CHOICE itself when a Stack/Choice has
+  many alternatives whose combined layout — not any single alternative's own
+  row — is what makes the diagram unwieldy; nothing about that shape forces
+  a width overflow the way one long row does, so it hasn't needed a rule yet.
 3. Add semantic affordances such as per-node titles and source-aware links.
   The first shipped step is grouped SVG node metadata plus hover titles.
   Live-site nonterminal links are now built from that same `<g class="rr-node

@@ -159,13 +159,17 @@ object Railroad:
       case Diagram.ZeroOrMore(item) =>
         Vector(RowItem.Sym(DiaSym(symbolLabel("", item, "*"), term = true)))
       case Diagram.Choice(alts) =>
-        Vector(RowItem.Nested(alts.map(a => DrawableAlt(Vector(itemsOf(a))))))
+        Vector(RowItem.Nested(alts.map(a => DrawableAlt(wrapRows(itemsOf(a))))))
       case Diagram.Stack(alts) =>
-        Vector(RowItem.Nested(alts.map(a => DrawableAlt(Vector(itemsOf(a))))))
+        Vector(RowItem.Nested(alts.map(a => DrawableAlt(wrapRows(itemsOf(a))))))
       case Diagram.ActionCaption(item, _) => itemsOf(item)
 
-    // A nested fork is treated as one atomic unit for wrapping purposes — never split mid-fork —
-    // the same way a single symbol box always was; only the boundaries BETWEEN items ever wrap.
+    // A nested fork is treated as one atomic unit for wrapping purposes AT ITS OWN CALL SITE —
+    // never split mid-fork, the same way a single symbol box always was; only the boundaries
+    // BETWEEN items in a row ever wrap. Its own alternatives are a different row each, though, and
+    // each one wraps independently right here — the same "many wide alternatives" a top-level
+    // Stack/Choice already handled one alt at a time, now recursive: a wide branch of a nested
+    // group is exactly as capable of blowing out Simplified view's width as a top-level one is.
     def wrapRows(items: Vector[RowItem]): Vector[Vector[RowItem]] =
       view match
         case DiagramView.Source => Vector(items)

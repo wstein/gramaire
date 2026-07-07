@@ -292,6 +292,54 @@ class RailroadSuite extends munit.FunSuite:
     )
   }
 
+  // A nested fork's own alternatives are exactly as capable of blowing out Simplified view's width
+  // as a top-level Production's are — wrapping must recurse into a Choice/Stack found nested
+  // inside a Sequence, not just apply once at the diagram's own top level.
+  test(
+    "renderSvg: simplified view also wraps a long alternative INSIDE a nested fork, without changing source view"
+  ) {
+    val diagram = Diagram.Sequence(
+      Vector(
+        Diagram.NonTerminal("Term"),
+        Diagram.Choice(
+          Vector(
+            Diagram.Sequence(
+              Vector(
+                Diagram.Terminal("VeryLongOperatorTokenOne"),
+                Diagram.NonTerminal("VeryLongOperandNonTerminal"),
+                Diagram.Terminal("VeryLongOperatorTokenTwo"),
+                Diagram.NonTerminal("VeryLongTrailingNonTerminal")
+              )
+            ),
+            Diagram.Terminal("short")
+          )
+        ),
+        Diagram.NonTerminal("Factor")
+      )
+    )
+    val sourceSvg = renderDiagramSvg("Term", diagram, view = DiagramView.Source)
+    val simplifiedSvg = renderDiagramSvg("Term", diagram, view = DiagramView.Simplified)
+    val heightRe = """height="(\d+)"""".r
+    val sourceHeight = heightRe.findFirstMatchIn(sourceSvg).map(_.group(1).toInt).getOrElse(0)
+    val simplifiedHeight =
+      heightRe.findFirstMatchIn(simplifiedSvg).map(_.group(1).toInt).getOrElse(0)
+    assert(
+      simplifiedHeight > sourceHeight,
+      s"expected the nested fork's long branch to wrap onto extra rows in Simplified view:\n$simplifiedSvg"
+    )
+    // Every symbol still present either way — wrapping only changes layout, never content.
+    for label <- Vector(
+        "VeryLongOperatorTokenOne",
+        "VeryLongOperandNonTerminal",
+        "VeryLongOperatorTokenTwo",
+        "VeryLongTrailingNonTerminal",
+        "short"
+      )
+    do
+      assert(sourceSvg.contains(s">$label<"), sourceSvg)
+      assert(simplifiedSvg.contains(s">$label<"), simplifiedSvg)
+  }
+
   test("renderDiagramSvg: action captions survive the shared diagram AST") {
     val diagram = Diagram.ActionCaption(
       Diagram.Sequence(Vector(Diagram.NonTerminal("Term"))),
