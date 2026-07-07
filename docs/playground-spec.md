@@ -785,6 +785,37 @@ spec.ts` (a new `npm run test:unit` / `playwright.unit.config.ts` — no
 browser, no dev server, just pure-logic assertions against real fixture data
 mirrored from `LabApiSuite`'s own fence-span test). No UI consumes this yet.
 
+**Live Document notebook, phase 3 (heading cells, ADR D63).** A prose gap no
+longer collapses into one block regardless of how much structure it holds —
+`buildDocument` gains an injected `splitProse` callback (mirroring
+`sectionEndIndex`'s own `headingLevelOf` injection, so this module stays
+markdown-agnostic) that further divides each gap into a new `"heading"` kind
+(one `#`/`##`/`###` line, `headingLevel: 2 | 3 | 4`) and the ordinary
+`"prose"` runs between them — Livebook-style section boundaries, matching
+what the user explicitly asked for and what a real Livebook instance was
+inspected for as reference: a heading is its own separately addressable
+element, while the body underneath (paragraphs, images, tables) stays one
+shared unit exactly as it always rendered. `markdown.ts`'s new
+`splitHeadingsFromProse` is the real implementation `GramaireNotebookIsland.
+tsx` supplies; it reuses the SAME heading regex `parseMarkdownLite` matches
+against, and its own descriptors always join back to the original gap text
+byte-for-byte — no content is ever dropped, only reattributed to a
+different sibling block than before. `headingLevelOf` (the callback
+`sectionEndIndex`/`moveBlock` already needed for section-aware reordering)
+simplifies from a `parseMarkdownLite`/`leadingHeading` re-parse to a direct
+`block.headingLevel` field read, and moving a heading cell now moves its
+own trailing content along with it via the SAME `sectionEndIndex`/
+`swapAdjacentRanges` mechanism that already existed for the old
+"first heading inside a bigger prose block" case — verified end-to-end
+against a real multi-heading document, not just the generic stub-driven
+tests. `isPaperBlock` widens to include `"heading"` (Paper/PDF render a
+heading block's text as a real heading, the same as any embedded heading
+always has). Re-splitting a gap only ever happens at `buildDocument`
+time (the existing debounced-reshape-after-`scheduleEvaluate` flow, never
+synchronously on every keystroke) — the same rule that already governs
+every other structural change in this file, for the same OOM-avoidance
+reason its own header comments document.
+
 **Gramaire Notebook (shipped).** A standalone page at `/notebook`
 (`site/src/pages/notebook.astro` + `site/src/lab/liveDoc/
 GramaireNotebookIsland.tsx`) — deliberately its own page with its own state
@@ -812,8 +843,10 @@ rendered inline with no border or role-badge/name header of their own — a
 cell reads like plain markdown at rest, discoverable only via a pointer
 cursor and a subtle background tint on hover (`.gramaire__cell-rendered`,
 the same "hover-tint, no box" pattern `.gramaire__prose` already used).
-"Which cell is this" comes from the document's own preceding prose heading
-(`## Expr`, `## Tokens`, ...), not internal chrome; `Railroad.renderSvg`'s
+"Which cell is this" comes from the document's own preceding heading
+(`## Expr`, `## Tokens`, ...) — its own separate, independently
+movable/editable cell as of ADR D63, not text fused into the rule cell's
+neighboring prose the way it used to be; `Railroad.renderSvg`'s
 `aria-label="Railroad diagram for the {name} rule"` keeps the name
 available to assistive tech either way. A cell that owns an error or
 warning gets no border color either — `CellDiagnostics`, rendered directly
@@ -823,8 +856,9 @@ inline whenever one applies, which is signal enough on its own.
 interaction**: by default it shows a
 rendered, read-only view (a rule cell: its railroad diagram/FIRST-FOLLOW from
 `LabResponse.analysis`; a Tokens/Settings/Precedence cell, which has no
-railroad equivalent: its source in a plain read-only `<pre>`; a prose block:
-rendered markdown). An alternative with a `{% %}` action gets its real,
+railroad equivalent: its source in a plain read-only `<pre>`; a prose or
+heading block: rendered markdown, a heading cell's own text rendering as a
+real `<h2>`/`<h3>`/`<h4>` — see phase 3 above). An alternative with a `{% %}` action gets its real,
 truncated (44-char max, `Railroad.truncateAction`) source as a plain, muted
 italic caption to the right of the whole diagram, aligned with that
 alternative's own row/arm rather than squeezed into the fork/join geometry —
@@ -1586,19 +1620,25 @@ than adjusting a stale index in lock-step with every mutation.
 
 **Insert affordances** (`InsertZone`, `GramaireNotebookIsland.tsx`) —
 Livebook's own "+ Elixir/+ Block" between-cell affordance, adapted to this
-document's five real block kinds: `+ Prose`, `+ Rule`, `+ Tokens`,
-`+ Settings`, `+ Precedence`. A thin hover-zone sits between every pair of
-adjacent blocks (plus one before the first and one after the last —
-`blocks.value.length + 1` zones), fixed at a small height even at rest so
-hovering never shifts surrounding content — only the buttons themselves fade
-in (height grows to `auto` while hovered so all five can wrap to two rows at
-narrow viewports without clipping; that growth happens exactly when the
-user's attention is already on that spot, not during ordinary reading, so
-the "no shift" guarantee still holds where it matters).
+document's six real block kinds: `+ Prose`, `+ Heading`, `+ Rule`,
+`+ Tokens`, `+ Settings`, `+ Precedence`. A thin hover-zone sits between
+every pair of adjacent blocks (plus one before the first and one after the
+last — `blocks.value.length + 1` zones), fixed at a small height even at
+rest so hovering never shifts surrounding content — only the buttons
+themselves fade in (height grows to `auto` while hovered so all six can
+wrap to two rows at narrow viewports without clipping; that growth happens
+exactly when the user's attention is already on that spot, not during
+ordinary reading, so the "no shift" guarantee still holds where it
+matters).
 
 `+ Prose` inserts an empty prose block (`document.ts`'s `insertBlock`) and
-opens it for typing immediately; the other four insert a kind-specific
-placeholder skeleton and open ITS editor instead, all through one shared
+opens it for typing immediately; `+ Heading` does the same with a
+`"## New section"` placeholder (headingLevel 3, the real structural D29
+tier — not the once-per-document title tier), sharing the exact same
+prose-family edit session (`beginEditProse`) rather than a second editing
+model, since a heading cell's text is still just raw markdown, normally one
+line. The remaining four insert a kind-specific placeholder skeleton and
+open ITS editor instead, all through one shared
 `insertCellAt(index, kind, placeholder, nonterminal)` helper. Every path
 then `scheduleEvaluate()` — keeping the engine in sync is the consistent,
 unconditional rule every mutation follows, not a special case.
