@@ -3,6 +3,7 @@ import {
   parseMarkdownLite,
   isRailroadPlaceholder,
   leadingHeading,
+  splitHeadingsFromProse,
 } from "../../src/lab/liveDoc/markdown";
 
 test("parseMarkdownLite: a heading line becomes its own block, one level down", () => {
@@ -373,4 +374,71 @@ test("leadingHeading: null when real, visible content precedes every heading", (
 test("leadingHeading: null when there's no heading at all", () => {
   const parsed = parseMarkdownLite("Just a paragraph, nothing else.");
   expect(leadingHeading(parsed)).toBe(null);
+});
+
+// splitHeadingsFromProse — the Livebook-style split that gives a `.gram.md` document's heading
+// lines their own separately-editable/movable Notebook cell (document.ts's `buildDocument` calls
+// this via its injected `splitProse` parameter). Only heading LINES are pulled out; every other
+// line (paragraphs, images, tables, frontmatter/HTML-comment/`<details>` lines) stays fused into
+// the nearest "prose" run exactly as it renders today — a deliberately narrower split than
+// `parseMarkdownLite`'s own full element parse.
+
+test("splitHeadingsFromProse: no heading anywhere passes the whole gap through as one prose run", () => {
+  expect(splitHeadingsFromProse("Just a paragraph.\n\nAnother one.")).toEqual([
+    {
+      kind: "prose",
+      headingLevel: null,
+      text: "Just a paragraph.\n\nAnother one.",
+    },
+  ]);
+});
+
+test("splitHeadingsFromProse: a heading line becomes its own descriptor, one level down", () => {
+  expect(splitHeadingsFromProse("# Title")).toEqual([
+    { kind: "heading", headingLevel: 2, text: "# Title" },
+  ]);
+  expect(splitHeadingsFromProse("## Section")).toEqual([
+    { kind: "heading", headingLevel: 3, text: "## Section" },
+  ]);
+  expect(splitHeadingsFromProse("### Sub")).toEqual([
+    { kind: "heading", headingLevel: 4, text: "### Sub" },
+  ]);
+});
+
+test("splitHeadingsFromProse: prose before and after a heading becomes its own sibling descriptor", () => {
+  const gap = "Intro text.\n\n## Section\n\nBody text.";
+  expect(splitHeadingsFromProse(gap)).toEqual([
+    { kind: "prose", headingLevel: null, text: "Intro text.\n" },
+    { kind: "heading", headingLevel: 3, text: "## Section" },
+    { kind: "prose", headingLevel: null, text: "\nBody text." },
+  ]);
+});
+
+test("splitHeadingsFromProse: two heading lines with nothing at all between them produce no prose descriptor between them", () => {
+  expect(splitHeadingsFromProse("## A\n## B")).toEqual([
+    { kind: "heading", headingLevel: 3, text: "## A" },
+    { kind: "heading", headingLevel: 3, text: "## B" },
+  ]);
+});
+
+test("splitHeadingsFromProse: a blank line between two headings is itself one real line, so it gets its own (empty) prose descriptor", () => {
+  expect(splitHeadingsFromProse("## A\n\n## B")).toEqual([
+    { kind: "heading", headingLevel: 3, text: "## A" },
+    { kind: "prose", headingLevel: null, text: "" },
+    { kind: "heading", headingLevel: 3, text: "## B" },
+  ]);
+});
+
+test("splitHeadingsFromProse: every descriptor's text always joins back to exactly the input", () => {
+  const fixtures = [
+    "",
+    "Just a paragraph, nothing else.",
+    "# Title\n\nIntro.\n\n## Section\n\nBody.\n\n### Sub\n\nMore.",
+    "<details>\n<summary>Source</summary>\n\n## Term\n\nBody.\n\n</details>",
+    "## A\n## B\n\n## C",
+  ];
+  for (const gapText of fixtures) {
+    const descriptors = splitHeadingsFromProse(gapText);
+    expect(descriptors.map((d) => d.text).join("\n")).toBe(gapText);
+  }
 });

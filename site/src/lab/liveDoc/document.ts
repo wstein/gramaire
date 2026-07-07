@@ -28,9 +28,20 @@ function fenceWrap(text: string): string {
     : `${FENCE_OPEN}\n${text}\n${FENCE_CLOSE}`;
 }
 
-/** A block's role: `"prose"` for the markdown between/around fences, or a fence's own
- * `FenceInfo.kind`. */
-export type DocBlockKind = "prose" | FenceInfo["kind"];
+/** A block's role: `"prose"` for ordinary markdown between/around fences, `"heading"` for one
+ * heading LINE split out of a prose gap (see `buildDocument`'s injected `splitProse` parameter),
+ * or a fence's own `FenceInfo.kind`. */
+export type DocBlockKind = "prose" | "heading" | FenceInfo["kind"];
+
+/** True for the two "raw markdown text" kinds `serializeDocument`/`blockCharSpans`/
+ * `withLineNumbers` all emit/measure as-is (never `fenceWrap`ped) — as opposed to a fence kind,
+ * whose `text` is only the content strictly between the ```gramaire/``` marker lines. Exported so
+ * `GramaireNotebookIsland.tsx`'s own prose/heading-vs-fence dispatch (editing session, Paper view)
+ * reads from this SAME definition rather than duplicating the `kind === "prose" || kind ===
+ * "heading"` check at each call site. */
+export function isProseFamily(kind: DocBlockKind): kind is "prose" | "heading" {
+  return kind === "prose" || kind === "heading";
+}
 
 /** One block of a `.gram.md` document, in document order. For a fence block, `text` is ONLY the
  * content strictly between the ```gramaire/``` marker lines — never the markers themselves, so
@@ -59,6 +70,9 @@ export interface DocBlock {
   nonterminal: string | null;
   /** Index into the `FenceInfo[]` this block came from; null for a prose block. */
   fenceIndex: number | null;
+  /** The heading's level (2/3/4, matching `MdBlock`'s `h2`/`h3`/`h4` tags — one level down from
+   * the raw `#`/`##`/`###` count) when `kind === "heading"`; null for every other kind. */
+  headingLevel: 2 | 3 | 4 | null;
 }
 
 /** Mints a fresh, opaque block id. Exported so callers that construct a `DocBlock` outside
@@ -93,12 +107,27 @@ function normalizeProseText(text: string): string {
   return out.join("\n");
 }
 
+/** A single (heading | prose) run of a prose gap's raw text, as an injected `splitProse` callback
+ * (see `buildDocument`) divides it — duck-typed identical to `markdown.ts`'s own
+ * `ProseGapDescriptor` (the real implementation `GramaireNotebookIsland.tsx` supplies is built on
+ * `markdown.ts`'s `splitHeadingsFromProse`), but declared locally rather than imported, so this
+ * module stays markdown-agnostic (see its own header) the same way `sectionEndIndex`'s injected
+ * `headingLevelOf` already does. */
+export interface ProseGapDescriptor {
+  kind: "prose" | "heading";
+  headingLevel: 2 | 3 | 4 | null;
+  text: string;
+}
+
 /**
- * Split `source` into ordered prose/fence blocks using `fences` (`LabResponse.fences`).
- * `fences` must describe `source` itself — the same text a `LabResponse` was computed for.
- * Passing a `fences` array computed for a since-edited `source` produces blocks that no longer
- * line up with the fence markers; callers own re-requesting `fences` after an edit (see
- * `replaceBlockText`, which updates a block's text locally without needing a fresh `fences`).
+ * Split `source` into ordered prose/heading/fence blocks using `fences` (`LabResponse.fences`)
+ * for fence spans and the injected `splitProse` callback to further divide each gap of markdown
+ * text into heading-line blocks and the prose runs between them (Livebook-style section
+ * boundaries — see `sectionEndIndex`'s own header). `fences` must describe `source` itself — the
+ * same text a `LabResponse` was computed for. Passing a `fences` array computed for a
+ * since-edited `source` produces blocks that no longer line up with the fence markers; callers
+ * own re-requesting `fences` after an edit (see `replaceBlockText`, which updates a block's text
+ * locally without needing a fresh `fences`).
  *
  * `prev`, when given, carries a block's `id` forward into the newly-built block occupying the
  * EXACT SAME character span (via `blockCharSpans`) — deterministic bookkeeping, not a guess: a
@@ -107,13 +136,18 @@ function normalizeProseText(text: string): string {
  * precondition already satisfied), meaning `prev` and the fresh `fences` both partition the
  * SAME underlying bytes — a position match is exact, not inferred. A block whose position
  * shifted (or that's simply new) gets a fresh id; nothing here re-identifies blocks by content
- * or fuzzy matching, which would be the client re-inferring structure the engine alone owns.
+ * or fuzzy matching, which would be the client re-inferring structure the engine alone owns. This
+ * includes a heading line freshly split out of what was previously one bigger prose block (e.g. a
+ * `## New Section` line typed inside a prose cell, only actually split out once this function
+ * re-runs after the next debounced engine round-trip) — its span never matches anything in `prev`,
+ * so it simply mints a fresh id, the same as a brand-new fence typed mid-edit already does today.
  * Omit `prev` entirely for a genuine rewrite (a raw Source-view edit, or the very first
  * classification of an unclassified document) — every block is new there, correctly.
  */
 export function buildDocument(
   source: string,
   fences: readonly FenceInfo[],
+  splitProse: (gapText: string) => readonly ProseGapDescriptor[],
   prev?: readonly DocBlock[],
 ): DocBlock[] {
   const lines = source.split("\n");
@@ -122,13 +156,17 @@ export function buildDocument(
 
   const pushProse = (fromLine: number, toLine: number) => {
     if (fromLine > toLine) return; // an empty gap between two adjacent fences — no block for it
-    blocks.push({
-      id: makeBlockId(),
-      kind: "prose",
-      text: normalizeProseText(lines.slice(fromLine - 1, toLine).join("\n")),
-      nonterminal: null,
-      fenceIndex: null,
-    });
+    const gapText = lines.slice(fromLine - 1, toLine).join("\n");
+    for (const d of splitProse(gapText)) {
+      blocks.push({
+        id: makeBlockId(),
+        kind: d.kind,
+        text: normalizeProseText(d.text),
+        nonterminal: null,
+        fenceIndex: null,
+        headingLevel: d.headingLevel,
+      });
+    }
   };
 
   for (const f of fences) {
@@ -141,6 +179,7 @@ export function buildDocument(
       text: lines.slice(f.startLine, f.endLine - 1).join("\n"),
       nonterminal: f.nonterminal,
       fenceIndex: f.index,
+      headingLevel: null,
     });
     cursor = f.endLine + 1;
   }
@@ -186,7 +225,7 @@ export function buildDocument(
  */
 export function serializeDocument(blocks: readonly DocBlock[]): string {
   return blocks
-    .map((b) => (b.kind === "prose" ? b.text : fenceWrap(b.text)))
+    .map((b) => (isProseFamily(b.kind) ? b.text : fenceWrap(b.text)))
     .join("\n");
 }
 
@@ -208,7 +247,7 @@ export function replaceBlockText(
     i === index
       ? {
           ...b,
-          text: b.kind === "prose" ? normalizeProseText(newText) : newText,
+          text: isProseFamily(b.kind) ? normalizeProseText(newText) : newText,
         }
       : b,
   );
@@ -337,8 +376,9 @@ export function swapAdjacentRanges(
 
 /** Insert `block` at `index` (before the block currently there; `index === blocks.length` appends
  * at the end) — every block from `index` on shifts one position later. Used by the Notebook's
- * `+ Prose`/`+ Rule` insert affordances; the caller opens the new block for editing immediately
- * after, so a placeholder's exact starting `text` only needs to look right for one keystroke. */
+ * `+ Prose`/`+ Heading`/`+ Rule` insert affordances; the caller opens the new block for editing
+ * immediately after, so a placeholder's exact starting `text` only needs to look right for one
+ * keystroke. */
 export function insertBlock(
   blocks: readonly DocBlock[],
   index: number,
@@ -368,10 +408,9 @@ export function withLineNumbers(
 ): NumberedDocBlock[] {
   let line = 1;
   return blocks.map((b) => {
-    const lineCount =
-      b.kind === "prose"
-        ? b.text.split("\n").length
-        : fenceWrap(b.text).split("\n").length;
+    const lineCount = isProseFamily(b.kind)
+      ? b.text.split("\n").length
+      : fenceWrap(b.text).split("\n").length;
     const startLine = line;
     const endLine = line + lineCount - 1;
     line = endLine + 1;
@@ -409,7 +448,7 @@ export function blockCharSpans(blocks: readonly DocBlock[]): BlockCharSpan[] {
   blocks.forEach((b, i) => {
     if (i > 0) pos += 1; // the "\n" `serializeDocument` joins blocks with
     const start = pos;
-    if (b.kind === "prose") {
+    if (isProseFamily(b.kind)) {
       const end = start + b.text.length;
       spans.push({ start, end, contentStart: start, contentEnd: end });
       pos = end;
@@ -449,18 +488,18 @@ export function blockIndexAtOffset(
   return null;
 }
 
-/** True for the two block kinds the Paper view (and the PDF export built from the same data,
- * `paperPdf.ts`'s `buildPaperPdf`) actually show — prose and rule figures. Tokens/Settings/
- * Precedence are deliberately excluded from both: this is a reading/printing surface, and the raw
- * declarations those three fence kinds hold aren't part of the "document" a reader or a printed
- * page wants, unlike a rule's own railroad diagram. Lives here (not in
+/** True for the block kinds the Paper view (and the PDF export built from the same data,
+ * `paperPdf.ts`'s `buildPaperPdf`) actually show — prose, heading, and rule figures.
+ * Tokens/Settings/Precedence are deliberately excluded from both: this is a reading/printing
+ * surface, and the raw declarations those three fence kinds hold aren't part of the "document" a
+ * reader or a printed page wants, unlike a rule's own railroad diagram. Lives here (not in
  * GramaireNotebookIsland.tsx, where Paper's own rendering lives) so `paperPdf.ts` can import it
  * without an import cycle between the two — both `PaperView` and `buildPaperPdf` import the
  * SAME filter from here, so the PDF can never drift from what Paper itself shows on screen. */
 export function isPaperBlock(
   block: DocBlock,
-): block is DocBlock & { kind: "prose" | "rule" } {
-  return block.kind === "prose" || block.kind === "rule";
+): block is DocBlock & { kind: "prose" | "heading" | "rule" } {
+  return isProseFamily(block.kind) || block.kind === "rule";
 }
 
 /** `%paper-font-scale 0.9` as its own line anywhere in the document's PROSE (never inside a

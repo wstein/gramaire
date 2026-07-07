@@ -18,9 +18,24 @@ import {
   nextSiblingSectionStart,
   swapAdjacentRanges,
   paperFontScale,
+  isProseFamily,
 } from "../../src/lab/liveDoc/document";
-import type { DocBlock } from "../../src/lab/liveDoc/document";
+import type {
+  DocBlock,
+  ProseGapDescriptor,
+} from "../../src/lab/liveDoc/document";
+import { splitHeadingsFromProse } from "../../src/lab/liveDoc/markdown";
 import type { FenceInfo } from "../../src/lab/protocol";
+
+// A trivial "no real markdown parsing" stub splitter — one "prose" descriptor for the WHOLE gap,
+// no heading extraction at all — for tests whose fixtures are about something else entirely
+// (normalizeProseText's blank-line handling, fence-marker/id-carryover mechanics) and use a `#`
+// line only as arbitrary placeholder content, never meaning to exercise heading-splitting itself.
+// Mirrors this file's own `stubBlock`/`levelsOf` precedent for `headingLevelOf` below. Tests that
+// DO need real heading extraction pass `splitHeadingsFromProse` (the real implementation) instead.
+function noSplit(gapText: string): ProseGapDescriptor[] {
+  return [{ kind: "prose", headingLevel: null, text: gapText }];
+}
 
 // This file lives at site/tests/unit/, one level deeper than site/scripts/ — three dirname()
 // calls to site/, a fourth to the repo root.
@@ -61,7 +76,7 @@ function readCalcMd(): string {
 
 test("buildDocument: every fence block carries its kind/nonterminal/fenceIndex", () => {
   const source = readCalcMd();
-  const blocks = buildDocument(source, calcFences);
+  const blocks = buildDocument(source, calcFences, splitHeadingsFromProse);
   const fenceBlocks = blocks.filter((b) => b.fenceIndex !== null);
   expect(fenceBlocks.map((b) => [b.kind, b.nonterminal, b.fenceIndex])).toEqual(
     [
@@ -82,29 +97,39 @@ test("buildDocument: every fence block carries its kind/nonterminal/fenceIndex",
 // is a no-op, which is what actually matters (see normalizeProseText's own idempotency tests).
 test("buildDocument + serializeDocument: normalizes away calc.gram.md's own leading blank lines, not byte-identical", () => {
   const source = readCalcMd();
-  const blocks = buildDocument(source, calcFences);
+  const blocks = buildDocument(source, calcFences, splitHeadingsFromProse);
   const serialized = serializeDocument(blocks);
   expect(serialized).not.toBe(source);
   expect(serialized).not.toContain("\n\n\n"); // no run of 2+ blank lines anywhere
   expect(serialized.startsWith("\n")).toBe(false); // the file itself never opens with a blank line
 });
 
-test("buildDocument produces prose blocks for the gaps between/around fences", () => {
+// Verified end to end against the real fixture (not hand-derived): every real ## section heading
+// (Tokens/Expr/Term/Factor/Precedence/Error messages/Generated tables) plus the document's own
+// literal # Calc title is now its own "heading" block (ADR-adjacent Livebook-style section
+// boundaries), separate from the body prose around it — the split this whole feature is about.
+test("buildDocument splits heading lines out of prose gaps, verified end-to-end against calc.gram.md", () => {
   const source = readCalcMd();
-  const blocks = buildDocument(source, calcFences);
-  // Prose before the first fence (the "# Calc" heading + intro paragraph), between every
-  // adjacent pair of fences (headings + explanatory text), and after the last fence (the
-  // "## Error messages"/"## Generated tables" sections, whose own fences are ```text/plain, never
-  // ```gramaire, so they never appear in `calcFences` and stay folded into trailing prose here).
-  expect(blocks[0].kind).toBe("prose");
-  expect(
-    blocks.filter((b) => b.kind === "prose").length,
-  ).toBeGreaterThanOrEqual(6);
+  const blocks = buildDocument(source, calcFences, splitHeadingsFromProse);
+  const headings = blocks.filter((b) => b.kind === "heading");
+  expect(headings.map((b) => [b.headingLevel, b.text])).toEqual([
+    [2, "# Calc"],
+    [3, "## Tokens"],
+    [3, "## Expr"],
+    [3, "## Term"],
+    [3, "## Factor"],
+    [3, "## Precedence"],
+    [3, "## Error messages"],
+    [3, "## Generated tables"],
+  ]);
+  // 8 heading + 5 fence (calcFences.length) + the remaining prose runs between them.
+  expect(blocks.filter((b) => b.kind === "prose").length).toBe(14);
+  expect(blocks.length).toBe(27);
 });
 
 test("buildDocument: no fences (native .gram) yields one prose block, still round-trips", () => {
   const source = "name: Foo\nlang: javascript\n\nFoo\n: 'x'\n";
-  const blocks = buildDocument(source, []);
+  const blocks = buildDocument(source, [], noSplit);
   expect(blocks).toMatchObject([
     { kind: "prose", text: source, nonterminal: null, fenceIndex: null },
   ]);
@@ -133,7 +158,7 @@ test("buildDocument: a prose gap's leading blank lines are stripped entirely", (
     fence(0, "settings", null, 1, 3),
     fence(1, "tokens", null, 7, 9),
   ];
-  const blocks = buildDocument(source, fences);
+  const blocks = buildDocument(source, fences, noSplit);
   const prose = blocks.find((b) => b.kind === "prose")!;
   expect(prose.text).toBe("## Tokens");
 });
@@ -157,7 +182,7 @@ test("buildDocument: a run of 2+ blank lines anywhere in a prose gap collapses t
     fence(0, "settings", null, 1, 3),
     fence(1, "tokens", null, 10, 12),
   ];
-  const blocks = buildDocument(source, fences);
+  const blocks = buildDocument(source, fences, noSplit);
   const prose = blocks.find((b) => b.kind === "prose")!;
   // The interior run collapses to 1 blank line; the ORIGINAL single trailing blank line (before
   // the next fence) survives too — a block may still end with one blank line of its own.
@@ -179,7 +204,7 @@ test("buildDocument: a prose gap that's only blank lines collapses to an empty b
     fence(0, "settings", null, 1, 3),
     fence(1, "tokens", null, 6, 8),
   ];
-  const blocks = buildDocument(source, fences);
+  const blocks = buildDocument(source, fences, noSplit);
   const prose = blocks.find((b) => b.kind === "prose")!;
   expect(prose.text).toBe("");
 });
@@ -189,7 +214,7 @@ test("buildDocument: the document's own leading blank lines (before the first fe
     "\n",
   );
   const fences: FenceInfo[] = [fence(0, "settings", null, 5, 7)];
-  const blocks = buildDocument(source, fences);
+  const blocks = buildDocument(source, fences, noSplit);
   expect(blocks[0].kind).toBe("prose");
   // The leading blanks are gone; the single ORIGINAL blank line before the fence survives as this
   // block's own trailing gap.
@@ -198,15 +223,17 @@ test("buildDocument: the document's own leading blank lines (before the first fe
 });
 
 test("replaceBlockText: committing a prose edit normalizes it the same way a fresh parse does", () => {
-  const blocks = buildDocument("Intro.", []);
+  const blocks = buildDocument("Intro.", [], noSplit);
   const edited = replaceBlockText(blocks, 0, "\n\nIntro.\n\n\nMore.\n\n\n");
   expect(edited[0].text).toBe("Intro.\n\nMore.\n");
 });
 
 test("replaceBlockText: a fence block's own text is never normalized (blank lines are real content there)", () => {
-  const blocks = buildDocument("```gramaire\nT : /x/\n```", [
-    fence(0, "tokens", null, 1, 3),
-  ]);
+  const blocks = buildDocument(
+    "```gramaire\nT : /x/\n```",
+    [fence(0, "tokens", null, 1, 3)],
+    noSplit,
+  );
   const edited = replaceBlockText(blocks, 0, "\n\nT : /x/\n\n\n");
   expect(edited[0].text).toBe("\n\nT : /x/\n\n\n");
 });
@@ -227,15 +254,16 @@ test("buildDocument: normalizing already-normalized prose text is a no-op (idemp
       "```",
     ].join("\n"),
     [fence(0, "settings", null, 1, 3), fence(1, "tokens", null, 9, 11)],
+    noSplit,
   );
   const normalizedText = once.find((b) => b.kind === "prose")!.text;
-  const twice = buildDocument(normalizedText, []);
+  const twice = buildDocument(normalizedText, [], noSplit);
   expect(twice[0].text).toBe(normalizedText);
 });
 
 test("buildDocument: without `prev`, every block gets a fresh, distinct id", () => {
   const source = readCalcMd();
-  const blocks = buildDocument(source, calcFences);
+  const blocks = buildDocument(source, calcFences, splitHeadingsFromProse);
   const ids = blocks.map((b) => b.id);
   expect(new Set(ids).size).toBe(ids.length); // no duplicates
   ids.forEach((id) => {
@@ -252,12 +280,34 @@ test("buildDocument: without `prev`, every block gets a fresh, distinct id", () 
 // identity here tracks POSITION in agreed-upon-identical bytes, not the engine's own label.
 test("buildDocument: passing `prev` carries a block's id forward when its span is unchanged", () => {
   const source = readCalcMd();
-  const prev = buildDocument(source, calcFences);
+  const prev = buildDocument(source, calcFences, splitHeadingsFromProse);
   // Same fences, freshly re-requested (e.g. a second evaluate() of otherwise-untouched text) —
   // every block's span is identical to `prev`'s own.
-  const next = buildDocument(source, calcFences, prev);
+  const next = buildDocument(source, calcFences, splitHeadingsFromProse, prev);
 
   expect(next.map((b) => b.id)).toEqual(prev.map((b) => b.id));
+});
+
+// The heading-splitting analogue of the fresh-id test just below: a `## New Section` line typed
+// inside what was previously one bigger prose block doesn't actually split out into its own
+// "heading" block until the next debounced reshape re-runs `splitProse` — see document.ts's own
+// `buildDocument` doc comment. `prev` here simulates that PRE-reshape state (one prose block
+// holding everything, built with `noSplit`); `next` simulates the reshape actually landing (built
+// with the real `splitHeadingsFromProse`). None of the 3 resulting blocks' spans match the single
+// old block's whole-gap span, so every one of them mints a genuinely fresh id — the same "fail
+// toward a fresh id, never guess" rule a brand-new fence typed mid-edit already exercises.
+test("buildDocument: prev carries no id forward once a heading is freshly split out of a bigger prose block", () => {
+  const text = "Foo bar.\n\n## New Section\n\nBaz.";
+  const prev = buildDocument(text, [], noSplit);
+  expect(prev.length).toBe(1);
+
+  const next = buildDocument(text, [], splitHeadingsFromProse, prev);
+  expect(next.map((b) => [b.kind, b.headingLevel, b.text])).toEqual([
+    ["prose", null, "Foo bar.\n"],
+    ["heading", 3, "## New Section"],
+    ["prose", null, "Baz."],
+  ]);
+  expect(next.some((b) => b.id === prev[0].id)).toBe(false);
 });
 
 test("buildDocument: passing `prev` mints a fresh id for a block whose span has no match in `prev`", () => {
@@ -270,13 +320,13 @@ test("buildDocument: passing `prev` mints a fresh id for a block whose span has 
     "```",
   ].join("\n");
   const prevFences: FenceInfo[] = [fence(0, "settings", null, 1, 3)];
-  const prev = buildDocument("```gramaire\nname: A\n```", prevFences);
+  const prev = buildDocument("```gramaire\nname: A\n```", prevFences, noSplit);
 
   const nextFences: FenceInfo[] = [
     fence(0, "settings", null, 1, 3),
     fence(1, "tokens", null, 4, 6),
   ];
-  const next = buildDocument(source, nextFences, prev);
+  const next = buildDocument(source, nextFences, noSplit, prev);
 
   // The settings block's span is unchanged (same leading bytes) — id carries over.
   expect(next[0].id).toBe(prev[0].id);
@@ -298,14 +348,14 @@ test("buildDocument: adjacent fences with no gap produce no spurious empty prose
     fence(0, "settings", null, 1, 3),
     fence(1, "tokens", null, 4, 6),
   ];
-  const blocks = buildDocument(source, fences);
+  const blocks = buildDocument(source, fences, noSplit);
   expect(blocks.map((b) => b.kind)).toEqual(["settings", "tokens"]);
   expect(serializeDocument(blocks)).toBe(source);
 });
 
 test("replaceBlockText: a fence block's text is inner content only, no markers", () => {
   const source = readCalcMd();
-  const blocks = buildDocument(source, calcFences);
+  const blocks = buildDocument(source, calcFences, splitHeadingsFromProse);
   const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
   expect(blocks[exprIndex].text).not.toContain("```gramaire");
   expect(blocks[exprIndex].text).not.toContain("```");
@@ -320,7 +370,7 @@ test("replaceBlockText: a fence block's text is inner content only, no markers",
 // can ever touch a marker line; `serializeDocument` always re-wraps with fresh, well-formed ones.
 test("replaceBlockText: no edit to a fence block's content can ever corrupt its markers", () => {
   const source = readCalcMd();
-  const blocks = buildDocument(source, calcFences);
+  const blocks = buildDocument(source, calcFences, splitHeadingsFromProse);
   const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
 
   const edited = replaceBlockText(
@@ -343,7 +393,7 @@ test("replaceBlockText: no edit to a fence block's content can ever corrupt its 
 
 test("replaceBlockText: editing one block changes only that block's own line range", () => {
   const source = readCalcMd();
-  const blocks = buildDocument(source, calcFences);
+  const blocks = buildDocument(source, calcFences, splitHeadingsFromProse);
   // The normalized baseline (buildDocument strips calc.gram.md's own leading blank lines — see
   // the round-trip test above) is what every other block's own bytes are scoped against here, not
   // the raw fixture `source` itself.
@@ -367,7 +417,7 @@ test("replaceBlockText: editing one block changes only that block's own line ran
   const before = blocks.slice(0, exprIndex);
   const after = blocks.slice(exprIndex + 1);
   const beforeLineCount = before.reduce(
-    (n, b) => n + (b.kind === "prose" ? 0 : 2) + b.text.split("\n").length,
+    (n, b) => n + (isProseFamily(b.kind) ? 0 : 2) + b.text.split("\n").length,
     0,
   );
 
@@ -385,12 +435,12 @@ test("replaceBlockText: editing one block changes only that block's own line ran
 // serializeDocument(blocks), which is the invariant this actually needs to hold.
 test("withLineNumbers: each block's own line span indexes into its own serialized bytes", () => {
   const source = readCalcMd();
-  const blocks = buildDocument(source, calcFences);
+  const blocks = buildDocument(source, calcFences, splitHeadingsFromProse);
   const numbered = withLineNumbers(blocks);
   const lines = serializeDocument(blocks).split("\n");
   numbered.forEach((b) => {
     const ownLines = lines.slice(b.startLine - 1, b.endLine);
-    if (b.kind === "prose") {
+    if (isProseFamily(b.kind)) {
       expect(ownLines.join("\n")).toBe(b.text);
     } else {
       expect(ownLines[0]).toBe("```gramaire");
@@ -402,7 +452,7 @@ test("withLineNumbers: each block's own line span indexes into its own serialize
 
 test("withLineNumbers: a shorter/longer edit shifts every later block's line numbers", () => {
   const source = readCalcMd();
-  const blocks = buildDocument(source, calcFences);
+  const blocks = buildDocument(source, calcFences, splitHeadingsFromProse);
   const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
   const termIndexBefore = withLineNumbers(blocks).find(
     (b) => b.nonterminal === "Term",
@@ -422,7 +472,7 @@ test("withLineNumbers: a shorter/longer edit shifts every later block's line num
 
 test("blockCharSpans: content ranges point at the exact editable text in the serialized document", () => {
   const source = readCalcMd();
-  const blocks = buildDocument(source, calcFences);
+  const blocks = buildDocument(source, calcFences, splitHeadingsFromProse);
   const serialized = serializeDocument(blocks); // spans are into THIS (the normalized baseline)
   const spans = blockCharSpans(blocks);
 
@@ -431,8 +481,8 @@ test("blockCharSpans: content ranges point at the exact editable text in the ser
     expect(serialized.slice(spans[i].contentStart, spans[i].contentEnd)).toBe(
       b.text,
     );
-    // A fence block's full range is wrapped in the markers; a prose block's isn't.
-    if (b.kind === "prose") {
+    // A fence block's full range is wrapped in the markers; a prose-family block's isn't.
+    if (isProseFamily(b.kind)) {
       expect(spans[i].contentStart).toBe(spans[i].start);
       expect(spans[i].contentEnd).toBe(spans[i].end);
     } else {
@@ -446,7 +496,7 @@ test("blockCharSpans: content ranges point at the exact editable text in the ser
 
 test("blockIndexAtOffset: a diagnostic offset maps to the cell whose content contains it", () => {
   const source = readCalcMd();
-  const blocks = buildDocument(source, calcFences);
+  const blocks = buildDocument(source, calcFences, splitHeadingsFromProse);
   const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
   const factorIndex = blocks.findIndex((b) => b.nonterminal === "Factor");
 
@@ -472,21 +522,21 @@ test("blockIndexAtOffset: a diagnostic offset maps to the cell whose content con
 test("serializeDocument: an empty fence (adjacent markers) reaches a stable 2-line fixed point", () => {
   const source = "```gramaire\n```\n";
   const fences = [fence(0, "rule", "Empty", 1, 2)];
-  const blocks = buildDocument(source, fences);
+  const blocks = buildDocument(source, fences, noSplit);
   expect(blocks[0].text).toBe("");
 
   const serialized = serializeDocument(blocks);
   expect(serialized).toBe(source); // 0-content-line source: exact round trip on the first pass
 
   // Re-parsing and re-serializing reproduces the identical output — idempotent from here on.
-  const reparsed = buildDocument(serialized, fences);
+  const reparsed = buildDocument(serialized, fences, noSplit);
   expect(serializeDocument(reparsed)).toBe(serialized);
 });
 
 test("serializeDocument: a fence with exactly one blank content line collapses to the same fixed point", () => {
   const source = "```gramaire\n\n```\n";
   const fences = [fence(0, "rule", "Empty", 1, 3)];
-  const blocks = buildDocument(source, fences);
+  const blocks = buildDocument(source, fences, noSplit);
   expect(blocks[0].text).toBe(""); // indistinguishable from the zero-content-line case above
 
   const serialized = serializeDocument(blocks);
@@ -494,7 +544,11 @@ test("serializeDocument: a fence with exactly one blank content line collapses t
 
   // Fresh fences describing the NEW (2-line) text — a real caller always re-requests fences
   // after an edit (see document.ts's own `buildDocument` doc), never reuses the pre-edit ones.
-  const reparsed = buildDocument(serialized, [fence(0, "rule", "Empty", 1, 2)]);
+  const reparsed = buildDocument(
+    serialized,
+    [fence(0, "rule", "Empty", 1, 2)],
+    noSplit,
+  );
   expect(serializeDocument(reparsed)).toBe(serialized); // stable from here on
 });
 
@@ -518,7 +572,7 @@ test("blockCharSpans: a later block's contentStart isn't inflated by an earlier 
     fence(0, "rule", "Empty", 1, 3),
     fence(1, "rule", "Foo", 4, 6),
   ];
-  const blocks = buildDocument(source, fences);
+  const blocks = buildDocument(source, fences, noSplit);
   expect(blocks[0].text).toBe(""); // the one-blank-line fence, collapsing per document.ts
   expect(blocks[1].text).toBe("Foo Bar");
 
@@ -536,14 +590,18 @@ test("blockCharSpans: a later block's contentStart isn't inflated by an earlier 
 test("withLineNumbers: an empty fence spans exactly 2 lines (its own markers), not 3", () => {
   const source = "```gramaire\n```\n";
   const fences = [fence(0, "rule", "Empty", 1, 2)];
-  const blocks = buildDocument(source, fences);
+  const blocks = buildDocument(source, fences, noSplit);
   const numbered = withLineNumbers(blocks);
   expect(numbered[0].startLine).toBe(1);
   expect(numbered[0].endLine).toBe(2);
 });
 
 test("removeBlock: drops exactly the one block at the given index, in order", () => {
-  const blocks = buildDocument(readCalcMd(), calcFences);
+  const blocks = buildDocument(
+    readCalcMd(),
+    calcFences,
+    splitHeadingsFromProse,
+  );
   const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
   const result = removeBlock(blocks, exprIndex);
   expect(result.length).toBe(blocks.length - 1);
@@ -557,7 +615,11 @@ test("removeBlock: drops exactly the one block at the given index, in order", ()
 });
 
 test("swapBlocks: exchanges two blocks' positions, leaving every other block untouched", () => {
-  const blocks = buildDocument(readCalcMd(), calcFences);
+  const blocks = buildDocument(
+    readCalcMd(),
+    calcFences,
+    splitHeadingsFromProse,
+  );
   const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
   const termIndex = blocks.findIndex((b) => b.nonterminal === "Term");
   const swapped = swapBlocks(blocks, exprIndex, termIndex);
@@ -567,13 +629,21 @@ test("swapBlocks: exchanges two blocks' positions, leaving every other block unt
 });
 
 test("swapBlocks: a no-op (same reference back) when either index is out of range", () => {
-  const blocks = buildDocument(readCalcMd(), calcFences);
+  const blocks = buildDocument(
+    readCalcMd(),
+    calcFences,
+    splitHeadingsFromProse,
+  );
   expect(swapBlocks(blocks, 0, blocks.length)).toBe(blocks);
   expect(swapBlocks(blocks, -1, 0)).toBe(blocks);
 });
 
 test("insertBlock: inserts at the given index, shifting every later block by one", () => {
-  const blocks = buildDocument(readCalcMd(), calcFences);
+  const blocks = buildDocument(
+    readCalcMd(),
+    calcFences,
+    splitHeadingsFromProse,
+  );
   const exprIndex = blocks.findIndex((b) => b.nonterminal === "Expr");
   const newBlock = {
     id: makeBlockId(),
@@ -581,6 +651,7 @@ test("insertBlock: inserts at the given index, shifting every later block by one
     text: "",
     nonterminal: null,
     fenceIndex: null,
+    headingLevel: null,
   };
   const result = insertBlock(blocks, exprIndex, newBlock);
   expect(result.length).toBe(blocks.length + 1);
@@ -591,13 +662,18 @@ test("insertBlock: inserts at the given index, shifting every later block by one
 });
 
 test("insertBlock: index === blocks.length appends at the very end", () => {
-  const blocks = buildDocument(readCalcMd(), calcFences);
+  const blocks = buildDocument(
+    readCalcMd(),
+    calcFences,
+    splitHeadingsFromProse,
+  );
   const newBlock = {
     id: makeBlockId(),
     kind: "prose" as const,
     text: "the end",
     nonterminal: null,
     fenceIndex: null,
+    headingLevel: null,
   };
   const result = insertBlock(blocks, blocks.length, newBlock);
   expect(result.length).toBe(blocks.length + 1);
@@ -609,7 +685,14 @@ test("insertBlock: index === blocks.length appends at the very end", () => {
 // `headingLevelOf` callback rather than real markdown text. A trivial id->level stub is enough to
 // exercise every boundary case without a real DocBlock/markdown round-trip.
 function stubBlock(id: string): DocBlock {
-  return { id, kind: "prose", text: "", nonterminal: null, fenceIndex: null };
+  return {
+    id,
+    kind: "prose",
+    text: "",
+    nonterminal: null,
+    fenceIndex: null,
+    headingLevel: null,
+  };
 }
 function levelsOf(levels: Record<string, number | null>) {
   return (b: DocBlock) => levels[b.id] ?? null;
@@ -691,6 +774,55 @@ test("swapAdjacentRanges: a no-op (same reference back) on an invalid range", ()
   expect(swapAdjacentRanges(blocks, 2, 1, 3)).toBe(blocks); // start > mid
   expect(swapAdjacentRanges(blocks, 0, 4, 3)).toBe(blocks); // mid > end
   expect(swapAdjacentRanges(blocks, 0, 1, 4)).toBe(blocks); // end > blocks.length
+});
+
+// End-to-end proof (not just the generic stub-driven tests above) that moving a heading section
+// really does bring its own trailing content along with it, against REAL split blocks — the
+// user's own explicit requirement for this feature. `headingLevelOf` here is
+// `GramaireNotebookIsland.tsx`'s own real implementation (a direct `headingLevel` field read),
+// not a stub, and `blocks` is `calc.gram.md`'s own real split (verified above): "## Tokens"
+// (index 3) owns the blank prose gap + its ```gramaire tokens fence + a trailing blank prose gap
+// (indices 4-6) as its section, up to but not including the next sibling heading "## Expr"
+// (index 7, also level 3).
+test("moveBlock's own section-move mechanism: moving a heading section relocates its trailing content with it", () => {
+  const blocks = buildDocument(
+    readCalcMd(),
+    calcFences,
+    splitHeadingsFromProse,
+  );
+  const headingLevelOf = (b: DocBlock) =>
+    b.kind === "heading" ? b.headingLevel : null;
+  const tokensIdx = blocks.findIndex(
+    (b) => b.kind === "heading" && b.text === "## Tokens",
+  );
+  const exprIdx = blocks.findIndex(
+    (b) => b.kind === "heading" && b.text === "## Expr",
+  );
+
+  const tokensSectionEnd = sectionEndIndex(blocks, tokensIdx, headingLevelOf);
+  expect(tokensSectionEnd).toBe(exprIdx); // Tokens' own section ends exactly where Expr's begins
+
+  const exprSectionEnd = sectionEndIndex(blocks, exprIdx, headingLevelOf);
+  const swapped = swapAdjacentRanges(
+    blocks,
+    tokensIdx,
+    tokensSectionEnd,
+    exprSectionEnd,
+  );
+
+  // The Expr section (heading + its own prose/rule content) now occupies the Tokens section's OLD
+  // starting position, and vice versa — every block belonging to a section relocated as one unit,
+  // not just its own leading heading line.
+  expect(swapped[tokensIdx].text).toBe("## Expr");
+  expect(
+    swapped
+      .slice(tokensIdx, tokensIdx + (exprSectionEnd - exprIdx))
+      .map((b) => [b.kind, b.nonterminal ?? b.text.slice(0, 12)]),
+  ).toEqual(
+    blocks
+      .slice(exprIdx, exprSectionEnd)
+      .map((b) => [b.kind, b.nonterminal ?? b.text.slice(0, 12)]),
+  );
 });
 
 test("paperFontScale: no directive anywhere in the document defaults to 1 (no-op)", () => {

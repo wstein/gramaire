@@ -27,6 +27,7 @@ import {
   blockIndexAtOffset,
   blockCharSpans,
   isPaperBlock,
+  isProseFamily,
   paperFontScale,
   sectionEndIndex,
   previousSiblingSectionStart,
@@ -34,8 +35,12 @@ import {
   swapAdjacentRanges,
 } from "./document";
 import type { DocBlock, DocBlockKind } from "./document";
-import { parseMarkdownLite, leadingHeading } from "./markdown";
-import type { MdBlock, MdInline } from "./markdown";
+import {
+  parseMarkdownLite,
+  leadingHeading,
+  splitHeadingsFromProse,
+} from "./markdown";
+import type { MdInline } from "./markdown";
 import { MarkdownBlocks, MarkdownHeading } from "./MarkdownBlock";
 import { SymbolChip, SymbolChips } from "../symbolDisplay";
 import { ProductionsTable } from "../productionsTable";
@@ -98,9 +103,11 @@ const { response, responseSource, pending, evaluation } = labWorker;
 // plausibly a different prior session" check below, whose worst failure mode is one unnecessary
 // restore offer for a session that never actually changed, not silent data loss.
 const NOTEBOOK_DEFAULT_TEXT = serializeDocument(
-  buildDocument(NOTEBOOK_DEFAULT_SOURCE, []),
+  buildDocument(NOTEBOOK_DEFAULT_SOURCE, [], splitHeadingsFromProse),
 );
-const blocks = signal<DocBlock[]>(buildDocument(NOTEBOOK_DEFAULT_SOURCE, []));
+const blocks = signal<DocBlock[]>(
+  buildDocument(NOTEBOOK_DEFAULT_SOURCE, [], splitHeadingsFromProse),
+);
 // `hasUnsavedWork` (below) needs to be exact, unlike `shouldOfferRestore` above — a false positive
 // there just means an unnecessary confirm() before replacing a document that was never actually at
 // risk. Captured from the reshape effect's own FIRST successful real (fence-aware) classification,
@@ -217,7 +224,7 @@ function commitSourceEdit() {
   const current = serializeDocument(blocks.peek());
   if (sourceDraft.value === current) return;
   pushUndoSnapshot();
-  blocks.value = buildDocument(sourceDraft.value, []);
+  blocks.value = buildDocument(sourceDraft.value, [], splitHeadingsFromProse);
   scheduleEvaluate();
 }
 
@@ -280,11 +287,13 @@ export interface OutlineEntry {
   kind: "heading" | "rule";
 }
 
-// One entry per rule cell (labelled by its own nonterminal) and per prose block that opens with an
-// h2/h3 heading (labelled by that heading's own text) — Tokens/Settings/Precedence cells and
-// heading-less prose contribute nothing: neither is a meaningful place to navigate BACK to. Only
-// the FIRST heading in a given prose block becomes an entry (a block with multiple headings is
-// rare in practice, and one entry per block keeps this a true outline, not a wall of entries).
+// One entry per rule cell (labelled by its own nonterminal) and per h2/h3 heading cell (labelled
+// by its own text) — Tokens/Settings/Precedence cells and `h4` (`###`+, ADR D29's free
+// presentational grouping) contribute nothing: neither is a meaningful place to navigate back to.
+// Every heading cell IS its own block now (see document.ts's `splitHeadingsFromProse`-driven
+// split), so this is a direct field check rather than a re-parse — and, unlike the prior "only the
+// first heading per (much bigger) prose block became an entry" behavior, every qualifying heading
+// now genuinely gets its own entry, a deliberate, more complete outline rather than a regression.
 const outlineEntries = computed<OutlineEntry[]>(() => {
   const entries: OutlineEntry[] = [];
   blocks.value.forEach((block, index) => {
@@ -292,15 +301,15 @@ const outlineEntries = computed<OutlineEntry[]>(() => {
       entries.push({ index, label: block.nonterminal, kind: "rule" });
       return;
     }
-    if (block.kind !== "prose") return;
-    const heading = parseMarkdownLite(block.text).find(
-      (b): b is MdBlock & { tag: "h2" | "h3" } =>
-        b.tag === "h2" || b.tag === "h3",
-    );
-    if (heading) {
+    if (
+      block.kind === "heading" &&
+      block.headingLevel !== null &&
+      block.headingLevel <= 3
+    ) {
+      const lead = leadingHeading(parseMarkdownLite(block.text));
       entries.push({
         index,
-        label: inlineText(heading.parts),
+        label: lead ? inlineText(lead.heading.parts) : "",
         kind: "heading",
       });
     }
@@ -346,7 +355,12 @@ effect(() => {
   // `prev` is passed for id carryover: this guard having just passed IS buildDocument's own
   // documented precondition for it (`current === serializeDocument(prev)`) — the two partition
   // the exact same bytes, so a same-span match is exact bookkeeping, never a guess at content.
-  const next = buildDocument(current, resp.fences, prev);
+  const next = buildDocument(
+    current,
+    resp.fences,
+    splitHeadingsFromProse,
+    prev,
+  );
   blocks.value = next;
   // The FIRST time this ever fires is the standalone page's own automatic initial evaluate() of
   // the still-untouched default document — captured once, here, as the exact (fence-aware)
@@ -378,6 +392,7 @@ const showNotebook = computed(() => (response.value?.fences.length ?? 0) > 0);
 
 const BADGE_LABEL: Record<DocBlockKind, string> = {
   prose: "Prose",
+  heading: "Heading",
   rule: "Rule",
   tokens: "Tokens",
   settings: "Settings",
@@ -408,7 +423,7 @@ function scrollToCell(index: number): DocBlock | undefined {
 function jumpToCell(index: number) {
   const block = scrollToCell(index);
   if (!block) return;
-  if (block.kind === "prose") beginEditProse(index, block.text);
+  if (isProseFamily(block.kind)) beginEditProse(index, block.text);
   else beginEditCell(index, block.text);
 }
 
@@ -496,17 +511,13 @@ function undo() {
 }
 
 // The ONE place document.ts's injected `headingLevelOf` callback is actually implemented —
-// document.ts stays markdown-agnostic (see its own new functions' doc comments); this is the only
-// spot that combines DocBlock shape with markdown parsing for section boundaries. Deliberately
-// answers "does this block's OWN rendered view start with a heading" (via markdown.ts's
-// `leadingHeading`, tolerating leading railroad placeholders) — a DIFFERENT, stricter question
-// than `outlineEntries`'s own `.find()` above, which labels a block by a heading anywhere inside
-// it. The numeric level (2/3/4) doubles as the "shallower is smaller" ordering
+// document.ts stays markdown-agnostic (see its own new functions' doc comments). Now a direct
+// field read: a heading is its own real block (document.ts's `splitHeadingsFromProse`-driven
+// split), not something re-inferred by re-parsing a bigger prose block's leading content the way
+// this used to. The numeric level (2/3/4) doubles as the "shallower is smaller" ordering
 // sectionEndIndex/previousSiblingSectionStart/nextSiblingSectionStart need.
 function headingLevelOf(block: DocBlock): number | null {
-  if (block.kind !== "prose") return null;
-  const lead = leadingHeading(parseMarkdownLite(block.text));
-  return lead ? Number(lead.heading.tag.slice(1)) : null;
+  return block.kind === "heading" ? block.headingLevel : null;
 }
 
 // Moving a block whose own view opens with a heading moves that heading's WHOLE section (itself
@@ -700,10 +711,34 @@ function insertProseAt(index: number) {
     text: "",
     nonterminal: null,
     fenceIndex: null,
+    headingLevel: null,
   };
   blocks.value = insertBlock(blocks.value, index, block);
   scheduleEvaluate();
   beginEditProse(index, "");
+}
+
+// `+ Heading` inserts a one-line `## New section` block and opens it for typing immediately —
+// headingLevel 3 is the real STRUCTURAL D29 tier (a `##`-declared nonterminal/reserved section),
+// not level 2 (the document's own literal `# Title`, which a document only ever has one of, at
+// the very start). Shares the exact same edit session as `+ Prose` (`beginEditProse`) — a heading
+// cell's text is normally one line, but the session itself doesn't care, and if a user types more
+// into it, the next reshape re-splits it again (document.ts's own `splitHeadingsFromProse`).
+function insertHeadingAt(index: number) {
+  if (blocksLocked()) return;
+  pushUndoSnapshot();
+  const text = "## New section";
+  const block: DocBlock = {
+    id: makeBlockId(),
+    kind: "heading",
+    text,
+    nonterminal: null,
+    fenceIndex: null,
+    headingLevel: 3,
+  };
+  blocks.value = insertBlock(blocks.value, index, block);
+  scheduleEvaluate();
+  beginEditProse(index, text);
 }
 
 // Shared shape every non-prose insert follows: build a block at `index`, evaluate, open its
@@ -716,7 +751,7 @@ function insertProseAt(index: number) {
 // before the user has touched it (the bug `+ Rule`'s own placeholder used to have).
 function insertCellAt(
   index: number,
-  kind: Exclude<DocBlockKind, "prose">,
+  kind: Exclude<DocBlockKind, "prose" | "heading">,
   placeholder: string,
   nonterminal: string | null,
 ) {
@@ -728,6 +763,7 @@ function insertCellAt(
     text: placeholder,
     nonterminal,
     fenceIndex: null,
+    headingLevel: null,
   };
   blocks.value = insertBlock(blocks.value, index, block);
   scheduleEvaluate();
@@ -776,6 +812,7 @@ function insertPrecedenceAt(index: number) {
 const INSERT_KINDS: Array<{ label: string; insert: (index: number) => void }> =
   [
     { label: "+ Prose", insert: insertProseAt },
+    { label: "+ Heading", insert: insertHeadingAt },
     { label: "+ Rule", insert: insertRuleAt },
     { label: "+ Tokens", insert: insertTokensAt },
     { label: "+ Settings", insert: insertSettingsAt },
@@ -870,7 +907,7 @@ function acceptRestore() {
   if (!offer) return;
   restoreOffer.value = null;
   pushUndoSnapshot();
-  blocks.value = buildDocument(offer.text, []);
+  blocks.value = buildDocument(offer.text, [], splitHeadingsFromProse);
   scheduleEvaluate();
 }
 
@@ -1116,11 +1153,15 @@ function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
   // `blocks` (the whole-document reactive model), which re-renders every ProseBlock too — cheap in
   // isolation, but compounding for no reason when this prose text hasn't itself changed.
   const parsed = useMemo(() => parseMarkdownLite(block.text), [block.text]);
-  // A block whose own rendered view opens with a heading gets that heading pulled out into its
-  // own row alongside CellActions (rendered inline to its right) instead of the actions floating
-  // as an absolute corner overlay — the overlay needed an artificial top margin on h3/h4 to avoid
-  // visually clipping into the heading text, which is exactly the "empty gap above the heading on
-  // hover" bug this replaces (gramaireNotebook.css's own `.gramaire__prose-heading-row` rules).
+  // A `kind === "heading"` block is its own real block now (document.ts's
+  // `splitHeadingsFromProse`-driven split) — its heading is pulled into its own row alongside
+  // CellActions (rendered inline to its right) instead of the actions floating as an absolute
+  // corner overlay, the same "empty gap above the heading on hover" fix
+  // `.gramaire__prose-heading-row` (gramaireNotebook.css) already existed for. `lead`/`rest` still
+  // fall back gracefully if the block's first line isn't (yet) heading-shaped — a transient state
+  // reachable by typing extra lines into an open heading cell before the text commits and the next
+  // debounced reshape re-splits it (see `replaceBlockText`'s own doc comment: a commit never
+  // changes a block's `kind`, only its `text`).
   const lead = useMemo(() => leadingHeading(parsed), [parsed]);
   const rest = useMemo(
     () =>
@@ -1129,6 +1170,7 @@ function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
         : parsed,
     [parsed, lead],
   );
+  const isHeadingCell = block.kind === "heading";
   return (
     <div
       class="gramaire__prose"
@@ -1142,15 +1184,15 @@ function ProseBlock({ index, block }: { index: number; block: DocBlock }) {
         handleCellActivateKey(e, () => beginEditProse(index, block.text))
       }
     >
-      {lead ? (
+      {isHeadingCell ? (
         <div class="gramaire__prose-heading-row">
-          <MarkdownHeading heading={lead.heading} />
+          {lead ? <MarkdownHeading heading={lead.heading} /> : null}
           <CellActions index={index} />
         </div>
       ) : (
         <CellActions index={index} />
       )}
-      <MarkdownBlocks blocks={rest} />
+      <MarkdownBlocks blocks={isHeadingCell ? rest : parsed} />
     </div>
   );
 }
@@ -1860,7 +1902,7 @@ function loadDocumentText(
   handle: WritableFileHandle | null = null,
 ) {
   pushUndoSnapshot();
-  blocks.value = buildDocument(text, []);
+  blocks.value = buildDocument(text, [], splitHeadingsFromProse);
   viewMode.value = "notebook";
   fileHandle.value = handle;
   scheduleEvaluate();
@@ -2222,14 +2264,16 @@ export function NotebookTopbarTools() {
 }
 
 // The Paper view — a read-only reading/printing surface, modeled directly on the exact rendering
-// every other view already does for each block kind rather than reinventing it: prose reuses
-// ProseBlock's own collapsed-view call (parseMarkdownLite + MarkdownBlocks); rule cells reuse
-// GrammarCell's own railroad SVG source (analysis.railroad[nonterminal]), wrapped in a real
-// <figure>/<figcaption> instead of GrammarCell's plain div; Tokens/Settings/Precedence reuse
-// GrammarCell's own no-rendering fallback (a plain <pre> of the raw text). No click handlers, no
-// CellActions, no InsertZone, no TryIt — nothing here is editable or interactive.
-// Prose and rule blocks only — Tokens/Settings/Precedence are deliberately left out of Paper
-// entirely (not merely styled differently): this is a reading/printing surface, and the raw
+// every other view already does for each block kind rather than reinventing it: prose AND heading
+// blocks alike reuse ProseBlock's own collapsed-view call (parseMarkdownLite + MarkdownBlocks —
+// a heading block's own text renders as a real h2/h3/h4 the same way a heading embedded in a
+// prose block's text always has); rule cells reuse GrammarCell's own railroad SVG source
+// (analysis.railroad[nonterminal]), wrapped in a real <figure>/<figcaption> instead of
+// GrammarCell's plain div; Tokens/Settings/Precedence reuse GrammarCell's own no-rendering
+// fallback (a plain <pre> of the raw text). No click handlers, no CellActions, no InsertZone, no
+// TryIt — nothing here is editable or interactive.
+// Prose, heading, and rule blocks only — Tokens/Settings/Precedence are deliberately left out of
+// Paper entirely (not merely styled differently): this is a reading/printing surface, and the raw
 // declarations those fence kinds hold aren't part of the "document" a reader or a printed page
 // wants, unlike a rule's own railroad diagram. `isPaperBlock` (the filter) lives in document.ts,
 // shared with `paperPdf.ts`'s `buildPaperPdf` — see that export's own comment.
@@ -2238,10 +2282,10 @@ function PaperBlock({
   block,
   figureNumber,
 }: {
-  block: DocBlock & { kind: "prose" | "rule" };
+  block: DocBlock & { kind: "prose" | "heading" | "rule" };
   figureNumber: number | null;
 }) {
-  if (block.kind === "prose") {
+  if (isProseFamily(block.kind)) {
     const parsed = useMemo(() => parseMarkdownLite(block.text), [block.text]);
     return <MarkdownBlocks blocks={parsed} />;
   }
@@ -2493,6 +2537,7 @@ export function GramaireNotebookIsland(
     blocks.value = buildDocument(
       serializeDocument(blocks.peek()),
       props.initial.response.fences,
+      splitHeadingsFromProse,
     );
   }
 
@@ -2563,7 +2608,7 @@ export function GramaireNotebookIsland(
                 // whatever block now sat at the old index. An id-keyed element preserves Preact's
                 // component instance (and its local state) across a reorder instead of reusing
                 // the slot for a different block.
-                block.kind === "prose" ? (
+                isProseFamily(block.kind) ? (
                   <ProseBlock key={block.id} index={index} block={block} />
                 ) : (
                   <GrammarCell key={block.id} index={index} block={block} />
@@ -2600,6 +2645,7 @@ export function GramaireNotebookIsland(
                       text: (e.target as HTMLTextAreaElement).value,
                       nonterminal: null,
                       fenceIndex: null,
+                      headingLevel: null,
                     },
                   ];
                   scheduleEvaluate();

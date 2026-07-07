@@ -61,7 +61,12 @@
 // formatting within a paragraph flattens to plain text (an inline image becomes a bracketed
 // "[image: alt]" fallback, never embedded).
 import type { DocBlock } from "./document";
-import { isPaperBlock, paperFontScale, serializeDocument } from "./document";
+import {
+  isPaperBlock,
+  isProseFamily,
+  paperFontScale,
+  serializeDocument,
+} from "./document";
 import type { CstNode, GrammarAnalysis, ProductionInfo } from "../protocol";
 import { svgOfCst } from "../cstGraph";
 import { parseMarkdownLite, isRailroadPlaceholder } from "./markdown";
@@ -638,7 +643,7 @@ export async function buildPaperPdf(
 
   let ruleCount = 0;
   for (const block of blocks.filter(isPaperBlock)) {
-    if (block.kind === "prose") {
+    if (isProseFamily(block.kind)) {
       for (const mdBlock of parseMarkdownLite(block.text)) {
         if (isRailroadPlaceholder(mdBlock)) continue;
         drawMdBlock(mdBlock);

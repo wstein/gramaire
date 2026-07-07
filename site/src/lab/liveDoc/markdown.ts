@@ -36,6 +36,10 @@ export function isRailroadPlaceholder(block: MdBlock): boolean {
   );
 }
 
+// Shared with `splitHeadingsFromProse` below so the two can never disagree about what counts as
+// a heading line — matched against a TRIMMED line, same as `parseMarkdownLite`'s own usage.
+const HEADING_LINE_RE = /^(#{1,3})\s+(.*)/;
+
 export type MdHeading = { tag: "h2" | "h3" | "h4"; parts: MdInline[] };
 
 /** If `parsed`'s own rendered view opens with a heading — tolerating a leading run of
@@ -175,7 +179,7 @@ export function parseMarkdownLite(md: string): MdBlock[] {
       i++;
       continue;
     }
-    const heading = line.match(/^(#{1,3})\s+(.*)/);
+    const heading = line.match(HEADING_LINE_RE);
     if (heading) {
       flush();
       const level = heading[1].length;
@@ -205,4 +209,54 @@ export function parseMarkdownLite(md: string): MdBlock[] {
   }
   flush();
   return blocks;
+}
+
+/** One run of a prose gap's raw text, as `splitHeadingsFromProse` divides it — either a single
+ * heading line (`kind: "heading"`) or a maximal run of every OTHER line between two heading lines
+ * (`kind: "prose"`, `headingLevel: null`). */
+export interface ProseGapDescriptor {
+  kind: "prose" | "heading";
+  headingLevel: 2 | 3 | 4 | null;
+  text: string;
+}
+
+/** Split one prose gap's raw text into ordered (heading | prose) runs — the boundary a `.gram.md`
+ * document's heading lines get their own separately-editable/movable Notebook cell at
+ * (Livebook-style section boundaries), while everything else (paragraphs, images, tables, and the
+ * frontmatter/`<details>`/HTML-comment/`%paper-font-scale` lines `parseMarkdownLite` otherwise
+ * treats as invisible) stays fused together exactly as it renders today — only heading LINES are
+ * pulled out, nothing else. Reuses the SAME `HEADING_LINE_RE` `parseMarkdownLite` matches against
+ * (on the same trimmed-line basis), so the two can never disagree about what counts as a heading.
+ * `descriptors.map(d => d.text).join("\n") === gapText` always holds — no bytes are ever dropped,
+ * only reattributed to a different sibling run than before. Mirrors `document.ts`'s own
+ * `pushProse` "no block for a zero-length gap" rule: two heading lines with nothing at all between
+ * them (not even a blank line) produce no "prose" descriptor between them — a blank line IS one
+ * real line, so it still gets its own (soon-to-be-normalized-away) "prose" descriptor, exactly like
+ * `pushProse` already tolerates a single-blank-line gap between two fences today. */
+export function splitHeadingsFromProse(gapText: string): ProseGapDescriptor[] {
+  const lines = gapText.split("\n");
+  const descriptors: ProseGapDescriptor[] = [];
+  let run: string[] = [];
+  const flushRun = () => {
+    if (run.length > 0) {
+      descriptors.push({
+        kind: "prose",
+        headingLevel: null,
+        text: run.join("\n"),
+      });
+      run = [];
+    }
+  };
+  for (const rawLine of lines) {
+    const heading = rawLine.trim().match(HEADING_LINE_RE);
+    if (heading) {
+      flushRun();
+      const headingLevel = (heading[1].length + 1) as 2 | 3 | 4;
+      descriptors.push({ kind: "heading", headingLevel, text: rawLine });
+    } else {
+      run.push(rawLine);
+    }
+  }
+  flushRun();
+  return descriptors;
 }
