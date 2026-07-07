@@ -239,20 +239,21 @@ class LabApiSuite extends munit.FunSuite:
   test("evaluate: fences reports every ```gramaire fence's role and 1-based line span") {
     val resp = LabApi.evaluate(LabRequest(calcMd, None, Method.Canonical))
     assert(resp.buildOk)
-    // examples/calc.gram.md's own ```gramaire fences, in document order: Settings, Tokens,
-    // Expr/Term/Factor rules (each collapsed behind <details><summary>Source</summary> by
-    // default `fmt`, per the fence's own committed line numbers), Precedence. "## Error messages"
-    // uses a ```text fence, never ```gramaire, so it's correctly absent here.
-    assertEquals(resp.fences.map(_.index), Vector(0, 1, 2, 3, 4, 5))
+    // examples/calc.gram.md's own ```gramaire fences, in document order: Tokens, Expr/Term/Factor
+    // rules (each collapsed behind <details><summary>Source</summary> by default `fmt`, per the
+    // fence's own committed line numbers), Precedence. Settings is no longer a ```gramaire fence at
+    // all — `name:`/`lang:` now live in the leading --- frontmatter block (ADR D58), outside the
+    // fence model entirely, so there's one fewer entry here than before that migration. "## Error
+    // messages" uses a ```text fence, never ```gramaire, so it's correctly absent here too.
+    assertEquals(resp.fences.map(_.index), Vector(0, 1, 2, 3, 4))
     assertEquals(
       resp.fences.map(f => (f.kind, f.nonterminal, f.startLine, f.endLine)),
       Vector(
-        ("settings", None, 9, 12),
-        ("tokens", None, 18, 21),
-        ("rule", Some("Expr"), 32, 38),
-        ("rule", Some("Term"), 51, 57),
-        ("rule", Some("Factor"), 70, 75),
-        ("precedence", None, 83, 86)
+        ("tokens", None, 13, 16),
+        ("rule", Some("Expr"), 27, 33),
+        ("rule", Some("Term"), 46, 52),
+        ("rule", Some("Factor"), 65, 70),
+        ("precedence", None, 78, 81)
       )
     )
   }

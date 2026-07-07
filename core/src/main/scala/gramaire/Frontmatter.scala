@@ -26,11 +26,17 @@ object Frontmatter:
     /** Starts with a leading `---` line but never closes, or a body line doesn't parse. */
     case Malformed(reason: String)
 
-    /** Parsed successfully. `body` is `md` with the frontmatter block replaced by exactly as many
-      * blank lines — every line number after it is unchanged, so no caller needs to adjust a
-      * span/diagnostic offset just because the frontmatter was stripped.
+    /** Parsed successfully. `body` is `md` with every frontmatter line replaced by a same-LENGTH,
+      * all-blank line (not merely the same line COUNT) — so both the line numbers AND the absolute
+      * character offset of everything after the block are byte-for-byte identical to `md`'s own. No
+      * caller needs to adjust a span/diagnostic offset just because the frontmatter was stripped,
+      * even one computed by re-scanning `body` and rendered back against the ORIGINAL, un-stripped
+      * `md`. `lineCount` is how many of `md`'s own lines the whole block (both `---` delimiters
+      * included) occupied, so a caller that needs to skip past it in the ORIGINAL text (e.g.
+      * checking what comes right after it) never has to re-derive that boundary by re-scanning for
+      * the closing `---` itself.
       */
-    case Found(doc: Doc, body: String)
+    case Found(doc: Doc, body: String, lineCount: Int)
 
   private val keyLineRe = "^([A-Za-z_][A-Za-z0-9_-]*):\\s*(.*)$".r
 
@@ -50,8 +56,10 @@ object Frontmatter:
           case Left(reason) => StripResult.Malformed(reason)
           case Right(fields) =>
             val blanked =
-              (Vector.fill(closeIdx + 1)("") ++ lines.drop(closeIdx + 1).toVector).mkString("\n")
-            StripResult.Found(Doc(fields), blanked)
+              (lines.take(closeIdx + 1).map(l => " " * l.length) ++ lines
+                .drop(closeIdx + 1)
+                .toVector).mkString("\n")
+            StripResult.Found(Doc(fields), blanked, closeIdx + 1)
 
   private def parseFields(lines: Vector[String]): Either[String, Map[String, Value]] =
     lines.zipWithIndex.foldLeft[Either[String, Map[String, Value]]](Right(Map.empty)) {

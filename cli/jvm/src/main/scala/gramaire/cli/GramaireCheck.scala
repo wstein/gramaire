@@ -2,7 +2,7 @@ package gramaire.cli
 
 import java.nio.file.{Files, Path}
 import java.security.MessageDigest
-import gramaire.{Analyze, Lr, Railroad}
+import gramaire.{Analyze, Frontmatter, Lr, Railroad}
 
 // Verifies the three guarantees from the Gramaire `fmt` output contract:
 //   1. STRUCTURE - canonical-form subset (H1-first, section order, fence
@@ -158,7 +158,16 @@ object GramaireCheck:
 
   def checkStructure(doc: Doc): Vector[String] =
     val fails = Vector.newBuilder[String]
-    val firstContent = doc.lines.find(_.trim.nonEmpty).getOrElse("")
+    // A leading `---` frontmatter block (ADR D58) is now legitimately allowed to precede the H1 —
+    // skip past it before checking what the first REAL content line is. A malformed block is a
+    // structural failure of its own, named explicitly rather than silently misread as "no H1".
+    val linesAfterFrontmatter = Frontmatter.strip(doc.src) match
+      case Frontmatter.StripResult.Found(_, _, lineCount) => doc.lines.drop(lineCount)
+      case Frontmatter.StripResult.Malformed(reason) =>
+        fails += s"malformed leading frontmatter: $reason"
+        doc.lines
+      case Frontmatter.StripResult.NoFrontmatter => doc.lines
+    val firstContent = linesAfterFrontmatter.find(_.trim.nonEmpty).getOrElse("")
     if !"^#\\s+\\S".r.findFirstIn(firstContent).isDefined then
       fails += "first content line is not a single H1 heading (MD041)"
 
@@ -746,6 +755,75 @@ object GramaireCheck:
         out += ""
       out.mkString("\n")
 
+  // ---- frontmatter migration (ADR D58) -----------------------------------
+
+  // Removes the old-style bare Settings fence (`name:`/`lang:`) entirely, plus its
+  // `<details><summary>Declarations</summary>...</details>` wrapper if `fmt`'s own default
+  // sidecar-mode collapsing put one there (an `--inline-source` document has the bare fence with
+  // no wrapper at all, removed on its own). Leaves exactly one blank line where the block used to
+  // be, regardless of how many blank lines surrounded it, so the intro prose above still reads
+  // straight into whatever section follows (MD012/MD031-clean either way).
+  private def removeOldSettingsFence(src: String): String =
+    parse(src).blocks.find(_.kind.contains(Lr.FenceKind.Settings)) match
+      case None => src
+      case Some(block) =>
+        val lines = src.split("\n", -1).toVector
+        val fenceStartIdx = block.startLine - 1
+        val closeRe = "^`{3,}\\s*$".r
+        var closeIdx = fenceStartIdx + 1
+        while closeIdx < lines.length && closeRe.findFirstIn(lines(closeIdx)).isEmpty do
+          closeIdx += 1
+
+        var regionStart = fenceStartIdx
+        var regionEnd = closeIdx
+        // A collapsed fence is preceded by a blank line then `<summary>...</summary>` then
+        // `<details>` right above that — swallow all three if present.
+        if regionStart >= 2 && lines(regionStart - 1).trim.isEmpty &&
+          lines(regionStart - 2).trim.startsWith("<summary>")
+        then
+          var k = regionStart - 2
+          while k >= 0 && lines(k).trim != "<details>" do k -= 1
+          if k >= 0 then regionStart = k
+        // ...and followed by a blank line then `</details>`.
+        if regionEnd + 2 < lines.length && lines(regionEnd + 1).trim.isEmpty &&
+          lines(regionEnd + 2).trim == "</details>"
+        then regionEnd += 2
+
+        val before = lines.take(regionStart).reverse.dropWhile(_.trim.isEmpty).reverse
+        val after = lines.drop(regionEnd + 1).dropWhile(_.trim.isEmpty)
+        (before ++ Vector("") ++ after).mkString("\n")
+
+  /** Lifts an old-style fenced Settings block's `name:`/`lang:` values into a leading `---`
+    * frontmatter block, and removes the old fence — the one-time migration `gramaire fmt` applies
+    * automatically during the dual-read window (`docs/multi-backend-implementation-plan.md`'s ADR
+    * D58). A no-op if the document already has frontmatter (nothing to migrate, whether or not it's
+    * well-formed — a malformed block is `Lr`'s own error to report, not this codemod's to paper
+    * over) or has no `name:` to migrate at all.
+    */
+  def migrateToFrontmatter(src: String): String =
+    if Frontmatter.strip(src) != Frontmatter.StripResult.NoFrontmatter then src
+    else
+      parse(src).blocks.find(_.kind.contains(Lr.FenceKind.Settings)) match
+        case None        => src
+        case Some(block) =>
+          // Read the RAW author-written values directly off the old fence's own content — not
+          // `Lr.nameOf`/`actionLangOf`, which normalize `lang:` (e.g. `javascript` -> `js`) for
+          // Lr's own internal use. A migration should carry the author's own spelling forward
+          // unchanged; frontmatter's `lang:` gets normalized at READ time regardless of which
+          // spelling is stored, so nothing about runtime behavior depends on which one this writes.
+          val lines = block.content.split("\n", -1).toVector.map(_.trim)
+          def directive(key: String): Option[String] =
+            lines
+              .collectFirst { case l if l.startsWith(key) => l.stripPrefix(key).trim }
+              .filter(_.nonEmpty)
+          directive("name:") match
+            case None => src
+            case Some(name) =>
+              val lang = directive("lang:")
+              val frontmatterBlock =
+                "---\n" + s"name: $name\n" + lang.fold("")(l => s"lang: $l\n") + "---\n\n"
+              frontmatterBlock + removeOldSettingsFence(src)
+
   // `gramaire fmt`: (re)emit the derived artifacts for a grammar file. In
   // sidecar mode it writes the railroad SVGs; in mermaid mode it embeds the
   // diagrams in the document. Either way it rewrites the diagram regions to
@@ -753,11 +831,16 @@ object GramaireCheck:
   // re-running is a no-op.
   def fmt(
       file: String,
-      doc: Doc,
+      rawDoc: Doc,
       mode: DiagramMode,
       layout: SourceLayout = SourceLayout.Collapsed,
       view: Railroad.DiagramView = Railroad.DiagramView.Source
   ): String =
+    // Migrate an old-style Settings fence to frontmatter before anything else runs, so every
+    // step below (hashing, diagram/table regeneration, source-layout) sees the ALREADY-migrated
+    // document — never a stale mix of "frontmatter added, old fence still there."
+    val migrated = migrateToFrontmatter(rawDoc.src)
+    val doc = if migrated != rawDoc.src then parse(migrated) else rawDoc
     val GrammarHashes(ruleHashes, grammarSha256) = grammarHashes(doc)
     val nonterminals = ruleHashes.keySet
     var contentByRule = Map.empty[String, String]
@@ -817,7 +900,10 @@ object GramaireCheck:
     // Only sidecar mode has a plain image link to hoist in front of a collapsed fence — mermaid
     // embeds the diagram as its own fence, with no separate "source" to tuck behind a disclosure.
     if mode == DiagramMode.Sidecar then text = applySourceLayout(text, contentByRule, layout)
-    if text != doc.src then Files.writeString(Path.of(file), text)
+    // Against `rawDoc.src` (the file's own on-disk content), not `doc.src` — once migration has
+    // run, `doc.src` IS the migrated text, so comparing against it would silently never persist a
+    // migration-only change (no diagram/table edits, migration the only difference) to disk at all.
+    if text != rawDoc.src then Files.writeString(Path.of(file), text)
 
     val artifactsResult = artifacts.result()
     val lock = Lock(1, mode, layout, grammarSha256, artifactsResult, view)

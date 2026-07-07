@@ -1,17 +1,12 @@
+---
+name: Calc
+lang: javascript
+---
+
 # Calc
 
 A small arithmetic grammar demonstrating the Gramaire fenced envelope.
 Operators are left-associative; `*` and `/` bind tighter than `+` and `-`.
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: Calc
-lang: javascript
-```
-
-</details>
 
 ## Tokens
 

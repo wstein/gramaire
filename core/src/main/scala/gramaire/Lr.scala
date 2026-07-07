@@ -617,9 +617,21 @@ object Lr:
     * `.gram.md` fence.
     */
   def toFenced(src: String): String =
-    if src.contains("```gramaire") then src
+    // A leading `---` frontmatter block is blanked out (replaced by exactly as many empty
+    // lines) before anything else runs — for BOTH a fenced `.gram.md` and a fence-free `.gram`
+    // alike, since this is the one shared normalization choke-point every caller already routes
+    // through. Blanking (not removing) means every line number after it is untouched, so no
+    // caller anywhere in this file needs its own span/offset adjustment just because frontmatter
+    // existed. A `Malformed` block is left completely alone here — `frontmatterDiagnostics`
+    // (checked separately, against the ORIGINAL text) is what turns that into a real error;
+    // silently blanking a broken block would hide the very mistake that diagnostic exists to
+    // report.
+    val defrontmattered = Frontmatter.strip(src) match
+      case Frontmatter.StripResult.Found(_, body, _) => body
+      case _                                         => src
+    if defrontmattered.contains("```gramaire") then defrontmattered
     else
-      val ls = decomment(src.split("\n", -1).toVector)
+      val ls = decomment(defrontmattered.split("\n", -1).toVector)
       val settingLines = ls.filter(isSettingDecl)
       val tokenLines = ls.filter(isTokenDef)
       val precLines = ls.filter(isPrecDecl)
@@ -699,25 +711,49 @@ object Lr:
         case Right(_) => Vector.empty
     }
 
+  // A frontmatter block that's either syntactically malformed (a `---` opener with no closer, or
+  // a body line that doesn't parse) or well-formed YAML missing its own required `name:` field is
+  // a hard error either way (`metaOf`'s `Left`) — checked against the ORIGINAL `md`, not
+  // `toFenced(md)`'s own projection, since by the time `toFenced` runs a syntactically-malformed
+  // block is the only kind left untouched there (a valid-YAML-but-missing-`name:` block still gets
+  // blanked by `toFenced`, having nothing left to fail lexing on) for this to still catch either way.
+  private def frontmatterDiagnostics(md: String): Vector[Diagnostic] =
+    metaOf(md) match
+      case Left(reason) =>
+        val firstLineEnd = md.indexOf('\n') match
+          case -1 => md.length
+          case i  => i
+        Vector(
+          Diagnostic.error(
+            Stage.Parse,
+            s"malformed frontmatter: $reason",
+            Some(SrcSpan(0, firstLineEnd))
+          )
+        )
+      case Right(_) => Vector.empty
+
   private def tokenizeDocument(md: String): Either[Vector[Diagnostic], Vector[Spanned]] =
-    val fenced = toFenced(md)
-    val legacy = legacyFenceDiagnostics(fenced)
-    if legacy.nonEmpty then Left(legacy)
+    val frontmatterDiags = frontmatterDiagnostics(md)
+    if frontmatterDiags.nonEmpty then Left(frontmatterDiags)
     else
-      val extDiags = externalsDiagnostics(fenced)
-      if extDiags.nonEmpty then Left(extDiags)
+      val fenced = toFenced(md)
+      val legacy = legacyFenceDiagnostics(fenced)
+      if legacy.nonEmpty then Left(legacy)
       else
-        val origins = fenceOrigins(fenced)
-        val tokenDiags = tokenValidityDiagnostics(origins)
-        if tokenDiags.nonEmpty then Left(tokenDiags)
+        val extDiags = externalsDiagnostics(fenced)
+        if extDiags.nonEmpty then Left(extDiags)
         else
-          val ruleOrigins = origins.filter(_.kind == FenceKind.Rule)
-          val segs = buildSegs(ruleOrigins)
-          val virtualSrc = ruleOrigins.map(_.content).mkString("\n") + "\n"
-          val docSpanned = Scanner.scanSpanned(lrScanItems, virtualSrc).map(mapSpanned(segs, _))
-          val errorRuns = Scanner.mergeErrorRuns(docSpanned)
-          if errorRuns.nonEmpty then Left(errorRuns.map(unmatchedRunDiagnostic))
-          else Right(Lexer.normalizeNewlinesSpanned(docSpanned))
+          val origins = fenceOrigins(fenced)
+          val tokenDiags = tokenValidityDiagnostics(origins)
+          if tokenDiags.nonEmpty then Left(tokenDiags)
+          else
+            val ruleOrigins = origins.filter(_.kind == FenceKind.Rule)
+            val segs = buildSegs(ruleOrigins)
+            val virtualSrc = ruleOrigins.map(_.content).mkString("\n") + "\n"
+            val docSpanned = Scanner.scanSpanned(lrScanItems, virtualSrc).map(mapSpanned(segs, _))
+            val errorRuns = Scanner.mergeErrorRuns(docSpanned)
+            if errorRuns.nonEmpty then Left(errorRuns.map(unmatchedRunDiagnostic))
+            else Right(Lexer.normalizeNewlinesSpanned(docSpanned))
 
   // A run of unmatched characters, rendered as a lexical diagnostic. A run that STARTS with a
   // quote is almost always an unterminated string literal — since `TERM_LIT` no longer spans
@@ -983,6 +1019,28 @@ object Lr:
           )
         )
 
+  // A document with no leading frontmatter block that's still relying on the older fenced
+  // General-settings `name:`/`lang:` lines — a one-release dual-read window
+  // (`docs/multi-backend-implementation-plan.md`'s ADR D58): warned once, pointing at that
+  // fence, rather than silently letting the deprecated shape live on unnoticed forever.
+  private def deprecatedSettingsFenceWarnings(md: String): Vector[Diagnostic] =
+    Frontmatter.strip(md) match
+      case Frontmatter.StripResult.NoFrontmatter =>
+        fenceOrigins(toFenced(md)).find(_.kind == FenceKind.Settings) match
+          case Some(origin)
+              if origin.content
+                .split("\n", -1)
+                .exists(l => l.trim.startsWith("name:") || l.trim.startsWith("lang:")) =>
+            Vector(
+              Diagnostic.warning(
+                Stage.Desugar,
+                "using the deprecated fenced name:/lang: settings block — migrate to leading --- frontmatter with `gramaire fmt`",
+                Some(SrcSpan(origin.docStart, origin.docStart + origin.content.length))
+              )
+            )
+          case _ => Vector.empty
+      case _ => Vector.empty
+
   /** Soft diagnostics for a `.gram.md`/`.gram` document that parses cleanly — none of these reject
     * the grammar; they exist to catch an author's typo the compile pipeline would otherwise never
     * surface (an unrecognized `#[attr]`/`%setting` is silently ignored, an unreachable rule, unused
@@ -997,7 +1055,7 @@ object Lr:
         val spans = SpanIndex.build(normalized)
         unknownAttrWarnings(g, spans) ++ unknownSettingWarnings(md) ++
           unreachableRuleWarnings(g, spans) ++ unusedTokenWarnings(md, g) ++
-          unusedExternalWarnings(md, g)
+          unusedExternalWarnings(md, g) ++ deprecatedSettingsFenceWarnings(md)
 
   /** The declared operator precedence of a `.gram.md` (its Precedence-role fence content, gathered
     * across the whole document), or empty if it has none.
@@ -1014,25 +1072,59 @@ object Lr:
     val blocks = fenceOrigins(toFenced(md)).filter(_.kind == FenceKind.Tokens)
     if blocks.isEmpty then None else Some(blocks.map(_.content).mkString("\n"))
 
-  /** The declared inline-action host language of a `.gram.md` — its General-settings fence's `lang:
-    * <ident>` line. The ident is normalized: `js`, `javascript`, `ecmascript`, and
-    * `esNNNN`/`esnext` all fold to `"js"`.
+  /** A `.gram.md`'s `name`/`lang` metadata, however it was declared — either a leading `---`
+    * frontmatter block (preferred) or the older fenced General-settings `name:`/`lang:` lines (the
+    * dual-read fallback; `docs/multi-backend-implementation-plan.md`'s ADR D58).
+    */
+  final case class GrammarMeta(name: String, lang: Option[String])
+
+  /** The document's frontmatter-declared metadata: `Right(Some(meta))` when a frontmatter block
+    * parsed and named a grammar, `Right(None)` when there's no frontmatter block at all (callers
+    * fall back to the old fenced Settings block), and `Left` when a leading `---` block exists but
+    * is malformed OR is missing its own required `name:` field — a real authoring mistake, not an
+    * absence to silently fall through on (`frontmatterDiagnostics` surfaces the malformed-syntax
+    * half of this same case as a hard parse error; this fills in the "well-formed YAML, but no
+    * `name`" half those low-level `Frontmatter.StripResult` cases can't see on their own).
+    */
+  private def metaOf(md: String): Either[String, Option[GrammarMeta]] =
+    Frontmatter.strip(md) match
+      case Frontmatter.StripResult.NoFrontmatter     => Right(None)
+      case Frontmatter.StripResult.Malformed(reason) => Left(reason)
+      case Frontmatter.StripResult.Found(doc, _, _) =>
+        doc.str("name") match
+          case None       => Left("frontmatter is missing its required `name:` field")
+          case Some(name) => Right(Some(GrammarMeta(name, doc.str("lang"))))
+
+  /** The declared inline-action host language of a `.gram.md` — frontmatter's own `lang:` field if
+    * present, else the older General-settings fence's `lang: <ident>` line. The ident is
+    * normalized: `js`, `javascript`, `ecmascript`, and `esNNNN`/`esnext` all fold to `"js"`.
     */
   def actionLangOf(md: String): Option[String] =
-    settingsLinesOf(md)
-      .map(_.trim)
-      .collectFirst { case t if t.startsWith("lang:") => t.stripPrefix("lang:").trim }
-      .map(normalizeLang)
+    metaOf(md) match
+      case Right(Some(meta)) => meta.lang.map(normalizeLang)
+      case Right(None) =>
+        settingsLinesOf(md)
+          .map(_.trim)
+          .collectFirst { case t if t.startsWith("lang:") => t.stripPrefix("lang:").trim }
+          .map(normalizeLang)
+      case Left(_) => None
 
-  /** The grammar's required `name: <Ident>` directive, from its General-settings fence — `None` if
-    * absent (a `.gram.md`/`.gram` with no `name:` is incomplete; callers that need a name reject
-    * this outright rather than falling back to a heading or a file path).
+  /** The grammar's required name — frontmatter's own `name:` field if present, else the older
+    * General-settings fence's `name:` line. `None` if neither declares one (a `.gram.md`/`.gram`
+    * with no name is incomplete; callers that need one reject this outright rather than falling
+    * back to a heading or a file path) OR if a leading `---` block exists but is malformed —
+    * `frontmatterDiagnostics`/`metaOf`'s own `Left` is what surfaces THAT as a real error; this
+    * getter just answers the question, the same contract it always had.
     */
   def nameOf(md: String): Option[String] =
-    settingsLinesOf(md)
-      .map(_.trim)
-      .collectFirst { case t if t.startsWith("name:") => t.stripPrefix("name:").trim }
-      .filter(_.nonEmpty)
+    metaOf(md) match
+      case Right(Some(meta)) => Some(meta.name)
+      case Right(None) =>
+        settingsLinesOf(md)
+          .map(_.trim)
+          .collectFirst { case t if t.startsWith("name:") => t.stripPrefix("name:").trim }
+          .filter(_.nonEmpty)
+      case Left(_) => None
 
   // Fold the recognized JavaScript aliases onto the canonical `"js"`
   // profile; any other language name is carried through lowercased.

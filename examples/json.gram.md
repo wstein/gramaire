@@ -1,3 +1,8 @@
+---
+name: Json
+lang: javascript
+---
+
 # Json
 
 The complete grammar for [JSON](https://www.json.org) (RFC 8259), written
@@ -18,16 +23,6 @@ Semantic actions build this AST as plain tagged JS objects: `{ tag: "Obj",
 members }`, `{ tag: "Arr", elements }`, `{ tag: "Str", value }`, `{ tag:
 "Num", value }`, `{ tag: "Bool", value }`, `{ tag: "Null" }` — each entry of
 `members` a plain `{ key, value }` pair, in source order.
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: Json
-lang: javascript
-```
-
-</details>
 
 ## Tokens
 

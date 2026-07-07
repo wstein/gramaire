@@ -1,3 +1,8 @@
+---
+name: Calc (precedence)
+lang: javascript
+---
+
 # Calc (precedence)
 
 The calculator grammar in its **natural ambiguous form** — `expr op expr` for
@@ -9,16 +14,6 @@ build error, so precedence convenience never hides a real ambiguity.
 
 Compare [`calc`](calc.gram.md), which encodes the same language by
 stratification and needs no precedence block.
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: Calc (precedence)
-lang: javascript
-```
-
-</details>
 
 ## Tokens
 

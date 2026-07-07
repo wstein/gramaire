@@ -285,12 +285,24 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       case Left(diags) => fail(s"expected the grammar to build cleanly, got: $diags")
       case Right(_) => () // buildOk — a bad/missing name: is cosmetic, never fatal (LabApi.scala)
     val warnings = Lr.warningsFor(md)
-    assertEquals(warnings.length, 1, s"expected exactly one warning, got: $warnings")
-    assertEquals(warnings.head.message, "unknown setting `naqme` (ignored)")
+    val settingWarnings = warnings.filter(_.message.contains("unknown setting"))
+    assertEquals(
+      settingWarnings.length,
+      1,
+      s"expected exactly one unknown-setting warning, got: $warnings"
+    )
+    assertEquals(settingWarnings.head.message, "unknown setting `naqme` (ignored)")
+    // This fence still uses the deprecated old-style name:/lang: shape (this test is about
+    // isSettingDecl's own classification, not the frontmatter migration) — the dual-read
+    // deprecation warning fires too, same as for any other document still on the old fence.
+    assert(
+      warnings.exists(_.message.contains("deprecated fenced name:/lang:")),
+      s"expected the deprecated-settings-fence warning too, got: $warnings"
+    )
     // Located — not just a bare message — so the Notebook can attribute it to its owning cell and
     // make it clickable, the same as any other diagnostic with a span.
     assertEquals(
-      Diagnostic.render(warnings.head, "calc-js.gram.md", Lr.toFenced(md)),
+      Diagnostic.render(settingWarnings.head, "calc-js.gram.md", Lr.toFenced(md)),
       """warning: unknown setting `naqme` (ignored)
         |  --> calc-js.gram.md:4:1
         |    naqme: Calc-js
@@ -363,7 +375,11 @@ class DiagnosticsGoldenSuite extends munit.FunSuite:
       warnings.map(_.message).toSet,
       Set(
         "unknown setting `pdf-figure-scale` (ignored)",
-        "unknown setting `some-bare-flag` (ignored)"
+        "unknown setting `some-bare-flag` (ignored)",
+        // This fence still uses the deprecated old-style name:/lang: shape (this test is about
+        // isSettingDecl's own classification, not the frontmatter migration) — the dual-read
+        // deprecation warning fires too, same as for any other document still on the old fence.
+        "using the deprecated fenced name:/lang: settings block — migrate to leading --- frontmatter with `gramaire fmt`"
       ),
       s"expected both non-`name:` directives flagged as unknown settings, not a lex-error cascade, got: $warnings"
     )

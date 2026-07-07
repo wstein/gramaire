@@ -586,6 +586,70 @@ class GramaireCheckSuite extends munit.FunSuite:
     assertEquals(twice, once)
   }
 
+  // ---- frontmatter migration (ADR D58) -----------------------------------
+
+  test("migrateToFrontmatter: a real collapsed-fence example lifts name:/lang: cleanly") {
+    val src = readFile("examples/calc.gram.md")
+    val migrated = GramaireCheck.migrateToFrontmatter(src)
+    assert(migrated.startsWith("---\nname: Calc\nlang: javascript\n---\n\n# Calc\n"), migrated)
+    assert(!migrated.contains("<summary>Declarations</summary>"), migrated)
+    assert(!migrated.contains("name: Calc\nlang: javascript\n```\n\n</details>"), migrated)
+    // Nothing else in the document moved — same Tokens/rule fences, same tables, same trailing
+    // content, just without the old Settings fence in the middle.
+    assert(migrated.contains("## Tokens"), migrated)
+    assert(migrated.contains("## Generated tables"), migrated)
+    // Idempotent — a document that's already migrated is left alone by a second pass.
+    assertEquals(GramaireCheck.migrateToFrontmatter(migrated), migrated)
+  }
+
+  test("migrateToFrontmatter: an inline (uncollapsed) old fence migrates just as cleanly") {
+    val src =
+      "# T\n\nIntro.\n\n```gramaire\nname: T\nlang: javascript\n```\n\n## Value\n\n```gramaire\nValue\n  : 'x'\n  ;\n```\n"
+    val migrated = GramaireCheck.migrateToFrontmatter(src)
+    assertEquals(
+      migrated,
+      "---\nname: T\nlang: javascript\n---\n\n# T\n\nIntro.\n\n## Value\n\n```gramaire\nValue\n  : 'x'\n  ;\n```\n"
+    )
+  }
+
+  test("migrateToFrontmatter: a lang-less document only emits a name: line") {
+    val src =
+      "# T\n\n```gramaire\nname: T\n```\n\n## Value\n\n```gramaire\nValue\n  : 'x'\n  ;\n```\n"
+    val migrated = GramaireCheck.migrateToFrontmatter(src)
+    assert(migrated.startsWith("---\nname: T\n---\n\n# T\n"), migrated)
+    assert(!migrated.contains("lang:"), migrated)
+  }
+
+  test("migrateToFrontmatter: a document that already has frontmatter is left untouched") {
+    val src = "---\nname: T\n---\n# T\n\n```gramaire\nname: T\n```\n"
+    assertEquals(GramaireCheck.migrateToFrontmatter(src), src)
+  }
+
+  test("migrateToFrontmatter: a document with no name: at all is left untouched") {
+    val src = "# T\n\n## Value\n\n```gramaire\nValue\n  : 'x'\n  ;\n```\n"
+    assertEquals(GramaireCheck.migrateToFrontmatter(src), src)
+  }
+
+  test("fmt: migrates an old-style fence to frontmatter and persists it to disk") {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-migrate")
+    val file = dir.resolve("sample.gram.md")
+    val src =
+      "# T\n\n```gramaire\nname: T\nlang: javascript\n```\n\n## Value\n\n```gramaire\nValue\n  : 'x'\n  ;\n```\n\n## Generated tables\n\n| a |\n"
+    java.nio.file.Files.writeString(file, src)
+
+    val doc = GramaireCheck.parse(src)
+    val _ = GramaireCheck.fmt(file.toString, doc, GramaireCheck.DiagramMode.Mermaid)
+
+    val written = java.nio.file.Files.readString(file)
+    assert(written.startsWith("---\nname: T\nlang: javascript\n---\n\n# T\n"), written)
+    assert(!written.contains("```gramaire\nname: T"), written)
+
+    // The migrated document is still fully canonical.
+    val redoc = GramaireCheck.parse(written)
+    assertEquals(GramaireCheck.checkStructure(redoc), Vector.empty, written)
+    assertEquals(GramaireCheck.checkDrift(file.toString, redoc), Vector.empty, written)
+  }
+
   test("fmt: collapses source by default, records sourceLayout in the lock, and survives check") {
     val dir = java.nio.file.Files.createTempDirectory("gramaire-collapse")
     val file = dir.resolve("sample.gram.md")
@@ -599,7 +663,12 @@ class GramaireCheckSuite extends munit.FunSuite:
 
     val written = java.nio.file.Files.readString(file)
     assert(written.contains("<details>\n<summary>Source</summary>"), written)
-    assert(written.contains("<details>\n<summary>Declarations</summary>"), written)
+    // The old bare Settings fence migrates to leading frontmatter (ADR D58) before source-layout
+    // collapsing ever runs, so there's no more Settings fence left for it to wrap in a
+    // <details><summary>Declarations</summary> disclosure — applySourceLayout's own direct unit
+    // tests below still cover that collapsing behavior in isolation, for whatever still calls it
+    // with an already-old-style fence outside the fmt pipeline's own migrate-first order.
+    assert(written.startsWith("---\nname: T\n---\n\n# T\n"), written)
     val lockText =
       java.nio.file.Files
         .readString(java.nio.file.Path.of(GramaireCheck.lockPathFor(file.toString)))
