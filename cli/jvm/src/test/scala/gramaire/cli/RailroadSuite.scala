@@ -2,7 +2,7 @@ package gramaire.cli
 
 // Ported from the structural half of bootstrap/railroad.test.ts.
 class RailroadSuite extends munit.FunSuite:
-  import Railroad.*
+  import gramaire.Railroad.*
 
   test("parseProduction: nonterminals vs terminals, quoted literals as terminals") {
     val prod = parseProduction("Expr : Expr '+' Term | Term", Set("Expr", "Term"))
@@ -10,24 +10,26 @@ class RailroadSuite extends munit.FunSuite:
     assertEquals(
       prod.alts,
       Vector(
-        Vector(
-          DiaSym("Expr", term = false),
-          DiaSym("+", term = true),
-          DiaSym("Term", term = false)
+        Alt(
+          Vector(
+            DiaSym("Expr", term = false),
+            DiaSym("+", term = true),
+            DiaSym("Term", term = false)
+          )
         ),
-        Vector(DiaSym("Term", term = false))
+        Alt(Vector(DiaSym("Term", term = false)))
       )
     )
   }
 
   test("parseProduction: a bare word not naming a rule is a terminal (token class)") {
     val prod = parseProduction("Factor : NUMBER", Set("Factor"))
-    assertEquals(prod.alts, Vector(Vector(DiaSym("NUMBER", term = true))))
+    assertEquals(prod.alts, Vector(Alt(Vector(DiaSym("NUMBER", term = true)))))
   }
 
   test("parseProduction: {% %} actions are stripped before parsing") {
     val prod = parseProduction("Expr : Term {% (c) => c.term %}", Set("Expr", "Term"))
-    assertEquals(prod.alts, Vector(Vector(DiaSym("Term", term = false))))
+    assertEquals(prod.alts, Vector(Alt(Vector(DiaSym("Term", term = false)))))
   }
 
   test("renderSvg: deterministic, self-contained, carries the rule name in aria-label") {

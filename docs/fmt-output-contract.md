@@ -151,7 +151,8 @@ wrap longer ones; wrapping is parse-invariant by construction.
 ### Railroad diagrams
 
 Diagrams are **never** inline `<svg>` (stripped by GitHub, and trips MD033).
-`fmt` emits them in one of two modes, selected with `--diagrams`:
+`fmt` emits them through the shared core railroad renderer in one of two modes,
+selected with `--diagrams`:
 
 - **`sidecar`** (default) — a self-contained railroad SVG per rule, written to
   `diagrams-<grammar-stem>/<rule>.svg` (a per-grammar directory, so two

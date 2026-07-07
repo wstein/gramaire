@@ -13,7 +13,7 @@ package gramaire.cli
 // and FOLLOW needs no nullable bookkeeping. EOF is written `$`.
 // Ported from bootstrap/analyze.ts.
 object Analyze:
-  import Railroad.{DiaSym, Production}
+  import gramaire.Railroad.{DiaSym, Production}
 
   final case class Analysis(
       first: Map[String, Set[String]],
@@ -27,7 +27,7 @@ object Analyze:
 
   def analyzeGrammar(prods: Vector[Production]): Analysis =
     val nonterminals = prods.map(_.name)
-    val flats = prods.flatMap(p => p.alts.map(alt => Flat(p.name, alt)))
+    val flats = prods.flatMap(p => p.alts.map(alt => Flat(p.name, alt.syms)))
     val start = nonterminals.headOption.getOrElse("")
 
     def firstOf(first: Map[String, Set[String]], s: DiaSym): Set[String] =
