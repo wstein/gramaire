@@ -452,11 +452,10 @@ object SymbolSetInfo:
   * state/conflict count (not just the requested `LabRequest.method`, so the tab can render the
   * three-method comparison without a re-request), FIRST/FOLLOW per rule, a railroad SVG per rule,
   * the conflict-classification verdict, and the grammar's terminal/nonterminal/start-symbol
-  * summary. `railroad` is built from the compiled (already-desugared) `Grammar` directly rather
-  * than re-parsing each rule's raw `.gram.md` fenced block the way `gramaire fmt`'s sidecar SVGs do
-  * — a deliberate divergence: a desugared `X+` renders as a reference to its synthesized list rule
-  * instead of `gramaire fmt`'s native loop shape. Acceptable for a live in-browser view; not meant
-  * to replace the committed sidecar SVGs `.gram.md` documents embed.
+  * summary. `railroad` is built from the document's own RAW (pre-Desugar) `Grammar`
+  * (`Lr.parseRawGrammar`), the same source `gramaire fmt`'s committed sidecar SVGs draw from — an
+  * authored `X+`/`X?`/`X*` renders as its own loop-back/bypass arc, matching what the `.gram.md`
+  * document embeds, not a reference to a synthesized list rule or an enumerated alternative.
   */
 final case class GrammarAnalysis(
     perMethod: Map[String, MethodStatsInfo],

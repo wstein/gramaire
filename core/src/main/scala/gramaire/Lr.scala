@@ -909,6 +909,21 @@ object Lr:
       case Right(g)    => Right(g)
       case Left(diags) => Left(Diagnostic.renderAll(diags, "<grammar>", toFenced(md)))
 
+  /** The RAW grammar `parse` would otherwise desugar away before a caller ever sees it — still in
+    * the author's own rule/attr shape, `Sym.Opt`/`Star`/`Rep`/`Group`/`Macro`/`Any`/`Not` all
+    * intact. `Railroad.diagramsOfGrammar` is the one caller: a railroad diagram built from THIS
+    * grammar draws `?`/`*`/`+`/`( … )` as their own genuine shapes (a bypass arc, a loop-back arc,
+    * a nested fork) instead of Desugar's epsilon-free lowering — 2^k enumerated alternatives for
+    * every `?`/`*`, a hoisted `__group_N` rule for every `( … )` — which is exactly right for the
+    * LR(1) core `parseWith`/`parse` build tables from, but not what a diagram meant to explain the
+    * grammar AS AUTHORED should draw from. Mirrors `parse`'s own plain-text diagnostics rendering,
+    * so both entry points look the same to a caller that only wants Left/Right, not `Diagnostic`s.
+    */
+  def parseRawGrammar(md: String): Either[String, Grammar] =
+    parseRaw(Method.Canonical, md) match
+      case Right((g, _)) => Right(g)
+      case Left(diags)   => Left(Diagnostic.renderAll(diags, "<grammar>", toFenced(md)))
+
   private val knownAttrs: Vector[String] = Vector("inline")
   private val knownSettingDirectives: Vector[String] = Vector("lang", "name")
 

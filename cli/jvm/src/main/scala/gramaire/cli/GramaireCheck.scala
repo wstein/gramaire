@@ -358,13 +358,14 @@ object GramaireCheck:
   private def diagramDirectory(stem: String): String =
     if stem.nonEmpty then s"diagrams-$stem" else "diagrams"
 
-  // `realDiagrams` is the whole document's own Grammar rendered once via `Railroad.diagramsOfGrammar`
-  // (see `fmt`'s own comment on why it might be empty) — a hoisted `( a | b )` group inlines as a
-  // real nested fork through this path, the same shape the live Lab/Notebook already draw, instead
-  // of `parseProduction`'s raw-text re-lexer (which has no notion of parens at all, and would
-  // otherwise mis-split a group's own `|` as a spurious extra top-level alternative). Falls back to
-  // the per-rule text parse when the document didn't parse as a full Grammar. Source-view shape
-  // either way; `applyView` is the caller's job.
+  // `realDiagrams` is the whole document's own RAW Grammar rendered once via
+  // `Railroad.diagramsOfGrammar` (see `fmt`'s own comment on why it might be empty) — `?`/`*`/`+`
+  // draw as real bypass/loop arcs and a `( a | b )` group as a real nested fork through this path,
+  // the same shape the live Lab/Notebook already draw, instead of `parseProduction`'s raw-text
+  // re-lexer (which has no parsed `Grammar` to draw a real `Diagram` from, so it flattens sugar and
+  // groups to one text-labeled symbol instead). Falls back to that per-rule text parse when the
+  // document didn't parse as a full Grammar. Source-view shape either way; `applyView` is the
+  // caller's job.
   private def sourceDiagramFor(
       name: String,
       content: String,
@@ -853,16 +854,18 @@ object GramaireCheck:
     for b <- doc.blocks if b.kind.contains(Lr.FenceKind.Rule) do
       b.nonterminal.foreach(nt => contentByRule = contentByRule.updated(nt, b.content))
 
-    // The whole document's own real, desugared Grammar (`Lr.parse` runs `Desugar` internally) when
-    // it happens to parse as one — lets a hoisted `( a | b )` group render as a genuine nested fork
-    // (`Railroad.diagramsOfGrammar`), the same shape the live Lab/Notebook already draw, rather than
-    // `parseProduction`'s raw-text re-lexer (no notion of parens at all). Falls back to the
-    // per-rule text parse (`sourceDiagramFor`'s own `getOrElse`) when the document doesn't parse as
-    // a full grammar — `fmt` keeps regenerating something useful for the rules around a mistake
-    // rather than refusing outright over an error `gramaire check`/`gramaire emit` already surface
-    // their own way.
+    // The whole document's own real, RAW (pre-Desugar) Grammar (`Lr.parseRawGrammar`) when it
+    // happens to parse as one — `?`/`*`/`+` draw as their own bypass/loop arcs and a `( a | b )`
+    // group as a genuine nested fork (`Railroad.diagramsOfGrammar`), the same shape the live
+    // Lab/Notebook already draw, rather than `parseProduction`'s raw-text re-lexer (which has no
+    // parsed `Grammar` to draw a real `Diagram` from at all, so it flattens sugar/groups to a text
+    // label instead — see its own doc comment). Falls back to that per-rule text parse
+    // (`sourceDiagramFor`'s own `getOrElse`) when the document doesn't parse as a full grammar —
+    // `fmt` keeps regenerating something useful for the rules around a mistake rather than
+    // refusing outright over an error `gramaire check`/`gramaire emit` already surface their own
+    // way.
     val realDiagrams =
-      Lr.parse(doc.src).toOption.map(Railroad.diagramsOfGrammar(_)).getOrElse(Map.empty)
+      Lr.parseRawGrammar(doc.src).toOption.map(Railroad.diagramsOfGrammar(_)).getOrElse(Map.empty)
 
     // Diagrams live in a per-grammar directory (`diagrams-<stem>/`) so two
     // grammars sharing a directory can't clobber each other's same-named rule

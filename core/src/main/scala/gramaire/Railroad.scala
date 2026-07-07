@@ -2,15 +2,24 @@ package gramaire
 
 // Railroad-diagram rendering for Gramaire rules.
 //
-// Gramaire grammars are flat — each rule is a choice of sequences (no nested
-// EBNF: optionality and repetition are enumerated as alternatives). That
-// makes the layout a simple stack of horizontal tracks with a fork on each
-// side, so it's rendered directly rather than pulling in a general railroad
-// engine.
+// A rule's alternatives draw as a stack of horizontal tracks, one per alternative, each a fork on
+// entry and a rejoin on exit — no general railroad engine needed for that shape. `?`/`*`/`+` and a
+// `( … )` group draw as their own genuine railroad shapes instead — a bypass arc over an optional
+// item, a loop-back arc under a repeated one, a real nested fork for a group's own alternatives —
+// rather than Desugar's epsilon-free lowering (2^k enumerated alternatives, a hoisted list/group
+// rule); see `Diagram.Optional`/`ZeroOrMore`/`OneOrMore`/`Group` and `RowItem.Arc`/`Nested` below.
 //
-// Two renderers share one parsed `Production`:
-//   - `renderSvg`     — a self-contained, deterministic SVG (sidecar mode).
-//   - `renderMermaid` — a GitHub-native `flowchart` body (mermaid mode).
+// Two renderers share one `Diagram` tree:
+//   - `renderSvg`/`renderDiagramSvg`         — a self-contained, deterministic SVG (sidecar mode).
+//   - `renderMermaid`/`renderDiagramMermaid` — a GitHub-native `flowchart` body (mermaid mode) —
+//     has no room for a real arc or sub-fork in a flowchart node chain, so it flattens sugar and a
+//     nested `Choice`/`Stack` to one text-labeled node instead.
+//
+// `diagramsOfGrammar` builds this tree straight from a `Grammar`'s own `Sym` tree — fed the RAW
+// grammar (`Lr.parseRawGrammar`), the byte-stable default every caller should prefer, `?`/`*`/`+`/
+// `( … )` reach the renderer intact. `parseProduction`'s flat, per-rule text re-lexer stays a
+// fallback for contexts with no parsed `Grammar` to draw from (a malformed document, a live-editing
+// textarea) — best-effort and less structured, see its own doc comment.
 //
 // Output is deterministic (no timestamps, fixed rounding) so the drift hash
 // and the CI idempotence check hold.
@@ -47,10 +56,11 @@ object Railroad:
       case DiagramView.Source     => "source"
       case DiagramView.Simplified => "simplified"
 
-  // A renderer-facing grammar diagram tree. The current SVG/Mermaid renderers
-  // still linearize this tree to Gramaire's historical stacked-track layout,
-  // but callers can now describe richer railroad concepts without growing a
-  // second rendering model.
+  // A renderer-facing grammar diagram tree. The SVG/Mermaid renderers linearize this tree to
+  // Gramaire's historical stacked-track layout, drawing `Optional`/`ZeroOrMore`/`OneOrMore` as real
+  // bypass/loop arcs (`RowItem.Arc`) and a `Choice`/`Stack` reached mid-sequence as a real nested
+  // fork (`RowItem.Nested`) — richer railroad concepts than the flat `Production` model below can
+  // express on its own.
   enum Diagram derives CanEqual:
     case Terminal(label: String)
     case NonTerminal(label: String)
@@ -71,18 +81,35 @@ object Railroad:
   // `DrawableAlt`s too (so the same fork/rejoin geometry draws both), just always `action = None`
   // and always exactly one (never wrapped) row — a hoisted group has no action of its own to show,
   // and only the OUTERMOST sequence's own long-run wrapping (Simplified view) ever splits a row.
+  // What an arc-wrapped `RowItem` draws around its wrapped content, on the SAME shared main line
+  // (`itemMainYOffset`/`drawRow`'s `RowItem.Arc` case never move it) — a bypass skip line above for
+  // an optional item, a loop-back line below for a repeatable one, or both for zero-or-more.
+  private enum ArcKind:
+    case Bypass, Loop, BypassLoop
+    def hasBypass: Boolean = this == Bypass || this == BypassLoop
+    def hasLoop: Boolean = this == Loop || this == BypassLoop
+
   private enum RowItem:
     case Sym(sym: DiaSym)
     case Nested(alts: Vector[DrawableAlt])
+    // `content` is the wrapped item's own row (from `itemsOf`, recursively — a nested `Optional`/
+    // `Group`/`Choice` inside it is just more `RowItem`s, arcs and forks nesting exactly as deep as
+    // the grammar does) drawn as ONE atomic unit on the enclosing row's main line, with a bypass
+    // and/or loop-back arc floating above/below it — never itself wrap-split by `wrapRows`, the
+    // same "one atomic unit at its own call site" treatment a `Nested` fork already gets.
+    case Arc(content: Vector[RowItem], kind: ArcKind)
 
   private final case class DrawableAlt(
       rows: Vector[Vector[RowItem]],
       action: Option[String] = None
   ):
-    // Mermaid's flowchart node-chain has no room for an inline sub-fork — a Nested item flattens to
-    // one text-labeled node there, matching value `renderDiagramSvg` used everywhere before nested
-    // forks existed (and still the ONLY rendering a bare top-level Choice/Stack ever needed, since
-    // `linearizeDiagram` intercepts those before they ever reach `RowItem` construction at all).
+    // Mermaid's flowchart node-chain has no room for an inline sub-fork or a real arc — a Nested
+    // item flattens to one text-labeled node there (matching value `renderDiagramSvg` used
+    // everywhere before nested forks existed, and still the ONLY rendering a bare top-level
+    // Choice/Stack ever needed, since `linearizeDiagram` intercepts those before they ever reach
+    // `RowItem` construction at all), and an Arc item flattens to its wrapped content plus a
+    // `?`/`+`/`*` suffix, the same shape `inlineLabel` used to draw as a whole SVG box before real
+    // arc geometry existed.
     def flatSyms: Vector[DiaSym] = rows.flatten.map(RowItem.flatten)
 
   private object RowItem:
@@ -90,6 +117,14 @@ object Railroad:
       case Sym(s) => s
       case Nested(alts) =>
         DiaSym(alts.map(flattenAltText).mkString(" | "), term = true)
+      case Arc(content, kind) =>
+        val inner = content.map(flatten).map(_.label).mkString(" ")
+        val wrapped = if content.length > 1 then s"($inner)" else inner
+        val suffix = kind match
+          case ArcKind.Bypass     => "?"
+          case ArcKind.Loop       => "+"
+          case ArcKind.BypassLoop => "*"
+        DiaSym(wrapped + suffix, term = true)
 
     private def flattenAltText(alt: DrawableAlt): String =
       alt.rows.flatten.map(it => flatten(it).label).mkString(" ")
@@ -120,23 +155,34 @@ object Railroad:
 
   // A hoisted `( a | b )` group (Desugar.groupHoist) becomes its own synthetic rule with no
   // author-facing identity of its own — the same "no real source to attribute a diagnostic to"
-  // name shape `Diagnostics.sourceRuleNameGuess` already special-cases.
+  // name shape `Diagnostics.sourceRuleNameGuess` already special-cases. Only ever produced by
+  // Desugar, so this never matches a rule name in a RAW (pre-Desugar) Grammar — `toDiagramSym`
+  // below draws a `Group` straight from `Sym.Group` on that path instead, no hoisting involved.
   def isHoistedGroupRule(name: String): Boolean = name.matches("__group_\\d+")
 
-  // Builds every VISIBLE rule's own source-view Diagram directly from an already-desugared Grammar
-  // (`Lr.parse` runs `Desugar` internally) — the single source of truth both the live Lab/Notebook
-  // (`LabApi.analysisOf`) and `gramaire fmt`'s diagram generation draw from, so a hoisted group
-  // renders identically everywhere: inlined as a nested `Choice` at its use site (never an opaque
-  // box pointing at a rule with no diagram/tab of its own), recursively — a chain of nested groups
-  // (one hoisted rule referencing another) fully unwinds the same way. A caller wanting a specific
-  // `DiagramView` applies `applyView` itself, the same as a Production-backed diagram would via
-  // `diagramOf` — this always returns the `Source` shape.
+  // Builds every VISIBLE rule's own source-view Diagram directly from a `Grammar`'s own `Sym` tree
+  // — the single source of truth both the live Lab/Notebook (`LabApi.analysisOf`) and `gramaire
+  // fmt`'s diagram generation draw from. Works on EITHER a raw (pre-Desugar) or a desugared
+  // `Grammar`, since both share the same `Rule`/`Alt`/`Sym` types:
+  //   - Fed the RAW grammar (`Lr.parseRawGrammar`) — the byte-stable default every caller should
+  //     prefer — `?`/`*`/`+` map straight to `Diagram.Optional`/`ZeroOrMore`/`OneOrMore`, and a
+  //     `( a | b )` group draws as a real nested `Choice` at its own use site, no hoisting needed.
+  //   - Fed a DESUGARED grammar, sugar has already been lowered to enumerated alternatives and
+  //     left-recursive list rules (`Desugar.enumerateAlt`/`listRule`), so the `Opt`/`Star`/`Rep`
+  //     cases below simply never fire for it — only a hoisted `( a | b )` group survives that far,
+  //     as a `Ref` to its own synthetic `__group_N` rule, inlined as a nested `Choice` at its use
+  //     site the same way a raw `Sym.Group` is (never an opaque box pointing at a rule with no
+  //     diagram/tab of its own) — recursively, so a chain of nested groups (one hoisted rule
+  //     referencing another) fully unwinds the same way.
+  // A caller wanting a specific `DiagramView` applies `applyView` itself, the same as a
+  // Production-backed diagram would via `diagramOf` — this always returns the `Source` shape.
   //
   // `includeActions`/`unwrapAction` exist because the two callers genuinely disagree: the live Lab
   // shows a rule's `{% %}` actions (and needs `BackendJs.unwrapBinder` to strip the synthesized
-  // positional-binder prefix first), while `gramaire fmt`'s committed sidecar/mermaid diagrams stay
+  // positional-binder prefix a DESUGARED action carries — a no-op on a RAW action, which was never
+  // wrapped in the first place), while `gramaire fmt`'s committed sidecar/mermaid diagrams stay
   // action-free by design (`parseProduction`'s own doc comment) — this lets both share the same
-  // group-inlining logic without either changing the other's behavior.
+  // sugar/group-inlining logic without either changing the other's behavior.
   def diagramsOfGrammar(
       grammar: Grammar,
       includeActions: Boolean = false,
@@ -144,6 +190,15 @@ object Railroad:
   ): Map[String, Diagram] =
     val nts = grammar.rules.map(_.name).toSet
     val ruleByName = grammar.rules.map(r => r.name -> r).toMap
+
+    // A short, readable label for a symbol nested inside a `Macro`/`Not` — rare enough (a handful
+    // of grammars use `Comma<X>`/`Sep<X, S>`; none in this codebase use `~set`) that a full
+    // recursive `Diagram` isn't warranted, just the same spelling the author wrote.
+    def macroArgLabel(s: Sym): String = s match
+      case Sym.Ref(name)   => name
+      case Sym.Lit(text)   => text
+      case Sym.Field(_, i) => macroArgLabel(i)
+      case other           => other.toString
 
     def toDiagramSym(s: Sym): Diagram = s match
       case Sym.Ref(name) if isHoistedGroupRule(name) =>
@@ -154,10 +209,19 @@ object Railroad:
         if nts.contains(name) then Diagram.NonTerminal(name) else Diagram.Terminal(name)
       case Sym.Lit(text)       => Diagram.Terminal(text)
       case Sym.Field(_, inner) => toDiagramSym(inner)
-      // Defensive only: sugar (Rep/Star/Opt/Macro/Any/Not) is eliminated by Desugar before this
-      // ever sees the Grammar — only Group survives that far, and only as a Ref to its own hoisted
-      // rule (the case above).
-      case other => Diagram.Terminal(other.toString)
+      case Sym.Opt(inner)      => Diagram.Optional(toDiagramSym(inner))
+      case Sym.Star(inner)     => Diagram.ZeroOrMore(toDiagramSym(inner))
+      case Sym.Rep(inner)      => Diagram.OneOrMore(toDiagramSym(inner))
+      // A single-alt group is just its one alternative in sequence — no fork needed to choose
+      // among alternatives that don't exist; only 2+ alts draw as a real nested `Choice`.
+      case Sym.Group(alts) =>
+        alts.map(alt => Diagram.Sequence(alt.map(toDiagramSym))) match
+          case Vector(single) => single
+          case many           => Diagram.Choice(many)
+      case Sym.Macro(name, args) =>
+        Diagram.NonTerminal(s"$name<${args.map(macroArgLabel).mkString(", ")}>")
+      case Sym.Any      => Diagram.Terminal(".")
+      case Sym.Not(set) => Diagram.Terminal("~" + set.map(macroArgLabel).mkString("|"))
 
     def altToDiagram(alt: gramaire.Alt): Diagram =
       Diagram.Sequence(alt.syms.map(toDiagramSym))
@@ -192,39 +256,22 @@ object Railroad:
       diagram: Diagram,
       view: DiagramView = DiagramView.Source
   ): Vector[DrawableAlt] =
-    def symbolLabel(prefix: String, inner: Diagram, suffix: String = ""): String =
-      prefix + inlineLabel(inner) + suffix
-
-    def inlineLabel(d: Diagram): String = d match
-      case Diagram.Terminal(label)        => label
-      case Diagram.NonTerminal(label)     => label
-      case Diagram.Sequence(items)        => items.map(inlineLabel).mkString(" ")
-      case Diagram.Choice(alts)           => alts.map(inlineLabel).mkString(" | ")
-      case Diagram.Stack(alts)            => alts.map(inlineLabel).mkString(" | ")
-      case Diagram.Optional(item)         => symbolLabel("", item, "?")
-      case Diagram.OneOrMore(item)        => symbolLabel("", item, "+")
-      case Diagram.ZeroOrMore(item)       => symbolLabel("", item, "*")
-      case Diagram.Group(_, item)         => symbolLabel("(", item, ")")
-      case Diagram.Comment(text)          => text
-      case Diagram.ActionCaption(item, _) => inlineLabel(item)
-
     // One row's worth of drawable items from a diagram node reached NESTED inside a Sequence/alt —
     // never called on a diagram's own top-level Stack/Choice (the match below intercepts those
     // first, unchanged from before nested forks existed), so the Choice/Stack cases here only ever
     // fire for a group embedded partway through a larger production, and now get real nested-fork
-    // geometry (`RowItem.Nested`) instead of collapsing to one text-labeled box.
+    // geometry (`RowItem.Nested`) instead of collapsing to one text-labeled box — the same
+    // treatment `Optional`/`OneOrMore`/`ZeroOrMore` get below via `RowItem.Arc`'s bypass/loop-back
+    // geometry, rather than collapsing to one `X?`/`X+`/`X*`-labeled box.
     def itemsOf(d: Diagram): Vector[RowItem] = d match
       case Diagram.Terminal(label)    => Vector(RowItem.Sym(DiaSym(label, term = true)))
       case Diagram.NonTerminal(label) => Vector(RowItem.Sym(DiaSym(label, term = false)))
       case Diagram.Sequence(items)    => items.flatMap(itemsOf)
       case Diagram.Group(_, item)     => itemsOf(item)
       case Diagram.Comment(_)         => Vector.empty
-      case Diagram.Optional(item) =>
-        Vector(RowItem.Sym(DiaSym(symbolLabel("", item, "?"), term = true)))
-      case Diagram.OneOrMore(item) =>
-        Vector(RowItem.Sym(DiaSym(symbolLabel("", item, "+"), term = true)))
-      case Diagram.ZeroOrMore(item) =>
-        Vector(RowItem.Sym(DiaSym(symbolLabel("", item, "*"), term = true)))
+      case Diagram.Optional(item)     => Vector(RowItem.Arc(itemsOf(item), ArcKind.Bypass))
+      case Diagram.OneOrMore(item)    => Vector(RowItem.Arc(itemsOf(item), ArcKind.Loop))
+      case Diagram.ZeroOrMore(item)   => Vector(RowItem.Arc(itemsOf(item), ArcKind.BypassLoop))
       case Diagram.Choice(alts) =>
         Vector(RowItem.Nested(alts.map(a => DrawableAlt(wrapRows(itemsOf(a))))))
       case Diagram.Stack(alts) =>
@@ -272,6 +319,9 @@ object Railroad:
     case Word(v: String)
     case Lit(v: String)
     case Sep
+    case LParen
+    case RParen
+    case Quant(v: Char)
 
   // Tokenize a payload with `{% ... %}` actions already stripped. Raw `:`/`|`
   // are alternative separators; `'…'` / `"…"` spans are terminal literals (ADR
@@ -298,6 +348,15 @@ object Railroad:
             j += 1
         toks += Tok.Lit(v.toString)
         i = j + 1 // skip the closing delimiter (or run to end if unterminated)
+      else if c == '(' then
+        toks += Tok.LParen
+        i += 1
+      else if c == ')' then
+        toks += Tok.RParen
+        i += 1
+      else if c == '?' || c == '*' || c == '+' then
+        toks += Tok.Quant(c)
+        i += 1
       else
         val m = "^[A-Za-z_][A-Za-z0-9_]*".r.findPrefixOf(s.substring(i))
         m match
@@ -309,24 +368,71 @@ object Railroad:
 
   private val actionRe = "(?s)\\{%.*?%\\}".r
 
-  // A word is a nonterminal exactly when it names a rule; every other word is
-  // a lexer token class, and every quoted literal is a terminal.
+  // A word is a nonterminal exactly when it names a rule; every other word is a lexer token class,
+  // and every quoted literal is a terminal — a text re-lex with no parsed `Grammar` behind it (a
+  // malformed document `gramaire fmt` still wants a best-effort diagram for, or a live-editing
+  // textarea mid-keystroke), the fallback `sourceDiagramFor`/`Diagrams.renderDiagrams` reach for
+  // when `Railroad.diagramsOfGrammar` (the real, sugar-preserving path) has no `Grammar` to draw
+  // from. `Alt(syms: Vector[DiaSym])` is flat — no room for a genuine nested `Choice` the way
+  // `Diagram.Group`/`Sym.Group` gets — so a `( … )` group flattens to ONE text-labeled `DiaSym`
+  // (its own `|`/`?`/`*`/`+` folded into that one label) rather than drawing as a real bypass/loop
+  // arc or nested fork; paren depth is still tracked, though, so a group's own `|` is never
+  // mistaken for a top-level alternative separator (the mis-split this used to produce), and a
+  // trailing `?`/`*`/`+` suffixes the symbol or group it follows instead of vanishing silently.
   def parseProduction(content: String, nonterminals: Set[String]): Production =
     val toks = lexPayload(actionRe.replaceAllIn(content, " "))
     val name = toks.headOption match
       case Some(Tok.Word(v)) => v
       case _                 => ""
-    val alts = toks.drop(1).foldLeft(Vector.empty[Vector[DiaSym]]) { (acc, tk) =>
-      tk match
-        case Tok.Sep => acc :+ Vector.empty
-        case Tok.Lit(v) =>
-          if acc.isEmpty then acc
-          else acc.updated(acc.length - 1, acc.last :+ DiaSym(v, term = true))
-        case Tok.Word(v) =>
-          if acc.isEmpty then acc
-          else acc.updated(acc.length - 1, acc.last :+ DiaSym(v, term = !nonterminals.contains(v)))
+
+    val alts = Vector.newBuilder[Vector[DiaSym]]
+    var curAlt = Vector.empty[DiaSym]
+    var haveAlt = false
+    // One text buffer per currently-open paren depth, innermost first — a word/literal/`|` token
+    // reached while any are open appends flattened text to the innermost one instead of a real
+    // `DiaSym`/alt separator.
+    var groupStack = List.empty[Vector[String]]
+
+    def startAlt(): Unit =
+      if haveAlt then alts += curAlt
+      curAlt = Vector.empty
+      haveAlt = true
+
+    def appendGroupText(text: String): Unit =
+      groupStack match
+        case buf :: rest => groupStack = (buf :+ text) :: rest
+        case Nil         => ()
+
+    def appendSuffix(suffix: String): Unit =
+      groupStack match
+        case buf :: rest if buf.nonEmpty =>
+          groupStack = (buf.init :+ (buf.last + suffix)) :: rest
+        case Nil if haveAlt && curAlt.nonEmpty =>
+          curAlt = curAlt.init :+ curAlt.last.copy(label = curAlt.last.label + suffix)
+        case _ => () // a stray quantifier with nothing before it: ignore
+
+    toks.drop(1).foreach {
+      case Tok.Sep =>
+        if groupStack.isEmpty then startAlt() else appendGroupText("|")
+      case Tok.Lit(v) =>
+        if groupStack.nonEmpty then appendGroupText("'" + v + "'")
+        else if haveAlt then curAlt = curAlt :+ DiaSym(v, term = true)
+      case Tok.Word(v) =>
+        if groupStack.nonEmpty then appendGroupText(v)
+        else if haveAlt then curAlt = curAlt :+ DiaSym(v, term = !nonterminals.contains(v))
+      case Tok.LParen => groupStack = Vector.empty :: groupStack
+      case Tok.RParen =>
+        groupStack match
+          case buf :: rest =>
+            val flat = "(" + buf.mkString(" ") + ")"
+            groupStack = rest
+            if groupStack.nonEmpty then appendGroupText(flat)
+            else if haveAlt then curAlt = curAlt :+ DiaSym(flat, term = true)
+          case Nil => () // a stray `)` with nothing open: ignore
+      case Tok.Quant(q) => appendSuffix(q.toString)
     }
-    Production(name, alts.map(Alt(_)))
+    if haveAlt then alts += curAlt
+    Production(name, alts.result().map(Alt(_)))
 
   // ---- geometry (Enhanced Style) ----------------------------------------
 
@@ -344,6 +450,13 @@ object Railroad:
   private val CAPR = 4
   private val ACTIONGAP = GAP
   private val ACTION_MAX_CHARS = 44
+  // `RowItem.Arc`'s own geometry: ARC_CLEAR is the vertical space reserved above (a bypass) and/or
+  // below (a loop-back) the wrapped item for its skip/repeat line; ARC_R is both that line's own
+  // horizontal entry/exit stub and its corner curve's Bezier-control offset (the curve's RISE isn't
+  // constrained to equal ARC_R — a quadratic Bezier with a control point directly above its start
+  // and level with its end curves smoothly regardless of how tall the rise is, see `sideArc`).
+  private val ARC_CLEAR = 20
+  private val ARC_R = 10
 
   private def fmtNum(d: Double): String =
     if d == d.toLong.toDouble then d.toLong.toString else d.toString
@@ -388,19 +501,27 @@ object Railroad:
   // assumption byte-for-byte (verified by `RailroadGoldenSuite`'s committed, nesting-free SVGs).
 
   private def itemWidth(item: RowItem): Int = item match
-    case RowItem.Sym(s)       => boxWidth(s.label)
-    case RowItem.Nested(alts) => layoutFork(alts).width
+    case RowItem.Sym(s)          => boxWidth(s.label)
+    case RowItem.Nested(alts)    => layoutFork(alts).width
+    case RowItem.Arc(content, _) => ARC_R + rowItemsWidth(content) + ARC_R
 
   private def itemHeight(item: RowItem): Int = item match
     case RowItem.Sym(_)       => BOXH
     case RowItem.Nested(alts) => layoutFork(alts).height
+    case RowItem.Arc(content, kind) =>
+      (if kind.hasBypass then ARC_CLEAR else 0) + rowHeight(content) +
+        (if kind.hasLoop then ARC_CLEAR else 0)
 
   // Offset, from an item's own top, of the horizontal line the surrounding row shares — BOXH/2 for
   // an ordinary box (its own center); a nested fork's first alternative's own center for a Nested
-  // item, so the through-line entering/leaving it lines up with that fork's own main line.
+  // item; the wrapped content's own offset, pushed down by the bypass clearance reserved above it
+  // (if any), for an Arc item — so the through-line entering/leaving it lines up with the wrapped
+  // content's own main line, exactly where the surrounding row's shared line already is.
   private def itemMainYOffset(item: RowItem): Double = item match
     case RowItem.Sym(_)       => BOXH / 2.0
     case RowItem.Nested(alts) => layoutFork(alts).mainYOffset
+    case RowItem.Arc(content, kind) =>
+      (if kind.hasBypass then ARC_CLEAR else 0) + rowMainYOffset(content)
 
   private def rowItemsWidth(row: Vector[RowItem]): Int =
     row.zipWithIndex.foldLeft(0) { case (w, (it, idx)) =>
@@ -488,8 +609,31 @@ object Railroad:
             drawFork(alts, originX = cx, top = yi - layout.mainYOffset, hasCaps = false)
           p += svg
           cx += w
+        case RowItem.Arc(content, kind) =>
+          val innerOffset = rowMainYOffset(content)
+          val innerH = rowHeight(content)
+          val w = ARC_R + rowItemsWidth(content) + ARC_R
+          val (contentSvg, _) = drawRow(content, cx + ARC_R, yi)
+          p += contentSvg
+          if kind.hasBypass then
+            p += sideArc(cx, yi, cx + w, yi - innerOffset - ARC_CLEAR / 2.0, ARC_R)
+          if kind.hasLoop then
+            p += sideArc(cx, yi, cx + w, yi - innerOffset + innerH + ARC_CLEAR / 2.0, ARC_R)
+          cx += w
     }
     (p.result().mkString, cx)
+
+  // A bypass (arcing above `mainY`) or loop-back (arcing below it) track: peel off the main line at
+  // `x0`, curve to the parallel line at `arcY`, run straight across, curve back onto the main line
+  // at `x1`. Each corner is one quadratic Bezier whose control point sits directly above/below its
+  // start (so the curve leaves the main line vertically) and level with its end (so it arrives
+  // there horizontally) — smooth regardless of how tall the rise is, unlike `drawFork`'s corners
+  // (which pair a fixed-radius curve with a separate straight run to handle an arbitrary rise), so
+  // `r` here is purely the curve's own horizontal reach, not a true circular radius.
+  private def sideArc(x0: Int, mainY: Double, x1: Int, arcY: Double, r: Int): String =
+    s"""<path class="rr-track" d="M$x0 ${fmtNum(mainY)} Q$x0 ${fmtNum(arcY)} ${x0 + r} ${fmtNum(
+        arcY
+      )} H${x1 - r} Q$x1 ${fmtNum(arcY)} $x1 ${fmtNum(mainY)}"/>"""
 
   // Draws a full fork/rejoin of alternatives with its own entry stub at `originX` and top edge at
   // `top` — the SAME shape whether it's the outermost Production (`hasCaps = true`, the entry/exit

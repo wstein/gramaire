@@ -235,7 +235,13 @@ object LabApi:
         // scan against the same token definitions instead of each re-lexing it.
         val spanned = request.input.map(lexInput(request.source, grammar, _))
         val forest = spanned.map(forestFor(Method.Canonical, grammar, _))
-        val analysis = Some(analysisOf(prec, grammar, request.diagramView))
+        // The document's own pre-Desugar Grammar, reparsed once for `analysisOf`'s own diagram
+        // construction (`Railroad.diagramsOfGrammar` draws `?`/`*`/`+`/groups straight from it,
+        // see `analysisOf`'s own comment) — falls back to the already-desugared `grammar` in the
+        // unreachable case this reparse of the SAME source `Lr.parseWith` just accepted somehow
+        // fails, rather than letting a diagram-only concern fail the whole response.
+        val rawGrammar = Lr.parseRawGrammar(request.source).getOrElse(grammar)
+        val analysis = Some(analysisOf(prec, grammar, rawGrammar, request.diagramView))
         // Soft diagnostics (unknown `#[attr]`/`%setting`, an unreachable rule, an unused token
         // class) are independent of whether the target grammar's tables build — a grammar can have
         // both real conflicts AND an unused token class, and both should be visible together.
@@ -458,6 +464,7 @@ object LabApi:
   private def analysisOf(
       prec: Precedence,
       grammar: Grammar,
+      rawGrammar: Grammar,
       diagramView: Railroad.DiagramView
   ): GrammarAnalysis =
     val perMethod = Table.statsForAll(prec, grammar).map { case (m, stats) =>
@@ -479,24 +486,31 @@ object LabApi:
       )
     }
 
-    // Built from the compiled (desugared) Grammar directly, not by re-parsing each rule's raw
-    // .gram.md fenced block the way `gramaire fmt`'s sidecar SVGs do (`GramaireCheck.fmt` shares
-    // this same `Railroad.diagramsOfGrammar`, but via its own `Lr.parse` of the CLI's file — this
-    // cross-compiled module has no CLI-only markdown-block parsing to build a Grammar from a raw
-    // fence in isolation) — see GrammarAnalysis's own doc comment for the resulting, deliberate
-    // divergence (a desugared X+ shows its synthesized list rule, not gramaire fmt's native loop
-    // shape). A reference to a hoisted group rule is inlined as a real nested `Diagram.Choice`
-    // (`diagramsOfGrammar`), not left as an opaque NonTerminal box pointing at a rule with no
-    // diagram/tab of its own to show.
+    // Built from `rawGrammar` — the document's own pre-Desugar Grammar (`evaluate`'s own
+    // `Lr.parseRawGrammar(request.source)`) — the same source `gramaire fmt`'s committed sidecar
+    // SVGs draw from via this same `Railroad.diagramsOfGrammar` (`GramaireCheck.fmt`'s own
+    // `Lr.parseRawGrammar` of the CLI's file): an authored `X+`/`X?`/`X*` draws as its own real
+    // loop-back/bypass arc, and a `( a | b )` group as a real nested `Diagram.Choice` at its own use
+    // site — never an opaque NonTerminal box pointing at a rule with no diagram/tab of its own, and
+    // never Desugar's enumerated-alternative or hoisted-list-rule lowering the LR(1) core needs but
+    // a diagram meant to explain the grammar AS AUTHORED shouldn't.
     val diagrams =
       Railroad.diagramsOfGrammar(
-        grammar,
+        rawGrammar,
         includeActions = true,
         unwrapAction = BackendJs.unwrapBinder
       )
-    val railroad = visibleRules.map { r =>
-      val diagram = Railroad.applyView(diagrams(r.name), diagramView)
-      r.name -> Railroad.renderDiagramSvg(r.name, diagram, themed = true, view = diagramView)
+    // `visibleRules` (desugared) also carries every OTHER Desugar synthesis with no author-facing
+    // identity of its own — a `Comma<X>`/`Sep<X, S>` macro's `X_comma`/`X_sep_S` rule, an `X+`/`X*`
+    // list rule — none of which exist in `rawGrammar`/`diagrams` (they're synthesized BY Desugar,
+    // from a plain `X+`/`Comma<X>` reference that already draws as its own arc/nested-fork at its
+    // OWN use site above, not as a link to a separate rule). `flatMap` + `.get` skips those rather
+    // than the hoisted-group-only filter above risking a lookup miss on one of these too.
+    val railroad = visibleRules.flatMap { r =>
+      diagrams.get(r.name).map { d =>
+        val diagram = Railroad.applyView(d, diagramView)
+        r.name -> Railroad.renderDiagramSvg(r.name, diagram, themed = true, view = diagramView)
+      }
     }.toMap
 
     // The same classification `gramaire explain-conflict` prints as CLI prose (`Glr.explainP`),

@@ -460,6 +460,42 @@ class LabApiSuite extends munit.FunSuite:
         assert(!termSvg.contains("* | /"), termSvg)
   }
 
+  // A `Comma<X>`/`Sep<X, S>` macro (Desugar.macroRule) synthesizes its own list rule (`X_comma`)
+  // the SAME way a hoisted group synthesizes `__group_N` — no author-facing identity, and (unlike
+  // `__group_N`) not filtered out of `firstFollow`'s own `visibleRules` at all. It has no raw-Grammar
+  // counterpart for `railroad` to draw from (Desugar synthesizes it; `Comma<Name>` itself already
+  // draws as a real nested fork at ITS OWN use site — see the group test above), which used to
+  // crash `analysisOf` with a map lookup failure once `railroad` switched to the raw grammar.
+  test(
+    "evaluate: analysis.railroad tolerates a Comma<X>/Sep<X, S> macro's synthesized list rule, which has no raw-grammar counterpart"
+  ) {
+    val md = """# MacroTest
+      |
+      |## List
+      |
+      |```gramaire
+      |List
+      |  : Comma<Name>
+      |  ;
+      |```
+      |
+      |## Name
+      |
+      |```gramaire
+      |Name
+      |  : 'x'
+      |  ;
+      |```
+      |""".stripMargin
+    val resp = LabApi.evaluate(LabRequest(md, None, Method.Canonical))
+    assert(resp.buildOk)
+    resp.analysis match
+      case None => fail("expected analysis")
+      case Some(a) =>
+        assert(a.firstFollow.exists(_.name == "Name_comma"), a.firstFollow.toString)
+        assertEquals(a.railroad.keySet, Set("List", "Name"))
+  }
+
   test("evaluate: analysis is populated even when the grammar has real conflicts") {
     val resp = LabApi.evaluate(LabRequest(ambiguousMd, None, Method.Canonical))
     assert(!resp.buildOk)

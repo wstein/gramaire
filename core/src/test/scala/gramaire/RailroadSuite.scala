@@ -37,6 +37,74 @@ class RailroadSuite extends munit.FunSuite:
     assert(prod.alts.forall(_.action.isEmpty))
   }
 
+  test(
+    "parseProduction: a group's own '|' is never mistaken for a top-level alternative separator"
+  ) {
+    // Term ('*' | '/') Factor | Factor — one BUG this replaces: no paren-depth tracking meant the
+    // inner '|' used to split this into a spurious extra top-level alternative starting with '/'.
+    val prod = parseProduction(
+      "Term : Term ('*' | '/') Factor | Factor",
+      Set("Term", "Factor")
+    )
+    assertEquals(
+      prod.alts.length,
+      2,
+      s"expected exactly 2 top-level alternatives, got: ${prod.alts}"
+    )
+    assertEquals(
+      prod.alts.head.syms,
+      Vector(
+        DiaSym("Term", term = false),
+        DiaSym("('*' | '/')", term = true),
+        DiaSym("Factor", term = false)
+      )
+    )
+    assertEquals(prod.alts.last.syms, Vector(DiaSym("Factor", term = false)))
+  }
+
+  test(
+    "parseProduction: a trailing ?/*/+ suffixes the symbol or group it follows, instead of vanishing"
+  ) {
+    val prod = parseProduction(
+      "List : Item? Item* Item+ ',' 'x'?",
+      Set("List", "Item")
+    )
+    assertEquals(
+      prod.alts,
+      Vector(
+        Alt(
+          Vector(
+            DiaSym("Item?", term = false),
+            DiaSym("Item*", term = false),
+            DiaSym("Item+", term = false),
+            DiaSym(",", term = true),
+            DiaSym("x?", term = true)
+          )
+        )
+      )
+    )
+  }
+
+  test("parseProduction: a parenthesised group flattens to one readable text-labeled symbol") {
+    val prod = parseProduction(
+      "ObjectBindingPattern : '{' BindingPropertyList (',' BindingRestProperty?)? '}'",
+      Set("ObjectBindingPattern", "BindingPropertyList", "BindingRestProperty")
+    )
+    assertEquals(
+      prod.alts,
+      Vector(
+        Alt(
+          Vector(
+            DiaSym("{", term = true),
+            DiaSym("BindingPropertyList", term = false),
+            DiaSym("(',' BindingRestProperty?)?", term = true),
+            DiaSym("}", term = true)
+          )
+        )
+      )
+    )
+  }
+
   test("renderSvg: deterministic, self-contained, carries the rule name in aria-label") {
     val prod = parseProduction("Expr : Expr '+' Term | Term", Set("Expr", "Term"))
     val svg = renderSvg(prod)
@@ -141,8 +209,143 @@ class RailroadSuite extends munit.FunSuite:
     assertEquals(diagramOf(prod, DiagramView.Simplified), diagramOf(prod, DiagramView.Source))
   }
 
+  // `diagramsOfGrammar` fed a RAW (pre-Desugar) `Grammar` — the `?`/`*`/`+`/`( … )` sugar every
+  // caller (`GramaireCheck.fmt`, `LabApi.analysisOf`) now builds diagrams from via
+  // `Lr.parseRawGrammar`, rather than an already-desugared one (`LrSuite` covers `parseRawGrammar`
+  // itself; these cover what `diagramsOfGrammar` draws from its output).
   test(
-    "renderDiagramSvg: optionality and repetition nodes fall back to deterministic inline labels"
+    "diagramsOfGrammar: independent ?s in one alternative stay ONE alternative, not the 2^k Desugar would enumerate"
+  ) {
+    // The ForStatement shape: 'for' '(' A? ';' B? ')' — two independent optionals in one authored
+    // alternative must stay one Diagram alt, not the 2^2 = 4 rows Desugar.enumerateAlt produces.
+    val grammar = Grammar(
+      Vector(
+        gramaire.Rule(
+          "ForStatement",
+          Vector.empty,
+          Vector(
+            gramaire.Alt(
+              Vector(
+                Sym.Lit("for"),
+                Sym.Lit("("),
+                Sym.Opt(Sym.Ref("A")),
+                Sym.Lit(";"),
+                Sym.Opt(Sym.Ref("B")),
+                Sym.Lit(")")
+              ),
+              None,
+              None
+            )
+          )
+        ),
+        gramaire.Rule("A", Vector.empty, Vector(gramaire.Alt(Vector(Sym.Lit("a")), None, None))),
+        gramaire.Rule("B", Vector.empty, Vector(gramaire.Alt(Vector(Sym.Lit("b")), None, None)))
+      )
+    )
+    val diagrams = diagramsOfGrammar(grammar)
+    diagrams("ForStatement") match
+      case Diagram.Stack(alts) =>
+        assertEquals(alts.length, 1, s"expected one authored alternative, got: $alts")
+        alts.head match
+          case Diagram.Sequence(items) =>
+            assertEquals(items.count(_.isInstanceOf[Diagram.Optional]), 2)
+          case other => fail(s"expected a flat Sequence, got: $other")
+      case other => fail(s"expected a single-alt Stack, got: $other")
+    val svg = renderDiagramSvg("ForStatement", diagrams("ForStatement"))
+    assertEquals("""data-rr-label="for"""".r.findAllIn(svg).length, 1, svg)
+  }
+
+  test(
+    "diagramsOfGrammar: a single-alt group is a plain Sequence — no fork needed to choose among alternatives that don't exist"
+  ) {
+    // '{' BindingPropertyList (',' BindingRestProperty?)? '}' — the ObjectBindingPattern shape: a
+    // single-alt group nested inside an outer optional must stay a real Optional(Sequence(...)),
+    // not a mandatory straight line with the optional markers silently dropped.
+    val group = Sym.Group(Vector(Vector(Sym.Lit(","), Sym.Opt(Sym.Ref("BindingRestProperty")))))
+    val grammar = Grammar(
+      Vector(
+        gramaire.Rule(
+          "ObjectBindingPattern",
+          Vector.empty,
+          Vector(
+            gramaire.Alt(
+              Vector(
+                Sym.Lit("{"),
+                Sym.Ref("BindingPropertyList"),
+                Sym.Opt(group),
+                Sym.Lit("}")
+              ),
+              None,
+              None
+            )
+          )
+        ),
+        gramaire.Rule(
+          "BindingPropertyList",
+          Vector.empty,
+          Vector(gramaire.Alt(Vector(Sym.Lit("x")), None, None))
+        ),
+        gramaire.Rule(
+          "BindingRestProperty",
+          Vector.empty,
+          Vector(gramaire.Alt(Vector(Sym.Lit("y")), None, None))
+        )
+      )
+    )
+    diagramsOfGrammar(grammar)("ObjectBindingPattern") match
+      case Diagram.Stack(Vector(Diagram.Sequence(items))) =>
+        items(2) match
+          case Diagram.Optional(Diagram.Sequence(inner)) =>
+            assertEquals(inner.length, 2, s"expected the group's own 2 symbols, got: $inner")
+            inner(1) match
+              case Diagram.Optional(Diagram.NonTerminal("BindingRestProperty")) => ()
+              case other => fail(s"expected a nested Optional(NonTerminal(...)), got: $other")
+          case other => fail(s"expected Optional(Sequence(...)) — no needless Choice, got: $other")
+      case other => fail(s"unexpected top-level shape: $other")
+  }
+
+  test(
+    "diagramsOfGrammar: a raw Sym.Group with 2+ alternatives draws as a real nested Choice, no hoisting needed"
+  ) {
+    val grammar = Grammar(
+      Vector(
+        gramaire.Rule(
+          "Term",
+          Vector.empty,
+          Vector(
+            gramaire.Alt(
+              Vector(
+                Sym.Ref("Term"),
+                Sym.Group(Vector(Vector(Sym.Lit("*")), Vector(Sym.Lit("/")))),
+                Sym.Ref("Factor")
+              ),
+              None,
+              None
+            ),
+            gramaire.Alt(Vector(Sym.Ref("Factor")), None, None)
+          )
+        ),
+        gramaire.Rule(
+          "Factor",
+          Vector.empty,
+          Vector(gramaire.Alt(Vector(Sym.Lit("x")), None, None))
+        )
+      )
+    )
+    val diagrams = diagramsOfGrammar(grammar)
+    assertEquals(
+      diagrams.keySet,
+      Set("Term", "Factor"),
+      "no synthetic __group_N rule for a raw grammar"
+    )
+    val svg = renderDiagramSvg("Term", diagrams("Term"))
+    assert(svg.contains(""">*</text>"""), svg)
+    assert(svg.contains(""">/</text>"""), svg)
+    assert(!svg.contains("* | /"), svg)
+  }
+
+  test(
+    "renderDiagramSvg: optionality and repetition nodes draw as real bypass/loop arcs around their own box, not a text-suffixed label"
   ) {
     val diagram = Diagram.Sequence(
       Vector(
@@ -153,11 +356,54 @@ class RailroadSuite extends munit.FunSuite:
       )
     )
     val svg = renderDiagramSvg("List", diagram)
-    assert(svg.contains(">List</text>"))
-    assert(svg.contains(">,?</text>"))
-    assert(svg.contains(">Item+</text>"))
-    assert(svg.contains(">;*</text>"))
-    assertEquals(svg, renderDiagramSvg("List", diagram))
+    // Each wrapped item is still its own real box — no `?`/`+`/`*` baked into a text label.
+    assert(svg.contains(">List</text>"), svg)
+    assert(svg.contains(">,</text>"), svg)
+    assert(svg.contains(">Item</text>"), svg)
+    assert(svg.contains(">;</text>"), svg)
+    assert(!svg.contains(">,?</text>"), svg)
+    assert(!svg.contains(">Item+</text>"), svg)
+    assert(!svg.contains(">;*</text>"), svg)
+    assertEquals(svg, renderDiagramSvg("List", diagram), "rendering twice is byte-identical")
+
+    // Real geometry, not text: an arc-wrapped item needs more vertical room than the same items
+    // drawn as an ordinary flat row — a coarse but real signal an arc was actually drawn, the same
+    // style of check the nested-fork test above uses.
+    val heightRe = """height="(\d+)"""".r
+    val height = heightRe.findFirstMatchIn(svg).map(_.group(1).toInt).getOrElse(0)
+    val flatDiagram = Diagram.Sequence(
+      Vector(
+        Diagram.NonTerminal("List"),
+        Diagram.Terminal(","),
+        Diagram.NonTerminal("Item"),
+        Diagram.Terminal(";")
+      )
+    )
+    val flatHeight = heightRe
+      .findFirstMatchIn(renderDiagramSvg("List", flatDiagram))
+      .map(_.group(1).toInt)
+      .getOrElse(0)
+    assert(
+      height > flatHeight,
+      s"expected the arc-wrapped items to need more height than a flat row: height=$height flatHeight=$flatHeight"
+    )
+  }
+
+  test(
+    "renderDiagramMermaid: optionality and repetition nodes still flatten to a text-suffixed node (no arc in a flowchart chain)"
+  ) {
+    val diagram = Diagram.Sequence(
+      Vector(
+        Diagram.NonTerminal("List"),
+        Diagram.Optional(Diagram.Terminal(",")),
+        Diagram.OneOrMore(Diagram.NonTerminal("Item")),
+        Diagram.ZeroOrMore(Diagram.Terminal(";"))
+      )
+    )
+    val mermaid = renderDiagramMermaid(diagram)
+    assert(mermaid.contains(",?"), mermaid)
+    assert(mermaid.contains("Item+"), mermaid)
+    assert(mermaid.contains(";*"), mermaid)
   }
 
   test(
