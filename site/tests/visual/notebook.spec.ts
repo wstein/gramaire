@@ -835,6 +835,25 @@ test("a rule's railroad diagram has an accessible name for screen readers", asyn
   await expect(railroad).toHaveAttribute("aria-label", /Railroad diagram for/);
 });
 
+test("the status bar's diagram-view picker switches every rule cell's railroad SVG to Simplified", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  const svgs = page.locator(".gramaire__output-railroad svg");
+  await expect(svgs.first()).not.toHaveAttribute("data-rr-view", "simplified");
+
+  await page.getByLabel("Diagram view").selectOption("simplified");
+  await page.waitForTimeout(1000); // settle worker round-trip, same as breakFirstRule
+  await expect(svgs).toHaveCount(3);
+  for (const svg of await svgs.all()) {
+    await expect(svg).toHaveAttribute("data-rr-view", "simplified");
+  }
+
+  await page.getByLabel("Diagram view").selectOption("source");
+  await page.waitForTimeout(1000);
+  await expect(svgs.first()).not.toHaveAttribute("data-rr-view", "simplified");
+});
+
 // Factor's own rule (`'(' Expr ')' | NUMBER`) references Expr — clicking that nonterminal node in
 // Factor's diagram should navigate to Expr's own cell, the same "jump to that rule" affordance the
 // outline sidebar already has, now reachable from inside a diagram too (railroad-renderer-roadmap's

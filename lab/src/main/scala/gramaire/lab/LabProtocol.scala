@@ -16,7 +16,7 @@ package gramaire.lab
 // additive, never a breaking change to what's already shipped — new fields
 // default to None so pre-M5 callers/tests need no changes.
 
-import gramaire.{Json, Method}
+import gramaire.{Json, Method, Railroad}
 
 /** A request from the Lab UI: the full .gram.md source, an optional target-language input to parse,
   * the table-construction method to build with, an optional start-rule override, and the parse
@@ -34,7 +34,8 @@ final case class LabRequest(
     input: Option[String],
     method: Method,
     startRule: Option[String] = None,
-    strategy: String = "lr"
+    strategy: String = "lr",
+    diagramView: Railroad.DiagramView = Railroad.DiagramView.Source
 )
 
 object LabRequest:
@@ -64,7 +65,12 @@ object LabRequest:
           case Some(Json.JString(other)) => Left(s"unknown strategy: $other")
           case Some(Json.JNull) | None   => Right("lr")
           case _                         => Left("LabRequest.strategy must be a string")
-      yield LabRequest(source, input, method, startRule, strategy)
+        diagramView <- m.get("diagramView") match
+          case Some(Json.JString(s)) =>
+            Railroad.diagramView(s).toRight(s"unknown diagramView: $s")
+          case Some(Json.JNull) | None => Right(Railroad.DiagramView.Source)
+          case _                       => Left("LabRequest.diagramView must be a string")
+      yield LabRequest(source, input, method, startRule, strategy, diagramView)
     case _ => Left("LabRequest must be a JSON object")
 
   private def methodFromJson(j: Json): Either[String, Method] = j match

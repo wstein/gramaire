@@ -55,6 +55,23 @@
   color: var(--fg-faint);
 }
 
+/* Matches .lab__method's own label+select pattern (lab.css) so the two islands' status-bar
+   controls read as the same family, just sized down to this bar's own 11px scale. */
+.gramaire__statusbar-diagramview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.gramaire__statusbar-diagramview select {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 6px);
+  padding: 2px 6px;
+}
+
 /* A <button> now (was a <span>) so a keyboard user can reach it — reset every default button
    style back to how the plain span used to look; a disabled button (no diagnostics to toggle)
    needs no cursor/focus treatment of its own, same as the span's own `onClick: undefined` before. */

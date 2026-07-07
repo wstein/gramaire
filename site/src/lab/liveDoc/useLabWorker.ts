@@ -1,6 +1,11 @@
 import { signal } from "@preact/signals";
 import type { Signal } from "@preact/signals";
-import type { LabRequest, LabResponse, Strategy } from "../protocol";
+import type {
+  DiagramView,
+  LabRequest,
+  LabResponse,
+  Strategy,
+} from "../protocol";
 import { LAB_PROTOCOL_VERSION } from "../protocol";
 import type {
   EvaluationResult,
@@ -32,7 +37,12 @@ export interface LabWorkerHandle {
   evaluation: Signal<EvaluationResult | null>;
   /** Debounced, latest-wins: a fast follow-up call supersedes an in-flight one, matching
    * LabIsland.tsx's own scheduleEvaluate convention. */
-  evaluate: (source: string, input: string, strategy: Strategy) => void;
+  evaluate: (
+    source: string,
+    input: string,
+    strategy: Strategy,
+    diagramView?: DiagramView,
+  ) => void;
   dispose: () => void;
 }
 
@@ -84,8 +94,19 @@ export function createLabWorker(): LabWorkerHandle {
     return worker;
   }
 
-  function evaluate(source: string, input: string, strategy: Strategy) {
-    pendingRequest = { source, input, method: "Canonical", strategy };
+  function evaluate(
+    source: string,
+    input: string,
+    strategy: Strategy,
+    diagramView?: DiagramView,
+  ) {
+    pendingRequest = {
+      source,
+      input,
+      method: "Canonical",
+      strategy,
+      diagramView,
+    };
     pending.value = true;
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {

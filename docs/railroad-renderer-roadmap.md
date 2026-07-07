@@ -92,6 +92,12 @@ the one deliberate SVG/Mermaid divergence this introduced.
   diagrams" section for the exact shapes recognized). Wider idioms —
   separated lists, general factorization, 3+-alternative stacks — stay out of
   scope until they have the same kind of test-backed equivalence coverage.
+  `--diagram-view` was CLI-only until now; the Lab and the Notebook each have
+  their own "Diagram view" picker (Source/Simplified) too, threaded through a
+  new `LabRequest.diagramView` protocol field (`spec/lab-protocol-schema.json`)
+  — the Lab's affects the Grammar analysis tab's own railroad SVGs, the
+  Notebook's affects every rule cell's, both live and re-evaluated on change
+  like every other picker.
 
 Every new phase must preserve deterministic output, stay test-backed, and keep
 the source-vs-simplified distinction explicit in the artifact itself.

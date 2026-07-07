@@ -595,6 +595,36 @@ test("the Lab's start-rule picker narrows which rule anchors parsing", async ({
   await expect(page.locator(".lab__result")).toContainText("Rejected");
 });
 
+test("the Lab's diagram-view picker switches the Grammar analysis tab's railroad SVGs to Simplified", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  await page.click('button[role="tab"]:has-text("Grammar analysis")');
+  await page.waitForSelector(".lab__railroad-svg svg");
+
+  await expect(
+    page.locator(".lab__railroad-svg svg").first(),
+  ).not.toHaveAttribute("data-rr-view", "simplified");
+
+  await page.getByLabel("Diagram view").selectOption("simplified");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+  await expect(page.locator(".lab__railroad-svg svg").first()).toHaveAttribute(
+    "data-rr-view",
+    "simplified",
+  );
+
+  // Switching back to Source drops the marker again — not sticky either direction.
+  await page.getByLabel("Diagram view").selectOption("source");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+  await expect(
+    page.locator(".lab__railroad-svg svg").first(),
+  ).not.toHaveAttribute("data-rr-view", "simplified");
+});
+
 test("cross-tab hover-linking keeps the same token highlighted across tabs", async ({
   page,
 }) => {

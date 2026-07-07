@@ -13,6 +13,10 @@ export type Method = "Canonical" | "LALR" | "IELR";
  * Which parse strategy to build under — mirrors gramaire.IR's two D-strategy values. "lr" is the table-driven LR/GLR pipeline. "ll-star" is the ALL(*) port (Ll.parseTraced): parse/evaluatorJs/atn are driven by it instead — buildOk no longer depends on the LR table build succeeding (a conflict downgrades to a warning), parse.trace is always absent in favor of parse.llTrace, and evaluatorJs generates even when the grammar has real LR conflicts (it needs no table build). forest/analysis stay LR/GLR-driven under both strategies — method always selects the automaton they're built from.
  */
 export type Strategy = "lr" | "ll-star";
+/**
+ * Which railroad diagram view to render — mirrors gramaire.Railroad.DiagramView exactly. "source" is byte-faithful to the authored grammar, the historical stacked-track layout. "simplified" recognizes a couple of safe idioms (DiagramNormalize: an optional tail, a direct-left-recursive repetition chain) and applies width-aware wrapping for long sequences.
+ */
+export type DiagramView = "source" | "simplified";
 
 /**
  * A request from the Lab UI: the full .gram.md source, an optional target-language input to parse, and the table-construction method to build with. Omitting `input` (or sending null) means compile-only.
@@ -29,6 +33,10 @@ export interface LabRequest {
    * Which parse strategy to build under. Null (or omitted) means "lr", the table-driven pipeline. "ll-star" is a genuine alternate pipeline for parse/evaluatorJs/atn (see the `strategy` def's own description) — forest/analysis stay LR/GLR-driven either way.
    */
   strategy?: Strategy | null;
+  /**
+   * Which railroad diagram view `analysis.railroad` renders in. Null (or omitted) means "source", byte-faithful to the authored grammar. "simplified" recognizes a couple of safe idioms (an optional tail, a direct-left-recursive repetition chain) and applies width-aware wrapping — see the `diagramView` def's own description, mirroring gramaire.Railroad.DiagramView.
+   */
+  diagramView?: DiagramView | null;
 }
 
 /**

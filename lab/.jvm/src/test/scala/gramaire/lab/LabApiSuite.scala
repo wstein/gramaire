@@ -4,7 +4,7 @@ package gramaire.lab
 // core/.jvm/src/test/scala/gramaire/ConformanceSuite.scala's own convention:
 // sbt-crossproject's `.jvm/src/test` is a platform-specific supplementary
 // source dir that coexists with CrossType.Pure's shared `src/test` tree.
-import gramaire.{Json, Lr, Method}
+import gramaire.{Json, Lr, Method, Railroad}
 
 class LabApiSuite extends munit.FunSuite:
   private def readFile(path: String): String =
@@ -951,4 +951,49 @@ class LabApiSuite extends munit.FunSuite:
       )
     )
     assert(LabRequest.fromJson(j).isLeft)
+  }
+
+  test("LabRequest.fromJson decodes diagramView, defaulting to source when absent") {
+    val withView = Json.JObject(
+      Vector(
+        "source" -> Json.JString(calcMd),
+        "method" -> Json.JString("Canonical"),
+        "diagramView" -> Json.JString("simplified")
+      )
+    )
+    val withoutKey = Json.JObject(
+      Vector("source" -> Json.JString(calcMd), "method" -> Json.JString("Canonical"))
+    )
+    assertEquals(
+      LabRequest.fromJson(withView).map(_.diagramView),
+      Right(Railroad.DiagramView.Simplified)
+    )
+    assertEquals(
+      LabRequest.fromJson(withoutKey).map(_.diagramView),
+      Right(Railroad.DiagramView.Source)
+    )
+  }
+
+  test("LabRequest.fromJson rejects an unknown diagramView") {
+    val j = Json.JObject(
+      Vector(
+        "source" -> Json.JString(calcMd),
+        "method" -> Json.JString("Canonical"),
+        "diagramView" -> Json.JString("exploded")
+      )
+    )
+    assert(LabRequest.fromJson(j).isLeft)
+  }
+
+  test("evaluate: request.diagramView selects the analysis tab's railroad view, labeled explicitly") {
+    val sourceResp =
+      LabApi.evaluate(LabRequest(calcMd, None, Method.Canonical, diagramView = Railroad.DiagramView.Source))
+    val simplifiedResp = LabApi.evaluate(
+      LabRequest(calcMd, None, Method.Canonical, diagramView = Railroad.DiagramView.Simplified)
+    )
+    (sourceResp.analysis, simplifiedResp.analysis) match
+      case (Some(a), Some(b)) =>
+        assert(!a.railroad("Expr").contains("""data-rr-view="simplified""""), a.railroad("Expr"))
+        assert(b.railroad("Expr").contains("""data-rr-view="simplified""""), b.railroad("Expr"))
+      case _ => fail("expected analysis in both responses")
   }

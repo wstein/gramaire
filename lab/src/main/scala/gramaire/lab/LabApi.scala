@@ -227,7 +227,7 @@ object LabApi:
         // scan against the same token definitions instead of each re-lexing it.
         val spanned = request.input.map(lexInput(request.source, grammar, _))
         val forest = spanned.map(forestFor(Method.Canonical, grammar, _))
-        val analysis = Some(analysisOf(prec, grammar))
+        val analysis = Some(analysisOf(prec, grammar, request.diagramView))
         // Soft diagnostics (unknown `#[attr]`/`%setting`, an unreachable rule, an unused token
         // class) are independent of whether the target grammar's tables build — a grammar can have
         // both real conflicts AND an unused token class, and both should be visible together.
@@ -431,7 +431,11 @@ object LabApi:
   // (one shared canonical-automaton build) rather than three separate `statsFor` calls — the
   // naive version was measurably slow enough under concurrent load to blow past this project's
   // Playwright test timeouts.
-  private def analysisOf(prec: Precedence, grammar: Grammar): GrammarAnalysis =
+  private def analysisOf(
+      prec: Precedence,
+      grammar: Grammar,
+      diagramView: Railroad.DiagramView
+  ): GrammarAnalysis =
     val perMethod = Table.statsForAll(prec, grammar).map { case (m, stats) =>
       m.toString -> MethodStatsInfo(stats.states, stats.conflicts.length)
     }
@@ -467,7 +471,8 @@ object LabApi:
         unwrapAction = BackendJs.unwrapBinder
       )
     val railroad = visibleRules.map { r =>
-      r.name -> Railroad.renderDiagramSvg(r.name, diagrams(r.name), themed = true)
+      val diagram = Railroad.applyView(diagrams(r.name), diagramView)
+      r.name -> Railroad.renderDiagramSvg(r.name, diagram, themed = true, view = diagramView)
     }.toMap
 
     // The same classification `gramaire explain-conflict` prints as CLI prose (`Glr.explainP`),

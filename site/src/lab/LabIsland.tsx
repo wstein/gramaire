@@ -7,6 +7,7 @@ import type {
   CstNode,
   CstToken,
   DiagnosticInfo,
+  DiagramView,
   LabRequest,
   LabResponse,
   LlStepInfo,
@@ -75,6 +76,11 @@ const strategy = signal<Strategy>("ll-star");
 // null means "no override" — the request omits startRule, so the engine uses the grammar's own
 // natural declaration order (its first rule). Set only by the start-rule picker.
 const startRule = signal<string | null>(null);
+// "source" (the default) is byte-faithful to the authored grammar; "simplified" recognizes a
+// couple of safe idioms (an optional tail, a direct-left-recursive repetition chain) and applies
+// width-aware wrapping — see LabRequest.diagramView's own doc comment in protocol.ts. Only affects
+// the Grammar analysis tab's own railroad SVGs, set by the diagram-view picker.
+const diagramView = signal<DiagramView>("source");
 const activeTab = signal<Tab>("result");
 const response = signal<LabResponse | null>(null);
 const evaluation = signal<EvaluationResult | null>(null);
@@ -252,6 +258,7 @@ function scheduleEvaluate() {
       method: method.value,
       startRule: startRule.value,
       strategy: strategy.value,
+      diagramView: diagramView.value,
     };
     const message: WorkerRequestMessage = { id, request };
     ensureWorker().postMessage(message);
@@ -592,6 +599,21 @@ export function LabTopbarTools() {
           </select>
         </label>
       )}
+      <label class="lab__method">
+        Diagram view
+        <select
+          title="Which railroad-diagram view the Grammar analysis tab renders. Source is byte-faithful to the authored grammar. Simplified recognizes an optional tail and a direct-left-recursive repetition chain, and wraps long sequences."
+          value={diagramView.value}
+          onChange={(e) => {
+            diagramView.value = (e.target as HTMLSelectElement)
+              .value as DiagramView;
+            scheduleEvaluate();
+          }}
+        >
+          <option value="source">Source</option>
+          <option value="simplified">Simplified</option>
+        </select>
+      </label>
     </div>
   );
 }

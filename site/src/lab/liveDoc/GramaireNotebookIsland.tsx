@@ -4,6 +4,7 @@ import type { ComponentChildren } from "preact";
 import type {
   CstNode,
   DiagnosticInfo,
+  DiagramView,
   GrammarAnalysis,
   LabResponse,
   ProductionInfo,
@@ -172,12 +173,18 @@ const isDraggingFile = signal(false);
 // though the Save button itself lives in the topbar island (NotebookTopbarTools); both islands
 // already share every other piece of this module's state the same way.
 const saveError = signal<string | null>(null);
+// "source" (the default) is byte-faithful to the authored grammar; "simplified" recognizes a
+// couple of safe idioms (an optional tail, a direct-left-recursive repetition chain) and applies
+// width-aware wrapping — see LabRequest.diagramView's own doc comment in protocol.ts. Affects
+// every rule cell's own railroad diagram uniformly; set by the status bar's diagram-view picker.
+const diagramView = signal<DiagramView>("source");
 
 function scheduleEvaluate() {
   labWorker.evaluate(
     serializeDocument(blocks.value),
     tryItInput.value,
     "ll-star",
+    diagramView.value,
   );
 }
 
@@ -1669,6 +1676,21 @@ function StatusBar() {
           ? `Canonical(1) · ${stats.states} state${stats.states === 1 ? "" : "s"} · ${stats.conflicts} conflict${stats.conflicts === 1 ? "" : "s"}`
           : "—"}
       </span>
+      <label class="gramaire__statusbar-diagramview">
+        Diagram view
+        <select
+          title="Which railroad-diagram view each rule cell renders. Source is byte-faithful to the authored grammar. Simplified recognizes an optional tail and a direct-left-recursive repetition chain, and wraps long sequences."
+          value={diagramView.value}
+          onChange={(e) => {
+            diagramView.value = (e.target as HTMLSelectElement)
+              .value as DiagramView;
+            scheduleEvaluate();
+          }}
+        >
+          <option value="source">Source</option>
+          <option value="simplified">Simplified</option>
+        </select>
+      </label>
     </div>
   );
 }
