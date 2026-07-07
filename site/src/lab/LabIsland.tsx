@@ -1712,12 +1712,30 @@ function invocationsByRule(r: LabResponse | null): Map<string, number> {
   return counts;
 }
 
+// Tallies AtnDiagnostics.ambiguities (already shipped for the ATN tab) by rule — a per-parse,
+// per-rule ambiguity count that's only real under ll-star: each entry is a decision the ALL(*)
+// predictor couldn't resolve uniquely while walking THIS input, from the same AtnSim.Cache run
+// that produced `parse`. There is no LR equivalent of this table: Gramaire's LR ambiguity
+// detection is static (Table.Conflict, computed once at table-build time, exhaustive over every
+// possible input) rather than per-parse — see the conflicts summary in ProfilerPanel below instead
+// of trying to recompute a weaker, input-scoped version of data Grammar analysis already owns.
+function ambiguitiesByRule(r: LabResponse | null): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const a of r?.atn?.ambiguities ?? [])
+    counts.set(a.rule, (counts.get(a.rule) ?? 0) + 1);
+  return counts;
+}
+
 // ANTLR's per-rule profiler columns (Invocations, Time, Total k, Max k, Ambiguities, DFA cache
 // miss) don't map cleanly onto Gramaire's engine — see docs/playground-spec.md's Profiler entry.
 // This tab ships only the columns that are real: Invocations everywhere (free, from trace data
-// above); Ambiguities/DFA cache miss are ll-star-only additions from later phases. No Time column,
-// ever — real parses run in microseconds and `performance.now()` inside a Worker is deliberately
-// coarsened for fingerprinting protection, so a timing column would show noise, not signal.
+// above); Ambiguities is ll-star-only (a real per-parse signal via AtnSim.Cache) — under the
+// default LR strategy, ambiguity detection is static (table-build time, not per-parse), so this
+// links to Grammar analysis's exhaustive conflict data instead of faking a per-parse column for
+// it. DFA cache miss is a later phase, once AtnSim.Cache gains a per-rule breakdown. No Time
+// column, ever — real parses run in microseconds and `performance.now()` inside a Worker is
+// deliberately coarsened for fingerprinting protection, so a timing column would show noise, not
+// signal.
 function ProfilerPanel() {
   const r = response.value;
   const trace = r?.parse?.trace;
@@ -1726,6 +1744,8 @@ function ProfilerPanel() {
     return <p class="lab__empty">No trace — the input wasn't accepted.</p>;
 
   const counts = invocationsByRule(r);
+  const ambiguities =
+    strategy.value === "ll-star" ? ambiguitiesByRule(r) : null;
   // Every rule from the desugared grammar, not just the ones this particular input happened to
   // reach — a 0-invocation row is informative (this rule/alt was never hit by this input), not
   // noise. `productions` can list the same lhs multiple times (one row per alternative); dedupe to
@@ -1734,6 +1754,7 @@ function ProfilerPanel() {
     new Set((r?.productions ?? []).map((p) => p.lhs)),
   );
   const truncated = trace ? getTraceTruncated() : getLlTraceTruncated();
+  const conflicts = r?.analysis?.perMethod[method.value]?.conflicts ?? 0;
 
   return (
     <div>
@@ -1744,6 +1765,22 @@ function ProfilerPanel() {
           timer resolution is deliberately coarsened, so a per-rule timing
           figure would be noise, not signal.
         </p>
+        {ambiguities === null && (
+          <p class="lab__tree-hint">
+            {conflicts} conflict{conflicts === 1 ? "" : "s"} under{" "}
+            {method.value} — see{" "}
+            <button
+              type="button"
+              class="lab__link-btn"
+              onClick={() => (activeTab.value = "analysis")}
+            >
+              Grammar analysis
+            </button>{" "}
+            for every method's count and the exhaustive, static conflict data
+            (every possible input, not just this one) — no per-parse Ambiguities
+            column here since LR ambiguity detection isn't per-parse.
+          </p>
+        )}
         {truncated && (
           <TruncatedNote shownCount={(trace ?? llTrace ?? []).length} />
         )}
@@ -1752,6 +1789,7 @@ function ProfilerPanel() {
             <tr>
               <th>rule</th>
               <th>invocations</th>
+              {ambiguities !== null && <th>ambiguities</th>}
             </tr>
           </thead>
           <tbody>
@@ -1763,6 +1801,9 @@ function ProfilerPanel() {
               >
                 <td class="lab__mono">{name}</td>
                 <td class="lab__mono">{counts.get(name) ?? 0}</td>
+                {ambiguities !== null && (
+                  <td class="lab__mono">{ambiguities.get(name) ?? 0}</td>
+                )}
               </tr>
             ))}
           </tbody>

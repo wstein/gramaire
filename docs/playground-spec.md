@@ -73,7 +73,15 @@ a thin skin over real machinery, never a mock.
 > k/Max k (LR(1)'s lookahead is fixed at 1 token by construction). Ambiguities
 > and DFA cache miss, real signals under ALL(\*) via `AtnSim.Cache`, are a
 > later phase once that cache gains a per-rule breakdown instead of only two
-> global counters. Keep this callout current as further work lands.
+> global counters. Profiler's Ambiguities column then landed for ALL(\*):
+> grouping the same `atn.ambiguities` the ATN tab already ships by rule — a
+> real per-parse signal, still no protocol change. Under the default LR
+> strategy there's no per-parse ambiguity notion to show (Gramaire's LR
+> conflict detection is static, computed once at table-build time over every
+> possible input, not this one parse), so Profiler instead shows the current
+> method's conflict count with a link to Grammar analysis's exhaustive data,
+> rather than faking a weaker, input-scoped version of what that tab already
+> owns. Keep this callout current as further work lands.
 
 ---
 

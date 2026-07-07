@@ -229,6 +229,80 @@ test("the Profiler tab shows real per-rule invocation counts, derived from the t
   ).toBeVisible();
 });
 
+test("under LR, the Profiler links to Grammar analysis instead of faking a per-parse Ambiguities column", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  await page
+    .getByLabel("Example")
+    .selectOption("LALR artifact (needs Canonical/IELR)");
+
+  // Canonical: this grammar's conflict is an LALR-specific artifact, so Canonical itself reports
+  // 0 conflicts — the summary line must be scoped to the CURRENTLY SELECTED method, not claim the
+  // grammar is unambiguous everywhere (LALR still has a real conflict on it, asserted below).
+  await page.getByLabel("Engine").selectOption("Canonical");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+  await page.click('button[role="tab"]:has-text("Profiler")');
+  await expect(page.locator(".lab__panel")).toContainText(
+    "0 conflicts under Canonical",
+  );
+  // No Ambiguities column under LR — that's ll-star-only real data, not faked here.
+  await expect(page.locator(".lab__panel thead th")).toHaveCount(2);
+
+  // LALR: same grammar, same input, a real conflict under this one method — the link's count
+  // must track the currently selected method, not stay frozen at Canonical's 0.
+  await page.getByLabel("Engine").selectOption("LALR");
+  await expect(page.locator(".lab__status")).toHaveText("errors", {
+    timeout: 5000,
+  });
+  // A hard build failure under LALR means no accepted parse, so no trace — Profiler goes back to
+  // its empty state, same as any other build failure (not a bug specific to this tab).
+  await expect(page.locator(".lab__panel")).toContainText(
+    "No trace — the input wasn't accepted.",
+  );
+
+  // IELR: builds clean again, same as Canonical — 0 conflicts under this method too.
+  await page.getByLabel("Engine").selectOption("IELR");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+  await expect(page.locator(".lab__panel")).toContainText(
+    "0 conflicts under IELR",
+  );
+
+  // The link jumps to Grammar analysis rather than duplicating its data here.
+  await page.click("button.lab__link-btn");
+  await expect(
+    page.locator('button[role="tab"]:has-text("Grammar analysis")'),
+  ).toHaveAttribute("aria-selected", "true");
+});
+
+test("under ll-star, the Profiler's Ambiguities column matches the ATN tab's own ambiguities", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  // ll-star is the default Engine — this fixture needs it to build/accept at all.
+  await page.getByLabel("Example").selectOption("Dangling else (needs ALL(*))");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+
+  await page.click('button[role="tab"]:has-text("ATN")');
+  const atnRows = page.locator(".lab__panel .lab__table tbody tr");
+  const atnCount = await atnRows.count();
+  expect(atnCount).toBeGreaterThan(0); // the dangling-else grammar's whole reason to exist
+  await expect(atnRows.first()).toContainText("Stmt");
+
+  await page.click('button[role="tab"]:has-text("Profiler")');
+  await expect(page.locator(".lab__panel thead th")).toHaveCount(3); // rule, invocations, ambiguities
+  const stmtRow = page
+    .locator(".lab__panel .lab__table tbody tr")
+    .filter({ hasText: "Stmt" });
+  await expect(stmtRow.locator("td").last()).toHaveText(String(atnCount));
+});
+
 test("tabs with nothing to show are disabled, with a tooltip explaining why", async ({
   page,
 }) => {
