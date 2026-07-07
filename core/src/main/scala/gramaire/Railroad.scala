@@ -622,8 +622,15 @@ object Railroad:
           cx += w
         case RowItem.Arc(content, kind) =>
           val w = ARC_STUB + rowItemsWidth(content) + ARC_STUB
-          val (contentSvg, _) = drawRow(content, cx + ARC_STUB, yi)
+          // The wrapped item always sits ON the main line — going "through" it (mandatory for a
+          // Loop-only item, one of two choices for a Bypass one) means a real track has to connect
+          // the row's own incoming/outgoing x to the content's own left/right edge, the same way
+          // `drawFork` draws its own entry/exit stubs; `drawRow(content, ...)` only draws the
+          // content itself; it never assumes a leading/trailing connector on our behalf.
+          p += s"""<path class="rr-track" d="M$cx ${fmtNum(yi)} H${cx + ARC_STUB}"/>"""
+          val (contentSvg, contentEndX) = drawRow(content, cx + ARC_STUB, yi)
           p += contentSvg
+          p += s"""<path class="rr-track" d="M$contentEndX ${fmtNum(yi)} H${cx + w}"/>"""
           // Fixed, content-height-independent clearance (see ARC_CLEAR's own comment) — the arc
           // line sits exactly ARC_CLEAR away from the main line regardless of the wrapped item's
           // own height, safe for a plain box or a taller nested item alike.
@@ -641,19 +648,31 @@ object Railroad:
   // onto the parallel line at `arcY`, straight across, then the same shape mirrored back down onto
   // the main line at `x1` — the exact corner idiom `drawFork`'s own branch corners already use
   // (never a diagonal, never a hard corner), not a single free-curving Bezier.
+  // Bypass corners bow TOWARD the wrapped content (monotonically inward, ending inset from the
+  // main line by a full `ARC_STUB` — flush with the content box itself), so the skip line reads
+  // as "the same box, elevated". Loop corners bow AWAY from it instead: the near corner (off the
+  // main line) swings outward, then the far corner swings back, landing the flat run exactly on
+  // the main line's own `x0`/`x1` — the loop reads as "a return path around the box", wider than
+  // it rather than flush with it. `hDir` is the only thing that differs between the two; `up`
+  // still controls which side of the main line the arc sits on.
   private def sideArc(x0: Int, mainY: Double, x1: Int, arcY: Double, up: Boolean): String =
-    val dir = if up then -1 else 1
-    val nearY = mainY + dir * ARC_R
-    val farY = arcY - dir * ARC_R
-    s"""<path class="rr-track" d="M$x0 ${fmtNum(mainY)} Q${x0 + ARC_R} ${fmtNum(
+    val vDir = if up then -1 else 1
+    val hDir = if up then 1 else -1
+    val nearY = mainY + vDir * ARC_R
+    val farY = arcY - vDir * ARC_R
+    val nearX0 = x0 + hDir * ARC_R
+    val farX0 = nearX0 + ARC_R
+    val nearX1 = x1 - hDir * ARC_R
+    val farX1 = nearX1 - ARC_R
+    s"""<path class="rr-track" d="M$x0 ${fmtNum(mainY)} Q$nearX0 ${fmtNum(
         mainY
-      )} ${x0 + ARC_R} ${fmtNum(
+      )} $nearX0 ${fmtNum(
         nearY
-      )} V${fmtNum(farY)} Q${x0 + ARC_R} ${fmtNum(arcY)} ${x0 + 2 * ARC_R} ${fmtNum(
+      )} V${fmtNum(farY)} Q$nearX0 ${fmtNum(arcY)} $farX0 ${fmtNum(
         arcY
-      )} H${x1 - 2 * ARC_R} Q${x1 - ARC_R} ${fmtNum(arcY)} ${x1 - ARC_R} ${fmtNum(
+      )} H$farX1 Q$nearX1 ${fmtNum(arcY)} $nearX1 ${fmtNum(
         farY
-      )} V${fmtNum(nearY)} Q${x1 - ARC_R} ${fmtNum(mainY)} $x1 ${fmtNum(mainY)}"/>"""
+      )} V${fmtNum(nearY)} Q$nearX1 ${fmtNum(mainY)} $x1 ${fmtNum(mainY)}"/>"""
 
   // A small arrowhead on a loop-back line's own flat run, centered on it, pointing left (back
   // toward the item's entry) — the direction repetition actually flows, since the loop connects
