@@ -40,9 +40,131 @@ interface GraphEdge {
   y2: number;
 }
 
-// A tidy (if not fully collision-proof for pathological shapes) top-down tree layout: each leaf
-// gets its own horizontal slot, each internal node centers over its children — the standard "mean
-// of children" placement, good enough for the small parse trees this view is ever asked to show.
+// Per-depth-row horizontal extent of a subtree, in that subtree's OWN local coordinate frame
+// (`left`/`right` are indexed by depth-from-this-subtree's-own-root; row 0 is the subtree's own
+// root row). Reingold–Tilford-style "contours" — the thing two adjacent subtrees actually need to
+// clear is each other's silhouette at every shared depth, not a single scalar "width" guessed from
+// label sizes, which is what let siblings overlap (or reserved needless slack) under the previous
+// "own vs. sum-of-children" estimate.
+interface Contour {
+  left: number[];
+  right: number[];
+}
+
+// A subtree laid out in isolation, in its own local coordinate frame — `cx` values throughout
+// (this node's own and every descendant's) are relative to this same frame, so the whole subtree
+// can be repositioned later by adding one constant offset to its root and re-deriving nothing.
+interface TreeLayout {
+  cx: number;
+  width: number;
+  label: string;
+  term: boolean;
+  children: TreeLayout[];
+  contour: Contour;
+}
+
+function mergeContourInto(combined: Contour, addition: Contour): void {
+  for (let d = 0; d < addition.left.length; d++) {
+    if (d < combined.left.length) {
+      combined.left[d] = Math.min(combined.left[d], addition.left[d]);
+      combined.right[d] = Math.max(combined.right[d], addition.right[d]);
+    } else {
+      combined.left.push(addition.left[d]);
+      combined.right.push(addition.right[d]);
+    }
+  }
+}
+
+function shiftLayout(t: TreeLayout, dx: number): TreeLayout {
+  if (dx === 0) return t;
+  return {
+    ...t,
+    cx: t.cx + dx,
+    children: t.children.map((c) => shiftLayout(c, dx)),
+    contour: {
+      left: t.contour.left.map((x) => x + dx),
+      right: t.contour.right.map((x) => x + dx),
+    },
+  };
+}
+
+// A tidy Reingold–Tilford-style tree layout: each subtree is built independently (post-order) in
+// its own local frame, then merged into its parent by sliding it rightward only as far as its own
+// left contour requires to clear the already-placed siblings' combined right contour at every
+// shared depth — never a fixed-width estimate. A parent still centers over the mean of its first
+// and last child, same as before; its own (possibly wider) box just becomes part of the contour
+// returned to whatever placed this subtree, so a caller one level up sees the TRUE silhouette, not
+// an underestimate that could make it overlap a later sibling.
+function buildLayout(
+  node: CstNode,
+  ruleName: (rule: number) => string,
+): TreeLayout {
+  const labelOf = (n: CstNode): { label: string; term: boolean } =>
+    "token" in n
+      ? { label: n.text.length > 0 ? n.text : n.token, term: true }
+      : { label: ruleName(n.rule), term: false };
+  const widthOf = (label: string): number =>
+    Math.max(GRAPH_MIN_W, label.length * GRAPH_CHAR_W + GRAPH_PAD_X * 2);
+
+  const { label, term } = labelOf(node);
+  const own = widthOf(label);
+  const kids = "token" in node ? [] : node.children;
+
+  if (kids.length === 0) {
+    return {
+      cx: own / 2,
+      width: own,
+      label,
+      term,
+      children: [],
+      contour: { left: [0], right: [own] },
+    };
+  }
+
+  const kidLayouts = kids.map((k) => buildLayout(k, ruleName));
+  const combined: Contour = { left: [], right: [] };
+  const placedKids: TreeLayout[] = [];
+  for (const kid of kidLayouts) {
+    let shift = 0;
+    const maxDepth = Math.min(combined.right.length, kid.contour.left.length);
+    for (let d = 0; d < maxDepth; d++) {
+      const needed = combined.right[d] + GRAPH_GAP - kid.contour.left[d];
+      if (needed > shift) shift = needed;
+    }
+    const placed = shiftLayout(kid, shift);
+    placedKids.push(placed);
+    mergeContourInto(combined, placed.contour);
+  }
+
+  const cx = (placedKids[0].cx + placedKids[placedKids.length - 1].cx) / 2;
+  const contour: Contour = {
+    left: [cx - own / 2, ...combined.left],
+    right: [cx + own / 2, ...combined.right],
+  };
+  return { cx, width: own, label, term, children: placedKids, contour };
+}
+
+function emitLayout(
+  t: TreeLayout,
+  offsetX: number,
+  depth: number,
+  boxes: GraphBox[],
+  edges: GraphEdge[],
+): void {
+  const cx = t.cx + offsetX;
+  const y = depth * GRAPH_ROW_H;
+  boxes.push({ cx, y, width: t.width, label: t.label, term: t.term });
+  for (const child of t.children) {
+    edges.push({
+      x1: cx,
+      y1: y + GRAPH_BOX_H,
+      x2: child.cx + offsetX,
+      y2: y + GRAPH_ROW_H,
+    });
+    emitLayout(child, offsetX, depth + 1, boxes, edges);
+  }
+}
+
 // `ruleName` is injected rather than read from a module-level signal, so this runs identically in
 // the Lab (backed by `response.value.productions`) and the Notebook (its own `productions`).
 export function layoutTree(
@@ -52,76 +174,10 @@ export function layoutTree(
   edges: GraphEdge[],
   ruleName: (rule: number) => string,
 ): number {
-  function labelOf(node: CstNode): { label: string; term: boolean } {
-    return "token" in node
-      ? { label: node.text.length > 0 ? node.text : node.token, term: true }
-      : { label: ruleName(node.rule), term: false };
-  }
-  function widthOf(label: string): number {
-    return Math.max(GRAPH_MIN_W, label.length * GRAPH_CHAR_W + GRAPH_PAD_X * 2);
-  }
-  // Pass 1 (post-order): how much horizontal space each subtree needs.
-  function extent(node: CstNode): number {
-    const { label } = labelOf(node);
-    const own = widthOf(label);
-    if ("token" in node || node.children.length === 0) return own;
-    const kidsExtent = node.children.reduce((sum, c) => sum + extent(c), 0);
-    const gaps = GRAPH_GAP * (node.children.length - 1);
-    return Math.max(own, kidsExtent + gaps);
-  }
-  // Pass 2 (pre-order): place this node's box, then lay out children left to right within the
-  // extent already computed, and center this node over them.
-  function place(node: CstNode, xStart: number, depth: number): number {
-    const { label, term } = labelOf(node);
-    const own = widthOf(label);
-    const y = depth * GRAPH_ROW_H;
-    const kids = "token" in node ? [] : node.children;
-    if (kids.length === 0) {
-      const cx = xStart + own / 2;
-      boxes.push({ cx, y, width: own, label, term });
-      return cx;
-    }
-    let cursor = xStart;
-    const childCx: number[] = [];
-    for (const c of kids) {
-      const cExtent = extent(c);
-      childCx.push(place(c, cursor, depth + 1));
-      cursor += cExtent + GRAPH_GAP;
-    }
-    const cx = (childCx[0] + childCx[childCx.length - 1]) / 2;
-    boxes.push({ cx, y, width: own, label, term });
-    for (const ccx of childCx) {
-      edges.push({ x1: cx, y1: y + GRAPH_BOX_H, x2: ccx, y2: y + GRAPH_ROW_H });
-    }
-    return cx;
-  }
-  const boxesStart = boxes.length;
-  const edgesStart = edges.length;
-  place(root, originX, 0);
-
-  // `extent()`'s "own vs. children" estimate assumes a subtree gets symmetric slack on both sides,
-  // but `place()` only actually reserves that slack from a sibling's cursor advance — the tree's
-  // leftmost spine has no earlier sibling to borrow margin from. A node whose own label is wider
-  // than its children's combined span (e.g. a "Factor" box over a single narrow "2" leaf) then gets
-  // centered past the left edge of its reserved space, landing at a negative x that the SVG's
-  // viewBox — sized from `extent()`'s estimate, not the actual placement — clips outright. Re-derive
-  // the true bounding box from the boxes as placed and shift the whole subtree flush to `originX`,
-  // returning the actual width used rather than the (possibly too-narrow) estimate.
-  let minX = Infinity;
-  let maxX = -Infinity;
-  for (let i = boxesStart; i < boxes.length; i++) {
-    const b = boxes[i];
-    minX = Math.min(minX, b.cx - b.width / 2);
-    maxX = Math.max(maxX, b.cx + b.width / 2);
-  }
-  const shift = originX - minX;
-  if (shift !== 0) {
-    for (let i = boxesStart; i < boxes.length; i++) boxes[i].cx += shift;
-    for (let i = edgesStart; i < edges.length; i++) {
-      edges[i].x1 += shift;
-      edges[i].x2 += shift;
-    }
-  }
+  const layout = buildLayout(root, ruleName);
+  const minX = Math.min(...layout.contour.left);
+  const maxX = Math.max(...layout.contour.right);
+  emitLayout(layout, originX - minX, 0, boxes, edges);
   return maxX - minX;
 }
 

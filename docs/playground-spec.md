@@ -219,6 +219,28 @@ a thin skin over real machinery, never a mock.
 > leading `---` block from the preview) leading block. All 119 notebook
 > tests, the full 46-test Lab suite, all 100 unit tests, both Scala module
 > suites (355 core + 62 lab), and the JVM/JS lab-protocol parity gate pass.
+>
+> `cstGraph.ts`'s `layoutTree` was rewritten around a proper Reingold–
+> Tilford-style contour algorithm, replacing the "own label width vs.
+> sum-of-children" estimate the earlier clipping fix had only patched at the
+> tree's leftmost spine. The estimate could still under- or over-reserve
+> space for an INTERIOR node (a wide-labeled nonterminal next to narrow
+> siblings — exactly what a real left-recursive grammar's own natural shape
+> produces at every depth), letting siblings overlap in one direction and
+> leaving large, ungrounded dead-space gaps in the other. The new algorithm
+> builds each subtree independently in its own local frame, tracking a
+> left/right contour per depth row, and merges siblings by sliding each one
+> rightward only as far as its own contour actually requires to clear the
+> already-placed ones — never a guess. For a deeply left-recursive 8-operand
+> chain, this dropped the worst inter-sibling gap from 106–172px (the old
+> estimate) to under 60px, and eliminated a real (if previously unreported)
+> sibling-overlap class of bug the old algorithm's own doc comment already
+> admitted to ("not fully collision-proof for pathological shapes"). Public
+> API (`layoutTree`, `svgOfCst`, `svgOfForest`) and visual output shape (box
+> sizes, `rr-*` classes, edge routing) are unchanged — every existing
+> consumer (the Lab's Parse tree/All-parses Graph views, the Notebook's
+> Try-it toggle and Paper's "Example parse" figure, the PDF export's
+> `drawVectorRailroad`) needed no changes of its own.
 
 ---
 

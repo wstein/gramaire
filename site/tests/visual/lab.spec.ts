@@ -998,6 +998,98 @@ test("the graphical tree's boxes never extend past the SVG viewBox's left edge (
   }
 });
 
+// Regression test for the contour-based layoutTree rewrite (cstGraph.ts): the previous "own vs.
+// sum-of-children estimate" placement only guaranteed the LEFTMOST spine never went negative — a
+// node in the interior of the tree whose own label is wider than its children's combined span
+// could still be centered past the estimated boundary a sibling's cursor advance reserved for it,
+// overlapping that sibling. A deeply left-recursive chain (a real left-recursive grammar's own
+// natural shape) exercises exactly this: at every depth, a wide "Expr"-labeled interior node sits
+// next to narrow "+"/"-" and "Term" siblings. Assert no two boxes at the same row ever overlap on
+// the x-axis, rather than just checking the left edge.
+test("no two graphical-tree boxes at the same depth ever overlap horizontally (sibling-overlap regression)", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  await page.locator(".lab__pane--fill .lab__editor").fill("1+2-3+4-5+6-3");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+  await page.click('button[role="tab"]:has-text("Parse tree")');
+  await page.click('button.lab__copy-btn:has-text("Graph view")');
+  const svg = page.locator(".lab__cst-graph svg");
+  await expect(svg).toHaveCount(1);
+
+  const rows = await svg.evaluate((el) => {
+    const rects = Array.from(el.querySelectorAll("rect"));
+    const byY = new Map<string, { left: number; right: number }[]>();
+    for (const r of rects) {
+      const y = r.getAttribute("y") ?? "0";
+      const x = Number(r.getAttribute("x"));
+      const w = Number(r.getAttribute("width"));
+      const list = byY.get(y) ?? [];
+      list.push({ left: x, right: x + w });
+      byY.set(y, list);
+    }
+    return Array.from(byY.values());
+  });
+  expect(rows.length).toBeGreaterThan(1);
+  for (const row of rows) {
+    row.sort((a, b) => a.left - b.left);
+    for (let i = 1; i < row.length; i++) {
+      expect(row[i].left).toBeGreaterThanOrEqual(row[i - 1].right);
+    }
+  }
+});
+
+// Regression test for the same rewrite's other goal: a deeply left-recursive tree's non-recursive
+// siblings (the operator and the right-hand Term at each level) used to be pushed far to the right
+// of the actual content by the old extent-ESTIMATE-based cursor advance, leaving large dead
+// whitespace gaps rather than sitting close to the recursive left subtree. The contour-based
+// layout packs siblings only as far apart as their real silhouettes require, so the overall width
+// should track much closer to the sum of leaf widths than the old estimate did.
+test("the graphical tree packs a deep left-recursive chain tightly, without large dead-space gaps", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  await page.locator(".lab__pane--fill .lab__editor").fill("1+2-3+4-5+6-3");
+  await expect(page.locator(".lab__parsestatus")).toHaveText("accepted", {
+    timeout: 5000,
+  });
+  await page.click('button[role="tab"]:has-text("Parse tree")');
+  await page.click('button.lab__copy-btn:has-text("Graph view")');
+  const svg = page.locator(".lab__cst-graph svg");
+  await expect(svg).toHaveCount(1);
+
+  const gaps = await svg.evaluate((el) => {
+    const rects = Array.from(el.querySelectorAll("rect"));
+    const byY = new Map<string, { left: number; right: number }[]>();
+    for (const r of rects) {
+      const y = r.getAttribute("y") ?? "0";
+      const x = Number(r.getAttribute("x"));
+      const w = Number(r.getAttribute("width"));
+      const list = byY.get(y) ?? [];
+      list.push({ left: x, right: x + w });
+      byY.set(y, list);
+    }
+    const gaps: number[] = [];
+    for (const list of byY.values()) {
+      list.sort((a, b) => a.left - b.left);
+      for (let i = 1; i < list.length; i++) {
+        gaps.push(list[i].left - list[i - 1].right);
+      }
+    }
+    return gaps;
+  });
+  expect(gaps.length).toBeGreaterThan(0);
+  // The layout's own fixed sibling gap is 14px; a deeper-row contour conflict can legitimately
+  // push a shallower gap somewhat past that. The old extent-estimate algorithm's gaps for this
+  // same tree ranged 106-172px, so this bound still catches a regression back to that
+  // estimate-based approach without being so tight it flags legitimate contour-driven spacing.
+  for (const gap of gaps) {
+    expect(gap).toBeLessThan(100);
+  }
+});
+
 test("the Parse tree tab's copy LISP button copies an S-expression and shows feedback", async ({
   page,
   context,
