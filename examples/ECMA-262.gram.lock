@@ -2,55 +2,1165 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "name": "Json",
-  "grammarSha256": "a0fb1f7cddef93fe42369a261af8fb0fbe8f881cd2fd3482cadac9523b42db06",
+  "name": "ECMA-262",
+  "grammarSha256": "b7b17911e5cd692e9158e8f88d33bbc96d222a16923eac3904692d2bc6f59301",
   "artifacts": [
     {
       "kind": "railroad",
-      "nonterminal": "Json",
-      "path": "diagrams-ECMA-262/json.svg",
-      "sourceSha256": "f62e4aa5e9b7a01010fbc1f7a76c15201932feb21422f951281f6108f394ee77"
+      "nonterminal": "Program",
+      "path": "diagrams-ECMA-262/program.svg",
+      "sourceSha256": "ee212f68777f6c12a0b7ce5078da091fbf676e454694a3abcad4fcf4e8fde004"
     },
     {
       "kind": "railroad",
-      "nonterminal": "Value",
-      "path": "diagrams-ECMA-262/value.svg",
-      "sourceSha256": "8074ed7918063e7abc3f03ebe23d53bfaa67d12e9d182d8087a27c1e71284b9e"
+      "nonterminal": "Script",
+      "path": "diagrams-ECMA-262/script.svg",
+      "sourceSha256": "8bb6635c195e835b7ec437ce01ee218d75d8193828b93e9f2e58f9c4588d0083"
     },
     {
       "kind": "railroad",
-      "nonterminal": "Object",
-      "path": "diagrams-ECMA-262/object.svg",
-      "sourceSha256": "27902d7dafa5c339e239fa1b33f86307dff77e382d70b5d0c05b278a23b17da9"
+      "nonterminal": "ScriptBody",
+      "path": "diagrams-ECMA-262/scriptbody.svg",
+      "sourceSha256": "1334d5fa57d181f84bcc84eb5227c168a4faefac57baa1a6de523e6d67465a1f"
     },
     {
       "kind": "railroad",
-      "nonterminal": "Members",
-      "path": "diagrams-ECMA-262/members.svg",
-      "sourceSha256": "87dd79eaac5571574d7e9d93191b8232bc2d63866781ae4b22f0c23307c194ff"
+      "nonterminal": "IdentifierReference",
+      "path": "diagrams-ECMA-262/identifierreference.svg",
+      "sourceSha256": "cd8ec50a69bb6b70df9d8a1a865fce08e25220a394f40dec1db0c45ccfc2fa49"
     },
     {
       "kind": "railroad",
-      "nonterminal": "Member",
-      "path": "diagrams-ECMA-262/member.svg",
-      "sourceSha256": "18d7b9e811ce7a837f963b18cf86b647acea50cb4f9c12b04103b9eed9e99610"
+      "nonterminal": "BindingIdentifier",
+      "path": "diagrams-ECMA-262/bindingidentifier.svg",
+      "sourceSha256": "cc9ef0ce0a9ba695713f2a80a0b10c1eae6deb4350649c580bb321883307d6dd"
     },
     {
       "kind": "railroad",
-      "nonterminal": "Array",
-      "path": "diagrams-ECMA-262/array.svg",
-      "sourceSha256": "d279451929ab28a0090557ef2907e9cf14a2c092db0f68d50dfa1a0f29634d72"
+      "nonterminal": "LabelIdentifier",
+      "path": "diagrams-ECMA-262/labelidentifier.svg",
+      "sourceSha256": "fe29496b35f02396ce6762983475e3083e5424a4be6fdc80c845deef1f2f688c"
     },
     {
       "kind": "railroad",
-      "nonterminal": "Elements",
-      "path": "diagrams-ECMA-262/elements.svg",
-      "sourceSha256": "de1fb19fae9cebaa28cda790f8287af76536139127dc0b3c42ead942d2da2bb2"
+      "nonterminal": "PrimaryExpression",
+      "path": "diagrams-ECMA-262/primaryexpression.svg",
+      "sourceSha256": "d30e3f547f5dc1b11abc5c774c2098eab6ea5f55a4412daca03fcc7133f61a6e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Literal",
+      "path": "diagrams-ECMA-262/literal.svg",
+      "sourceSha256": "96724d4b9b719f048e20fb9b75fef6ac495c6cfb8af0215322b0a10cd237cf8c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "CoverParenthesizedExpressionAndArrowParameterList",
+      "path": "diagrams-ECMA-262/coverparenthesizedexpressionandarrowparameterlist.svg",
+      "sourceSha256": "d9a9acce33348eefa692d1db57c383767ccb785e2f5e41e4ab3e6d416378e95b"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ArrayLiteral",
+      "path": "diagrams-ECMA-262/arrayliteral.svg",
+      "sourceSha256": "718c6308f54622d16bd0fe876ffea110a1289c6c841bec115f4a0191d0d9eb29"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ElementList",
+      "path": "diagrams-ECMA-262/elementlist.svg",
+      "sourceSha256": "56c6e8d8e9083f81529dc92891ffcefbdf5fecf04efb6fbf70616b50d7153c59"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Elision",
+      "path": "diagrams-ECMA-262/elision.svg",
+      "sourceSha256": "c03218d342fbac6def06277569ac902b174f72e5066d2d47ac82fcca1f6d182a"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SpreadElement",
+      "path": "diagrams-ECMA-262/spreadelement.svg",
+      "sourceSha256": "100621cdb167fac9570d5c3de9f874ab1b22eb9feb25ef1f850fd728825717a8"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ObjectLiteral",
+      "path": "diagrams-ECMA-262/objectliteral.svg",
+      "sourceSha256": "90aaf4685776970bb496f24e2b9ce0f84b505a17815c735b0ffc95390ea402fb"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "PropertyDefinitionList",
+      "path": "diagrams-ECMA-262/propertydefinitionlist.svg",
+      "sourceSha256": "02e124720e46df61192732e5534707c3623a1c3148fdc7588b92a482ebf702cb"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "PropertyDefinition",
+      "path": "diagrams-ECMA-262/propertydefinition.svg",
+      "sourceSha256": "1a7e31b7de3e261381a2c1b1dc7abba0a004f9d85a02e9207a256697ee6eeb04"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "PropertyName",
+      "path": "diagrams-ECMA-262/propertyname.svg",
+      "sourceSha256": "8b1f8a27771434777fb1dc878e3187d8e7c702ab2d54b419a9f35665cc5afd4e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LiteralPropertyName",
+      "path": "diagrams-ECMA-262/literalpropertyname.svg",
+      "sourceSha256": "b4ac97ca45308cd4d9fdcbbe703ca3761951d2b9fbf6268511a3cda98e515fe7"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ComputedPropertyName",
+      "path": "diagrams-ECMA-262/computedpropertyname.svg",
+      "sourceSha256": "cacf6595dee9f793d3c782bc242fb0d653cf0c01da8cd8fb2dc6ce232c7ed92d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "CoverInitializedName",
+      "path": "diagrams-ECMA-262/coverinitializedname.svg",
+      "sourceSha256": "463e2c19091138580cd3e36316c34852a69edf71f48ba2188e6f3de33decec81"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Initializer",
+      "path": "diagrams-ECMA-262/initializer.svg",
+      "sourceSha256": "d8af940ffcfc031b2a328cd732291967cca6cdb38be7fd7af757a46b4b372589"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "InitializerNoIn",
+      "path": "diagrams-ECMA-262/initializernoin.svg",
+      "sourceSha256": "5c6777904b039a49d36d2e7f06d176335b95cc44d3aa6798fdbb7a25bace72b1"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TemplateLiteral",
+      "path": "diagrams-ECMA-262/templateliteral.svg",
+      "sourceSha256": "0e8ec446b59494ebc9f508c21284aaa025045d1b8d204b67e5c1373cde386474"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SubstitutionTemplate",
+      "path": "diagrams-ECMA-262/substitutiontemplate.svg",
+      "sourceSha256": "cb867517d16fbe03dd41f8d42ee2889ae8be2195ae669633644a7f601bb7a7d8"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TemplateSpans",
+      "path": "diagrams-ECMA-262/templatespans.svg",
+      "sourceSha256": "562c342b6465fc5c9e0a64a5fdba3a19ebf738479351f35726f268fc25399e07"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TemplateMiddleList",
+      "path": "diagrams-ECMA-262/templatemiddlelist.svg",
+      "sourceSha256": "38faf15429ff69849736e2b40bbbab52b32143f281e9aeee37b475a1529a0b3d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "MemberExpression",
+      "path": "diagrams-ECMA-262/memberexpression.svg",
+      "sourceSha256": "01d2a75b9b4f7602f4371a1306a4c72898126215587fc84ad0f73744ea56e663"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SuperProperty",
+      "path": "diagrams-ECMA-262/superproperty.svg",
+      "sourceSha256": "77979325cafd0ce0f6616630a5aab2b4e779e1d8edfc8610876174935bc8fb32"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "MetaProperty",
+      "path": "diagrams-ECMA-262/metaproperty.svg",
+      "sourceSha256": "d1ab38dc5579c80fa7dfff07d4af28090cb0b9c1863eb12998c77215b459e4c2"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "NewTarget",
+      "path": "diagrams-ECMA-262/newtarget.svg",
+      "sourceSha256": "539683902b858eda60efba25efd9f13ab1f848b5a0251c426d71fa948379d224"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ImportMeta",
+      "path": "diagrams-ECMA-262/importmeta.svg",
+      "sourceSha256": "e1131ff11e6d9a6a9d438f5fe1019b9986325318ac266bfc3aeaa124e70ccf4c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "NewExpression",
+      "path": "diagrams-ECMA-262/newexpression.svg",
+      "sourceSha256": "e6e84b87dfd10a5fefbe9b807bfe52a2b77c53b2ae5ca8b84c60ec297dc9be1b"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "CallExpression",
+      "path": "diagrams-ECMA-262/callexpression.svg",
+      "sourceSha256": "a52719a5083b578a6f9b5232f98ad704972cbd714b0975c4b6da2ac52ec1f961"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SuperCall",
+      "path": "diagrams-ECMA-262/supercall.svg",
+      "sourceSha256": "48764009984c5de91384a57905a7dcdb4e223996f2abe69b1543fc83b2801676"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ImportCall",
+      "path": "diagrams-ECMA-262/importcall.svg",
+      "sourceSha256": "d36aee9657b87ef5306d856903890366580a771d180257417648056644859463"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Arguments",
+      "path": "diagrams-ECMA-262/arguments.svg",
+      "sourceSha256": "a2f8bb4ce3ec903efece89b369921b4328b873d1b9893ab591be733544985f48"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ArgumentList",
+      "path": "diagrams-ECMA-262/argumentlist.svg",
+      "sourceSha256": "cf464a56f27f313f0aafb82b5593ccee6cc0ff2d7dd38445452c3d09a4b3b7da"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "OptionalExpression",
+      "path": "diagrams-ECMA-262/optionalexpression.svg",
+      "sourceSha256": "a0cd4ba47e993a7f5409e0a013fd300b2953396280812cc3d702d7c8efe5b3b2"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "OptionalChain",
+      "path": "diagrams-ECMA-262/optionalchain.svg",
+      "sourceSha256": "7ac2f6154b519a43e33efddfec1da33bf78b52691eef6262f941d65f20438240"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LeftHandSideExpression",
+      "path": "diagrams-ECMA-262/lefthandsideexpression.svg",
+      "sourceSha256": "d652a49d7155f3ce8b94ce46143b564cade2af6079fd568142b38b9054edfa1c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "UpdateExpression",
+      "path": "diagrams-ECMA-262/updateexpression.svg",
+      "sourceSha256": "aa14b126208a9720b5b6683e6d873d7c4809ccd7b5b48a0c4f30dfb36615d967"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "UnaryExpression",
+      "path": "diagrams-ECMA-262/unaryexpression.svg",
+      "sourceSha256": "134cffd142f4e4ed82e40bf74a2eefe9b884a190c0d078e5fd499ba7e8965819"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ExponentiationExpression",
+      "path": "diagrams-ECMA-262/exponentiationexpression.svg",
+      "sourceSha256": "b97c0563b9864f17dab7f73efd1592d337ef0917824f9979020e560f58e45179"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "MultiplicativeExpression",
+      "path": "diagrams-ECMA-262/multiplicativeexpression.svg",
+      "sourceSha256": "250f1e3d8fc814584f9621dc7ccbf2f2f28c51d85cd0092f3b205bc686a00dbf"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "MultiplicativeOperator",
+      "path": "diagrams-ECMA-262/multiplicativeoperator.svg",
+      "sourceSha256": "d5587245f4ea8be6ba2320d9a13b7b4ce1054d88cc9ba844dbe4adc1c7927943"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AdditiveExpression",
+      "path": "diagrams-ECMA-262/additiveexpression.svg",
+      "sourceSha256": "12d594f27b88548ed92977e994e213d46773915030e3a11d89ddd4efc9fae703"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ShiftExpression",
+      "path": "diagrams-ECMA-262/shiftexpression.svg",
+      "sourceSha256": "5086cfb832049b6e6ff357057478b7f84886c93808c802da4f31d62503b3d4fb"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "RelationalExpression",
+      "path": "diagrams-ECMA-262/relationalexpression.svg",
+      "sourceSha256": "b2fc6651e7f384cc30f98a0df0ca7a19a80b9ff65499c1e237bc1ecac0454ad9"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "RelationalExpressionNoIn",
+      "path": "diagrams-ECMA-262/relationalexpressionnoin.svg",
+      "sourceSha256": "91909f2c94499e44764128ea5279547fa99410b8ce8f3808fd3cac664551812e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "EqualityExpression",
+      "path": "diagrams-ECMA-262/equalityexpression.svg",
+      "sourceSha256": "cd3bab13a2925935d382987899b6b611bb148ff8051d54cfe0ed366ab98a0509"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "EqualityExpressionNoIn",
+      "path": "diagrams-ECMA-262/equalityexpressionnoin.svg",
+      "sourceSha256": "0e5fc9e20f1b5ee765e46068c4a34318e9fe31abb068ca554173bf90df9f8109"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BitwiseANDExpression",
+      "path": "diagrams-ECMA-262/bitwiseandexpression.svg",
+      "sourceSha256": "bba5beb34fcc95674611d654059611b605a861481b868437522fcac299a97a72"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BitwiseANDExpressionNoIn",
+      "path": "diagrams-ECMA-262/bitwiseandexpressionnoin.svg",
+      "sourceSha256": "cfe42110c0c8265a8d1803796f62fa62d1be6dfae4d35013af12670a8d48e8fe"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BitwiseXORExpression",
+      "path": "diagrams-ECMA-262/bitwisexorexpression.svg",
+      "sourceSha256": "4ebff4853702edc4747ed491fb0ecaa2f1a2b8775f7b93c3c7345f444cf12466"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BitwiseXORExpressionNoIn",
+      "path": "diagrams-ECMA-262/bitwisexorexpressionnoin.svg",
+      "sourceSha256": "704912c5c20d8acba54637ba400d8af4a47f33d98856760d83c215be83140a81"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BitwiseORExpression",
+      "path": "diagrams-ECMA-262/bitwiseorexpression.svg",
+      "sourceSha256": "9726afbe8d9b0ba52719b2eb186e6aa28c937bc34245ee9c52b12c70ddb880b9"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BitwiseORExpressionNoIn",
+      "path": "diagrams-ECMA-262/bitwiseorexpressionnoin.svg",
+      "sourceSha256": "253a1aad5d1a6ea1386b73a92174dcee72d6b754bee33c3debc5560bba63176b"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LogicalANDExpression",
+      "path": "diagrams-ECMA-262/logicalandexpression.svg",
+      "sourceSha256": "ee44515567336c4c42c61b52508633dc3e338be5c22eded75c5ee66f31d3b6d3"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LogicalANDExpressionNoIn",
+      "path": "diagrams-ECMA-262/logicalandexpressionnoin.svg",
+      "sourceSha256": "fbf4b60362d008b05125a90b08e33df85426939dcd98c985502ac4e017689cc7"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LogicalORExpression",
+      "path": "diagrams-ECMA-262/logicalorexpression.svg",
+      "sourceSha256": "4edc62b95022f8b1892ece495351e0dc4a7767cc023929704e67503e4fa660b0"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LogicalORExpressionNoIn",
+      "path": "diagrams-ECMA-262/logicalorexpressionnoin.svg",
+      "sourceSha256": "9c5ef2823fb6a6c35a58d525e745633ac4ae1a27760b9eb1ff895e13edca6df6"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "CoalesceExpression",
+      "path": "diagrams-ECMA-262/coalesceexpression.svg",
+      "sourceSha256": "c9f747fe3503c6c73e4a587b627e0ef3735ba8c05493c13546d31768ffae5417"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "CoalesceExpressionHead",
+      "path": "diagrams-ECMA-262/coalesceexpressionhead.svg",
+      "sourceSha256": "020d1deb1f7d212495c5fafcb6629dee204ccfa924ff96e88cd0fc84d2052b59"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "CoalesceExpressionNoIn",
+      "path": "diagrams-ECMA-262/coalesceexpressionnoin.svg",
+      "sourceSha256": "b9a3cd5c15b1662c4152c9e9573d76cf1b6cfeaecdca0f783528af7e2cf402b6"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "CoalesceExpressionHeadNoIn",
+      "path": "diagrams-ECMA-262/coalesceexpressionheadnoin.svg",
+      "sourceSha256": "ac0e329567b0b58d6feaeae989fec32004b7901fcbc1a71aa3171988cbd02e7a"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ShortCircuitExpression",
+      "path": "diagrams-ECMA-262/shortcircuitexpression.svg",
+      "sourceSha256": "e67212c0201b407fac47c6b9a76ca67e5bf6000eb041b2a83a83b8d536068598"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ShortCircuitExpressionNoIn",
+      "path": "diagrams-ECMA-262/shortcircuitexpressionnoin.svg",
+      "sourceSha256": "8d1bed38e010a56e413b198290b65df61baf7e10640d74a76a58f77222368815"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ConditionalExpression",
+      "path": "diagrams-ECMA-262/conditionalexpression.svg",
+      "sourceSha256": "498637d2a2e245dfbfd56e8c197a89691d3c8e1c0e4f32deb7f4db7f2a514636"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ConditionalExpressionNoIn",
+      "path": "diagrams-ECMA-262/conditionalexpressionnoin.svg",
+      "sourceSha256": "5ec21e815257273a0b59b948945cf58f754bece82896ef84271597423c91e286"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AssignmentExpression",
+      "path": "diagrams-ECMA-262/assignmentexpression.svg",
+      "sourceSha256": "240aa71f8b12ecd8f0308f0fda2a8ed31a66a4c5ff8d0f92f66916629d74b13c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AssignmentExpressionNoIn",
+      "path": "diagrams-ECMA-262/assignmentexpressionnoin.svg",
+      "sourceSha256": "b20b9e41055957b024f9ada695a1545a77f03d0af8477e27ee9caff4dc568ab2"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AssignmentOperator",
+      "path": "diagrams-ECMA-262/assignmentoperator.svg",
+      "sourceSha256": "47fdbb9271db39ea0819af50fd5a5659a3a1f06c8b92158620f9f55c793c6e3f"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ArrowFunction",
+      "path": "diagrams-ECMA-262/arrowfunction.svg",
+      "sourceSha256": "6f3be3e0a8fa0817d060d3bd5940a6df6bda4f479afa43fdfed490efb9d65f70"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ArrowParameters",
+      "path": "diagrams-ECMA-262/arrowparameters.svg",
+      "sourceSha256": "97cb6cbab2237abfeec00a078cf82455f012b98ee8385a58ed3ae346c2d2549e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ConciseBody",
+      "path": "diagrams-ECMA-262/concisebody.svg",
+      "sourceSha256": "0a95bbcd37ecf43088136e8f11846620e728fd9a5af8e6bbffbcf03a3d48a2df"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ExpressionBody",
+      "path": "diagrams-ECMA-262/expressionbody.svg",
+      "sourceSha256": "e3ee9b7020b090e107685e7036931654f32a0da9c58721be50230b24efd2e4ce"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AsyncArrowFunction",
+      "path": "diagrams-ECMA-262/asyncarrowfunction.svg",
+      "sourceSha256": "63616417e5c2c556f70954d6719b1b4d8459e879d8296b0d44c374efba9bb0d9"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AsyncArrowBindingIdentifier",
+      "path": "diagrams-ECMA-262/asyncarrowbindingidentifier.svg",
+      "sourceSha256": "06065c4e4368cb290651a3356ec1a3bf52dcf3e0dec73178b5221181a9a6ee3d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AsyncConciseBody",
+      "path": "diagrams-ECMA-262/asyncconcisebody.svg",
+      "sourceSha256": "b055564e4a51eef9b577b80cbd69b2dffced13d80cb4d0adc66686735d55e933"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "YieldExpression",
+      "path": "diagrams-ECMA-262/yieldexpression.svg",
+      "sourceSha256": "0b6ebbcfc81a80be6ab251cd54c5f92f73bd12dfd250095d1b374bf2836f5852"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Expression",
+      "path": "diagrams-ECMA-262/expression.svg",
+      "sourceSha256": "a0f97b8d3bb92c5f018a318747e4bba7a652b8c32c01eb50b81d5c15cc0e691a"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ExpressionNoIn",
+      "path": "diagrams-ECMA-262/expressionnoin.svg",
+      "sourceSha256": "d139cacaf35c9c4930b8b38cc4784055fb6394c9b2e042c325d7d041c55a3204"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "StatementList",
+      "path": "diagrams-ECMA-262/statementlist.svg",
+      "sourceSha256": "2861efea4d2e2bff8cc11fa0a24f5e995f828d00d1b2f8eabbe8a967f76537c2"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "StatementListItem",
+      "path": "diagrams-ECMA-262/statementlistitem.svg",
+      "sourceSha256": "0b9cd2e132b317bda66a72f7082f4f9332ad727f1f514f1d55d9bd23d2c4b8ca"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Statement",
+      "path": "diagrams-ECMA-262/statement.svg",
+      "sourceSha256": "8b11a46ffbb6794da23ef6c805b486f62c238d2783b4fd93cdebdf9ad1a31646"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Declaration",
+      "path": "diagrams-ECMA-262/declaration.svg",
+      "sourceSha256": "eb179b0fb92cce1c10b718dc1736fa8b2ca17721bf080c61f25106ee5c4af5ad"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "HoistableDeclaration",
+      "path": "diagrams-ECMA-262/hoistabledeclaration.svg",
+      "sourceSha256": "67b37bbe9d1d734bc8cc7869513f7ba278b5e5dc6c45cd198e5592e59b8a76f8"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BreakableStatement",
+      "path": "diagrams-ECMA-262/breakablestatement.svg",
+      "sourceSha256": "2b93e91695d0680dd4b68e034f292fa4eac80cbd290db12b50e049c83e66d18c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Block",
+      "path": "diagrams-ECMA-262/block.svg",
+      "sourceSha256": "a2a19be9cf4c6d5f79062810256a82071a459f4921d4008b565f9daeb6402301"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BlockStatement",
+      "path": "diagrams-ECMA-262/blockstatement.svg",
+      "sourceSha256": "caf8d429f178d7138c06b8325ed5ddf3b374dafb9648ac1181666cb8543416bc"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LexicalDeclaration",
+      "path": "diagrams-ECMA-262/lexicaldeclaration.svg",
+      "sourceSha256": "c60e393e68c86351085b068018242fefbdb6e86a273463f0ad19387603c8f8ec"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LexicalDeclarationNoIn",
+      "path": "diagrams-ECMA-262/lexicaldeclarationnoin.svg",
+      "sourceSha256": "186c4bcef1af8b49aab876b4549f23af3e29439ef38a67ff07695b1f27192575"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LetOrConst",
+      "path": "diagrams-ECMA-262/letorconst.svg",
+      "sourceSha256": "005c7ae2c0f6d9869bf23e219657de4d0aa6677ac8f80e847055c56b32fdad8b"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BindingList",
+      "path": "diagrams-ECMA-262/bindinglist.svg",
+      "sourceSha256": "e7ce282ab9472c1bd7763657adaf266b10e2eb106d42bc78df79e2ba2230339c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BindingListNoIn",
+      "path": "diagrams-ECMA-262/bindinglistnoin.svg",
+      "sourceSha256": "493791f80f2295f39f4955e37b4857a66ff809f45d9d5822c9204af31a2f7f49"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LexicalBinding",
+      "path": "diagrams-ECMA-262/lexicalbinding.svg",
+      "sourceSha256": "9ade966201b2c77524ea26d58f7687aa8af616a6d3f8f5b3af5029294f938c66"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LexicalBindingNoIn",
+      "path": "diagrams-ECMA-262/lexicalbindingnoin.svg",
+      "sourceSha256": "34b45d1c10d80ab1265b9589fed62005e1a0d62a5811e6832713eb272f5e2fc2"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "VariableStatement",
+      "path": "diagrams-ECMA-262/variablestatement.svg",
+      "sourceSha256": "ba0f4743c8ef38696eba1757a06d7a34ff816b26892df6c30d851e457ea90aa1"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "VariableDeclarationList",
+      "path": "diagrams-ECMA-262/variabledeclarationlist.svg",
+      "sourceSha256": "cd2d7f9ad9de139206f52eea5fd7240dae1f46373d2e1773d7c2dda2615c71c0"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "VariableDeclarationListNoIn",
+      "path": "diagrams-ECMA-262/variabledeclarationlistnoin.svg",
+      "sourceSha256": "17f93dac89fd4733c5dc62955f6df1f4a27ea651816d182ca57f23776d7497e4"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "VariableDeclaration",
+      "path": "diagrams-ECMA-262/variabledeclaration.svg",
+      "sourceSha256": "d6d747d147788c660fd32e1b38323599f3e19e3bf0ca0c91496ad82f1c71d2cc"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "VariableDeclarationNoIn",
+      "path": "diagrams-ECMA-262/variabledeclarationnoin.svg",
+      "sourceSha256": "74124581efea01460856852910fa6faa389f249b690a3e116f2e1a6578025569"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BindingPattern",
+      "path": "diagrams-ECMA-262/bindingpattern.svg",
+      "sourceSha256": "c3bca168d89403b718909d2a245c4cba2bd5740c3214f3727a6a00442061ac6d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ObjectBindingPattern",
+      "path": "diagrams-ECMA-262/objectbindingpattern.svg",
+      "sourceSha256": "fe24a8030145d90b17af5f4bb146caa70436f8aa0aa59287ae1fd7795f6560fc"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ArrayBindingPattern",
+      "path": "diagrams-ECMA-262/arraybindingpattern.svg",
+      "sourceSha256": "5bdefc4ac8783380d983e27f1981918e16326f4ce47ae0268bce94240fe35847"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BindingRestProperty",
+      "path": "diagrams-ECMA-262/bindingrestproperty.svg",
+      "sourceSha256": "b3404317f47a71aebfde8ad41ad99eece91351426166bf5eda4135bc26d015a9"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BindingPropertyList",
+      "path": "diagrams-ECMA-262/bindingpropertylist.svg",
+      "sourceSha256": "adb0efc32820c74947ab36506313ac44466fb4201a406230d3d77eebc8e5732c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BindingElementList",
+      "path": "diagrams-ECMA-262/bindingelementlist.svg",
+      "sourceSha256": "1a29f27db838bb25c2d0193f8adc521e0ac3e8e65e1bceda0eea81808ac17438"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BindingElisionElement",
+      "path": "diagrams-ECMA-262/bindingelisionelement.svg",
+      "sourceSha256": "9e653eec87913fc2b293d846f641e5d5af5627e97df7ab1609041426ba93a983"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BindingProperty",
+      "path": "diagrams-ECMA-262/bindingproperty.svg",
+      "sourceSha256": "0d4c11128868424ebf5e7e87685aeb7e25f61164e03f4915ca627fdeb45c0db2"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BindingElement",
+      "path": "diagrams-ECMA-262/bindingelement.svg",
+      "sourceSha256": "10c9d774475fbfb8da77c9a1de2570dc85f1bb9921612253b17e633f3e1724cd"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SingleNameBinding",
+      "path": "diagrams-ECMA-262/singlenamebinding.svg",
+      "sourceSha256": "0c5a3093f61d2e7e158dfb00edfe9ac5cecf64b1085585ecebaed990030ffed8"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BindingRestElement",
+      "path": "diagrams-ECMA-262/bindingrestelement.svg",
+      "sourceSha256": "b55f18464ea67691c026c406605e5d5618c22049736496424a8b90d6f37afda2"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "EmptyStatement",
+      "path": "diagrams-ECMA-262/emptystatement.svg",
+      "sourceSha256": "e2f1233a7ce3f4b4b6abb2c651a25a1272fbcb52ef6692a30c5f6b1c8632d819"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ExpressionStatement",
+      "path": "diagrams-ECMA-262/expressionstatement.svg",
+      "sourceSha256": "4b21f0ffd9ca381e7db5a88bc1a276e9fd07eb50033a603da10a92cd5407311c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "IfStatement",
+      "path": "diagrams-ECMA-262/ifstatement.svg",
+      "sourceSha256": "58fabeb01a6dc7e86e7ec013d562a22bba23253ebebdf00c1d438a921b3a904f"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "IterationStatement",
+      "path": "diagrams-ECMA-262/iterationstatement.svg",
+      "sourceSha256": "2bf2c4a02e5c606fbf6f1afa3b86ae42e81074f95e47ba580a3e8daf8879bab0"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "DoWhileStatement",
+      "path": "diagrams-ECMA-262/dowhilestatement.svg",
+      "sourceSha256": "f27e84f55448a65074f75d759ed4fd1f583d6224c0a2f43307da7f67df919bdb"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "WhileStatement",
+      "path": "diagrams-ECMA-262/whilestatement.svg",
+      "sourceSha256": "92a5d672ff1d3d5b9021cb3d69571e26de415b94f0c51a08366831e20bd0e890"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ForStatement",
+      "path": "diagrams-ECMA-262/forstatement.svg",
+      "sourceSha256": "2f80b52c42c88ff68a7e7e68aa6b6daaeb05610bed72a5e41dadb5c7a0761dc6"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ForInOfStatement",
+      "path": "diagrams-ECMA-262/forinofstatement.svg",
+      "sourceSha256": "cdb9196f6e7583d8c6d634378886684fb6c7f3a359c50d9aa6a44bd5450be193"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ForDeclaration",
+      "path": "diagrams-ECMA-262/fordeclaration.svg",
+      "sourceSha256": "fdb3361c05bfd9ba597bdb891dcec3118d38478b1e2996b25ec0c2dc9c998fb6"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ForBinding",
+      "path": "diagrams-ECMA-262/forbinding.svg",
+      "sourceSha256": "2e352509ad906bd842ed2e78e1ce2759f01ccad13f15d1321b0eca1362e65b58"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ContinueStatement",
+      "path": "diagrams-ECMA-262/continuestatement.svg",
+      "sourceSha256": "b63dac15185ac4a4fa506998cfdff293d57a91dccca08ff7df9659b6e9ae0744"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "BreakStatement",
+      "path": "diagrams-ECMA-262/breakstatement.svg",
+      "sourceSha256": "99d5986f6203dd50d11a9d886960642a1bfe6e8ccebf34561c970d1a4fcacb1a"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ReturnStatement",
+      "path": "diagrams-ECMA-262/returnstatement.svg",
+      "sourceSha256": "b472ac7e41b79d2a5d8580244f813624791a4810bab0aa5d1447d03c14036445"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "WithStatement",
+      "path": "diagrams-ECMA-262/withstatement.svg",
+      "sourceSha256": "f6ec5d551ba5a2d114cb880f10d645aaef04b159229f8056ad4f5f4b7c395dc2"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LabelledStatement",
+      "path": "diagrams-ECMA-262/labelledstatement.svg",
+      "sourceSha256": "5d5ede357f0c04e3205e3d39b42ff4e6449a85a2033a9f034a40f20cd1fa0f29"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "LabelledItem",
+      "path": "diagrams-ECMA-262/labelleditem.svg",
+      "sourceSha256": "7292e9a76d4f62c6412c0bf133da75552401a189830e7e615ff8b01de2caa72c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ThrowStatement",
+      "path": "diagrams-ECMA-262/throwstatement.svg",
+      "sourceSha256": "6d3431a96ffe87d66d9147abe40e29aed7a9567bd3703c4ea429b5349b73705e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "TryStatement",
+      "path": "diagrams-ECMA-262/trystatement.svg",
+      "sourceSha256": "f0b87b6d565f339a7d6183cefe071e517d51d6cde42b2817c6140af8c3c91b4a"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Catch",
+      "path": "diagrams-ECMA-262/catch.svg",
+      "sourceSha256": "0beacd9a39d07bb54adda3b3f0bf30c1d23b6d97ae10c6e3a1d9b6269340e0d9"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "CatchParameter",
+      "path": "diagrams-ECMA-262/catchparameter.svg",
+      "sourceSha256": "c1d509f48cb4d537869fc3ea6b72f529224e36a23b649c6f6a52a02df7b468ed"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Finally",
+      "path": "diagrams-ECMA-262/finally.svg",
+      "sourceSha256": "322bbf78f70ff4bd98d88f95b218ccaf0f62c31fe2ad01131f5737705cf3b700"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "DebuggerStatement",
+      "path": "diagrams-ECMA-262/debuggerstatement.svg",
+      "sourceSha256": "5326597a94c16bfa0fef46a342e9d758e73fe9a0968c312dc3fb50d7ee2d8ecd"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "SwitchStatement",
+      "path": "diagrams-ECMA-262/switchstatement.svg",
+      "sourceSha256": "e9a24531b582dbdcd7ea78c98a2e64dfd881b8072ca0b188a83abce20773b1c5"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "CaseBlock",
+      "path": "diagrams-ECMA-262/caseblock.svg",
+      "sourceSha256": "3f9e26d3e967ddb01fbadcf0200b744e2c33bc85725bf0f65912f6f0e5e1f56d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "CaseClauses",
+      "path": "diagrams-ECMA-262/caseclauses.svg",
+      "sourceSha256": "562ed94c173b25d07d036f1f238ebefd6b66f7e1528688287224933ee6897f7d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "CaseClause",
+      "path": "diagrams-ECMA-262/caseclause.svg",
+      "sourceSha256": "8f4d831fad7e64bd34d75685c57f6a4b209a15860814627c0355df43b6b8af50"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "DefaultClause",
+      "path": "diagrams-ECMA-262/defaultclause.svg",
+      "sourceSha256": "86c024c86d18e646735ab75692654b0af3e3fd7634a9f5c81542fdb38ef9fda7"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "FormalParameters",
+      "path": "diagrams-ECMA-262/formalparameters.svg",
+      "sourceSha256": "58257a3a5c54fe80060081028d555308dcffa20111a586b15f6766f3e92c398c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "FormalParameterList",
+      "path": "diagrams-ECMA-262/formalparameterlist.svg",
+      "sourceSha256": "a1611ff77971670dccf3f6cd32d7dd8b2c42edab32f3e8cca37172c9805de5e8"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "FormalParameter",
+      "path": "diagrams-ECMA-262/formalparameter.svg",
+      "sourceSha256": "2284ee71348713dc8fee885842a3a37e35554707d8349f4710782cfe844f66f6"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "FunctionRestParameter",
+      "path": "diagrams-ECMA-262/functionrestparameter.svg",
+      "sourceSha256": "7ec40c9a3d56bb64229221cab31f9dd1625e21ef01e67abe2a44813beebfb434"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "UniqueFormalParameters",
+      "path": "diagrams-ECMA-262/uniqueformalparameters.svg",
+      "sourceSha256": "af6dbc4270199d03e97eb73865658fa61dfe8c407cd6123d31ab213972e3e6cf"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "FunctionDeclaration",
+      "path": "diagrams-ECMA-262/functiondeclaration.svg",
+      "sourceSha256": "30042e6efb53bd82303f801a63b08d65e5134787ad537350b03727031e18f7b1"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "FunctionExpression",
+      "path": "diagrams-ECMA-262/functionexpression.svg",
+      "sourceSha256": "4d658187073c763bd54203513d8ceebdac2598c7f63e91f8e5f7a66dcbfa6550"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "FunctionBody",
+      "path": "diagrams-ECMA-262/functionbody.svg",
+      "sourceSha256": "1dffee798d57451abb9b3adf083ab356d7cc5ad9e7585659435bb6ab5cd84d98"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "FunctionStatementList",
+      "path": "diagrams-ECMA-262/functionstatementlist.svg",
+      "sourceSha256": "feac400333e715279187dbaef2297314d31caace8fa299a25cd5ffc427ea2600"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "GeneratorDeclaration",
+      "path": "diagrams-ECMA-262/generatordeclaration.svg",
+      "sourceSha256": "f8f01982bbf17eaa9540613a021cf142f450fd78aa1761f688270b8208c428cf"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "GeneratorExpression",
+      "path": "diagrams-ECMA-262/generatorexpression.svg",
+      "sourceSha256": "972e53e59091b1a5eb177ace19263c1177a578a70f0531795851d3489b3885a0"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "GeneratorBody",
+      "path": "diagrams-ECMA-262/generatorbody.svg",
+      "sourceSha256": "89f305cb37dd43f82c8fbd87a52a0030947a11a3f6dd3e50493a2df7ec7e7782"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AsyncFunctionDeclaration",
+      "path": "diagrams-ECMA-262/asyncfunctiondeclaration.svg",
+      "sourceSha256": "05f98e5da44620f6e00dee26c1db350a030540162513a52efc82cdcd939a0475"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AsyncFunctionExpression",
+      "path": "diagrams-ECMA-262/asyncfunctionexpression.svg",
+      "sourceSha256": "5f7e885c773b1726555922355d00a15951d0c74c7349f0e69fb512117122b4da"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AsyncFunctionBody",
+      "path": "diagrams-ECMA-262/asyncfunctionbody.svg",
+      "sourceSha256": "b34aa0b14e44b69532950f995b13882fe26962c7eeeecde59a75539f87f839fb"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AsyncGeneratorDeclaration",
+      "path": "diagrams-ECMA-262/asyncgeneratordeclaration.svg",
+      "sourceSha256": "14c8add6d55e7ca0d21f3319db00581aa11ec2a87cdff4c49d18730e39dd6dc8"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AsyncGeneratorExpression",
+      "path": "diagrams-ECMA-262/asyncgeneratorexpression.svg",
+      "sourceSha256": "d0ba3f5fff08d9595b8fde68d05d9ead4ecf11d47f36fc4183e7923b81f7a588"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AsyncGeneratorBody",
+      "path": "diagrams-ECMA-262/asyncgeneratorbody.svg",
+      "sourceSha256": "eeeb590b0413e55fa3ab57a0baa56ce5e445bda6a6de69d08bcdc6d5092ec301"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ClassDeclaration",
+      "path": "diagrams-ECMA-262/classdeclaration.svg",
+      "sourceSha256": "858e04a64e19c8400d00b6ebcdb6d6acc7292e3495d205da410474e992da77b5"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ClassExpression",
+      "path": "diagrams-ECMA-262/classexpression.svg",
+      "sourceSha256": "5bbb1ed4c3f4b1d852d94054d91522ffc108aa955b9ee6b8efe94361e357be2d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ClassTail",
+      "path": "diagrams-ECMA-262/classtail.svg",
+      "sourceSha256": "a402f81ccd042afd53dcb4691d450d146c7338f3ffcdb47412b5b25128a48a71"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ClassHeritage",
+      "path": "diagrams-ECMA-262/classheritage.svg",
+      "sourceSha256": "b676e309db510cad5094f2856871e3866738296f6fdd0fd93f82fc446388703b"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ClassBody",
+      "path": "diagrams-ECMA-262/classbody.svg",
+      "sourceSha256": "853c3169ccb8b80ac40afbfc85aa57a11b6ef683c7e3f3e68732d0c505186a48"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ClassElementList",
+      "path": "diagrams-ECMA-262/classelementlist.svg",
+      "sourceSha256": "cd55435f4cefd2ad80ec601b0291fe0becdc3d1b4f254e0713618a6ace07b409"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ClassElement",
+      "path": "diagrams-ECMA-262/classelement.svg",
+      "sourceSha256": "cb5b3e77ade4a872e461075ceff3ba90f586df6655801b092017d17634391eaa"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "FieldDefinition",
+      "path": "diagrams-ECMA-262/fielddefinition.svg",
+      "sourceSha256": "fd65d9bcb3a590ad575eec0c75fc9b5dd9beab091a46e5262c1430429bc4b19f"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ClassElementName",
+      "path": "diagrams-ECMA-262/classelementname.svg",
+      "sourceSha256": "8bbabe246ee03642c6dcede7b5f829df34c94f6fa307042ad9c65a84a72f293d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "PropertySetParameterList",
+      "path": "diagrams-ECMA-262/propertysetparameterlist.svg",
+      "sourceSha256": "f5f393e630552ef6bc5b1f86a234d947d1d3899fe10e3a9f33c6ca5d0b658270"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "MethodDefinition",
+      "path": "diagrams-ECMA-262/methoddefinition.svg",
+      "sourceSha256": "41cc5871526f096a5a7fa0f8ce5e1fe4a962422d03b2d8690bc332e33189ea68"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "GeneratorMethod",
+      "path": "diagrams-ECMA-262/generatormethod.svg",
+      "sourceSha256": "17c40fce2d7a3070615bd726706d0b67992499405933625207593785876b9e5d"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AsyncMethod",
+      "path": "diagrams-ECMA-262/asyncmethod.svg",
+      "sourceSha256": "3c75d0eedda75cfe8dcb428f9e3615cadffaa7728971fcd4a52daf492479a005"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "AsyncGeneratorMethod",
+      "path": "diagrams-ECMA-262/asyncgeneratormethod.svg",
+      "sourceSha256": "b5928c1bb6525edf708eb8e72eec5ae2a039b19fd186995bd471d558e9f6bf1c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "StaticBlock",
+      "path": "diagrams-ECMA-262/staticblock.svg",
+      "sourceSha256": "b8b8bff586f8ca3e2baad6832719ca83a29714be50d436abfdefaddae3dde215"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "Module",
+      "path": "diagrams-ECMA-262/module.svg",
+      "sourceSha256": "9b2d48d47d2d3c54302253f31df02bccafed708a46baf2c84a658408327cec99"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ModuleBody",
+      "path": "diagrams-ECMA-262/modulebody.svg",
+      "sourceSha256": "d4a44ddd532149835e4b0fddc533acda8e1f082fcf825d7f8710d07c1f0d95b2"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ModuleItemList",
+      "path": "diagrams-ECMA-262/moduleitemlist.svg",
+      "sourceSha256": "baa0c881dd2c6ed8cbc1345d13ffc963edf9aa139f9b8eb8a2c15b5b84b950f2"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ModuleItem",
+      "path": "diagrams-ECMA-262/moduleitem.svg",
+      "sourceSha256": "41f46ae6d8593d0f521d6ad7b6d6fdef950465194e65fbdf279c0241750d8fd7"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ModuleExportName",
+      "path": "diagrams-ECMA-262/moduleexportname.svg",
+      "sourceSha256": "f07557a461301180b7b7c1162af7a83116d0f09b64ff72cf4d1206c3f3f63fd7"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ImportDeclaration",
+      "path": "diagrams-ECMA-262/importdeclaration.svg",
+      "sourceSha256": "700686e2a9b63e56d9dc0f6b7ebe9d851192d310769ba2d3ff6e0ca92362ce35"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ImportClause",
+      "path": "diagrams-ECMA-262/importclause.svg",
+      "sourceSha256": "ccb58f77148608cb310ab80202684abfdc4107b3f02849a926a458e2c2292dd9"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ImportedDefaultBinding",
+      "path": "diagrams-ECMA-262/importeddefaultbinding.svg",
+      "sourceSha256": "888bc9bf22606e92610d03f8b1cc7e3d7504fdd2555bdc2bdef0c566d9099338"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "NameSpaceImport",
+      "path": "diagrams-ECMA-262/namespaceimport.svg",
+      "sourceSha256": "f835edf21c195938c47378869776d8fe757b4dcecefd723ede3b8761e98819ce"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "NamedImports",
+      "path": "diagrams-ECMA-262/namedimports.svg",
+      "sourceSha256": "d1e9bdda0dbc749d7e67847b42c8f6f9793ff6a7591a2c1812bcf006b1b61f2e"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ImportsList",
+      "path": "diagrams-ECMA-262/importslist.svg",
+      "sourceSha256": "427d0e730b187c0dc45744213f331e4dda3708cd33dce5bbfc9ccba7710fd225"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ImportSpecifier",
+      "path": "diagrams-ECMA-262/importspecifier.svg",
+      "sourceSha256": "0080e022af9a902e404d8e6939c222c9c5b71e1a271c517c8c6b16510e4af559"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ModuleSpecifier",
+      "path": "diagrams-ECMA-262/modulespecifier.svg",
+      "sourceSha256": "70b2288c62714632f482074daed5558cb3d5cc59154ef0ea2d3a8dd69344e8d0"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ImportedBinding",
+      "path": "diagrams-ECMA-262/importedbinding.svg",
+      "sourceSha256": "47968281530abf3445afa548212022e37b685a10bea637059ba1196c3e9cc2b9"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ExportDeclaration",
+      "path": "diagrams-ECMA-262/exportdeclaration.svg",
+      "sourceSha256": "aaf8834e7002e4174905214b8508248956e9f0bd6f2aadb9696b85ec4b48002c"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ExportFromClause",
+      "path": "diagrams-ECMA-262/exportfromclause.svg",
+      "sourceSha256": "44a473b432960936c8958435b04ae15f39828171a423ce90ae526638719e51d3"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "NamedExports",
+      "path": "diagrams-ECMA-262/namedexports.svg",
+      "sourceSha256": "a33a24099aca123e696b08fae0ffc60453d30699d27037301f7b0a9fad8bb834"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ExportsList",
+      "path": "diagrams-ECMA-262/exportslist.svg",
+      "sourceSha256": "850b06b9f9c8bb4d3631a0d4c5005cd7b2321588b31da936fa582ed0ab9df1e0"
+    },
+    {
+      "kind": "railroad",
+      "nonterminal": "ExportSpecifier",
+      "path": "diagrams-ECMA-262/exportspecifier.svg",
+      "sourceSha256": "321430c7d68252bae2b5c06081b7859500d6219ef6d3025842b6a85ff0e0afe5"
     },
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "a0fb1f7cddef93fe42369a261af8fb0fbe8f881cd2fd3482cadac9523b42db06"
+      "sourceSha256": "b7b17911e5cd692e9158e8f88d33bbc96d222a16923eac3904692d2bc6f59301"
     }
   ]
 }
