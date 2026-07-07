@@ -41,7 +41,10 @@ the committed artifacts while giving later phases a stable internal layer.
   first public opt-in surface for that distinction.
 2. Add width-aware layout without introducing browser-measured text layout or
   runtime dependencies. The first shipped step is deterministic wrapping for
-  long single-path simplified-view SVG sequences.
+  long single-path simplified-view SVG sequences — a single alt's own row of
+  symbols. Wrapping a diagram with many wide alternatives (a "huge choice",
+  as opposed to one long sequence) is not yet implemented; the geometry that
+  would need is a bigger layout change than a follow-up to this step covers.
 3. Add semantic affordances such as per-node titles and source-aware links.
   The first shipped step is grouped SVG node metadata plus hover titles.
   Live-site nonterminal links are now built from that same `<g class="rr-node
@@ -64,3 +67,17 @@ the committed artifacts while giving later phases a stable internal layer.
 
 Every new phase must preserve deterministic output, stay test-backed, and keep
 the source-vs-simplified distinction explicit in the artifact itself.
+
+## Non-goals
+
+- No runtime dependency on an external railroad-diagram generator (RR,
+  Tab Atkins' `railroad-diagrams`, DrawGrammar, ebnsf, or similar) — they're
+  design references for vocabulary and layout ideas, never a linked library
+  or a `fmt`-time subprocess. `Railroad.scala` stays the one renderer, in
+  Scala, cross-built to the JVM CLI and the site's Scala.js engine alike.
+- No default grammar-shaping rewrite. RR's factorization and
+  direct-recursion elimination are real, useful transformations, but they
+  change what a diagram visually claims about the grammar's shape — anything
+  in that family only ever ships as an explicit, named, test-backed
+  normalization pass behind a non-default view (`DiagramNormalize`, phase 4
+  above), never folded into `source` or turned on by default.
