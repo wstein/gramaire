@@ -75,7 +75,8 @@ object GramaireCheck:
       sourceLayout: SourceLayout,
       grammarSha256: String,
       artifacts: Vector[Artifact],
-      diagramView: Railroad.DiagramView = Railroad.DiagramView.Source
+      diagramView: Railroad.DiagramView = Railroad.DiagramView.Source,
+      name: Option[String] = None
   )
 
   final case class GrammarHashes(ruleHashes: Map[String, String], grammarSha256: String)
@@ -253,6 +254,11 @@ object GramaireCheck:
             case Some(gramaire.Json.JString("source"))     => Right(Railroad.DiagramView.Source)
             case Some(gramaire.Json.JString("simplified")) => Right(Railroad.DiagramView.Simplified)
             case Some(other) => Left(s"lock: unknown diagramView $other")
+          // Optional, ADR D58: absent in every lock predating the frontmatter migration.
+          name <- m.get("name") match
+            case None                           => Right(None)
+            case Some(gramaire.Json.JString(s)) => Right(Some(s))
+            case Some(other)                    => Left(s"lock: unknown name $other")
           grammarSha256 <- m
             .get("grammarSha256")
             .collect { case gramaire.Json.JString(s) => s }
@@ -268,7 +274,7 @@ object GramaireCheck:
                 a <- parseArtifact(aj)
               yield xs :+ a
             }
-        yield Lock(version, mode, sourceLayout, grammarSha256, artifacts, diagramView)
+        yield Lock(version, mode, sourceLayout, grammarSha256, artifacts, diagramView, name)
       case _ => Left("lock: expected an object")
     }
 
@@ -906,7 +912,7 @@ object GramaireCheck:
     if text != rawDoc.src then Files.writeString(Path.of(file), text)
 
     val artifactsResult = artifacts.result()
-    val lock = Lock(1, mode, layout, grammarSha256, artifactsResult, view)
+    val lock = Lock(1, mode, layout, grammarSha256, artifactsResult, view, Lr.nameOf(doc.src))
     Files.writeString(Path.of(lockPathFor(file)), lockJson(lock) + "\n")
 
     val diagramsNote =
@@ -964,9 +970,13 @@ object GramaireCheck:
     val diagramViewLine =
       if lock.diagramView == Railroad.DiagramView.Source then ""
       else s"""\n    |  "diagramView": ${jstr(Railroad.diagramViewName(lock.diagramView))},"""
+    // `name` is provenance only (ADR D58), the same convention as `sourceLayout`/`diagramView`
+    // above: omitted when absent (every lock predating the frontmatter migration), and neither
+    // `checkStructure` nor `checkDrift` key on it.
+    val nameLine = lock.name.fold("")(n => s"""\n    |  "name": ${jstr(n)},""")
     s"""{
     |  "version": ${lock.version},
-    |  "mode": ${jstr(modeName(lock.mode))},$sourceLayoutLine$diagramViewLine
+    |  "mode": ${jstr(modeName(lock.mode))},$sourceLayoutLine$diagramViewLine$nameLine
     |  "grammarSha256": ${jstr(lock.grammarSha256)},
     |  "artifacts": [
     |$artifactsJson

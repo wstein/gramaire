@@ -398,6 +398,43 @@ class GramaireCheckSuite extends munit.FunSuite:
     assertEquals(GramaireCheck.checkDrift(file.toString, redoc), Vector.empty, legacyLock)
   }
 
+  test("fmt: records the grammar's name in the lock (ADR D58)") {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-lock-name")
+    val file = dir.resolve("sample.gram.md")
+    val src =
+      "---\nname: T\n---\n\n# T\n\n## Value\n\n```gramaire\nValue\n  : 'x'\n  ;\n```\n\n## Generated tables\n\n| a |\n"
+    java.nio.file.Files.writeString(file, src)
+
+    val doc = GramaireCheck.parse(src)
+    val _ = GramaireCheck.fmt(file.toString, doc, GramaireCheck.DiagramMode.Sidecar)
+
+    val lockText =
+      java.nio.file.Files
+        .readString(java.nio.file.Path.of(GramaireCheck.lockPathFor(file.toString)))
+    assert(lockText.contains(""""name": "T""""), lockText)
+  }
+
+  test("checkDrift: a lock predating the name field still parses and passes") {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-lock-legacy-name")
+    val file = dir.resolve("sample.gram.md")
+    val src =
+      "---\nname: T\n---\n\n# T\n\n## Value\n\n```gramaire\nValue\n  : 'x'\n  ;\n```\n\n## Generated tables\n\n| a |\n"
+    java.nio.file.Files.writeString(file, src)
+    val doc = GramaireCheck.parse(src)
+    val _ = GramaireCheck.fmt(file.toString, doc, GramaireCheck.DiagramMode.Sidecar)
+
+    // Strip the line a lock written before this field existed would never have had — reproducing
+    // that historical shape from a real lock rather than a hand-built fixture.
+    val lockPath = java.nio.file.Path.of(GramaireCheck.lockPathFor(file.toString))
+    val original = java.nio.file.Files.readString(lockPath)
+    assert(original.contains("\"name\": \"T\","), original)
+    val legacyLock = original.linesIterator.filterNot(_.contains("\"name\"")).mkString("\n")
+    java.nio.file.Files.writeString(lockPath, legacyLock)
+
+    val redoc = GramaireCheck.parse(java.nio.file.Files.readString(file))
+    assertEquals(GramaireCheck.checkDrift(file.toString, redoc), Vector.empty, legacyLock)
+  }
+
   // A minimal, canonical-shape (fence, then its image) fixture with two rules — one with a
   // diagram link, one without — for the applySourceLayout tests below.
   private val inlineFixture =
