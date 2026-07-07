@@ -78,6 +78,14 @@ object AtnSim:
     private val reach = mutable.HashMap.empty[(Set[Config], String, Int), Vector[Config]]
     private var _hits = 0
     private var _misses = 0
+    // Same two counters as `_hits`/`_misses`, broken down by decision instead of collapsed into
+    // one grand total — additive to the global pair above, not a replacement (`hits`/`misses` stay
+    // exactly as they were for every existing caller). Keyed by decision rather than rule directly
+    // since that's what both `startClosure` and `reachClosure` already have on hand at every call
+    // site; `missesByRule`/`hitsByRule` fold this down to rule names against a given `Atn` on read,
+    // once, rather than paying an `Atn.stateAt` lookup on every single cache access.
+    private val hitsByDecision = mutable.HashMap.empty[Int, Int]
+    private val missesByDecision = mutable.HashMap.empty[Int, Int]
     // Confirmed ties (from a call whose overall parse succeeded) vs. this call's not-yet-decided
     // ones — see `reportAmbiguity`.
     private val confirmed = mutable.ArrayBuffer.empty[Ambiguity]
@@ -94,6 +102,20 @@ object AtnSim:
       */
     def hits: Int = _hits
     def misses: Int = _misses
+
+    /** `hits`/`misses`, folded down to rule names instead of collapsed into one grand total — empty
+      * unless built with `track = true`. Multiple decisions can belong to the same rule (a rule
+      * with more than one internal choice point), so this sums every decision's count under its
+      * owning rule, not a 1:1 decision-to-row mapping.
+      */
+    def hitsByRule(atn: Atn): Map[String, Int] = byRule(atn, hitsByDecision)
+    def missesByRule(atn: Atn): Map[String, Int] = byRule(atn, missesByDecision)
+
+    private def byRule(atn: Atn, byDecision: mutable.HashMap[Int, Int]): Map[String, Int] =
+      byDecision.toSeq
+        .groupMapReduce { case (decision, _) => Atn.stateAt(atn, decision).rule } { case (_, n) =>
+          n
+        }(_ + _)
 
     /** Every decision `predict` resolved by declaration order rather than unique disambiguation
       * *even with the real calling context* (a genuine ambiguity, not just an SLL artifact a wider
@@ -115,32 +137,53 @@ object AtnSim:
 
     private[gramaire] def currentContext: List[Int] = context
 
+    // Both counters — the global pair and the per-decision map — only move under `track = true`,
+    // exactly like the original single `_hits += 1`/`_misses += 1` this replaces: zero behavioral
+    // change for `hits`/`misses`, at zero extra cost, when tracking is off.
+    private def bumpHit(decision: Int): Unit =
+      if track then
+        _hits += 1
+        hitsByDecision.updateWith(decision)(c => Some(c.getOrElse(0) + 1))
+
+    private def bumpMiss(decision: Int): Unit =
+      if track then
+        _misses += 1
+        missesByDecision.updateWith(decision)(c => Some(c.getOrElse(0) + 1))
+
     private[AtnSim] def startClosure(decision: Int, seed: List[Int])(
         compute: => Vector[Config]
     ): Vector[Config] =
       val key = (decision, seed)
       starts.get(key) match
-        case Some(v) => if track then _hits += 1; v
+        case Some(v) => bumpHit(decision); v
         case None =>
           val v = compute
           starts(key) = v
-          if track then _misses += 1
+          bumpMiss(decision)
           v
 
     // `seedLen` rides along in the key purely so a config set reached under one seed length can
     // never be handed back for another — depth capping (`closure`'s `maxDepth`) is seed-length
     // relative, so the same `(state, stack)` set could in principle be capped differently under a
-    // different seed even if the set's *content* happened to coincide.
-    private[AtnSim] def reachClosure(configs: Vector[Config], term: String, seedLen: Int)(
+    // different seed even if the set's *content* happened to coincide. `decision` plays no part in
+    // the cache KEY (a reach step is keyed by the config set/terminal/seed length it started from,
+    // same as before) — it's threaded through only so a hit/miss here can still be attributed to
+    // the decision `predict`'s `runWith` is currently resolving, for `hitsByRule`/`missesByRule`.
+    private[AtnSim] def reachClosure(
+        configs: Vector[Config],
+        term: String,
+        seedLen: Int,
+        decision: Int
+    )(
         compute: => Vector[Config]
     ): Vector[Config] =
       val key = (configs.toSet, term, seedLen)
       reach.get(key) match
-        case Some(v) => if track then _hits += 1; v
+        case Some(v) => bumpHit(decision); v
         case None =>
           val v = compute
           reach(key) = v
-          if track then _misses += 1
+          bumpMiss(decision)
           v
 
     private[AtnSim] def reportAmbiguity(
@@ -202,7 +245,7 @@ object AtnSim:
               // Input exhausted: nothing left to disambiguate on.
               case None => Left((configs, pos))
               case Some(tok) =>
-                val advanced = cache.reachClosure(configs, tok.terminal, seedLen) {
+                val advanced = cache.reachClosure(configs, tok.terminal, seedLen, decision) {
                   closureAll(atn, configs.flatMap(move(atn, tok.terminal, _)), seedLen)
                 }
                 // A dead end means no alternative consumes this token: it must belong to an

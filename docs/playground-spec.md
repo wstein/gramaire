@@ -81,7 +81,16 @@ a thin skin over real machinery, never a mock.
 > possible input, not this one parse), so Profiler instead shows the current
 > method's conflict count with a link to Grammar analysis's exhaustive data,
 > rather than faking a weaker, input-scoped version of what that tab already
-> owns. Keep this callout current as further work lands.
+> owns. Profiler's DFA-cache-miss column then landed for ALL(\*), the one
+> real engine change this tab needed: `AtnSim.Cache` grew a per-decision
+> `hitsByDecision`/`missesByDecision` breakdown (additive to its existing
+> global `hits`/`misses` counters, which no other caller's behavior changed
+> at all) and `hitsByRule`/`missesByRule` accessors folding that down to
+> rule names; `LabProtocol.AtnDiagnostics` grew a `perRule: Vector[RuleAtnProfile]`
+> field carrying it across the wire, validated by the JVM↔JS parity gate like
+> every other protocol addition. Under the default LR strategy this column
+> stays absent — LR has no DFA prediction cache at all, so there is nothing
+> honest to show there. Keep this callout current as further work lands.
 
 ---
 

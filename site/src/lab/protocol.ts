@@ -313,7 +313,7 @@ export interface ConflictVerdictInfo {
   genuineConflicts: string[];
 }
 /**
- * Whether Ll.parseTraced accepts the target input, the DFA prediction cache's hit/miss counts, and every declaration-order-resolved ambiguity hit while walking it — from the same AtnSim.Cache(track = true) run that produced `parse`.
+ * Whether Ll.parseTraced accepts the target input, the DFA prediction cache's hit/miss counts (both overall and per rule), and every declaration-order-resolved ambiguity hit while walking it — from the same AtnSim.Cache(track = true) run that produced `parse`.
  */
 export interface AtnDiagnostics {
   /**
@@ -323,6 +323,10 @@ export interface AtnDiagnostics {
   hits: number;
   misses: number;
   ambiguities: AmbiguityInfo[];
+  /**
+   * hits/misses folded down to rule names instead of collapsed into the two totals above — AtnSim.Cache.hitsByRule/missesByRule.
+   */
+  perRule: RuleAtnProfile[];
 }
 /**
  * One decision the ALL(*) predictor couldn't resolve down to a single alternative on its own — resolved by declaration order instead (first-alt-wins), the same notion AtnSim.Ambiguity carries.
@@ -341,6 +345,14 @@ export interface AmbiguityInfo {
    * The tied alternative indices, in first-alt-wins declaration order.
    */
   alts: number[];
+}
+/**
+ * One rule's DFA prediction-cache hit/miss count, folded down from every decision belonging to it — AtnSim.Cache.hitsByRule/missesByRule.
+ */
+export interface RuleAtnProfile {
+  rule: string;
+  hits: number;
+  misses: number;
 }
 /**
  * The ALL(*) engine's own internal rewrite of `productions` — the same two grammar transforms Ll.parse/Ll.parseTraced run before lowering to an ATN (precedence-climbing stratification, then direct-left-recursion elimination), rendered the same production-list way as `productions` instead of staying invisible. `afterPrecedence` equals `productions` when the grammar declares no `## Precedence`; `afterLeftRecursion` equals `afterPrecedence` when the grammar has no direct left recursion.

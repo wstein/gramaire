@@ -1726,6 +1726,15 @@ function ambiguitiesByRule(r: LabResponse | null): Map<string, number> {
   return counts;
 }
 
+// `atn.perRule` is already the real per-rule breakdown (AtnSim.Cache.missesByRule, shipped
+// alongside the existing global hits/misses the ATN tab shows) — this just re-keys the array by
+// rule name for the same O(1)-lookup-per-row shape `invocationsByRule`/`ambiguitiesByRule` use.
+function dfaMissesByRule(r: LabResponse | null): Map<string, number> {
+  const misses = new Map<string, number>();
+  for (const p of r?.atn?.perRule ?? []) misses.set(p.rule, p.misses);
+  return misses;
+}
+
 // ANTLR's per-rule profiler columns (Invocations, Time, Total k, Max k, Ambiguities, DFA cache
 // miss) don't map cleanly onto Gramaire's engine — see docs/playground-spec.md's Profiler entry.
 // This tab ships only the columns that are real: Invocations everywhere (free, from trace data
@@ -1746,6 +1755,7 @@ function ProfilerPanel() {
   const counts = invocationsByRule(r);
   const ambiguities =
     strategy.value === "ll-star" ? ambiguitiesByRule(r) : null;
+  const dfaMisses = strategy.value === "ll-star" ? dfaMissesByRule(r) : null;
   // Every rule from the desugared grammar, not just the ones this particular input happened to
   // reach — a 0-invocation row is informative (this rule/alt was never hit by this input), not
   // noise. `productions` can list the same lhs multiple times (one row per alternative); dedupe to
@@ -1790,6 +1800,7 @@ function ProfilerPanel() {
               <th>rule</th>
               <th>invocations</th>
               {ambiguities !== null && <th>ambiguities</th>}
+              {dfaMisses !== null && <th>DFA cache miss</th>}
             </tr>
           </thead>
           <tbody>
@@ -1803,6 +1814,9 @@ function ProfilerPanel() {
                 <td class="lab__mono">{counts.get(name) ?? 0}</td>
                 {ambiguities !== null && (
                   <td class="lab__mono">{ambiguities.get(name) ?? 0}</td>
+                )}
+                {dfaMisses !== null && (
+                  <td class="lab__mono">{dfaMisses.get(name) ?? 0}</td>
                 )}
               </tr>
             ))}

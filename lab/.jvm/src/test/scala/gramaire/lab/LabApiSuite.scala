@@ -690,6 +690,51 @@ class LabApiSuite extends munit.FunSuite:
   }
 
   test(
+    "evaluate: strategy \"ll-star\" atn.perRule sums to the same hits/misses totals as the top-level fields"
+  ) {
+    val resp =
+      LabApi.evaluate(LabRequest(calcMd, Some("1+2*3"), Method.Canonical, strategy = "ll-star"))
+    resp.atn match
+      case None => fail("expected atn diagnostics for an ll-star request with input")
+      case Some(d) =>
+        assert(d.perRule.nonEmpty, "calc's grammar has real decisions to attribute")
+        assertEquals(
+          d.perRule.map(_.hits).sum,
+          d.hits,
+          "perRule's hits must sum to the same total the ATN tab's own hit count already shows"
+        )
+        assertEquals(
+          d.perRule.map(_.misses).sum,
+          d.misses,
+          "perRule's misses must sum to the same total the ATN tab's own miss count already shows"
+        )
+        // One row per rule name, not one row per decision (a rule can have more than one) — a
+        // duplicate rule name here would mean two decisions' counts silently overwrote each other
+        // instead of being folded together.
+        assertEquals(d.perRule.map(_.rule).distinct.length, d.perRule.length)
+  }
+
+  test(
+    "evaluate: strategy \"ll-star\" atn.perRule attributes an ambiguity's rule its own real hit/miss activity"
+  ) {
+    // ambiguousMd (E : E E | 'x') is genuinely ambiguous on repeated E's — its one rule, E, is
+    // visited many times parsing "xxx", so it should show up with real, nonzero activity, not just
+    // appear in `ambiguities` with nothing behind it in `perRule`.
+    val resp =
+      LabApi.evaluate(LabRequest(ambiguousMd, Some("xxx"), Method.Canonical, strategy = "ll-star"))
+    resp.atn match
+      case None => fail("expected atn diagnostics")
+      case Some(d) =>
+        assert(d.ambiguities.nonEmpty, "E : E E | 'x' is genuinely ambiguous on repeated E's")
+        val eRow = d.perRule.find(_.rule == "E")
+        assert(eRow.isDefined, s"expected a perRule entry for E, got: ${d.perRule}")
+        assert(
+          eRow.exists(r => r.hits + r.misses > 0),
+          s"E's decision is visited repeatedly parsing \"xxx\" — expected real activity, got: $eRow"
+        )
+  }
+
+  test(
     "evaluate: strategy \"ll-star\" redefines buildOk — an LR-conflicted grammar still builds, with the conflict as a warning"
   ) {
     // ambiguousMd (E : E E | 'x') has real LR conflicts under every method. Under "lr", buildOk is
@@ -760,7 +805,10 @@ class LabApiSuite extends munit.FunSuite:
   ) {
     val resp =
       LabApi.evaluate(LabRequest(calcMd, Some("1+@"), Method.Canonical, strategy = "ll-star"))
-    assertEquals(resp.atn, Some(AtnDiagnostics(accepted = false, 0, 0, Vector.empty)))
+    assertEquals(
+      resp.atn,
+      Some(AtnDiagnostics(accepted = false, 0, 0, Vector.empty, Vector.empty))
+    )
   }
 
   test("evaluate: strategy \"ll-star\" carries an llTrace ending in Accept, and no LR trace") {

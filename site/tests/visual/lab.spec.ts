@@ -294,13 +294,32 @@ test("under ll-star, the Profiler's Ambiguities column matches the ATN tab's own
   const atnCount = await atnRows.count();
   expect(atnCount).toBeGreaterThan(0); // the dangling-else grammar's whole reason to exist
   await expect(atnRows.first()).toContainText("Stmt");
+  const globalMisses = await page
+    .locator(".lab__panel")
+    .filter({ hasText: "DFA cache hits" })
+    .textContent();
+  const missesMatch = globalMisses?.match(/(\d+)\/(\d+) DFA cache hits/);
+  if (!missesMatch)
+    throw new Error(`couldn't parse ATN hit-rate text: ${globalMisses}`);
+  const [, hitsStr, totalStr] = missesMatch;
+  const globalMissCount = Number(totalStr) - Number(hitsStr);
 
   await page.click('button[role="tab"]:has-text("Profiler")');
-  await expect(page.locator(".lab__panel thead th")).toHaveCount(3); // rule, invocations, ambiguities
+  // rule, invocations, ambiguities, DFA cache miss
+  await expect(page.locator(".lab__panel thead th")).toHaveCount(4);
   const stmtRow = page
     .locator(".lab__panel .lab__table tbody tr")
     .filter({ hasText: "Stmt" });
-  await expect(stmtRow.locator("td").last()).toHaveText(String(atnCount));
+  await expect(stmtRow.locator("td").nth(2)).toHaveText(String(atnCount));
+
+  // The DFA-miss column's per-rule breakdown must sum back to the same global miss count the ATN
+  // tab's own hit-rate line already reports — a direct regression guard against the per-decision
+  // bookkeeping (AtnSim.Cache.missesByRule) drifting from the pre-existing global counters.
+  const missCells = await page
+    .locator(".lab__panel .lab__table tbody tr td:last-child")
+    .allTextContents();
+  const summedMisses = missCells.reduce((sum, c) => sum + Number(c), 0);
+  expect(summedMisses).toBe(globalMissCount);
 });
 
 test("tabs with nothing to show are disabled, with a tooltip explaining why", async ({

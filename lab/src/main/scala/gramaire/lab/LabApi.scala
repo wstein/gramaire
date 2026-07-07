@@ -14,10 +14,13 @@ package gramaire.lab
 // step 4 (`parseInput`) once per `EVALUATE`.
 
 import gramaire.{
+  Atn,
+  AtnBuild,
   AtnSim,
   BackendJs,
   Cst,
   ConformanceLexers,
+  Desugar,
   Diagnostic,
   Diagnostics,
   GSym,
@@ -274,12 +277,25 @@ object LabApi:
           val parse = request.input.zip(spanned).map { case (input, sp) =>
             parseInputLl(prec, grammar, input, sp, cache)
           }
+          // `perRule` only when the same `Atn` `cache`'s counts were recorded against can be
+          // rebuilt (see `atnFor`'s doc) — falls back to an empty breakdown rather than failing
+          // the whole response over a tab-specific, non-essential figure. Sorted by rule name for
+          // a deterministic, diff-stable response (`missesByRule`/`hitsByRule` are plain `Map`s).
+          val perRule = atnFor(grammar, prec) match
+            case None => Vector.empty
+            case Some(atn) =>
+              val hits = cache.hitsByRule(atn)
+              val misses = cache.missesByRule(atn)
+              (hits.keySet ++ misses.keySet).toVector.sorted.map { rule =>
+                RuleAtnProfile(rule, hits.getOrElse(rule, 0), misses.getOrElse(rule, 0))
+              }
           val atn = parse.map { p =>
             AtnDiagnostics(
               p.accepted,
               cache.hits,
               cache.misses,
-              cache.ambiguities.map(a => AmbiguityInfo(a.rule, a.decision, a.pos, a.alts))
+              cache.ambiguities.map(a => AmbiguityInfo(a.rule, a.decision, a.pos, a.alts)),
+              perRule
             )
           }
           val (evaluatorJs, predicateWarning) = evaluatorJsResult(prec, request.source, grammar)
@@ -673,6 +689,22 @@ object LabApi:
               trace = capped.map { case (steps, _) => steps.map(toLrStepInfo) },
               traceTruncated = capped.exists { case (_, truncated) => truncated }
             )
+
+  // Rebuilds the exact `Atn` `Ll.parseTraced` used for this parse — the same
+  // desugar/stratify/eliminateIndirect/buildAtn pipeline, in the same order (`Ll.scala`'s
+  // `parseTraced`, not `allStarLoweringOf`'s `LeftRec.eliminate` above, which serves a different,
+  // display-only purpose and isn't guaranteed to allocate the same decision ids). Deterministic
+  // and pure, so this always agrees with the `Atn` `cache`'s per-decision counts were actually
+  // recorded against — needed only to resolve a decision id back to a rule name for
+  // `AtnSim.Cache.missesByRule`, since `Ll.parseTraced` doesn't return the `Atn` it built. `None`
+  // only when the grammar notation itself failed to desugar, which can't happen here — `evaluate`
+  // only reaches the ll-star branch once `Lr.parseWith` already succeeded on the same grammar.
+  private def atnFor(grammar: Grammar, prec: Precedence): Option[Atn] =
+    Desugar.desugar(grammar).toOption.map { dg =>
+      val (stratified, _) = PrecClimb.stratify(dg, prec)
+      val (rewritten, _) = LeftRec.eliminateIndirect(stratified)
+      AtnBuild.buildAtn(rewritten)
+    }
 
   // The `ll-star` strategy's counterpart to `parseInput`: `Ll.parseTraced` instead of
   // `Parser.run`/`Parser.walk`, and `llTrace` instead of `trace` — same tokens-populated-on-reject,

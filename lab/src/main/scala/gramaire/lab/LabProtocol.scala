@@ -469,18 +469,37 @@ object AmbiguityInfo:
       )
     )
 
+/** One rule's DFA prediction-cache hit/miss count — `hits`/`misses` folded down from every decision
+  * belonging to this rule (a rule with more than one internal choice point has several), via
+  * `AtnSim.Cache.hitsByRule`/`missesByRule`. Same counts as `AtnDiagnostics.hits`/`misses`, just
+  * broken down instead of collapsed into one grand total — `perRule`'s own hits/misses sum to those
+  * two fields exactly.
+  */
+final case class RuleAtnProfile(rule: String, hits: Int, misses: Int)
+
+object RuleAtnProfile:
+  def toJson(p: RuleAtnProfile): Json =
+    Json.JObject(
+      Vector(
+        "rule" -> Json.JString(p.rule),
+        "hits" -> Json.JInt(p.hits),
+        "misses" -> Json.JInt(p.misses)
+      )
+    )
+
 /** The ATN diagnostics tab's data, under `LabRequest.strategy == "ll-star"`: whether
   * `Ll.parseTraced` accepts `LabRequest.input` (mirroring `parse.accepted`), the DFA prediction
-  * cache's hit/miss counts, and every declaration-order-resolved ambiguity hit along the way — from
-  * the SAME `AtnSim.Cache(track = true)` run that produced `parse`, not a separate one (so the
-  * numbers describe the actual parse, not a shadow recognizer run against the same input).
-  * Populated only when `input` is given.
+  * cache's hit/miss counts (both overall and per rule), and every declaration-order-resolved
+  * ambiguity hit along the way — from the SAME `AtnSim.Cache(track = true)` run that produced
+  * `parse`, not a separate one (so the numbers describe the actual parse, not a shadow recognizer
+  * run against the same input). Populated only when `input` is given.
   */
 final case class AtnDiagnostics(
     accepted: Boolean,
     hits: Int,
     misses: Int,
-    ambiguities: Vector[AmbiguityInfo]
+    ambiguities: Vector[AmbiguityInfo],
+    perRule: Vector[RuleAtnProfile]
 )
 
 object AtnDiagnostics:
@@ -490,7 +509,8 @@ object AtnDiagnostics:
         "accepted" -> Json.JBool(d.accepted),
         "hits" -> Json.JInt(d.hits),
         "misses" -> Json.JInt(d.misses),
-        "ambiguities" -> Json.JArray(d.ambiguities.map(AmbiguityInfo.toJson))
+        "ambiguities" -> Json.JArray(d.ambiguities.map(AmbiguityInfo.toJson)),
+        "perRule" -> Json.JArray(d.perRule.map(RuleAtnProfile.toJson))
       )
     )
 

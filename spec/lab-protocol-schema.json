@@ -189,9 +189,9 @@
     },
     "atnDiagnostics": {
       "title": "AtnDiagnostics",
-      "description": "Whether Ll.parseTraced accepts the target input, the DFA prediction cache's hit/miss counts, and every declaration-order-resolved ambiguity hit while walking it — from the same AtnSim.Cache(track = true) run that produced `parse`.",
+      "description": "Whether Ll.parseTraced accepts the target input, the DFA prediction cache's hit/miss counts (both overall and per rule), and every declaration-order-resolved ambiguity hit while walking it — from the same AtnSim.Cache(track = true) run that produced `parse`.",
       "type": "object",
-      "required": ["accepted", "hits", "misses", "ambiguities"],
+      "required": ["accepted", "hits", "misses", "ambiguities", "perRule"],
       "additionalProperties": false,
       "properties": {
         "accepted": {
@@ -203,7 +203,24 @@
         "ambiguities": {
           "type": "array",
           "items": { "$ref": "#/$defs/ambiguityInfo" }
+        },
+        "perRule": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ruleAtnProfile" },
+          "description": "hits/misses folded down to rule names instead of collapsed into the two totals above — AtnSim.Cache.hitsByRule/missesByRule."
         }
+      }
+    },
+    "ruleAtnProfile": {
+      "title": "RuleAtnProfile",
+      "description": "One rule's DFA prediction-cache hit/miss count, folded down from every decision belonging to it — AtnSim.Cache.hitsByRule/missesByRule.",
+      "type": "object",
+      "required": ["rule", "hits", "misses"],
+      "additionalProperties": false,
+      "properties": {
+        "rule": { "type": "string" },
+        "hits": { "type": "integer", "minimum": 0 },
+        "misses": { "type": "integer", "minimum": 0 }
       }
     },
     "ambiguityInfo": {
