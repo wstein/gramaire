@@ -528,12 +528,103 @@ class ConvertAntlrSuite extends munit.FunSuite:
                 )
                 // `Digit+` desugars to a helper list rule before BackendAntlr ever sees it (D-token
                 // sugar lowering) — so the reference to check is inside THAT rule's body, not `r`'s.
+                // A standalone `DIGIT` reference must not survive; the desugared helper's own name
+                // (`DIGIT_plus`) legitimately still contains the substring, in its own D62
+                // `@gramaire-name` marker, which isn't what this assertion is about.
                 assert(
-                  !g4b.contains("DIGIT"),
+                  !"(?<![A-Z_])DIGIT(?![A-Za-z_])".r.findFirstIn(g4b).isDefined,
                   s"no parser rule may still reference the internal ALL-CAPS name once the lexer rule itself renders under its native spelling, got:\n$g4b"
                 )
                 assert(
                   g4b.contains("Digit\n  | ") || g4b.contains(": Digit\n"),
                   s"the desugared helper rule's own reference to the renamed lexer rule must use its native spelling, got:\n$g4b"
+                )
+  }
+
+  // Gramaire's own idiomatic nonterminal style (README.md's own worked example: `Expr`, `Term`) is
+  // capitalized — but a real ANTLR parser rule can NEVER start uppercase (that's always a lexer
+  // rule in ANTLR terms), so BackendAntlr.ruleName force-lowercases it on export. The mirror image
+  // of the D61 lexer-name test above: this time the rename happens on EXPORT (not import), and the
+  // round trip that matters is emit -> hand-edit -> re-import, not import -> re-export.
+  private val capitalizedNonterminalGrammar =
+    """---
+      |name: ExprLang
+      |---
+      |
+      |## Tokens
+      |
+      |```gramaire
+      |NUMBER : /[0-9]+/ ;
+      |```
+      |
+      |## Expr
+      |
+      |```gramaire
+      |Expr
+      |  : Expr '+' Term
+      |  | Term
+      |  ;
+      |```
+      |
+      |## Term
+      |
+      |```gramaire
+      |Term
+      |  : NUMBER
+      |  ;
+      |```
+      |""".stripMargin
+
+  test(
+    "convert: a capitalized Gramaire nonterminal (Expr) exports plain ANTLR (no in-band annotation) plus a renameMap sidecar (D62), and re-imports its original spelling everywhere given that sidecar"
+  ) {
+    Lr.parse(capitalizedNonterminalGrammar) match
+      case Left(e) => fail(s"capitalizedNonterminalGrammar should parse: $e")
+      case Right(g) =>
+        IR.buildIRWithTokens(
+          defsOf(capitalizedNonterminalGrammar),
+          Method.Canonical,
+          "ExprLang",
+          g
+        ) match
+          case Left(_) => fail("capitalizedNonterminalGrammar should build an IR")
+          case Right(ir) =>
+            val g4 = BackendAntlr.emit(ir)
+            assert(
+              !g4.contains("@gramaire-name") && !g4.contains("@"),
+              s"the exported .g4 must stay plain, ordinary ANTLR — no in-band Gramaire annotation, got:\n$g4"
+            )
+            assert(
+              g4.contains("expr\n  : expr '+' term"),
+              s"expr's own reference to term must also be lowercased consistently, got:\n$g4"
+            )
+
+            val renameMap = BackendAntlr.renameMap(ir)
+            assertEquals(renameMap, Map("expr" -> "Expr", "term" -> "Term"))
+
+            // Without the sidecar, re-import has nothing to restore the original spelling from —
+            // the plain ANTLR names are all that's left, exactly like importing anyone else's
+            // hand-written .g4 that never went through a Gramaire export at all.
+            ConvertAntlr.importAntlr(g4) match
+              case Left(e) => fail(s"the exported .g4 should re-import: $e")
+              case Right(impNoSidecar) =>
+                assert(
+                  impNoSidecar.markdown.contains("## expr\n"),
+                  s"without the sidecar, re-import has no way to recover the original capitalization, got:\n${impNoSidecar.markdown}"
+                )
+
+            // With the sidecar (as the CLI's own `import` reads it alongside the .g4, D62), the
+            // original capitalized name is restored — in the rule's own heading AND in every
+            // OTHER rule's reference to it, not just its own declaration.
+            ConvertAntlr.importAntlr(g4, renameMap) match
+              case Left(e) => fail(s"the exported .g4 should re-import given its sidecar: $e")
+              case Right(imp2) =>
+                assert(
+                  imp2.markdown.contains("## Expr\n"),
+                  s"re-import must restore the original capitalized rule name, got:\n${imp2.markdown}"
+                )
+                assert(
+                  imp2.markdown.contains("Expr '+' Term"),
+                  s"re-import must restore the capitalized name in EVERY reference too, not just the rule's own heading, got:\n${imp2.markdown}"
                 )
   }

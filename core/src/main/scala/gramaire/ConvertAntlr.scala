@@ -18,6 +18,13 @@ package gramaire
 // distinct doc-comment token of its own — a `/** ... */` is lexically just an ordinary block
 // comment — so plain `//`/`/* */` capture, identical to what `ConvertBison` already does, is
 // sufficient here too.
+//
+// `importAntlr`'s optional `renameMap` (ADR D62) restores a parser rule's original Gramaire
+// spelling when BackendAntlr force-lowercased it on export (`Expr` -> `expr`, since a real ANTLR
+// parser rule can never start uppercase) — read from a separate `<Name>.gramaire-names.json`
+// sidecar BackendAntlr writes alongside the `.g4`, never from an in-band `.g4` comment: ANTLR's
+// own file format isn't Gramaire's to annotate, and a sidecar keeps the exported grammar plain,
+// ordinary ANTLR any other tool can read with no special knowledge of Gramaire at all.
 
 /** The result of an import: the rendered `.gram.md` and any features that could not be represented
   * and were dropped.
@@ -657,7 +664,7 @@ object ConvertAntlr:
   private def regexOfAlts(alts: Vector[Vector[Elem]]): String =
     alts.map(els => els.map(regexOfElem).mkString).mkString("|")
 
-  private def render(p: Parsed): Imported =
+  private def render(p: Parsed, externalRenameMap: Map[String, String]): Imported =
     val parserRules = p.rules.filterNot(_.lexer)
     val lexerRules = p.rules.filter(_.lexer)
 
@@ -669,6 +676,17 @@ object ConvertAntlr:
     // every parser-rule reference to that lexer rule (`renderTopAlt`'s `rename`) must follow the
     // exact same rename, or it dangles.
     val lexerRename: Map[String, String] = lexerRules.map(r => r.name -> r.name.toUpperCase).toMap
+
+    // A parser rule named in the caller-supplied `externalRenameMap` (ADR D62 — the
+    // `<Name>.gramaire-names.json` sidecar BackendAntlr writes next to a `.g4` it renamed rules in)
+    // restores its ORIGINAL Gramaire spelling instead of the ANTLR name BackendAntlr force-lowercased
+    // it to. Scoped to rules the map actually names — unlike lexerRename, which applies to every
+    // lexer rule uniformly — since the overwhelming majority of parser rules never went through that
+    // export/re-import round trip (no sidecar at all, the common case for a hand-written ANTLR
+    // grammar) and should just keep their own, already-valid name.
+    val parserRename: Map[String, String] =
+      parserRules.flatMap(r => externalRenameMap.get(r.name).map(r.name -> _)).toMap
+    val rename: Map[String, String] = lexerRename ++ parserRename
 
     def tokenLine(r: G4Rule): String =
       val gramaireName = lexerRename(r.name)
@@ -692,9 +710,10 @@ object ConvertAntlr:
         )
 
     def ruleSection(r: G4Rule): String =
+      val gramaireName = parserRename.getOrElse(r.name, r.name)
       val doc = r.doc.map(d => d + "\n\n").getOrElse("")
-      s"## ${r.name}\n\n$doc```gramaire\n${r.name}\n  : " + r.alts
-        .map(renderTopAlt(_, lexerRename))
+      s"## $gramaireName\n\n$doc```gramaire\n$gramaireName\n  : " + r.alts
+        .map(renderTopAlt(_, rename))
         .mkString("\n  | ") + "\n  ;\n```\n"
 
     val markdown =
@@ -704,10 +723,31 @@ object ConvertAntlr:
     Imported(markdown, p.warnings)
 
   /** Import an ANTLR4 `.g4` grammar, producing a rendered `.gram.md` and any features that could
-    * not be represented.
+    * not be represented. `renameMap` (ADR D62) is this grammar's own `<Name>.gramaire-names.json`
+    * sidecar, if BackendAntlr wrote one alongside the `.g4` — ANTLR name -> original Gramaire name
+    * for every parser rule a prior export force-lowercased; empty for a `.g4` with no such sidecar
+    * (any hand-written ANTLR grammar, or one Gramaire never touched).
     */
-  def importAntlr(src: String): Either[String, Imported] =
+  def importAntlr(
+      src: String,
+      renameMap: Map[String, String] = Map.empty
+  ): Either[String, Imported] =
     for
       toks <- lexG4(src)
       parsed <- parseG4(toks)
-    yield render(parsed)
+    yield render(parsed, renameMap)
+
+  /** Decode a `<Name>.gramaire-names.json` sidecar (ADR D62, `BackendAntlr.renameMap`'s own output)
+    * into the flat `Map[String, String]` `importAntlr`'s `renameMap` parameter expects — the CLI's
+    * own job to call this (reading the sidecar file, if one sits next to the `.g4` being imported)
+    * before calling `importAntlr`; this module has no filesystem access of its own.
+    */
+  def parseRenameMap(json: String): Either[String, Map[String, String]] =
+    Json.parse(json).flatMap {
+      case Json.JObject(kvs) =>
+        kvs.foldLeft[Either[String, Map[String, String]]](Right(Map.empty)) {
+          case (acc, (k, Json.JString(v))) => acc.map(_ + (k -> v))
+          case (_, (k, _))                 => Left(s"rename map entry `$k` must be a string")
+        }
+      case _ => Left("rename map JSON must be an object")
+    }

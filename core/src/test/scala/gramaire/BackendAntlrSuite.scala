@@ -23,6 +23,27 @@ class BackendAntlrSuite extends munit.FunSuite:
         )
   }
 
+  test(
+    "renameMap (D62): every renamed parser rule (S -> s, A -> a), keyed by its exported ANTLR name"
+  ) {
+    IR.buildIR(Method.Canonical, "Tiny", tiny) match
+      case Left(_) => fail("tiny grammar should build")
+      case Right(ir) =>
+        assertEquals(BackendAntlr.renameMap(ir), Map("s" -> "S", "a" -> "A"))
+  }
+
+  test("renameMap (D62): empty when no nonterminal was actually renamed") {
+    val allLowercase = Grammar(
+      Vector(
+        Rule("s", Vector.empty, Vector(Alt(Vector(Ref("a"), Lit("+"), Ref("a")), None, None))),
+        Rule("a", Vector.empty, Vector(Alt(Vector(Ref("NUM")), None, None)))
+      )
+    )
+    IR.buildIR(Method.Canonical, "Tiny", allLowercase) match
+      case Left(_)   => fail("grammar should build")
+      case Right(ir) => assertEquals(BackendAntlr.renameMap(ir), Map.empty[String, String])
+  }
+
   test("IRNonterminal.comment is rendered as a leading /* ... */ block comment above its rule") {
     IR.buildIR(Method.Canonical, "Tiny", tiny) match
       case Left(_) => fail("tiny grammar should build")

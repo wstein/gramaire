@@ -243,13 +243,32 @@ object Main:
       else stripped
     if base.isEmpty then base else base.take(1).toUpperCase + base.drop(1)
 
+  // A `.g4` being imported may carry a `<Name>.gramaire-names.json` sidecar (ADR D62) next to it —
+  // `BackendAntlr.renameMap`'s own output from a prior `emit --backend antlr`, restoring a parser
+  // rule's original Gramaire spelling that export had to force-lowercase. Absent for any `.g4`
+  // Gramaire never touched (a hand-written ANTLR grammar, or one from `emit` that renamed
+  // nothing) — silently `Map.empty` then, never an error, since the sidecar is optional provenance,
+  // not a required companion file.
+  private def renameMapSidecarOf(g4File: String): Either[String, Map[String, String]] =
+    val sidecarPath = g4File.replaceFirst("(?i)\\.g4$", "") + ".gramaire-names.json"
+    if !Files.exists(Path.of(sidecarPath)) then Right(Map.empty)
+    else
+      readFile(sidecarPath) match
+        case Left(err) => Left(s"cannot read rename-map sidecar $sidecarPath: $err")
+        case Right(json) =>
+          ConvertAntlr
+            .parseRenameMap(json)
+            .left
+            .map(e => s"malformed rename-map sidecar $sidecarPath: $e")
+
   // Dispatches on the input file's own extension — `.g4` (ANTLR4) or `.y`/`.yy` (Bison/yacc,
   // ADR D38) — mirroring how `emit --backend <name>` itself is backend-name-driven, just keyed
   // by the INPUT format here instead of the output one. Compared case-insensitively, matching a
   // filesystem convention CLI users expect (`.G4`/`.Y` work the same as `.g4`/`.y`).
   def importResult(file: String, src: String): Either[String, Imported] =
     val lower = file.toLowerCase
-    if lower.endsWith(".g4") then ConvertAntlr.importAntlr(src)
+    if lower.endsWith(".g4") then
+      renameMapSidecarOf(file).flatMap(renameMap => ConvertAntlr.importAntlr(src, renameMap))
     else if lower.endsWith(".y") || lower.endsWith(".yy") then
       ConvertBison.importBison(src, baseNameOf(file))
     else Left(s"unrecognized import format (expected a .g4 or .y/.yy file): $file")

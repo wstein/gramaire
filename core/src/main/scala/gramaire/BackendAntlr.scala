@@ -13,8 +13,34 @@ object BackendAntlr:
     name = "antlr",
     capabilities = Vector(Capability.Format),
     strategies = Backend.allStrategies,
-    emit = ir => Vector(Output(s"${ir.grammar.name}.g4", emit(ir)))
+    emit = ir =>
+      val g4 = Vector(Output(s"${ir.grammar.name}.g4", emit(ir)))
+      val renames = renameMap(ir)
+      // A `<Name>.gramaire-names.json` sidecar (ADR D62), only when something was actually
+      // renamed — never an in-band `.g4` comment: ANTLR's own file format isn't Gramaire's to
+      // annotate, and a sidecar keeps the exported grammar plain, ordinary ANTLR. Read back by
+      // `ConvertAntlr.importAntlr`'s own `renameMap` parameter to restore the original spelling
+      // (and every reference to it) on re-import.
+      if renames.isEmpty then g4
+      else g4 :+ Output(s"${ir.grammar.name}.gramaire-names.json", renameMapJson(renames))
   )
+
+  /** Every PARSER rule this export force-lowercased (ADR D62): ANTLR name -> original Gramaire
+    * name. Empty when the grammar's own nonterminals were already all lowercase-initial (the common
+    * case for a grammar imported FROM ANTLR in the first place, or authored lowercase to begin
+    * with) — a real ANTLR parser rule can never start uppercase, so `Expr`/`expr` could never both
+    * be valid ANTLR parser rules; only the direction Gramaire -> ANTLR ever renames.
+    */
+  def renameMap(ir: IR): Map[String, String] =
+    ir.grammar.nonterminals.flatMap { nt =>
+      val exported = ruleName(nt.name)
+      if exported != nt.name then Some(exported -> nt.name) else None
+    }.toMap
+
+  // `Json.stringify` already sorts an JObject's keys at render time (its own canonical-JSON
+  // guarantee), so no separate sort is needed here.
+  private def renameMapJson(renames: Map[String, String]): String =
+    Json.stringify(Json.JObject(renames.toVector.map { case (k, v) => k -> Json.JString(v) }))
 
   private val reserved: Set[String] =
     Set(

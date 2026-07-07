@@ -63,3 +63,7 @@ codegen-scratch/vectors.txt
 
 # Python
 __pycache__/
+
+# ANTLR4's own generated-code output directory, left behind by anything that shells out to a real
+# antlr4 tool (e.g. a conformance/golden-fixture run) against a checked-in .g4 — never source.
+.antlr/
