@@ -455,8 +455,8 @@ object Railroad:
   // horizontal entry/exit stub and its corner curve's Bezier-control offset (the curve's RISE isn't
   // constrained to equal ARC_R — a quadratic Bezier with a control point directly above its start
   // and level with its end curves smoothly regardless of how tall the rise is, see `sideArc`).
-  private val ARC_CLEAR = 20
-  private val ARC_R = 10
+  private val ARC_CLEAR = 32
+  private val ARC_R = 12
 
   private def fmtNum(d: Double): String =
     if d == d.toLong.toDouble then d.toLong.toString else d.toString

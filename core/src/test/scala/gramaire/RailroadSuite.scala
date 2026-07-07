@@ -390,6 +390,25 @@ class RailroadSuite extends munit.FunSuite:
   }
 
   test(
+    "renderDiagramSvg: a bypass arc has enough clearance from its wrapped item to read as a separate loop, not a tight collar around the box"
+  ) {
+    // A single Optional-wrapped terminal, isolated from any other arc/fork so the height delta
+    // measures exactly one bypass arc's own clearance — a past regression made ARC_CLEAR small
+    // enough that the arc rendered flush against the box's own rounded corner, indistinguishable
+    // from a plain outline around it rather than a real railroad bypass loop.
+    val diagram = Diagram.Sequence(Vector(Diagram.Optional(Diagram.Terminal("x"))))
+    val svg = renderDiagramSvg("Solo", diagram)
+    val flatSvg = renderDiagramSvg("Solo", Diagram.Sequence(Vector(Diagram.Terminal("x"))))
+    val heightRe = """height="(\d+)"""".r
+    val height = heightRe.findFirstMatchIn(svg).map(_.group(1).toInt).getOrElse(0)
+    val flatHeight = heightRe.findFirstMatchIn(flatSvg).map(_.group(1).toInt).getOrElse(0)
+    assert(
+      height - flatHeight >= 24,
+      s"expected at least 24px of visually-separating clearance above a bypass arc, got ${height - flatHeight} (height=$height flatHeight=$flatHeight)"
+    )
+  }
+
+  test(
     "renderDiagramMermaid: optionality and repetition nodes still flatten to a text-suffixed node (no arc in a flowchart chain)"
   ) {
     val diagram = Diagram.Sequence(
