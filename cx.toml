@@ -28,17 +28,30 @@ security_check = true
 include = []
 exclude = [
 	".git/**",
+	".gitignore",
 	".idea/**",
 	".metals/**",
 	".scala-build/**",
 	"**/node_modules/**",
 	"**/coverage/**",
 	"**/target/**",
-	"dist/**",
-	"site/dist/**",
+	"**/dist/**",
 	"site/.astro/**",
 	"site/test-results/**",
-	"tmp/**"
+	"site/playwright-report/**",
+	"tmp/**",
+	"build/**",
+	"out/**",
+	".gradle/**",
+	"project/target/**",
+	"project/project/**",
+	".env*",
+	"*.class",
+	"*.o",
+	"*.a",
+	"*.so",
+	"*.dylib",
+	"*.dll"
 ]
 follow_symlinks = false
 unmatched = "ignore"
@@ -95,18 +108,14 @@ mode = "copy"
 target_dir = "assets"
 layout = "flat"
 
-[sections.repo]
+[sections.config-and-tools]
 include = [
 	"README.md",
 	"LICENSE",
 	"NOTICE",
 	"Makefile",
-	"build.sbt",
-	"package.json",
 	".editorconfig",
 	".gitattributes",
-	".gitignore",
-	".gitmodules",
 	".markdownlint-cli2.jsonc",
 	".markdownlint.json",
 	".mcp.json",
@@ -114,21 +123,61 @@ include = [
 	"cx.toml",
 	"cx-mcp.toml",
 	"cx-mcp-build.toml",
-	"**/*.scala",
-	"**/*.sbt",
-	"**/*.md",
-	"**/*.astro",
-	"**/*.ts",
-	"**/*.tsx",
-	"**/*.js",
-	"**/*.mjs",
-	"**/*.cjs",
-	"**/*.json",
-	"**/*.toml",
-	"**/*.yml",
-	"**/*.yaml",
-	"**/*.sh",
-	"**/*.txt"
+	"build.sbt",
+	"package.json",
+	"project/build.properties",
+	"project/plugins.sbt",
+	"bin/**/*.mjs",
+	"bin/**/*.js",
+	"bin/**/*.sh",
+	"scripts/**/*.mjs",
+	"scripts/**/*.js",
+	"scripts/**/*.sh",
+	"cli/**/*.scala",
+	"cli/**/*.sbt",
+	"cli/**/*.md",
+	"vendor/README.md"
+]
+
+[sections.core-scala]
+include = [
+	"core/src/**/*.scala",
+	"core/src/**/*.md"
+]
+
+[sections.grammar-and-examples]
+include = [
+	"grammar/**/*.gram",
+	"grammar/**/*.gram.md",
+	"grammar/**/*.md",
+	"examples/**/*.gram",
+	"examples/**/*.gram.md",
+	"examples/**/*.md"
+]
+
+[sections.site-typescript]
+include = [
+	"site/src/**/*.ts",
+	"site/src/**/*.tsx",
+	"site/src/**/*.astro",
+	"site/src/**/*.md",
+	"site/scripts/**",
+	"site/tsconfig.json",
+	"site/astro.config.mjs",
+	"site/package.json",
+	"site/playwright.config.ts",
+	"site/playwright.unit.config.ts"
+]
+
+[sections.documentation]
+include = [
+	"design/**/*.md",
+	"design/**/*.html",
+	"docs/**/*.md",
+	"spec/**/*.md",
+	"spec/**/*.json",
+	"lab/**/*.md",
+	"codegen-scratch/**/*.md"
 ]
 
 # -- Audited overrides -------------------------------------------------
