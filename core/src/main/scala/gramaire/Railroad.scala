@@ -463,7 +463,7 @@ object Railroad:
   // horizontal reach on one side plus ARC_GAP, i.e. how far the wrapped item's own content is
   // inset from the arc item's outer edge.
   private val ARC_R = 12
-  private val ARC_RUN = 16
+  private val ARC_RUN = 8
   private val ARC_GAP = 8
   private val ARC_CLEAR = 2 * ARC_R + ARC_RUN
   private val ARC_STUB = 2 * ARC_R + ARC_GAP
@@ -641,8 +641,15 @@ object Railroad:
           if kind.hasBypass then p += sideArc(cx, yi, cx + w, yi - ARC_CLEAR, up = true)
           if kind.hasLoop then
             val loopY = yi + ARC_CLEAR
-            p += sideArc(cx, yi, cx + w, loopY, up = false)
-            p += loopArrow((cx + cx + w) / 2.0, loopY)
+            // When both arcs wrap the same item (`*`), the loop bows outward from a span inset by
+            // one corner-width on each side, so its vertical arms land on the exact same x as the
+            // bypass arc's own (which bows inward from the full span) — the two arcs read as one
+            // consistent rectangle rather than the loop drifting `2*ARC_R` wider than the skip line
+            // above it. A standalone loop (no bypass) has nothing to align to, so it keeps the full span.
+            val (loopX0, loopX1) =
+              if kind.hasBypass then (cx + 2 * ARC_R, cx + w - 2 * ARC_R) else (cx, cx + w)
+            p += sideArc(loopX0, yi, loopX1, loopY, up = false)
+            p += loopArrow((loopX0 + loopX1) / 2.0, loopY)
           cx += w
     }
     (p.result().mkString, cx)
