@@ -74,6 +74,15 @@ class RailroadSuite extends munit.FunSuite:
     assert(renderMermaid(prod, view = DiagramView.Simplified).contains("%% view: simplified"))
   }
 
+  test("renderSvg: symbol nodes carry semantic titles and data attributes") {
+    val prod = parseProduction("Expr : Term NUMBER", Set("Expr", "Term"))
+    val svg = renderSvg(prod)
+    assert(svg.contains("""class="rr-node rr-node-nonterm" data-rr-kind="nonterminal"""))
+    assert(svg.contains("""class="rr-node rr-node-term" data-rr-kind="terminal"""))
+    assert(svg.contains("<title>nonterminal: Term</title>"))
+    assert(svg.contains("<title>terminal: NUMBER</title>"))
+  }
+
   test("diagramView: named diagram views parse canonically") {
     assertEquals(diagramView("source"), Some(DiagramView.Source))
     assertEquals(diagramView(" simplified "), Some(DiagramView.Simplified))

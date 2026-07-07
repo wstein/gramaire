@@ -53,6 +53,12 @@ class DiagramsSuite extends munit.FunSuite:
     assertEquals(diagrams(0).name, "Expr")
   }
 
+  test("renderDiagrams: terminal nodes include their token definition in the hover title") {
+    val raw = "NUMBER : /[0-9]+/ ;\n\nExpr\n  : NUMBER\n"
+    val diagrams = Diagrams.renderDiagrams(raw, js.Array("Expr"))
+    assert(diagrams(0).svg.contains("terminal: NUMBER&#10;definition: NUMBER : /[0-9]+/ ;"))
+  }
+
   test("renderDiagrams: a simplified view stays explicit in the themed SVG") {
     val diagrams = Diagrams.renderDiagrams(fenced, js.Array("Expr", "Term"), "simplified")
     assert(diagrams(0).svg.contains("""data-rr-view="simplified"""))

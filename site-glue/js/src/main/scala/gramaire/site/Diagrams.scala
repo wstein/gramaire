@@ -24,6 +24,9 @@ object Diagrams:
   private def diagramView(viewName: String): Railroad.DiagramView =
     Railroad.diagramView(viewName).getOrElse(Railroad.DiagramView.Source)
 
+  private def escXml(s: String): String =
+    s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+
   private final case class RuleBlock(name: String, content: String)
 
   private val fencedRuleRe = """```gramaire[ \t]*(\w*)[^\n]*\n([\s\S]*?)```""".r
@@ -82,21 +85,44 @@ object Diagrams:
       catch case _: Throwable => () // skip a rule the parser can't read (half-typed grammar)
     out
 
-  // Wrap each nonterminal node (an `rr-nonterm` rect plus the rule-name text
-  // that immediately follows it) in an SVG anchor pointing at that rule's own
-  // diagram, so the Lab's diagram panel becomes grammar navigation (the
-  // bottlecaps / Regexper convention). Terminals (`rr-term`) are left alone —
-  // they have no rule to jump to.
-  private val nontermRe =
-    """(<rect class="rr-nonterm"[^>]*/>)(<text class="rr-text"[^>]*>)([^<]+)(</text>)""".r
+  private val tokenDefRe = """^([A-Z][A-Z0-9_]*)\s*:\s*(.+)$""".r
+
+  private def tokenDefinitions(source: String): Map[String, String] =
+    source
+      .split("\n", -1)
+      .flatMap {
+        case tokenDefRe(name, rest) => Some(name -> s"$name : ${rest.trim}")
+        case _                      => None
+      }
+      .toMap
+
+  // Wrap each nonterminal node group in an SVG anchor pointing at that rule's own diagram, so the
+  // Lab's diagram panel becomes grammar navigation (the bottlecaps / Regexper convention).
+  private val nontermGroupRe =
+    """(<g class="rr-node rr-node-nonterm" data-rr-kind="nonterminal" data-rr-label=")([^"]+)(">[\s\S]*?</g>)""".r
+
   private def linkNonterminals(svg: String): String =
-    nontermRe.replaceAllIn(
+    nontermGroupRe.replaceAllIn(
+      svg,
+      m => s"""<a class="rr-nav" href="#diagram-${m.group(2)}">${m.group(0)}</a>"""
+    )
+
+  private val terminalTitleRe =
+    """(<g class="rr-node rr-node-term" data-rr-kind="terminal" data-rr-label=")([^"]+)("><title>)([^<]*)(</title>)""".r
+
+  private def annotateTerminalTitles(svg: String, defs: Map[String, String]): String =
+    terminalTitleRe.replaceAllIn(
       svg,
       m =>
-        s"""<a class="rr-nav" href="#diagram-${m.group(3)}">${m.group(1)}${m.group(2)}${m.group(
-            3
-          )}${m.group(4)}</a>"""
+        defs.get(m.group(2)) match
+          case None => m.group(0)
+          case Some(defn) =>
+            val title = s"${escXml(m.group(4))}&#10;definition: ${escXml(defn)}"
+            s"${m.group(1)}${m.group(2)}${m.group(3)}$title${m.group(5)}"
     )
+
+  private def annotateSvg(svg: String, defs: Map[String, String]): String =
+    annotateTerminalTitles(linkNonterminals(svg), defs)
 
   /** One railroad SVG per rule, in grammar order. Best-effort: a rule that fails to render is
     * skipped rather than throwing, so a half-typed grammar still draws what it can.
@@ -110,12 +136,14 @@ object Diagrams:
     val nts = ruleNames.toSet
     val out = js.Array[RuleDiagram]()
     val view = diagramView(viewName)
+    val tokenDefs = tokenDefinitions(source)
     for RuleBlock(name, content) <- ruleBlocks(source, ruleNames.toVector) do
       try
         // Themed: the SVG is injected inline, so its `--rr-*` inks inherit the
         // page's emerald tokens and flip in dark mode (custom.css maps them).
-        val svg = linkNonterminals(
-          Railroad.renderSvg(Railroad.parseProduction(content, nts), themed = true, view = view)
+        val svg = annotateSvg(
+          Railroad.renderSvg(Railroad.parseProduction(content, nts), themed = true, view = view),
+          tokenDefs
         )
         out.push(ruleDiagram(name, svg))
       catch case _: Throwable => () // skip a rule the railroad renderer can't parse

@@ -388,6 +388,12 @@ object Railroad:
             cx += GAP
           val bw = boxWidth(sym.label)
           val top = rowTop(i, rowIdx)
+          val nodeKind = if sym.term then "terminal" else "nonterminal"
+          val nodeClass = if sym.term then "rr-node rr-node-term" else "rr-node rr-node-nonterm"
+          val nodeTitle = s"$nodeKind: ${sym.label}"
+          p += s"""<g class="$nodeClass" data-rr-kind="$nodeKind" data-rr-label="${escXml(
+              sym.label
+            )}"><title>${escXml(nodeTitle)}</title>"""
           if sym.term then
             p += s"""<rect class="rr-term" x="$cx" y="$top" width="$bw" height="$BOXH" rx="${BOXH / 2}"/>"""
           else
@@ -395,6 +401,7 @@ object Railroad:
           p += s"""<text class="rr-text" x="${fmtNum(cx + bw / 2.0)}" y="${fmtNum(
               yi
             )}" text-anchor="middle" dominant-baseline="central">${escXml(sym.label)}</text>"""
+          p += "</g>"
           cx += bw
         }
 

@@ -171,7 +171,9 @@ so future display-only rewrites cannot be mistaken for the authored grammar.
 `gramaire fmt --diagram-view=simplified` selects that alternate view; omitting
 the flag keeps the canonical `source` view. The first layout-specific behavior
 in `simplified` is width-aware SVG wrapping for long single-path sequences;
-`source` stays byte-stable.
+`source` stays byte-stable. SVG nodes also carry per-symbol `<title>` text and
+structured `data-rr-*` metadata, which the live site uses for semantic
+affordances such as nonterminal navigation and token-definition hover text.
 
 - **`sidecar`** (default) — a self-contained railroad SVG per rule, written to
   `diagrams-<grammar-stem>/<rule>.svg` (a per-grammar directory, so two

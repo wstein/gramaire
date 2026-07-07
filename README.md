@@ -41,7 +41,9 @@ builds a renderer-facing diagram AST (`Terminal`, `NonTerminal`, `Sequence`,
 `source` view remains source-faithful and byte-stable for committed sidecar
 artifacts; richer views are opt-in and self-identifying. Today the first
 layout-aware difference is in `simplified`: long single-path SVG sequences can
-wrap onto continuation rows without changing the default `source` bytes.
+wrap onto continuation rows without changing the default `source` bytes. The
+SVG output also carries grouped node metadata and hover titles so the live site
+can layer in rule links and token-definition hints without a second renderer.
 
 ## The `.gram.md` format
 

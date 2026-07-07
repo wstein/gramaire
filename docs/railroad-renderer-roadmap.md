@@ -43,6 +43,9 @@ the committed artifacts while giving later phases a stable internal layer.
   runtime dependencies. The first shipped step is deterministic wrapping for
   long single-path simplified-view SVG sequences.
 3. Add semantic affordances such as per-node titles and source-aware links.
+  The first shipped step is grouped SVG node metadata plus hover titles,
+  with live-site nonterminal links and token-definition annotations built from
+  that structure.
 4. Add explicit normalization passes behind non-default views.
 
 Every new phase must preserve deterministic output, stay test-backed, and keep
