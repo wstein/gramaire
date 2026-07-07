@@ -32,6 +32,10 @@ object Railroad:
 
   final case class Production(name: String, alts: Vector[Alt])
 
+  enum DiagramView derives CanEqual:
+    case Source
+    case Simplified
+
   // A renderer-facing grammar diagram tree. The current SVG/Mermaid renderers
   // still linearize this tree to Gramaire's historical stacked-track layout,
   // but callers can now describe richer railroad concepts without growing a
@@ -54,15 +58,29 @@ object Railroad:
   private def diagramSym(sym: DiaSym): Diagram =
     if sym.term then Diagram.Terminal(sym.label) else Diagram.NonTerminal(sym.label)
 
-  def diagramOf(prod: Production): Diagram =
-    Diagram.Stack(
-      prod.alts.map { alt =>
-        val seq = Diagram.Sequence(alt.syms.map(diagramSym))
-        alt.action match
-          case Some(action) => Diagram.ActionCaption(seq, action)
-          case None         => seq
-      }
-    )
+  def diagramOf(prod: Production, view: DiagramView = DiagramView.Source): Diagram =
+    val source =
+      Diagram.Stack(
+        prod.alts.map { alt =>
+          val seq = Diagram.Sequence(alt.syms.map(diagramSym))
+          alt.action match
+            case Some(action) => Diagram.ActionCaption(seq, action)
+            case None         => seq
+        }
+      )
+    view match
+      case DiagramView.Source     => source
+      case DiagramView.Simplified => source
+
+  private def viewAttr(view: DiagramView): String =
+    view match
+      case DiagramView.Source     => ""
+      case DiagramView.Simplified => """ data-rr-view="simplified""""
+
+  private def viewMermaidComment(view: DiagramView): Option[String] =
+    view match
+      case DiagramView.Source     => None
+      case DiagramView.Simplified => Some("  %% view: simplified")
 
   private def linearizeDiagram(diagram: Diagram): Vector[DrawableAlt] =
     def symbolLabel(prefix: String, inner: Diagram, suffix: String = ""): String =
@@ -248,10 +266,19 @@ object Railroad:
 
   // ---- SVG renderer -------------------------------------------------------
 
-  def renderSvg(prod: Production, themed: Boolean = false): String =
-    renderDiagramSvg(prod.name, diagramOf(prod), themed)
+  def renderSvg(
+      prod: Production,
+      themed: Boolean = false,
+      view: DiagramView = DiagramView.Source
+  ): String =
+    renderDiagramSvg(prod.name, diagramOf(prod, view), themed, view)
 
-  def renderDiagramSvg(name: String, diagram: Diagram, themed: Boolean = false): String =
+  def renderDiagramSvg(
+      name: String,
+      diagram: Diagram,
+      themed: Boolean = false,
+      view: DiagramView = DiagramView.Source
+  ): String =
     val alts0 = linearizeDiagram(diagram)
     val alts = if alts0.nonEmpty then alts0 else Vector(DrawableAlt(Vector.empty))
     def altWidth(a: DrawableAlt): Int =
@@ -355,7 +382,9 @@ object Railroad:
       }
     }
 
-    s"""<svg xmlns="http://www.w3.org/2000/svg" width="$width" height="$height" """ +
+    s"""<svg xmlns="http://www.w3.org/2000/svg"${viewAttr(
+        view
+      )} width="$width" height="$height" """ +
       s"""viewBox="0 0 $width $height" role="img" """ +
       s"""aria-label="Railroad diagram for the ${escXml(name)} rule">""" +
       s"""<style>${if themed then styleThemed else styleFixed}</style>${p
@@ -368,14 +397,18 @@ object Railroad:
 
   // The body of a ```mermaid fence: a left-to-right flowchart with one path
   // per alternative, terminals as stadiums and nonterminals as rectangles.
-  def renderMermaid(prod: Production): String =
-    renderDiagramMermaid(diagramOf(prod))
+  def renderMermaid(prod: Production, view: DiagramView = DiagramView.Source): String =
+    renderDiagramMermaid(diagramOf(prod, view), view)
 
-  def renderDiagramMermaid(diagram: Diagram): String =
+  def renderDiagramMermaid(
+      diagram: Diagram,
+      view: DiagramView = DiagramView.Source
+  ): String =
     val alts0 = linearizeDiagram(diagram)
     val alts = if alts0.nonEmpty then alts0 else Vector(DrawableAlt(Vector.empty))
     val lines = Vector.newBuilder[String]
     lines += "flowchart LR"
+    viewMermaidComment(view).foreach(lines += _)
     lines += "  classDef term fill:#ffffff,stroke:#15B879,color:#16181D;"
     lines += "  classDef nonterm fill:#F5F6F3,stroke:#16181D,color:#16181D;"
     lines += "  s(( ))"

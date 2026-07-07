@@ -1,0 +1,47 @@
+# Railroad Renderer Roadmap
+
+Gramaire's railroad renderer will stay Scala-native and deterministic. The goal
+is not to replace it with an external generator, but to give it a richer
+internal model and more deliberate opt-in views.
+
+## Principles
+
+- Keep committed sidecar SVG output byte-stable unless a caller explicitly opts
+  into a different view.
+- Keep the default renderer source-faithful: a diagram is still an explanation
+  of the authored grammar, not a silent normalization pass.
+- Borrow vocabulary and layout ideas from existing tools, not their runtimes.
+- Treat grammar-shaping rewrites as named, test-backed normalization passes.
+
+## Current foundation
+
+`core/src/main/scala/gramaire/Railroad.scala` now has a renderer-facing diagram
+AST with these nodes:
+
+- `Terminal`
+- `NonTerminal`
+- `Sequence`
+- `Choice`
+- `Stack`
+- `Optional`
+- `OneOrMore`
+- `ZeroOrMore`
+- `Group`
+- `Comment`
+- `ActionCaption`
+
+The current SVG and Mermaid renderers still linearize that AST to the existing
+stacked-track output for the default `source` view. This preserves parity with
+the committed artifacts while giving later phases a stable internal layer.
+
+## Next phases
+
+1. Keep the `source` view as the byte-stable default and label any alternate
+   view in the rendered output.
+2. Add width-aware layout without introducing browser-measured text layout or
+   runtime dependencies.
+3. Add semantic affordances such as per-node titles and source-aware links.
+4. Add explicit normalization passes behind non-default views.
+
+Every new phase must preserve deterministic output, stay test-backed, and keep
+the source-vs-simplified distinction explicit in the artifact itself.

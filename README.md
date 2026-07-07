@@ -34,6 +34,13 @@ is described, in itself, in [`grammar/Productions.gram.md`](grammar/Productions.
 generated parser must read that file back to a value equal to the hand-written
 [`Bootstrap`](core/src/main/scala/gramaire/Bootstrap.scala) literal.
 
+The railroad renderer stays Scala-native and deterministic. Internally it now
+builds a renderer-facing diagram AST (`Terminal`, `NonTerminal`, `Sequence`,
+`Choice`, `Stack`, `Optional`, `OneOrMore`, `ZeroOrMore`, `Group`, `Comment`,
+`ActionCaption`) and only then serializes to SVG or Mermaid. The default
+`source` view remains source-faithful and byte-stable for committed sidecar
+artifacts; richer views are opt-in and self-identifying.
+
 ## The `.gram.md` format
 
 A grammar file is a Markdown document whose headings, prose, and images carry

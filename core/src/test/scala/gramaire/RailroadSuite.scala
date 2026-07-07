@@ -62,6 +62,72 @@ class RailroadSuite extends munit.FunSuite:
     assertEquals(renderDiagramMermaid(diagram), renderMermaid(prod))
   }
 
+  test("renderSvg: source view remains the byte-stable default") {
+    val prod = parseProduction("Expr : Term", Set("Expr", "Term"))
+    assertEquals(renderSvg(prod), renderSvg(prod, view = DiagramView.Source))
+    assert(!renderSvg(prod).contains("data-rr-view"))
+  }
+
+  test("renderSvg and renderMermaid: simplified view is explicit when requested") {
+    val prod = parseProduction("Expr : Term", Set("Expr", "Term"))
+    assert(renderSvg(prod, view = DiagramView.Simplified).contains("""data-rr-view="simplified""""))
+    assert(renderMermaid(prod, view = DiagramView.Simplified).contains("%% view: simplified"))
+  }
+
+  test(
+    "renderDiagramSvg: optionality and repetition nodes fall back to deterministic inline labels"
+  ) {
+    val diagram = Diagram.Sequence(
+      Vector(
+        Diagram.NonTerminal("List"),
+        Diagram.Optional(Diagram.Terminal(",")),
+        Diagram.OneOrMore(Diagram.NonTerminal("Item")),
+        Diagram.ZeroOrMore(Diagram.Terminal(";"))
+      )
+    )
+    val svg = renderDiagramSvg("List", diagram)
+    assert(svg.contains(">List</text>"))
+    assert(svg.contains(">,?</text>"))
+    assert(svg.contains(">Item+</text>"))
+    assert(svg.contains(">;*</text>"))
+    assertEquals(svg, renderDiagramSvg("List", diagram))
+  }
+
+  test(
+    "renderDiagramSvg and renderDiagramMermaid: choice and stack nodes linearize to separate tracks"
+  ) {
+    val diagram = Diagram.Choice(
+      Vector(
+        Diagram.Sequence(Vector(Diagram.NonTerminal("Expr"), Diagram.Terminal("+"))),
+        Diagram.Sequence(Vector(Diagram.NonTerminal("Expr"), Diagram.Terminal("-")))
+      )
+    )
+    val svg = renderDiagramSvg("Expr", diagram)
+    val mermaid = renderDiagramMermaid(diagram)
+    assert(svg.contains(">+</text>"))
+    assert(svg.contains(">-</text>"))
+    assert(mermaid.contains("Expr"))
+    assert(mermaid.contains("+"))
+    assert(mermaid.contains("-"))
+  }
+
+  test(
+    "renderDiagramSvg: group labels and comments are renderer-facing only, not forced into source-view output"
+  ) {
+    val diagram = Diagram.Sequence(
+      Vector(
+        Diagram.Group(Some("operator"), Diagram.Terminal("+")),
+        Diagram.Comment("ignored in source-view layout"),
+        Diagram.NonTerminal("Term")
+      )
+    )
+    val svg = renderDiagramSvg("Expr", diagram)
+    assert(svg.contains(">+</text>"))
+    assert(svg.contains(">Term</text>"))
+    assert(!svg.contains("operator"))
+    assert(!svg.contains("ignored in source-view layout"))
+  }
+
   test("renderDiagramSvg: action captions survive the shared diagram AST") {
     val diagram = Diagram.ActionCaption(
       Diagram.Sequence(Vector(Diagram.NonTerminal("Term"))),
