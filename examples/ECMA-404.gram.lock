@@ -2,7 +2,8 @@
   "version": 1,
   "mode": "sidecar",
   "sourceLayout": "collapsed",
-  "grammarSha256": "f08a882482d1af7aa62ca1b3981addcbf927f02ca6c807ce7d5f2b241678f3e7",
+  "name": "Json",
+  "grammarSha256": "295b974e5263b223cc45ff190151cd27b5c7104f5dc401c4d7e9d99380bbfdf2",
   "artifacts": [
     {
       "kind": "railroad",
@@ -49,7 +50,7 @@
     {
       "kind": "tables",
       "section": "Generated tables",
-      "sourceSha256": "f08a882482d1af7aa62ca1b3981addcbf927f02ca6c807ce7d5f2b241678f3e7"
+      "sourceSha256": "295b974e5263b223cc45ff190151cd27b5c7104f5dc401c4d7e9d99380bbfdf2"
     }
   ]
 }

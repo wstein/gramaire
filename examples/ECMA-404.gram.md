@@ -1,3 +1,7 @@
+---
+name: Json
+---
+
 # ECMA-404
 
 This Gramaire document is a reference grammar for the JSON data interchange
@@ -22,15 +26,6 @@ A compact example of the syntax is shown below:
 
 This document focuses on the syntactic structure of JSON texts and leaves
 application-level semantics to the consuming implementation.
-
-<details>
-<summary>Declarations</summary>
-
-```gramaire
-name: Json
-```
-
-</details>
 
 ## Tokens
 
