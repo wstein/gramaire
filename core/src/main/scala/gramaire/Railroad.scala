@@ -456,13 +456,17 @@ object Railroad:
   // own total rise from the main line to the skip/repeat line is `2*ARC_R + ARC_RUN` — that total
   // is also what ARC_CLEAR reserves above/below the wrapped item, a fixed, content-height-independent
   // margin (safe for a plain box or a taller nested item alike, if a little generous for the
-  // former) rather than one scaled to the item's own height. ARC_STUB is the horizontal counterpart
-  // — the two corners' combined horizontal reach on one side, i.e. how far the wrapped item's own
-  // content is inset from the arc item's outer edge.
+  // former) rather than one scaled to the item's own height. ARC_GAP is extra breathing room on
+  // top of that: without it, a bypass arc's flat run lands exactly on the wrapped box's own edge
+  // (0px between corner and box), reading as the arc hugging the box rather than floating clear
+  // of it. ARC_STUB is the horizontal counterpart to ARC_CLEAR — the two corners' combined
+  // horizontal reach on one side plus ARC_GAP, i.e. how far the wrapped item's own content is
+  // inset from the arc item's outer edge.
   private val ARC_R = 12
   private val ARC_RUN = 16
+  private val ARC_GAP = 8
   private val ARC_CLEAR = 2 * ARC_R + ARC_RUN
-  private val ARC_STUB = 2 * ARC_R
+  private val ARC_STUB = 2 * ARC_R + ARC_GAP
   // The small direction arrowhead on a loop-back line, pointing back toward the item's entry (the
   // way the repeat re-enters it) — width is the arrow's own horizontal reach, height its half-height
   // (the triangle spans loopY-ARROW_H to loopY+ARROW_H).
