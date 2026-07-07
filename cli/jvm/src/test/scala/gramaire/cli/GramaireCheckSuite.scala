@@ -268,6 +268,79 @@ class GramaireCheckSuite extends munit.FunSuite:
     assert(svg.contains("""data-rr-view="simplified"""), svg)
   }
 
+  test("fmt: records diagramView in the lock only when simplified, and survives check") {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-lock-view")
+    val file = dir.resolve("sample.gram.md")
+    val src =
+      "# T\n\n```gramaire\nname: T\n```\n\n## Value\n\n```gramaire\nValue\n  : 'x'\n  ;\n```\n\n## Generated tables\n\n| a |\n"
+    java.nio.file.Files.writeString(file, src)
+
+    val doc = GramaireCheck.parse(src)
+    val _ = GramaireCheck.fmt(
+      file.toString,
+      doc,
+      GramaireCheck.DiagramMode.Sidecar,
+      GramaireCheck.SourceLayout.Inline,
+      Railroad.DiagramView.Simplified
+    )
+
+    val lockText =
+      java.nio.file.Files
+        .readString(java.nio.file.Path.of(GramaireCheck.lockPathFor(file.toString)))
+    assert(lockText.contains(""""diagramView": "simplified""""), lockText)
+
+    // Recorded purely for provenance — checkStructure/checkDrift classify a document from its
+    // fence content and headings alone, never from which view produced a committed diagram.
+    val written = java.nio.file.Files.readString(file)
+    val redoc = GramaireCheck.parse(written)
+    assertEquals(GramaireCheck.checkStructure(redoc), Vector.empty, written)
+    assertEquals(GramaireCheck.checkDrift(file.toString, redoc), Vector.empty, written)
+  }
+
+  test("fmt: the default source view is omitted from the lock") {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-lock-source-view")
+    val file = dir.resolve("sample.gram.md")
+    val src =
+      "# T\n\n```gramaire\nname: T\n```\n\n## Value\n\n```gramaire\nValue\n  : 'x'\n  ;\n```\n\n## Generated tables\n\n| a |\n"
+    java.nio.file.Files.writeString(file, src)
+
+    val doc = GramaireCheck.parse(src)
+    // No explicit view argument: this is the point of the test — Source is fmt's default.
+    val _ = GramaireCheck.fmt(file.toString, doc, GramaireCheck.DiagramMode.Sidecar)
+
+    val lockText =
+      java.nio.file.Files
+        .readString(java.nio.file.Path.of(GramaireCheck.lockPathFor(file.toString)))
+    assert(!lockText.contains("diagramView"), lockText)
+  }
+
+  test("checkDrift: a lock predating the diagramView field still parses and passes") {
+    val dir = java.nio.file.Files.createTempDirectory("gramaire-lock-legacy-view")
+    val file = dir.resolve("sample.gram.md")
+    val src =
+      "# T\n\n```gramaire\nname: T\n```\n\n## Value\n\n```gramaire\nValue\n  : 'x'\n  ;\n```\n\n## Generated tables\n\n| a |\n"
+    java.nio.file.Files.writeString(file, src)
+    val doc = GramaireCheck.parse(src)
+    val _ = GramaireCheck.fmt(
+      file.toString,
+      doc,
+      GramaireCheck.DiagramMode.Sidecar,
+      GramaireCheck.SourceLayout.Collapsed,
+      Railroad.DiagramView.Simplified
+    )
+
+    // Strip the line a lock written before this field existed would never have had — reproducing
+    // that historical shape from a real Simplified-view lock rather than a hand-built fixture.
+    val lockPath = java.nio.file.Path.of(GramaireCheck.lockPathFor(file.toString))
+    val original = java.nio.file.Files.readString(lockPath)
+    assert(original.contains("\"diagramView\": \"simplified\","), original)
+    val legacyLock = original.linesIterator.filterNot(_.contains("\"diagramView\"")).mkString("\n")
+    java.nio.file.Files.writeString(lockPath, legacyLock)
+
+    val redoc = GramaireCheck.parse(java.nio.file.Files.readString(file))
+    assertEquals(GramaireCheck.checkDrift(file.toString, redoc), Vector.empty, legacyLock)
+  }
+
   // A minimal, canonical-shape (fence, then its image) fixture with two rules — one with a
   // diagram link, one without — for the applySourceLayout tests below.
   private val inlineFixture =

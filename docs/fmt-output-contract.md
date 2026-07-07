@@ -356,6 +356,16 @@ way, so this stays maintainer-facing housekeeping rather than visible prose
 anywhere it's rendered. `gramaire --check` recomputes and compares against the
 lock.
 
+The lock also records which `--diagram-view` produced the committed
+artifacts (`"diagramView": "simplified"`), on the same convention as
+`sourceLayout` above: omitted entirely when `source` (every lock predating
+this field implicitly meant source, the only view that existed before
+`--diagram-view` was introduced), so old locks keep round-tripping
+byte-for-byte no matter which view `fmt` defaults to today. Like
+`sourceLayout`, this is provenance only — `checkStructure`/`checkDrift` don't
+key on it, since both classify a document from its fence content and
+headings alone, never from which view rendered a committed diagram.
+
 ## Line-length policy
 
 Default MD013 caps lines at 80 columns and, by default, checks inside code

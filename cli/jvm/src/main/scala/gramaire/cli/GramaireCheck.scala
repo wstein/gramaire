@@ -74,7 +74,8 @@ object GramaireCheck:
       mode: DiagramMode,
       sourceLayout: SourceLayout,
       grammarSha256: String,
-      artifacts: Vector[Artifact]
+      artifacts: Vector[Artifact],
+      diagramView: Railroad.DiagramView = Railroad.DiagramView.Source
   )
 
   final case class GrammarHashes(ruleHashes: Map[String, String], grammarSha256: String)
@@ -235,6 +236,14 @@ object GramaireCheck:
             case Some(gramaire.Json.JString("inline"))    => Right(SourceLayout.Inline)
             case Some(gramaire.Json.JString("collapsed")) => Right(SourceLayout.Collapsed)
             case Some(other) => Left(s"lock: unknown sourceLayout $other")
+          // Optional, same provenance-only convention as sourceLayout: absent means every lock
+          // predating this field, which was always "source" (the only view that ever existed
+          // before `--diagram-view` was introduced).
+          diagramView <- m.get("diagramView") match
+            case None                                      => Right(Railroad.DiagramView.Source)
+            case Some(gramaire.Json.JString("source"))     => Right(Railroad.DiagramView.Source)
+            case Some(gramaire.Json.JString("simplified")) => Right(Railroad.DiagramView.Simplified)
+            case Some(other) => Left(s"lock: unknown diagramView $other")
           grammarSha256 <- m
             .get("grammarSha256")
             .collect { case gramaire.Json.JString(s) => s }
@@ -250,7 +259,7 @@ object GramaireCheck:
                 a <- parseArtifact(aj)
               yield xs :+ a
             }
-        yield Lock(version, mode, sourceLayout, grammarSha256, artifacts)
+        yield Lock(version, mode, sourceLayout, grammarSha256, artifacts, diagramView)
       case _ => Left("lock: expected an object")
     }
 
@@ -771,7 +780,7 @@ object GramaireCheck:
     if text != doc.src then Files.writeString(Path.of(file), text)
 
     val artifactsResult = artifacts.result()
-    val lock = Lock(1, mode, layout, grammarSha256, artifactsResult)
+    val lock = Lock(1, mode, layout, grammarSha256, artifactsResult, view)
     Files.writeString(Path.of(lockPathFor(file)), lockJson(lock) + "\n")
 
     val diagramsNote =
@@ -822,9 +831,16 @@ object GramaireCheck:
     val sourceLayoutLine =
       if lock.sourceLayout == SourceLayout.Inline then ""
       else s"""\n    |  "sourceLayout": ${jstr(sourceLayoutName(lock.sourceLayout))},"""
+    // `diagramView` is provenance only, the same convention as `sourceLayout` above: omitted
+    // when `source` (every lock predating this field implicitly meant source, the only view
+    // that existed before `--diagram-view`), and neither `checkStructure` nor `checkDrift` key
+    // on it — both classify a document from its fence content and headings alone.
+    val diagramViewLine =
+      if lock.diagramView == Railroad.DiagramView.Source then ""
+      else s"""\n    |  "diagramView": ${jstr(Railroad.diagramViewName(lock.diagramView))},"""
     s"""{
     |  "version": ${lock.version},
-    |  "mode": ${jstr(modeName(lock.mode))},$sourceLayoutLine
+    |  "mode": ${jstr(modeName(lock.mode))},$sourceLayoutLine$diagramViewLine
     |  "grammarSha256": ${jstr(lock.grammarSha256)},
     |  "artifacts": [
     |$artifactsJson
