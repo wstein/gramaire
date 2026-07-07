@@ -268,6 +268,33 @@ test("the Lab's All-parses tab shows every derivation of an ambiguous grammar", 
   );
 });
 
+test("the All-parses tab's Graph view renders an actual SVG tree, not raw Mermaid source text", async ({
+  page,
+}) => {
+  await gotoLabReady(page);
+  await page.click('button[role="tab"]:has-text("All parses")');
+  await expect(page.locator(".lab__forest-item")).toHaveCount(1);
+
+  await page.click('button.lab__copy-btn:has-text("Graph view")');
+  const graph = page.locator(".lab__cst-graph");
+  await expect(graph.locator("svg")).toHaveCount(1);
+  // The regression this guards: the raw `graph TD\n n0[...` Mermaid DSL text must never appear as
+  // literal page content once Graph view is toggled on.
+  await expect(graph).not.toContainText("graph TD");
+  // "1+2*3" against calc.gram.md's left-recursive Expr/Term/Factor derives several nested
+  // Expr/Term nodes, not one apiece — assert presence/labeling, not an exact structural count.
+  await expect(graph.locator("rect.rr-nonterm").first()).toBeVisible();
+  await expect(graph.locator("rect.rr-term").first()).toBeVisible();
+  await expect(
+    graph.locator("text.rr-text", { hasText: "Expr" }).first(),
+  ).toBeVisible();
+
+  // Toggling back off returns to the plain per-parse tree view.
+  await page.click('button.lab__copy-btn:has-text("Graph view")');
+  await expect(page.locator(".lab__cst-graph")).toHaveCount(0);
+  await expect(page.locator(".lab__forest-item")).toHaveCount(1);
+});
+
 test("the Lab's Evaluate tab runs a grammar's real {% %} actions, not a passthrough", async ({
   page,
 }) => {

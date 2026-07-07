@@ -15,11 +15,11 @@ export interface LabExample {
   input: string;
 }
 
-export const DEFAULT_SOURCE = `# Expr
-
-\`\`\`gramaire
+export const DEFAULT_SOURCE = `---
 name: Expr
-\`\`\`
+---
+
+# Expr
 
 ## Tokens
 

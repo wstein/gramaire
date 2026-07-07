@@ -713,6 +713,40 @@
 .lab__railroad-svg svg {
   max-width: 100%;
 }
+.lab__cst-graph {
+  margin-top: 10px;
+  overflow-x: auto;
+}
+.lab__cst-graph svg {
+  max-width: 100%;
+}
+/* Reuses the railroad diagrams' own rr-track/rr-term/rr-nonterm/rr-text class names (a familiar
+   look for the same term/nonterminal distinction), but scoped here to the site's own theme-aware
+   tokens rather than Railroad.scala's fixed hex — this SVG is generated client-side purely for
+   inline display, never extracted as a portable standalone file the way a sidecar diagram is. */
+.lab__cst-graph .rr-track {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 2;
+}
+.lab__cst-graph .rr-term {
+  fill: var(--bg-1);
+  stroke: var(--t-term);
+  stroke-width: 2;
+}
+.lab__cst-graph .rr-nonterm {
+  fill: var(--bg-2);
+  stroke: var(--t-nonterm);
+  stroke-width: 2;
+}
+.lab__cst-graph .rr-text {
+  fill: var(--fg);
+  font: 12px var(--font-mono);
+}
+.lab__cst-graph .lab__graph-label {
+  fill: var(--fg-faint);
+  font: 11px var(--font-mono);
+}
 
 .lab__walk-controls {
   display: flex;
