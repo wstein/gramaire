@@ -252,7 +252,15 @@ object IRDecode:
       skipM <- optBool(o, "skip")
       caselessM <- optBool(o, "caseless")
       prec <- optInt(o, "prec")
-    yield IRTokenClass(terminal, pattern, skipM.getOrElse(false), prec, caselessM.getOrElse(false))
+      nativeSpelling <- optStr(o, "nativeSpelling")
+    yield IRTokenClass(
+      terminal,
+      pattern,
+      skipM.getOrElse(false),
+      prec,
+      caselessM.getOrElse(false),
+      nativeSpelling
+    )
 
   private def decodePattern(j: Json): Either[String, IRPattern] =
     obj(j).flatMap { o =>

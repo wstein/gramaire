@@ -139,6 +139,10 @@
         },
         "prec": {
           "type": "integer"
+        },
+        "nativeSpelling": {
+          "type": "string",
+          "description": "The token's original name in an imported grammar's own notation (ADR D61, `@spelling(\"...\")`), when that name isn't Gramaire's required ALL-CAPS `[A-Z][A-Z0-9_]*` — e.g. ANTLR's `Digit` (ANTLR only requires an uppercase first letter). Absent for the overwhelming majority of token classes, which never went through an import. An export backend should prefer this over the token's own (possibly renamed) name when re-emitting to that original notation."
         }
       }
     },

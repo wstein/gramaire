@@ -155,11 +155,15 @@ object BackendAntlr:
             .mkString + "\n  ;\n"
       nt.comment.map(c => s"/* $c */\n").getOrElse("") + body
 
+    // A token carrying `@spelling("...")` (ADR D61) round-trips under its ORIGINAL ANTLR spelling —
+    // e.g. a `Digit` lexer rule imported as Gramaire's `DIGIT` re-exports as `Digit`, not `DIGIT` —
+    // rather than Gramaire's own ALL-CAPS-only internal name, which exists purely so `## Tokens`
+    // fences stay self-classifying (D-grammar-roles), not as a real ANTLR-facing identifier.
     def lexerRule(lx: IRLexer, tid: Int): Option[String] =
       for
         cls <- lx.classes.find(_.terminal == tid)
         name <- termById.get(tid).collect { case IRTerminal.IRClass(_, n) => n }
-      yield s"$name : ${patternText(cls.pattern)}${skipText(cls)} ;"
+      yield s"${cls.nativeSpelling.getOrElse(name)} : ${patternText(cls.pattern)}${skipText(cls)} ;"
 
     val lexerSection: Vector[String] = ir.lexer match
       case None     => Vector.empty

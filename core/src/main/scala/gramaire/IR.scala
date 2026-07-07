@@ -45,7 +45,11 @@ final case class IRTokenClass(
     pattern: IRPattern,
     skip: Boolean,
     prec: Option[Int],
-    caseless: Boolean
+    caseless: Boolean,
+    // `@spelling("...")` (ADR D61) — the token's original name in an imported grammar's own
+    // notation, carried through purely for an export backend's provenance; `None` (and omitted from
+    // JSON) for the overwhelming majority of token classes that never went through an import.
+    nativeSpelling: Option[String] = None
 )
 
 // A grammar's lexis: the scan mode, class terminal ids in declaration
@@ -651,11 +655,12 @@ object IR:
       val caselessEntry =
         if c.caseless then Vector("caseless" -> Json.JBool(true)) else Vector.empty
       val precEntry = c.prec.map(p => "prec" -> Json.JInt(p)).toVector
+      val spellingEntry = c.nativeSpelling.map(s => "nativeSpelling" -> Json.JString(s)).toVector
       Json.JObject(
         Vector(
           "terminal" -> Json.JInt(c.terminal),
           "pattern" -> patternJson(c.pattern)
-        ) ++ skipEntry ++ caselessEntry ++ precEntry
+        ) ++ skipEntry ++ caselessEntry ++ precEntry ++ spellingEntry
       )
 
     def lexerJson(lx: IRLexer): Json =
@@ -1030,7 +1035,9 @@ object IR:
     val classes = defs.flatMap { d =>
       nameId
         .get(d.name)
-        .map(tid => IRTokenClass(tid, patternOf(d.pattern), d.skip, d.prec, d.caseless))
+        .map(tid =>
+          IRTokenClass(tid, patternOf(d.pattern), d.skip, d.prec, d.caseless, d.nativeSpelling)
+        )
     }
     val order = defs.flatMap(d => nameId.get(d.name))
     val extras = defs.flatMap(d => if d.skip then nameId.get(d.name) else None)

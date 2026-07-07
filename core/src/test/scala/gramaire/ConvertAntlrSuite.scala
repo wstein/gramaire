@@ -497,3 +497,33 @@ class ConvertAntlrSuite extends munit.FunSuite:
         )
         assert(imp.markdown.contains("## r\n"), "the referencing parser rule survives")
   }
+
+  test(
+    "convert: a lexer rule name that isn't ALL-CAPS (ANTLR only requires an uppercase first letter) is renamed and its original spelling preserved via @spelling (D61)"
+  ) {
+    val mixedCaseLexerG4 =
+      """grammar MixedCaseLexer;
+        |r : Digit+ ;
+        |Digit : [0-9] ;
+        |""".stripMargin
+    ConvertAntlr.importAntlr(mixedCaseLexerG4) match
+      case Left(e) => fail(s"mixedCaseLexer.g4 should import: $e")
+      case Right(imp) =>
+        assert(
+          imp.markdown.contains("""DIGIT : /[0-9]/ @spelling("Digit") ;"""),
+          s"expected a renamed, spelling-tagged token line, got:\n${imp.markdown}"
+        )
+        Lr.parse(imp.markdown) match
+          case Left(e) => fail(s"the imported grammar must be valid, parseable Gramaire: $e")
+          case Right(g) =>
+            val defs = defsOf(imp.markdown)
+            assertEquals(defs.find(_.name == "DIGIT").flatMap(_.nativeSpelling), Some("Digit"))
+            IR.buildIRWithTokens(defs, Method.Canonical, "MixedCaseLexer", g) match
+              case Left(_) => fail("imported grammar should build an IR")
+              case Right(ir) =>
+                val g4b = BackendAntlr.emit(ir)
+                assert(
+                  g4b.contains("Digit : [0-9]"),
+                  s"re-export must use ANTLR's own original spelling, not DIGIT, got:\n$g4b"
+                )
+  }

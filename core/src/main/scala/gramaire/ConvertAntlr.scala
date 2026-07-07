@@ -567,8 +567,13 @@ object ConvertAntlr:
     case SStar(_) => "*"
     case SPlus(_) => "+"
 
-  private def renderAtom(a: Atom): String = a match
-    case ARef(n) => n
+  // `rename` maps an ANTLR lexer rule's original name to its Gramaire ALL-CAPS spelling (D61) — a
+  // parser-rule reference to a renamed lexer rule (`Digit` in `r : Digit+ ;`) must follow the same
+  // rename its own definition line got (`DIGIT : ... @spelling("Digit") ;`), or the reference
+  // dangles. Empty for a reference that isn't naming a renamed lexer rule (a parser rule, or a
+  // lexer rule already ALL-CAPS): `getOrElse` just returns the name unchanged.
+  private def renderAtom(a: Atom, rename: Map[String, String]): String = a match
+    case ARef(n) => rename.getOrElse(n, n)
     case ALit(s) => "'" + gramLit(s) + "'"
     case ASet(_) => widenedParserCharset
     case ADot    => "."
@@ -576,14 +581,14 @@ object ConvertAntlr:
     // `SetItem | '(' SetBody ')'` (an IDENT/literal, never `.`) — `~.` isn't parseable
     // Gramaire syntax, so drop the whole atom rather than emit invalid output (warned).
     case ANot(ASet(_)) => ""
-    case ANot(inner)   => "~" + renderAtom(inner)
+    case ANot(inner)   => "~" + renderAtom(inner, rename)
     // An inner alt that itself renders to "" (a dropped atom, recursively) can't be kept —
     // `( ` + "" + ` )` would emit an invalid empty group, not propagate the emptiness up
     // to the containing alt's own "" check (dropUnrepresentableRules never sees inside a
     // group). Filtering here first makes the whole group "" too once every branch drops,
     // so it composes with that check instead of hiding an unrepresentable alt inside parens.
     case AGroup(alts) =>
-      val kept = alts.map(renderAlt).filter(_.nonEmpty)
+      val kept = alts.map(renderAlt(_, rename)).filter(_.nonEmpty)
       if kept.isEmpty then "" else "( " + kept.mkString(" | ") + " )"
     case AInline(_) => "" // dropped (warned)
     // dropped by default here too — a lone top-level predicate is promoted separately by
@@ -592,15 +597,16 @@ object ConvertAntlr:
     // … )` has no Core equivalent, so a nested predicate always stays dropped).
     case APred(_) => ""
 
-  private def renderElem(e: Elem): String = renderAtom(e.atom) + renderSuffix(e.suffix)
+  private def renderElem(e: Elem, rename: Map[String, String] = Map.empty): String =
+    renderAtom(e.atom, rename) + renderSuffix(e.suffix)
 
   // May render to "" — either `els` was empty (a genuine ANTLR empty alternative) or every
   // element rendered to "" (all its parts were dropped, no Core equivalent). Neither case
   // is representable in Gramaire: there is no epsilon/empty-alternative syntax (a bare
   // `:`/`|` with nothing after it, and a `/* … */` comment, both fail to parse). Callers
   // must not emit an alt this returns "" for — `dropUnrepresentableRules` drops it instead.
-  private def renderAlt(els: Vector[Elem]): String =
-    els.map(renderElem).filter(_ != "").mkString(" ")
+  private def renderAlt(els: Vector[Elem], rename: Map[String, String] = Map.empty): String =
+    els.map(renderElem(_, rename)).filter(_ != "").mkString(" ")
 
   // A `{ p }?` predicate can be kept — as a trailing `{%? p %}` action (D-predicates ADR) —
   // only when it is the alt's ONE inline action/predicate and the alt has other real content:
@@ -621,8 +627,8 @@ object ConvertAntlr:
   // after the alt's real symbols. Never called for a nested `AGroup` alt (those keep calling
   // `renderAlt` directly via `renderAtom`'s `AGroup` case), matching the "not inside a group"
   // restriction `promotablePredicate` documents.
-  private def renderTopAlt(els: Vector[Elem]): String =
-    val base = renderAlt(els)
+  private def renderTopAlt(els: Vector[Elem], rename: Map[String, String]): String =
+    val base = renderAlt(els, rename)
     promotablePredicate(lexer = false, els) match
       case Some(p) => s"$base {%? ${p.trim} %}"
       case None    => base
@@ -655,8 +661,19 @@ object ConvertAntlr:
     val parserRules = p.rules.filterNot(_.lexer)
     val lexerRules = p.rules.filter(_.lexer)
 
+    // ANTLR only requires a lexer rule's FIRST letter be uppercase (`Digit` is valid ANTLR); Gramaire
+    // requires the WHOLE name (`Tokens.validateName`, D61) — structural, not stylistic, since it's
+    // what keeps a `## Tokens` line self-classifying (D-grammar-roles) apart from a single-line rule
+    // head (D59). A name that isn't already ALL-CAPS is uppercased, with the ANTLR original carried
+    // through as `@spelling("...")` so BackendAntlr's export round-trips the real spelling back — and
+    // every parser-rule reference to that lexer rule (`renderTopAlt`'s `rename`) must follow the
+    // exact same rename, or it dangles.
+    val lexerRename: Map[String, String] = lexerRules.map(r => r.name -> r.name.toUpperCase).toMap
+
     def tokenLine(r: G4Rule): String =
-      s"${r.name} : /${regexOfAlts(r.alts)}/" + (if r.skip then "   -> skip ;" else " ;")
+      val gramaireName = lexerRename(r.name)
+      val spelling = if gramaireName != r.name then s""" @spelling("${r.name}")""" else ""
+      s"$gramaireName : /${regexOfAlts(r.alts)}/$spelling" + (if r.skip then " -> skip ;" else " ;")
 
     // Headless — no heading of its own, immediately after the H1 (fmt-output-contract.md
     // §"Canonical document structure" item 3): `name:` reads like a source file's leading
@@ -677,7 +694,7 @@ object ConvertAntlr:
     def ruleSection(r: G4Rule): String =
       val doc = r.doc.map(d => d + "\n\n").getOrElse("")
       s"## ${r.name}\n\n$doc```gramaire\n${r.name}\n  : " + r.alts
-        .map(renderTopAlt)
+        .map(renderTopAlt(_, lexerRename))
         .mkString("\n  | ") + "\n  ;\n```\n"
 
     val markdown =

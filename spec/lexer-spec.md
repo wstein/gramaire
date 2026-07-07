@@ -34,11 +34,14 @@ NAME : <definition> [ modifiers ]
 ```
 
 - `NAME` is an ALL-CAPS token class (`[A-Z][A-Z0-9_]*`), matching the class names
-  already used in productions.
+  already used in productions — structural, not stylistic (ADR D61): it's what
+  keeps a Tokens-role fence line self-classifying (§1) apart from a single-line
+  rule head (D59), both now `IDENT : ... ;`-shaped.
 - `<definition>` is either a **string literal** `"…"` (an exact match) or a
   **regular expression** `/…/` (§3).
-- `modifiers` are zero or more of `-> skip`, `@prec(N)`, `@caseless`, `-> pass`
-  (§6); a `/regex/` may also carry a glued `i` case-insensitivity flag (`/…/i`).
+- `modifiers` are zero or more of `-> skip`, `@prec(N)`, `@caseless`,
+  `@spelling("...")`, `-> pass` (§6); a `/regex/` may also carry a glued `i`
+  case-insensitivity flag (`/…/i`).
 
 A grammar MUST place all its named classes here; an ALL-CAPS symbol used in a
 production but absent from a Tokens-role fence is an error ("token class `X`
@@ -147,6 +150,13 @@ only the open-ended classes.
   naming externally-defined tokens (external mode), where there is no in-file
   pattern to carry `-> skip`.
 - **`@prec(N)`** — explicit tie-break priority (§5, M2).
+- **`@spelling("Name")`** (ADR D61) — the token's original name in an imported
+  grammar's own notation, when that name isn't Gramaire's required ALL-CAPS
+  (ANTLR only requires an uppercase first letter, e.g. `Digit`; Bison/EBNF have
+  no case convention at all). Purely round-trip provenance for an export
+  backend to prefer over the token's own (renamed) name — never a second
+  grammar-internal identifier, and never checked for uniqueness or referenced
+  from a production.
 - **`@caseless`** — the class matches **ASCII case-insensitively** (ADR D35):
   every `Lit` and `Class` in its pattern folds case, so `KW : "select" @caseless`
   matches `SELECT`, `Select`, … . The equivalent on a regex is the glued **`i`

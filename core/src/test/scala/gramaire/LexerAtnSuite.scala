@@ -65,7 +65,7 @@ class LexerAtnSuite extends munit.FunSuite:
     // differential-oracle spirit as `checkAgreement` above, but for the captured span rather than
     // the token shape.
     val stringRx = defs
-      .collectFirst { case TokenDef("STRING", TokenPattern.Regex(_, rx), _, _, _, _) => rx }
+      .collectFirst { case TokenDef("STRING", TokenPattern.Regex(_, rx), _, _, _, _, _) => rx }
       .getOrElse(fail("expected STRING's regex pattern"))
     strings.foreach { tok =>
       Regex.longestMatchSpan(caseless = false, stringRx, tok.text, 0) match

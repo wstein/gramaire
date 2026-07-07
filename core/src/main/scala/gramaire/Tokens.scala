@@ -10,7 +10,8 @@ package gramaire
 // `/regex/` in the regular sublanguage (`Regex`), `modifiers` are zero or more of `-> skip` /
 // `-> pass` (ANTLR4's own `-> command` lexer-command syntax, borrowed verbatim: a bare `skip`
 // names the one builtin command, any other bare identifier names a host post-lex pass), plus
-// `@caseless`, `@prec(N)`, and the trailing `;` is mandatory (matching Bison/YACC/ANTLR4's own
+// `@caseless`, `@prec(N)`, `@spelling("...")` (ADR D61 — an imported grammar's original,
+// non-ALL-CAPS name), and the trailing `;` is mandatory (matching Bison/YACC/ANTLR4's own
 // lexer-rule terminator).
 // Ported from src/Gramaire/Tokens.purs.
 
@@ -28,7 +29,14 @@ final case class TokenDef(
     skip: Boolean, // `-> skip`: matched but not a grammar symbol (extras)
     prec: Option[Int], // `@prec(N)`: explicit tie-break priority
     external: Option[String], // `-> pass`: a host post-lex pass name
-    caseless: Boolean // `/…/i` flag or `@caseless`: ASCII case-insensitive (D35)
+    caseless: Boolean, // `/…/i` flag or `@caseless`: ASCII case-insensitive (D35)
+    // `@spelling("...")` (ADR D61): the token's original name in an imported grammar's own
+    // notation, when that name isn't `[A-Z][A-Z0-9_]*` (ANTLR only requires an uppercase FIRST
+    // letter, e.g. `Digit`; Bison/EBNF have no case convention at all). Gramaire's own `name` stays
+    // ALL-CAPS regardless — fence self-identification (`Lr.classifyFenceContent`'s "case is law")
+    // depends on every Tokens-fence line looking ALL-CAPS-before-`:`, so this is purely round-trip
+    // provenance for an export backend to prefer, never a second grammar-internal identifier.
+    nativeSpelling: Option[String] = None
 )
 
 object Tokens:
@@ -57,7 +65,8 @@ object Tokens:
       skip = mods.skip,
       prec = mods.prec,
       external = mods.external,
-      caseless = d.iflag || mods.caseless
+      caseless = d.iflag || mods.caseless,
+      nativeSpelling = mods.spelling
     )
 
   // The mandatory trailing `;` (Bison/YACC/ANTLR4 convention) — the line's own `body` is
@@ -75,11 +84,23 @@ object Tokens:
     val i = s.indexOf(':')
     if i < 0 then None else Some((s.substring(0, i), s.substring(i + 1)))
 
+  // Structural, not stylistic (ADR D61): every Tokens-fence line must independently look
+  // ALL-CAPS-before-`:` for `Lr.classifyFenceContent` to recognize the fence as Tokens at all
+  // ("case is law" — D-grammar-roles), which is now the ONLY thing that keeps a token line from
+  // colliding with a single-line rule head's identical `IDENT : ... ;` shape (D59). Importing a
+  // name that isn't already ALL-CAPS-shaped (e.g. ANTLR's `Digit`, Bison/EBNF's no-convention-at-all
+  // names)? Rename it and carry the original via `@spelling("...")` instead of relaxing this.
   private def validateName(name: String): Either[String, String] =
     def isUpper(c: Char) = c >= 'A' && c <= 'Z'
     def isClassChar(c: Char) = (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'
     if name.nonEmpty && isUpper(name.head) && name.tail.forall(isClassChar) then Right(name)
-    else Left(s"token name must be ALL-CAPS `[A-Z][A-Z0-9_]*`: $name")
+    else
+      Left(
+        s"token name must be ALL-CAPS `[A-Z][A-Z0-9_]*`: $name " +
+          "(structural, not stylistic — it's what tells a Tokens-fence line apart from a " +
+          "single-line rule head; importing a non-ALL-CAPS name? rename it and record the " +
+          "original with `@spelling(\"...\")`)"
+      )
 
   private final case class DefResult(pattern: TokenPattern, iflag: Boolean, rest: String)
 
@@ -136,7 +157,8 @@ object Tokens:
       skip: Boolean = false,
       prec: Option[Int] = None,
       external: Option[String] = None,
-      caseless: Boolean = false
+      caseless: Boolean = false,
+      spelling: Option[String] = None
   )
 
   private def parseModifiers(ws: Vector[String]): Either[String, Mods] =
@@ -151,6 +173,10 @@ object Tokens:
           precN(head).get match
             case Right(p) => go(acc.copy(prec = Some(p)), tail)
             case Left(n)  => Left(s"`@prec` expects a number, got: $n")
+        case head :: tail if spellingOf(head).isDefined =>
+          spellingOf(head).get match
+            case Right(s)  => go(acc.copy(spelling = Some(s)), tail)
+            case Left(raw) => Left(s"""`@spelling` expects a quoted "name", got: $raw""")
         case head :: _ => Left(s"unknown token modifier: $head")
     go(Mods(), ws.toList)
 
@@ -160,6 +186,20 @@ object Tokens:
     if w.startsWith("@prec(") && w.endsWith(")") then
       val n = w.substring("@prec(".length, w.length - 1)
       Some(parseIntStr(n).toRight(n))
+    else None
+
+  // `@spelling("Name")` (ADR D61) → `Right(Name)` if the parenthesized argument is a quoted,
+  // non-empty string, `Left(raw)` otherwise — `None` if `w` isn't even `@spelling(...)` shaped.
+  private def spellingOf(w: String): Option[Either[String, String]] =
+    if w.startsWith("@spelling(") && w.endsWith(")") then
+      val raw = w.substring("@spelling(".length, w.length - 1)
+      val inner =
+        if raw.length >= 2 && raw.startsWith("\"") && raw.endsWith("\"") then
+          Some(raw.substring(1, raw.length - 1))
+        else None
+      inner.filter(_.nonEmpty) match
+        case Some(s) => Some(Right(s))
+        case None    => Some(Left(raw))
     else None
 
   private def parseIntStr(s: String): Option[Int] =
