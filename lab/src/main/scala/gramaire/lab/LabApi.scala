@@ -193,7 +193,13 @@ object LabApi:
     // `Lr.nameOf` only needs the frontmatter/settings-fence text, not a valid `Grammar`, so even the
     // `Left(diags)` branch's response can carry a real name for the Notebook's download filename.
     val name = Lr.nameOf(request.source)
-    Lr.parseWith(Method.Canonical, request.source) match
+    // `parseWithDocs`, not the bare `parseWith`: this `grammar` feeds `evaluatorJsFor` below (via
+    // `grammar.externals`), so a `-> name` delegate's embedded `## Externals` implementation must
+    // be attached here or the Evaluate tab always falls back to the runtime `externals[name]`
+    // table — which the Lab never registers (no host page calls `setExternals`) — turning every
+    // embedded delegate into a guaranteed "externals.<Name> is not a function" at evaluation time,
+    // even though `gramaire emit --backend js` on the same source embeds it correctly.
+    Lr.parseWithDocs(Method.Canonical, request.source) match
       case Left(diags) =>
         LabResponse(
           LabResponse.version,

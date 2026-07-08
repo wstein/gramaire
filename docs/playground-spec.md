@@ -745,6 +745,24 @@ an actual `%lang javascript` grammar with real actions (not just the
 default action-free grammar): `1+2+3` correctly reduces to `6` through
 three real reduction steps.
 
+**A real bug surfaced and fixed here:** `evaluate` built its grammar with the
+bare `Lr.parseWith`, which never attaches a document's `## Externals` section
+(only `Lr.parseWithDocs` does, ADR D49) — so `evaluatorJsFor`'s
+`grammar.externals` was always empty and every `-> name` delegate
+(`examples/calc-delegate.gram.md`'s `Pow`/`Round`/`Call`) fell back to the
+generated module's runtime `externals[name]` table, even one with a real
+embedded `### name` implementation. The Lab never calls `setExternals` (no
+host page registers anything), so that fallback wasn't merely losing an
+optimization — it threw `TypeError: externals.<Name> is not a function` the
+instant the Evaluate tab's module actually reduced through that production,
+for every embedded delegate, on every grammar, unconditionally. Fixed by
+switching `evaluate` to `Lr.parseWithDocs`, the same call `gramaire emit`'s
+own CLI path already makes; regression-tested in `LabApiSuite` against
+`calc-delegate.gram.md` — `Pow`'s embedded `Math.pow(c.factor, c.power)` must
+be spliced in verbatim, while `Call` (deliberately left unresolved) must
+still fall back to `externals["Call"]`, proving the fix doesn't paper over
+the genuinely-unresolved case.
+
 The draggable splitter is also done — the last item in this slice.
 `site/src/lab/LabIsland.tsx`'s `.lab__panes` grid grew a real DOM sibling
 between the grammar/input panes (`.lab__splitter`, `role="separator"`,

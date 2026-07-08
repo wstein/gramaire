@@ -12,6 +12,7 @@ class LabApiSuite extends munit.FunSuite:
 
   private lazy val calcMd = readFile("examples/calc.gram.md")
   private lazy val calcPrecMd = readFile("examples/calc-prec.gram.md")
+  private lazy val calcDelegateMd = readFile("examples/calc-delegate.gram.md")
 
   // E : E E | 'x' — no precedence declared, so it's genuinely ambiguous
   // (the same shape as core's own TableSuite `ambiguous` fixture, as
@@ -94,6 +95,39 @@ class LabApiSuite extends munit.FunSuite:
         assert(p.accepted, s"expected accepted, message: ${p.message}")
         assert(p.cst.isDefined)
     assert(resp.evaluatorJs.isDefined, "the traced evaluator should build with precedence too")
+  }
+
+  // Regression: `evaluate` used to build its grammar with the bare `Lr.parseWith`, which never
+  // attaches a document's `## Externals` section (only `Lr.parseWithDocs` does, ADR D49) — so
+  // `evaluatorJsFor`'s `grammar.externals` was always empty and EVERY `-> name` delegate fell back
+  // to the runtime `externals[name]` table, even one with a real embedded implementation. Since
+  // the Lab never calls `setExternals` (no host page registers anything), that fallback always
+  // throws `TypeError: externals.<Name> is not a function` the instant the Evaluate tab's generated
+  // module actually reduces through that production — this file's `Pow`/`Round` both have embedded
+  // implementations and must be spliced in verbatim, exactly like `gramaire emit --backend js`
+  // already does; `Call` deliberately has none (`examples/calc-delegate.gram.md`'s own doc comment)
+  // and must keep falling back to `externals["Call"]`, so this also proves the fix doesn't paper
+  // over the genuinely-unresolved case.
+  test(
+    "evaluate: a delegate with an embedded ## Externals implementation is spliced in, not left to the runtime table"
+  ) {
+    val resp = LabApi.evaluate(LabRequest(calcDelegateMd, Some("2^3"), Method.Canonical))
+    assert(resp.buildOk, s"expected buildOk, diagnostics: ${resp.diagnostics}")
+    resp.evaluatorJs match
+      case None => fail("expected an evaluatorJs module")
+      case Some(js) =>
+        assert(
+          js.contains("Math.pow(c.factor, c.power)"),
+          s"Pow's embedded implementation should be spliced in verbatim, not left as a runtime lookup:\n$js"
+        )
+        assert(
+          !js.contains("externals[\"Pow\"]"),
+          s"Pow has a real ## Externals implementation and must not fall back to externals[name]:\n$js"
+        )
+        assert(
+          js.contains("externals[\"Call\"]"),
+          s"Call has no embedded implementation and must still fall back to the runtime table:\n$js"
+        )
   }
 
   test("evaluate: a valid grammar and rejected input yields no CST, with a message") {
