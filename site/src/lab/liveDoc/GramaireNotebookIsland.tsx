@@ -388,11 +388,35 @@ effect(() => {
   if (serializeDocument(next) !== current) scheduleEvaluate();
 });
 
-// A response with at least one fence is what unlocks the notebook view — empty on the very first
-// paint (before any response has arrived) and on a genuine engine failure (internalErrorResponse
-// always carries fences: []) alike, so both cases get the same safe fallback: a plain, fully
-// editable textarea, never a blank screen (the team debate's graceful-degradation requirement).
-const showNotebook = computed(() => (response.value?.fences.length ?? 0) > 0);
+// Whether `blocks` currently holds at least one REAL, engine-classified fence block —
+// deliberately derived from `blocks` itself, never from `response`. `commitSourceEdit`/
+// `acceptRestore`/`loadDocumentText` all reset `blocks` to `buildDocument(text, [],
+// splitHeadingsFromProse)` *synchronously*, well before a fresh, matching response can arrive and
+// rebuild it for real (the reshape `effect` above refuses to apply a response whose
+// `responseSource` doesn't match the current text, guarding against exactly this staleness — see
+// its own comment). Passing `fences: []` there does NOT collapse the whole document down to one
+// block, though: `splitHeadingsFromProse` still splits every `#`/`##`/`###` line out into its own
+// `"heading"`-kind block, same as it always does — so this fenceless placeholder is typically
+// SEVERAL blocks (one per heading, one per prose run between them), every one of them still in
+// the prose family (`isProseFamily`: `"prose"` or `"heading"`), none of them a real
+// `"tokens"`/`"rule"`/`"settings"`/`"precedence"` fence. `response.value?.fences.length` is a
+// SEPARATE signal that keeps whatever the PREVIOUS document's fence count was until the reshape
+// effect's guard passes, so deriving `showNotebook` from it (or from a plain `blocks.length > 1`
+// check, which this heading-split shape defeats too) meant a document freshly reset to its
+// fenceless placeholder still rendered as real cells for as long as a previous, unrelated
+// response's fence count stayed positive — feeding a prose run containing a real
+// ```gramaire fence's own raw markers (misidentified by `splitHeadingsFromProse` as ordinary
+// non-heading text, since it has no fence awareness either) through `ProseBlock`'s
+// `parseMarkdownLite`, which flattens every embedded fence marker into a run-on inline `<code>`
+// span (reported as "some fences render as a single flattened line"). Requiring at least one
+// non-prose-family block is synchronous and race-free: the fenceless placeholder — however many
+// heading/prose blocks it's split into — always falls back to the safe plain-text textarea below,
+// exactly the same fallback already used on the very first paint and on a genuine engine failure
+// (internalErrorResponse always carries fences: []) — never a blank screen (the team debate's
+// graceful-degradation requirement), and never a flattened one either.
+const showNotebook = computed(() =>
+  blocks.value.some((b) => !isProseFamily(b.kind)),
+);
 
 const BADGE_LABEL: Record<DocBlockKind, string> = {
   prose: "Prose",

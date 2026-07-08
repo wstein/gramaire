@@ -1920,6 +1920,82 @@ test("dropping a .gram.md file onto the document loads it", async ({
   await expect.poll(() => ruleNonterminals(page)).toEqual(["Start"]);
 });
 
+// Regression: `showNotebook` used to derive purely from the PREVIOUS response's fence count
+// (`response.value?.fences.length`) — a signal completely disconnected from `blocks`. But
+// loadDocumentText (like commitSourceEdit/acceptRestore) resets `blocks` to a single fenceless
+// placeholder block *before* a fresh, matching response arrives. With a non-empty response
+// already cached from the default document loaded by `gotoNotebookReady`, `showNotebook` stayed
+// `true` even though `blocks` no longer held any real fences — so the fenceless placeholder (the
+// WHOLE new document's raw text, its own ```gramaire fence markers included) rendered through
+// `ProseBlock`'s prose-only `parseMarkdownLite` instead of falling back to the safe plain-text
+// textarea. That parser has no fence awareness at all: every physical line, including every
+// literal fence marker, fell through to its paragraph-joining logic and collapsed to one line,
+// and its inline-code regex then greedily paired up backticks across that flattened text —
+// rendering the entire loaded document as one giant inline `<code>` pill with no
+// `white-space: pre`. Polls the invariant repeatedly across the loading window (not just once):
+// `showNotebook` is now a plain computed over `blocks`, so this holds at every tick, not just
+// eventually — polling gives a reintroduced regression a real chance to be caught, not just luck.
+test("loading a new document while a previous response is still cached never flattens it into inline code", async ({
+  page,
+}) => {
+  await gotoNotebookReady(page);
+  // The default document already evaluated successfully, so `response.value.fences.length > 0`
+  // going into the load below — the exact precondition the bug needed.
+
+  const source = [
+    "---",
+    "name: Loaded",
+    "---",
+    "",
+    "# Loaded",
+    "",
+    "## Tokens",
+    "",
+    "A token whose own regex contains a literal backtick — the same shape that first surfaced",
+    "this bug in examples/ECMA-262.gram.md's template-literal tokens.",
+    "",
+    "```gramaire",
+    "NAME     : /[A-Za-z]+/ ;",
+    "TEMPLATE : /`[^`]*`/ ;",
+    "WS       : /[ \\t\\r\\n]+/ -> skip ;",
+    "```",
+    "",
+    "## Go",
+    "",
+    "```gramaire",
+    "Go",
+    "  : NAME",
+    "  | TEMPLATE",
+    "  ;",
+    "```",
+  ].join("\n");
+
+  const dataTransfer = await page.evaluateHandle(
+    ({ name, mime, content }) => {
+      const dt = new DataTransfer();
+      dt.items.add(new File([content], name, { type: mime }));
+      return dt;
+    },
+    { name: "loaded.gram.md", mime: "text/markdown", content: source },
+  );
+  await page.locator(".gramaire__doc").dispatchEvent("drop", { dataTransfer });
+
+  const deadline = Date.now() + 500;
+  while (Date.now() < deadline) {
+    // Plain, non-retrying reads (not `expect(locator).toContainText`, which polls toward the
+    // assertion PASSING and so could mask a brief flash of bad content by retrying past it) —
+    // a true point-in-time snapshot at each tick.
+    for (const text of await page
+      .locator(".gramaire__prose")
+      .allTextContents()) {
+      expect(text).not.toContain("```");
+    }
+    await page.waitForTimeout(25);
+  }
+
+  await expect.poll(() => ruleNonterminals(page)).toEqual(["Go"]);
+});
+
 test("the drag-over state shows a visual cue and clears again on drop/dragleave", async ({
   page,
 }) => {
