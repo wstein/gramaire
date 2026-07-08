@@ -360,14 +360,32 @@ object Lr:
     * stripped output treats the entire file, banner and live declarations alike, as
     * undifferentiated preamble prose and wraps all of it in one dead `/** ... */` comment.
     */
+  // A pre-D58 `## General settings` block had its own ` ```gramaire ` fence, so `splitPreamble`'s
+  // fence-based extraction already carried `name:`/`lang:` out of the banner comment as
+  // `preambleFence`; ADR D58's frontmatter, added afterward, was never taught the same trick — with
+  // no fence of its own, it fell into `banner`'s "anything before the first `## ` is intro prose"
+  // catch-all instead, commented out where `Lr.nameOf`/`gramaire emit`/`gramaire check` can never
+  // find it again (a `.gram` this silently produced could not even be `emit`/`check`ed, confirmed
+  // empirically, not a hypothetical). Extracted here as its own bare `name:`/`lang:` block — the
+  // exact shape `isSettingDecl`/`toFenced` already recognize as a settings fence — the same as
+  // `preambleFence` above always has.
+  private def frontmatterSettingsLines(doc: Frontmatter.Doc): Vector[String] =
+    Vector(doc.str("name").map(n => s"name: $n"), doc.str("lang").map(l => s"lang: $l")).flatten
+
   def strip(md: String): String =
     if !md.contains("```gramaire") then md
     else
-      val ls = md.split("\n", -1).toVector
+      val (settingsLines, body) = Frontmatter.strip(md) match
+        case Frontmatter.StripResult.Found(doc, blanked, _) =>
+          (frontmatterSettingsLines(doc), blanked)
+        case _ => (Vector.empty, md)
+      val ls = body.split("\n", -1).toVector
       val sect = sectionize(ls)
       val (bannerLines, preambleFence) = splitPreamble(sect.preamble)
+      val settingsBlock =
+        if settingsLines.isEmpty then Vector.empty else Vector(settingsLines.mkString("\n"))
       val parts =
-        (banner(bannerLines) +: preambleFence.toVector) ++
+        (banner(bannerLines) +: (settingsBlock ++ preambleFence.toVector)) ++
           sect.sections.flatMap(sec => nativeExternalsSection(sec).orElse(section(sec)))
       parts.filter(_ != "").mkString("\n\n") + "\n"
 

@@ -22,6 +22,19 @@ class StripSuite extends munit.FunSuite:
       assert(!stripped.contains("\n## "), s"$path: no bare ## headings")
       assert(Lr.parse(stripped).isRight, s"$path: stripped form should still parse")
       assertEquals(Lr.parse(stripped), Lr.parse(md), s"$path: parse(strip(x)) must equal parse(x)")
+      // Regression: ADR D58 frontmatter (`---\nname: ...\n---`) has no ` ```gramaire ` fence of its
+      // own, unlike the pre-D58 `## General settings` block `splitPreamble` already knew how to
+      // pull out of the banner — so it used to fall into `banner`'s "everything before the first
+      // `## ` is intro prose" catch-all instead, commented out where `Lr.nameOf` (and so
+      // `gramaire emit`/`gramaire check`) could never find it again. Every fixture in this file uses
+      // frontmatter (ADR D58 is the preferred form), so this loop is exactly where that would have
+      // been caught.
+      assert(
+        Lr.nameOf(stripped).isDefined,
+        s"$path: the stripped form's name: must still be discoverable by Lr.nameOf, not trapped " +
+          "inside the /** */ banner comment"
+      )
+      assertEquals(Lr.nameOf(stripped), Lr.nameOf(md), s"$path: stripping must not change the name")
     }
 
     // Regression: strip(strip(x)) used to corrupt the file. `sectionize` only recognizes sections
