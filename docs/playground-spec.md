@@ -1031,7 +1031,7 @@ the input changes. Falls back to a full-document plain textarea whenever
 arrived, and a genuine engine failure alike (`internalErrorResponse` always
 carries `fences: []`) — so there's no blank-screen state.
 
-Four real bugs surfaced and fixed during manual + Playwright verification,
+Five real bugs surfaced and fixed during manual + Playwright verification,
 all regression-tested in `site/tests/visual/notebook.spec.ts`:
 
 - **Stale-closure infinite dispatch** (`CodeMirrorEditor.tsx`): the
@@ -1077,6 +1077,32 @@ all regression-tested in `site/tests/visual/notebook.spec.ts`:
   (the cell's original, pre-edit text, frozen until the blur-time commit) —
   CodeMirror alone owns the live typing state, so the sync effect only ever
   fires for genuine external changes.
+- **`showNotebook` (the notebook-cells-vs-fallback-textarea switch) derived
+  from the wrong signal**: `commitSourceEdit`/`acceptRestore`/
+  `loadDocumentText` all reset `blocks` to `buildDocument(text, [],
+  splitHeadingsFromProse)` synchronously, well before a fresh, matching
+  response can arrive and rebuild it for real — and `splitHeadingsFromProse`
+  still splits every heading line out into its own block even with no real
+  fences, so this fenceless placeholder is typically several blocks (one per
+  heading, one per prose run between them), every one of them still in the
+  prose family (`isProseFamily`), never a real `tokens`/`rule`/`settings`/
+  `precedence` fence. `showNotebook` used to derive from
+  `response.value?.fences.length` — a SEPARATE signal that keeps whatever the
+  PREVIOUS document's fence count was until the reshape effect's own
+  `responseSource` guard passes — so a document freshly reset to its
+  fenceless placeholder still rendered as real cells for as long as a
+  previous, unrelated response's fence count stayed positive, feeding a prose
+  run containing a real fence's own raw ` ```gramaire `/` ``` ` markers
+  (`splitHeadingsFromProse` has no fence awareness either) through
+  `ProseBlock`'s `parseMarkdownLite`, which flattened every embedded marker
+  into a run-on inline `` `code` `` span — reported as "some fences render as
+  a single flattened line," reachable simply by loading a large-enough
+  grammar (the bigger it is, the longer the classification round trip, the
+  easier the race is to catch on screen) while a previous response was still
+  cached. Fixed by deriving `showNotebook` from `blocks` itself — true only
+  once at least one block is a genuine, non-prose-family fence kind — which
+  is synchronous with the reshape and requires no companion signal to stay in
+  lockstep with.
 
 Also fixed: `.gramaire` had `min-height: 100vh`, growing it to its own full
 content height regardless of the fixed-shell `.content` it lives inside — the
