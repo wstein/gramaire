@@ -3051,18 +3051,21 @@ test("the beforeunload guard also warns while a cell or prose editor is open, un
   // Cancelling closes the editor — but the autosave effect itself reads `blocksLocked()`, so
   // editingProse clearing is its own reactive trigger: the effect re-runs, is no longer locked,
   // and schedules one more (redundant, since the text never actually changed) debounced write —
-  // briefly keeping the guard armed for another AUTOSAVE_DEBOUNCE_MS. Wait past that window
-  // before expecting the guard to actually clear.
+  // briefly keeping the guard armed for another AUTOSAVE_DEBOUNCE_MS. Poll past that window
+  // rather than a fixed sleep: a hardcoded wait one notch above AUTOSAVE_DEBOUNCE_MS is exactly
+  // the sort of margin CPU contention under parallel workers can eat into, flaking the assertion
+  // below without the guard's own logic ever being wrong.
   await page.locator(".gramaire__toolbar-btn--cancel").click();
   await expect(page.locator(".gramaire__prose-editor")).not.toBeVisible();
-  await page.waitForTimeout(700);
 
-  const preventedAfterClose = await page.evaluate(() => {
-    const event = new Event("beforeunload", { cancelable: true });
-    window.dispatchEvent(event);
-    return event.defaultPrevented;
-  });
-  expect(preventedAfterClose).toBe(false);
+  await expect(async () => {
+    const preventedAfterClose = await page.evaluate(() => {
+      const event = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    expect(preventedAfterClose).toBe(false);
+  }).toPass({ timeout: 3000 });
 });
 
 function outlineToggleButton(page: import("@playwright/test").Page) {
