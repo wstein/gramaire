@@ -321,6 +321,14 @@ object Lr:
   private def nativeExternalsSection(sec: Vector[String]): Option[String] =
     if sec.headOption.map(_.trim) != Some("## Externals") then None
     else
+      // `.find` (not `.map`), so a `### name` with MORE than one language-tagged fence (an author
+      // targeting several host languages from one grammar, e.g. `javascript` and `rust` side by
+      // side) only keeps its first — `external NAME {% %}` carries no per-fence language tag of its
+      // own to preserve the rest under (see `externalsMarkdown`'s matching note on the reverse
+      // direction). No shipped grammar does this today (every `## Externals` example is
+      // `javascript`-only), so this narrowing has never actually dropped anything in practice, but a
+      // future multi-language external would need native `.gram` to grow real syntax for it before
+      // `strip` could round-trip more than one.
       val rendered = externalsSections(sec.mkString("\n")).flatMap { sub =>
         sub.fences
           .find(f => f.lang.nonEmpty && f.lang != "gramaire")
@@ -700,6 +708,9 @@ object Lr:
   // which already folds "javascript" (among other spellings) to `"js"`, and `external { %} ` carries
   // no language tag of its own to preserve — same as an ordinary inline `{% %}` action, whose
   // language is always the document's own declared `lang:`, never spelled out at the action site.
+  // One code block per name, always: native `.gram` syntax has no way to express more than one
+  // language fence under a single `external NAME` at all, so a multi-language `### name` narrows to
+  // its first fence on the OTHER direction too (`nativeExternalsSection`'s own matching note).
   private def externalsMarkdown(externals: Vector[(String, String)]): Vector[String] =
     if externals.isEmpty then Vector.empty
     else
