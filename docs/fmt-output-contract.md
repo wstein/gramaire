@@ -459,18 +459,36 @@ there's no Markdown here to satisfy guarantees 1–3 against in the first
 place: no headings, no fences, no `markdownlint-cli2` run at all.
 
 **Shape**: an optional `/** ... */` banner (the file's intro prose, one
-` * ` per line), `%name`/`%lang` declarations as bare lines, token
+` * ` per line), `name:`/`lang:` declarations as bare lines, token
 definitions such as `ALLCAPS : /regex/`, `Mixed-case` rule productions — each
-optionally preceded by `///`-prefixed doc-comment lines — and any
-`%left`/`%right`/`%nonassoc` declarations after the productions. This is
-exactly the shape `gramaire strip` produces from a `.gram.md`, and `Lr.parse`
-already treats it as fully valid grammar input via `Lr.toFenced`'s line-shape
-reconstruction (`isSettingDecl`/`isTokenDef`/`isPrecDecl`, else rule content —
+optionally preceded by `///`-prefixed doc-comment lines — any
+`%left`/`%right`/`%nonassoc` declarations after the productions, and any
+`external NAME {% ... %}` blocks (ADR D49, extended to this format) after
+that. This is exactly the shape `gramaire strip` produces from a `.gram.md`,
+and `Lr.parse`/`Lr.parseWithDocs` already treat it as fully valid grammar
+input via `Lr.toFenced`'s line-shape reconstruction (`isSettingDecl`/
+`isTokenDef`/`isPrecDecl`, else rule content —
 the same `classifyFenceContent` rules used everywhere, "case is law").
+
+`external NAME {% ... %}` (a `-> NAME` delegate's embedded implementation,
+the native counterpart of a `.gram.md`'s `## Externals`/`### NAME` fence) is
+recognized as its own shape, not lumped into rule content: `NAME` then `{%`
+alone ends the opening line, and a `%}` alone on its own line closes it,
+however many lines the body spans — stricter than an ordinary inline
+`{% %}` action (which may open/close mid-line) so the block can be found
+and removed from the rest of the file with plain line matches before
+anything else is classified. `Lr.toFenced` synthesizes it straight into the
+`## Externals`/`### NAME`/` ```javascript ` shape `Lr.withExternals` already
+scans for, so attaching it to a `Grammar` needs no changes beyond that one
+synthesis step; `gramaire strip` emits the reverse direction, so a
+`.gram.md`'s embedded delegate implementations survive the round trip
+instead of silently vanishing (the gap `section`'s ` ```gramaire `-only
+`keepableOpen` check would otherwise create, since a `### NAME` subsection's
+own fence is real host code, never a `` ```gramaire `` one).
 
 **`gramaire check <file.gram>`** verifies:
 
-1. The grammar parses (`Lr.parse`) and has a `%name` directive — the only
+1. The grammar parses (`Lr.parse`) and has a `name:` directive — the only
    two things that were ever actually _required_ for correctness.
 2. Plain-text hygiene: no CRLF, no trailing whitespace on any line, exactly
    one trailing newline.

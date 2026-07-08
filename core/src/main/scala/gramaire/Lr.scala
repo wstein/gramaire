@@ -309,6 +309,25 @@ object Lr:
       val rendered = trimBlankEnds(sec.drop(1).foldLeft(WalkAcc(None, Vector.empty))(walk).out)
       if rendered.isEmpty then None else Some(rendered.mkString("\n"))
 
+  // A `## Externals` section renders to `external NAME {% ... %}` blocks (the exact shape
+  // `toFenced`'s `extractNativeExternals` reads back) instead of running through `section` above —
+  // `section`/`keepableOpen` only ever look for a ` ```gramaire ` fence, and a `### name` subsection
+  // never has one (its own fence is real host-language code, e.g. ` ```javascript `), so every
+  // embedded implementation would otherwise be silently dropped rather than merely reformatted, the
+  // one class of data `strip` must never lose even though everything else it emits is a lossy,
+  // presentation-only projection. Reuses `externalsSections` (already scans exactly this `## `/`### `
+  // shape for `withExternals`) against just this section's own lines, re-joined, rather than a
+  // second, drifting parse of the same structure.
+  private def nativeExternalsSection(sec: Vector[String]): Option[String] =
+    if sec.headOption.map(_.trim) != Some("## Externals") then None
+    else
+      val rendered = externalsSections(sec.mkString("\n")).flatMap { sub =>
+        sub.fences
+          .find(f => f.lang.nonEmpty && f.lang != "gramaire")
+          .map(f => s"external ${sub.name} {%\n${f.content}\n%}")
+      }
+      if rendered.isEmpty then None else Some(rendered.mkString("\n\n"))
+
   // The leading `# Title` + intro paragraph -> a `/** … */` banner
   // comment.
   private def banner(pre: Vector[String]): String =
@@ -348,7 +367,8 @@ object Lr:
       val sect = sectionize(ls)
       val (bannerLines, preambleFence) = splitPreamble(sect.preamble)
       val parts =
-        (banner(bannerLines) +: preambleFence.toVector) ++ sect.sections.flatMap(section)
+        (banner(bannerLines) +: preambleFence.toVector) ++
+          sect.sections.flatMap(sec => nativeExternalsSection(sec).orElse(section(sec)))
       parts.filter(_ != "").mkString("\n\n") + "\n"
 
   // A rule fence's own first non-blank line always starts with that rule's own name (`RuleName`
@@ -614,10 +634,67 @@ object Lr:
       else acc.copy(out = acc.out :+ line)
     }.out
 
+  // A native top-level external declaration (ADR D49, extended to native `.gram`): `external NAME`
+  // then `{%` alone ends the opening line — mirroring NAME's own `### NAME` markdown counterpart —
+  // and a `%}` alone on its own line closes it, however many lines the body spans. Deliberately
+  // stricter than an ordinary inline `{% %}` action (which may open/close mid-line): this shape only
+  // needs simple whole-line matches to find and remove the block from the line pool before any other
+  // `toFenced` classification runs on what's left, at the cost of a vanishingly unlikely false
+  // positive if a grammar ever named a rule `external` and immediately followed it with a same-shaped
+  // action opener — the same class of heuristic risk `isTokenDef`/`isSettingDecl` already accept
+  // elsewhere in this file.
+  private val nativeExternalOpenRe = "^external\\s+(\\w+)\\s+\\{%\\s*$".r
+
+  // Pull every native `external NAME {% ... %}` block out of `ls`, in document order — returned
+  // alongside the lines with those blocks removed, so `decomment`/`isTokenDef`/`isPrecDecl`/
+  // `isSettingDecl` never see a JS-internal `//`/`/* */` inside a body and misread it as a grammar
+  // comment, and the body's own lines don't leak into the `prodLines` catch-all. An unterminated
+  // block (`{%` with no closing `%}` before EOF) is left completely in place, untouched — the same
+  // "don't invent a shape a real syntax error wouldn't have" restraint this file's diagnostics rely
+  // on elsewhere; a later real parse of the reconstructed text surfaces it as an ordinary error
+  // instead of this silently swallowing broken input.
+  private def extractNativeExternals(
+      ls: Vector[String]
+  ): (Vector[(String, String)], Vector[String]) =
+    val found = Vector.newBuilder[(String, String)]
+    val remaining = Vector.newBuilder[String]
+    var i = 0
+    while i < ls.length do
+      ls(i) match
+        case nativeExternalOpenRe(name) =>
+          ((i + 1) until ls.length).find(j => ls(j).trim == "%}") match
+            case Some(j) =>
+              found += name -> ls.slice(i + 1, j).mkString("\n")
+              i = j + 1
+            case None =>
+              remaining += ls(i)
+              i += 1
+        case line =>
+          remaining += line
+          i += 1
+    (found.result(), remaining.result())
+
+  // Every native `external` block, synthesized as the exact `## Externals`/`### name`/```` ```javascript ````
+  // markdown shape `externalsSections` (and, through it, `withExternals`/`parseWithDocs`) already
+  // knows how to scan for — so attaching externals to a native `.gram`'s `Grammar` needs no changes
+  // to that machinery at all, only this one synthesis step. Always tagged `javascript`: every
+  // consumer of `Grammar.externals` (`BackendJs.jsImplOf`) resolves a fence via `Lr.normalizeLang`,
+  // which already folds "javascript" (among other spellings) to `"js"`, and `external { %} ` carries
+  // no language tag of its own to preserve — same as an ordinary inline `{% %}` action, whose
+  // language is always the document's own declared `lang:`, never spelled out at the action site.
+  private def externalsMarkdown(externals: Vector[(String, String)]): Vector[String] =
+    if externals.isEmpty then Vector.empty
+    else
+      val subsections = externals.map { case (name, code) =>
+        s"### $name\n\n```javascript\n$code\n```"
+      }
+      Vector(("## Externals" +: subsections).mkString("\n\n"))
+
   /** Read a fence-free `.gram` projection back to the fenced form the parser expects (a no-op on
     * already-fenced `.gram.md`). Each classified line-group becomes its own bare ```gramaire fence
     * — `fenceOrigins`/`classifyFenceContent` re-derive its role from content, exactly as for any
-    * `.gram.md` fence.
+    * `.gram.md` fence — except `external NAME {% ... %}` blocks, synthesized straight into the `##
+    * Externals` markdown shape instead (see `externalsMarkdown`).
     */
   def toFenced(src: String): String =
     // A leading `---` frontmatter block is blanked out (replaced by exactly as many empty
@@ -634,7 +711,8 @@ object Lr:
       case _                                         => src
     if defrontmattered.contains("```gramaire") then defrontmattered
     else
-      val ls = decomment(defrontmattered.split("\n", -1).toVector)
+      val (externals, rawLs) = extractNativeExternals(defrontmattered.split("\n", -1).toVector)
+      val ls = decomment(rawLs)
       val settingLines = ls.filter(isSettingDecl)
       val tokenLines = ls.filter(isTokenDef)
       val precLines = ls.filter(isPrecDecl)
@@ -643,7 +721,9 @@ object Lr:
         val trimmed = trimBlankEnds(body)
         if trimmed.isEmpty then Vector.empty
         else Vector(s"```gramaire\n${trimmed.mkString("\n")}\n```")
-      (block(settingLines) ++ block(tokenLines) ++ block(precLines) ++ block(prodLines))
+      (block(settingLines) ++ block(tokenLines) ++ block(precLines) ++ block(
+        prodLines
+      ) ++ externalsMarkdown(externals))
         .mkString("\n\n")
 
   /** `toFenced` plus whether it actually changed anything — i.e. whether `src` was a fence-free

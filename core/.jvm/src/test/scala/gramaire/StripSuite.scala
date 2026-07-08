@@ -10,7 +10,8 @@ class StripSuite extends munit.FunSuite:
       "grammar/Productions.gram.md",
       "examples/calc.gram.md",
       "examples/json.gram.md",
-      "examples/readme.gram.md"
+      "examples/readme.gram.md",
+      "examples/calc-delegate.gram.md"
     )
   do
     test(s"parse(strip(x)) == parse(x) for $path") {
@@ -39,3 +40,41 @@ class StripSuite extends munit.FunSuite:
       )
       assert(Lr.parse(strippedTwice).isRight, s"$path: twice-stripped form should still parse")
     }
+
+  // `## Externals`/`### name` (ADR D49) has no `` ```gramaire `` fence of its own (its fences are
+  // real host-language code, e.g. ` ```javascript `) — `section`'s generic keepableOpen check would
+  // silently drop the whole thing, losing every embedded delegate implementation, not merely
+  // reformatting it. `nativeExternalsSection` renders it as `external NAME {% ... %}` blocks
+  // instead, and `toFenced`'s `extractNativeExternals` reads that shape back into the exact
+  // `## Externals` markdown `Lr.withExternals` already knows how to scan — so this needs no changes
+  // to that machinery, only the synthesis in both directions.
+  test(
+    "strip preserves ## Externals as `external NAME {% ... %}`, round-tripping through parseWithDocs"
+  ) {
+    val md = readFile("examples/calc-delegate.gram.md")
+    val stripped = Lr.strip(md)
+    assert(stripped.contains("external Pow {%"), "Pow has an embedded impl and must survive strip")
+    assert(
+      stripped.contains("external Round {%"),
+      "Round has an embedded impl and must survive strip"
+    )
+    assert(
+      !stripped.contains("external Call {%"),
+      "Call has no embedded impl (deliberately unresolved) and must not appear as one"
+    )
+    Lr.parseWithDocs(Method.Canonical, stripped) match
+      case Left(e) => fail(s"stripped native form should still parse with docs: $e")
+      case Right(g) =>
+        val byName = g.externals.map(e => e.name -> e.impl).toMap
+        assert(byName.contains("Pow"), "Pow external should round-trip")
+        assert(
+          byName("Pow").values.exists(_.contains("Math.pow(c.factor, c.power)")),
+          s"Pow's embedded code should survive verbatim, got: ${byName("Pow")}"
+        )
+        assert(byName.contains("Round"), "Round external should round-trip")
+        assert(
+          byName("Round").values.exists(_.contains("Number(c.expr.toFixed(n))")),
+          s"Round's embedded code should survive verbatim, got: ${byName("Round")}"
+        )
+        assert(!byName.contains("Call"), "Call must still have no embedded impl after round-trip")
+  }
