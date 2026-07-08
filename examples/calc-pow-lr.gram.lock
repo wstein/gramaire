@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "mode": "sidecar",
+  "sourceLayout": "collapsed",
+  "name": "Calc (power)",
+  "grammarSha256": "63e402db386044f7ed463c8442bd8a0b8c8821259302ebf15af4bef4b3ccbb88",
+  "artifacts": [
+    {
+      "kind": "railroad",
+      "nonterminal": "expr",
+      "path": "diagrams-calc-pow-lr/expr.svg",
+      "sourceSha256": "eba487ae597869bc0cb663feffec18ab74c111dbd4a031a31d3094babfc7fa1a"
+    },
+    {
+      "kind": "tables",
+      "section": "Generated tables",
+      "sourceSha256": "63e402db386044f7ed463c8442bd8a0b8c8821259302ebf15af4bef4b3ccbb88"
+    }
+  ]
+}

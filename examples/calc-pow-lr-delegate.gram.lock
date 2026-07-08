@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "mode": "sidecar",
+  "sourceLayout": "collapsed",
+  "name": "Calc (power, lr, delegate)",
+  "grammarSha256": "4722cdafc49207d23890a50110b05987e7413e454ed3910ad9adf7d1b2e9b03b",
+  "artifacts": [
+    {
+      "kind": "railroad",
+      "nonterminal": "expr",
+      "path": "diagrams-calc-pow-lr-delegate/expr.svg",
+      "sourceSha256": "90fa12822b0f4adda3e0acdb30aa83e3abe2cf2d6fb7beda8186cee82514e421"
+    },
+    {
+      "kind": "tables",
+      "section": "Generated tables",
+      "sourceSha256": "4722cdafc49207d23890a50110b05987e7413e454ed3910ad9adf7d1b2e9b03b"
+    }
+  ]
+}

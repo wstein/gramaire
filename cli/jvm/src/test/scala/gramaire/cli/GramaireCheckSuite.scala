@@ -3,7 +3,7 @@ package gramaire.cli
 import gramaire.Railroad
 
 // Ported from the structural half of bootstrap/gramaire-check.test.ts, plus
-// a real drift check against the 8 gated grammar files' committed
+// a real drift check against the 9 gated grammar files' committed
 // `.gram.lock` sidecars — the exact CI idempotence gate this CLI replaces.
 class GramaireCheckSuite extends munit.FunSuite:
   private def readFile(path: String): String =
@@ -13,6 +13,7 @@ class GramaireCheckSuite extends munit.FunSuite:
     "grammar/Productions.gram.md",
     "examples/calc.gram.md",
     "examples/calc-prec.gram.md",
+    "examples/calc-pow-lr.gram.md",
     "examples/calc-js.gram.md",
     "examples/json.gram.md",
     "examples/readme.gram.md",
@@ -35,7 +36,7 @@ class GramaireCheckSuite extends munit.FunSuite:
   // — the `lr` notation's `Alt`/`SymList` productions require at least one
   // symbol, so ANTLR's "empty alt" idiom has no home yet); that is a
   // pre-existing notation gap unrelated to this gate and is not fixed here.
-  test("the 8 CI-gated grammar files pass both the structure and drift gates") {
+  test("the 9 CI-gated grammar files pass both the structure and drift gates") {
     for file <- gatedFiles do
       val doc = GramaireCheck.parse(readFile(file))
       assertEquals(GramaireCheck.checkStructure(doc), Vector.empty, s"$file: structure")
